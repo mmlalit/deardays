@@ -64,6 +64,19 @@ class AiService {
     defaultValue: '',
   );
 
+  /// Whether the AI backend is configured. When false, all API calls
+  /// throw immediately so Dio doesn't fire requests against the host page URL.
+  bool get isConfigured => _apiBaseUrl.isNotEmpty;
+
+  void _ensureConfigured(String method) {
+    if (!isConfigured) {
+      throw AiServiceException(
+        '[$method] AI_API_URL is not configured. '
+        'Pass --dart-define=AI_API_URL=https://your-api.com when building.',
+      );
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
@@ -75,13 +88,16 @@ class AiService {
   Future<String> polishNarrative(
     String rawText, {
     String style = 'memoir',
+    String? language,
   }) async {
+    _ensureConfigured('polishNarrative');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         '/api/polish',
         data: {
           'text': rawText,
           'style': style,
+          if (language != null) 'language': language,
         },
         options: Options(
           receiveTimeout: const Duration(seconds: 30),
@@ -96,6 +112,7 @@ class AiService {
 
   /// Sends an audio file for Whisper transcription and returns the transcript.
   Future<String> transcribeAudio(String audioFilePath) async {
+    _ensureConfigured('transcribeAudio');
     try {
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(audioFilePath),
@@ -120,13 +137,16 @@ class AiService {
   Future<String> generateSummary(
     List<String> entries, {
     String period = 'weekly',
+    String? language,
   }) async {
+    _ensureConfigured('generateSummary');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         '/api/summarize',
         data: {
           'entries': entries,
           'period': period,
+          if (language != null) 'language': language,
         },
         options: Options(
           receiveTimeout: const Duration(seconds: 30),
@@ -141,6 +161,7 @@ class AiService {
 
   /// Returns a creative writing prompt from the AI backend.
   Future<String> getWritingPrompt() async {
+    _ensureConfigured('getWritingPrompt');
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/api/prompt',
@@ -160,11 +181,16 @@ class AiService {
   /// [messages] is the conversation history as a list of {role, content} maps.
   /// [mood] is the user's current mood (optional context for the AI).
   /// [isFirstCheckIn] indicates if this is the first check-in of the day.
+  /// [language] is the user's preferred language (e.g. 'Dutch', 'German').
+  /// The AI will default to this language but mirror the user's language
+  /// if they switch mid-conversation.
   Future<String> chat({
     required List<Map<String, String>> messages,
     String? mood,
     bool isFirstCheckIn = false,
+    String? language,
   }) async {
+    _ensureConfigured('chat');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         '/api/chat',
@@ -172,6 +198,7 @@ class AiService {
           'messages': messages,
           'mood': mood,
           'is_first_checkin': isFirstCheckIn,
+          if (language != null) 'language': language,
         },
         options: Options(
           receiveTimeout: const Duration(seconds: 30),
@@ -186,6 +213,7 @@ class AiService {
 
   /// Detects recurring themes and patterns across the supplied entries.
   Future<List<String>> detectThemes(List<String> entries) async {
+    _ensureConfigured('detectThemes');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         '/api/themes',

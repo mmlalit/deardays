@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/core/providers/subscription_providers.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
@@ -140,7 +141,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         content: Text(
           'To cancel, manage your subscription in your device\'s app store settings. '
           'You will keep access until the end of your current billing period.',
-          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: Colors.black54),
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -180,22 +181,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgLight,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 22, color: Color(0xFF2D2D2D)),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Subscription',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF2D2D2D),
-          ),
-        ),
+      appBar: DearDaysHeader.appBar(
+        context: context,
+        title: 'Subscription',
       ),
       body: (_isLoadingProfile || sub.isLoading)
           ? const Center(child: CircularProgressIndicator())
@@ -371,7 +359,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF2D2D2D),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -413,7 +401,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF2D2D2D),
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -480,7 +468,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF2D2D2D),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       if (badge != null) ...[
@@ -559,7 +547,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF2D2D2D),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],

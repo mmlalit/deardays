@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 
 class OnThisDayScreen extends StatelessWidget {
   const OnThisDayScreen({super.key});
@@ -13,44 +14,10 @@ class OnThisDayScreen extends StatelessWidget {
         child: Column(
           children: [
             // ── Header ──
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).maybePop(),
-                    child: const Icon(Icons.arrow_back_ios_new,
-                        size: 22, color: Colors.black87),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ON THIS DAY',
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Revisiting your favorite chapters',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            const DearDaysHeader(
+              title: 'On This Day',
+              subtitle: 'Revisiting your favorite chapters',
+              mode: HeaderMode.push,
             ),
 
             const SizedBox(height: 8),
@@ -109,7 +76,7 @@ class OnThisDayScreen extends StatelessWidget {
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,
-        color: Colors.black45,
+        color: AppColors.textMuted,
       ),
     );
   }
@@ -167,14 +134,14 @@ class OnThisDayScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Icon(Icons.place, size: 14, color: Colors.black45),
+                  Icon(Icons.place, size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 4),
                   Text(
                     location,
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   const Spacer(),
@@ -185,7 +152,7 @@ class OnThisDayScreen extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -197,7 +164,7 @@ class OnThisDayScreen extends StatelessWidget {
                   fontSize: 17,
                   fontStyle: FontStyle.italic,
                   height: 1.7,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -276,7 +243,7 @@ class OnThisDayScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Icon(Icons.place, size: 14, color: Colors.black45),
+                Icon(Icons.place, size: 14, color: AppColors.textMuted),
                 const SizedBox(width: 4),
                 Text(
                   location,
@@ -284,7 +251,7 @@ class OnThisDayScreen extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.8,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -295,7 +262,7 @@ class OnThisDayScreen extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -330,7 +297,7 @@ class OnThisDayScreen extends StatelessWidget {
                       fontSize: 15,
                       fontStyle: FontStyle.italic,
                       height: 1.55,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   Align(
@@ -406,7 +373,7 @@ class OnThisDayScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.chat_bubble_outline,
-                size: 18, color: Colors.black38),
+                size: 18, color: AppColors.textMuted),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
@@ -414,7 +381,7 @@ class OnThisDayScreen extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   height: 1.45,
-                  color: Colors.black54,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),

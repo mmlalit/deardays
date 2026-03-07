@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/core/providers/subscription_providers.dart';
 import 'package:deardays/features/settings/presentation/screens/terms_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
@@ -81,16 +82,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           children: [
             // Header
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: GestureDetector(
-                      onTap: () => Navigator.of(context).maybePop(),
-                      child: const Icon(Icons.close, size: 26, color: Colors.black87),
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.close, size: 24, color: AppColors.textPrimary),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                     ),
                   ),
                   Text(
@@ -121,7 +123,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         height: 1.25,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -205,7 +207,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: Colors.black45,
+                        color: AppColors.textMuted,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -220,7 +222,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             'Terms',
                             style: GoogleFonts.inter(
                               fontSize: 13,
-                              color: Colors.black54,
+                              color: AppColors.textSecondary,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -231,7 +233,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             'and',
                             style: GoogleFonts.inter(
                               fontSize: 13,
-                              color: Colors.black45,
+                              color: AppColors.textMuted,
                             ),
                           ),
                         ),
@@ -243,7 +245,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             'Privacy Policy',
                             style: GoogleFonts.inter(
                               fontSize: 13,
-                              color: Colors.black54,
+                              color: AppColors.textSecondary,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -297,7 +299,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -305,7 +307,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 'Page 30',
                 style: GoogleFonts.inter(
                   fontSize: 11,
-                  color: Colors.black38,
+                  color: AppColors.textMuted,
                 ),
               ),
             ],
@@ -360,7 +362,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -430,7 +432,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       if (badgeText != null) ...[
@@ -459,7 +461,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     subtitle,
                     style: GoogleFonts.inter(
                       fontSize: 13,
-                      color: Colors.black45,
+                      color: AppColors.textMuted,
                     ),
                   ),
                 ],

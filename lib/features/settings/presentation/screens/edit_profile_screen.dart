@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 
@@ -177,22 +178,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgLight,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 22, color: Color(0xFF2D2D2D)),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Edit Profile',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF2D2D2D),
-          ),
-        ),
+      appBar: DearDaysHeader.appBar(
+        context: context,
+        title: 'Edit Profile',
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -411,7 +399,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
-      style: GoogleFonts.inter(fontSize: 15, color: const Color(0xFF2D2D2D)),
+      style: GoogleFonts.inter(fontSize: 15, color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.inter(fontSize: 15, color: Colors.grey.shade400),

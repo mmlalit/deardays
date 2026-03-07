@@ -14,7 +14,7 @@ class ProfileRepository {
   /// Fetches the current user's profile.
   Future<UserProfile?> getProfile() async {
     final response = await _client
-        .from('user_profiles')
+        .from('profiles')
         .select()
         .eq('id', _userId)
         .maybeSingle();
@@ -31,7 +31,7 @@ class ProfileRepository {
     map.remove('created_at');
 
     final response = await _client
-        .from('user_profiles')
+        .from('profiles')
         .update(map)
         .eq('id', _userId)
         .select()

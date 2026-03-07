@@ -1,0 +1,114 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "DearDays",
+
+  "settings": "Settings",
+  "editProfile": "Edit Profile",
+  "account": "ACCOUNT",
+  "email": "Email",
+  "password": "Password",
+  "subscription": "Subscription",
+  "manage": "Manage",
+
+  "journaling": "JOURNALING",
+  "dailyReminder": "Daily Reminder",
+  "dailyReminderSet": "Daily reminder set for {time}",
+  "@dailyReminderSet": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "writingStyle": "Writing Style",
+  "writingStyleUpdated": "Writing style updated to {style}",
+  "@writingStyleUpdated": {
+    "placeholders": {
+      "style": { "type": "String" }
+    }
+  },
+  "writingStyleFailed": "Failed to update writing style.",
+  "memoir": "Memoir",
+  "memoirDesc": "Third-person narrative, reflective tone",
+  "diary": "Diary",
+  "diaryDesc": "First-person, casual daily entries",
+  "story": "Story",
+  "storyDesc": "Cinematic storytelling, vivid scenes",
+  "chapterOrganization": "Chapter Organization",
+
+  "appearance": "APPEARANCE",
+
+  "language": "LANGUAGE",
+  "appLanguage": "App Language",
+  "systemDefault": "System Default",
+
+  "privacySecurity": "PRIVACY & SECURITY",
+  "biometricLock": "Biometric Lock",
+  "verifyBiometric": "Verify your identity to enable biometric lock",
+  "pinLock": "PIN Lock",
+  "patternLock": "Pattern Lock",
+  "active": "Active",
+  "setUp": "Set up",
+  "encryptionInfo": "Encryption Info",
+  "zeroKnowledgeEncryption": "Zero-Knowledge Encryption",
+  "algorithm": "Algorithm",
+  "keyDerivation": "Key Derivation",
+  "salt": "Salt",
+  "uniqueSalt": "Unique 256-bit per user",
+  "encryptionExplanation": "Your encryption key is derived from your password and never leaves your device. The server stores only encrypted blobs \u2014 we cannot read your journal entries.",
+  "gotIt": "Got it",
+
+  "data": "DATA",
+  "exportAllData": "Export All Data",
+  "exportYourData": "Export Your Data",
+  "exportingData": "Exporting your data...",
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "json": "JSON",
+  "jsonDesc": "Machine-readable, includes all fields",
+  "pdf": "PDF",
+  "pdfDesc": "Print-ready book format",
+  "deleteAccount": "Delete Account",
+  "deleteAccountTitle": "Delete Account?",
+  "deleteAccountWarning": "This will permanently delete your account and all journal entries. This action cannot be undone.\n\nYour encrypted data will be erased from the server.",
+  "cancel": "Cancel",
+  "deleteEverything": "Delete Everything",
+  "typeDeleteToConfirm": "Type DELETE to confirm",
+  "confirmDelete": "Confirm Delete",
+  "deleteAccountFailed": "Failed to delete account. Please try again.",
+
+  "about": "ABOUT",
+  "version": "Version",
+  "privacyPolicy": "Privacy Policy",
+  "termsOfService": "Terms of Service",
+
+  "moodGreat": "great",
+  "moodGood": "good",
+  "moodOkay": "okay",
+  "moodLow": "low",
+  "moodTough": "tough",
+
+  "whatsUp": "What's up?",
+  "tellMeMore": "I hear you. Tell me more about that.",
+  "moodGreatResponse": "That's amazing! What's making your day so great?",
+  "moodGoodResponse": "Nice to hear! What good things happened today?",
+  "moodOkayResponse": "Fair enough. Want to talk about what's on your mind?",
+  "moodLowResponse": "I'm sorry you're feeling low. What happened?",
+  "moodToughResponse": "That sounds hard. I'm here for you. Want to share what's going on?",
+  "moodDefaultResponse": "Thanks for sharing. Tell me more about your day.",
+
+  "save": "Save",
+  "delete": "Delete",
+  "newEntry": "New Entry",
+  "today": "Today",
+  "noEntries": "No entries yet",
+  "entriesCount": "{count, plural, =0{No entries} =1{1 entry} other{{count} entries}}",
+  "@entriesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
+}

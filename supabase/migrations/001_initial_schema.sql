@@ -286,7 +286,7 @@ BEGIN
   INSERT INTO public.profiles (id, encryption_salt)
   VALUES (
     NEW.id,
-    encode(gen_random_bytes(32), 'hex')   -- 256-bit random salt
+    md5(random()::text) || md5(random()::text)   -- 64-char hex salt (no pgcrypto needed)
   );
   RETURN NEW;
 END;

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
@@ -92,34 +93,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   PreferredSizeWidget _buildAppBar(CheckInState state) {
     final sessionCount = state.sections.length;
 
-    return AppBar(
-      backgroundColor: AppColors.bgLight,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-        onPressed: () => context.pop(),
-      ),
-      title: Column(
-        children: [
-          Text(
-            'Check-in',
-            style: GoogleFonts.inter(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          if (sessionCount > 0)
-            Text(
-              'Session $sessionCount today',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: AppColors.textMuted,
-              ),
-            ),
-        ],
-      ),
-      centerTitle: true,
+    return DearDaysHeader.appBar(
+      context: context,
+      title: 'Check-in',
       actions: [
         if (state.currentMood != null)
           GestureDetector(

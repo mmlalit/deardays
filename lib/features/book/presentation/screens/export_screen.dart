@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
@@ -191,27 +192,9 @@ class _ExportScreenState extends State<ExportScreen> {
         child: Column(
           children: [
             // ── Header ──
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).maybePop(),
-                    child: const Icon(Icons.arrow_back_ios_new,
-                        size: 22, color: Colors.black87),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Export Your Story',
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
+            const DearDaysHeader(
+              title: 'Export Your Story',
+              mode: HeaderMode.push,
             ),
 
             // ── Scrollable body ──
@@ -233,7 +216,7 @@ class _ExportScreenState extends State<ExportScreen> {
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.4,
-                          color: Colors.black38,
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ),
@@ -271,7 +254,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color:
-                                      selected ? Colors.white : Colors.black87,
+                                      selected ? Colors.white : AppColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -303,7 +286,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                   shape: BoxShape.circle,
                                   border: selected
                                       ? Border.all(
-                                          color: Colors.black87, width: 2.5)
+                                          color: AppColors.textPrimary, width: 2.5)
                                       : null,
                                   boxShadow: selected
                                       ? [
@@ -325,7 +308,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                   fontWeight: selected
                                       ? FontWeight.w700
                                       : FontWeight.w500,
-                                  color: Colors.black54,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -360,7 +343,7 @@ class _ExportScreenState extends State<ExportScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -368,7 +351,7 @@ class _ExportScreenState extends State<ExportScreen> {
                             'Perfect for sharing and tablets',
                             style: GoogleFonts.inter(
                               fontSize: 13,
-                              color: Colors.black45,
+                              color: AppColors.textMuted,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -559,7 +542,7 @@ class _ExportScreenState extends State<ExportScreen> {
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,
-        color: Colors.black45,
+        color: AppColors.textMuted,
       ),
     );
   }
@@ -592,7 +575,7 @@ class _ExportScreenState extends State<ExportScreen> {
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -601,7 +584,7 @@ class _ExportScreenState extends State<ExportScreen> {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.black45,
+              color: AppColors.textMuted,
             ),
           ),
         ],

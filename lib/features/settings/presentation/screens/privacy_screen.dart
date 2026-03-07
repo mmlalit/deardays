@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 
 class PrivacyScreen extends StatelessWidget {
   const PrivacyScreen({super.key});
@@ -9,22 +10,9 @@ class PrivacyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgLight,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 22, color: Color(0xFF2D2D2D)),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Privacy Policy',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF2D2D2D),
-          ),
-        ),
+      appBar: DearDaysHeader.appBar(
+        context: context,
+        title: 'Privacy Policy',
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -216,7 +204,7 @@ class PrivacyScreen extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF2D2D2D),
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 10),
@@ -225,7 +213,7 @@ class PrivacyScreen extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: const Color(0xFF4A4A4A),
+              color: AppColors.textSecondary,
               height: 1.65,
             ),
           ),

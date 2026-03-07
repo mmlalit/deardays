@@ -6,41 +6,20 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/book/data/models/book.dart';
-import 'package:deardays/features/book/presentation/screens/conversations_view.dart';
 import 'package:deardays/features/book/presentation/screens/life_book_view.dart';
 
-class MyStoryScreen extends ConsumerStatefulWidget {
+class MyStoryScreen extends ConsumerWidget {
   final String bookId;
 
   const MyStoryScreen({super.key, required this.bookId});
 
   @override
-  ConsumerState<MyStoryScreen> createState() => _MyStoryScreenState();
-}
-
-class _MyStoryScreenState extends ConsumerState<MyStoryScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final booksAsync = ref.watch(booksProvider);
 
     return booksAsync.when(
       data: (books) {
-        final book = books.where((b) => b.id == widget.bookId).firstOrNull;
+        final book = books.where((b) => b.id == bookId).firstOrNull;
         if (book == null) {
           return Scaffold(
             body: Center(
@@ -48,7 +27,8 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Book not found',
-                      style: GoogleFonts.inter(color: AppColors.textSecondary)),
+                      style:
+                          GoogleFonts.inter(color: AppColors.textSecondary)),
                   const SizedBox(height: 12),
                   TextButton(
                     onPressed: () => context.go('/book'),
@@ -59,7 +39,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen>
             ),
           );
         }
-        return _buildContent(book);
+        return _buildContent(context, book);
       },
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -74,31 +54,22 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen>
     );
   }
 
-  Widget _buildContent(Book book) {
+  Widget _buildContent(BuildContext context, Book book) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(book),
+            _buildHeader(context, book),
             const SizedBox(height: 4),
-            _buildTabBar(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: const [
-                  ConversationsView(),
-                  LifeBookView(),
-                ],
-              ),
-            ),
+            const Expanded(child: LifeBookView()),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(Book book) {
+  Widget _buildHeader(BuildContext context, Book book) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
@@ -124,47 +95,6 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(20),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(15),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: AppColors.textPrimary,
-        unselectedLabelColor: AppColors.textSecondary,
-        labelStyle: GoogleFonts.inter(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: GoogleFonts.inter(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-        tabs: const [
-          Tab(text: 'Conversations'),
-          Tab(text: 'Life Book'),
         ],
       ),
     );

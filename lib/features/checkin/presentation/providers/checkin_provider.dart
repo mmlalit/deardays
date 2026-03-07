@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/core/providers/locale_provider.dart';
 
 // ---------------------------------------------------------------------------
 // State
@@ -19,14 +20,23 @@ class CheckInState {
   final bool isFirstCheckInToday;
   final bool isLoading;
   final String? error;
+  final DateTime loadedDate;
 
-  const CheckInState({
+  CheckInState({
     this.currentMood,
     this.sections = const [],
     this.isFirstCheckInToday = true,
     this.isLoading = false,
     this.error,
-  });
+    DateTime? loadedDate,
+  }) : loadedDate = loadedDate ?? DateTime.now();
+
+  bool get isViewingToday {
+    final now = DateTime.now();
+    return loadedDate.year == now.year &&
+        loadedDate.month == now.month &&
+        loadedDate.day == now.day;
+  }
 
   CheckInState copyWith({
     String? currentMood,
@@ -34,6 +44,7 @@ class CheckInState {
     bool? isFirstCheckInToday,
     bool? isLoading,
     String? error,
+    DateTime? loadedDate,
   }) {
     return CheckInState(
       currentMood: currentMood ?? this.currentMood,
@@ -41,6 +52,7 @@ class CheckInState {
       isFirstCheckInToday: isFirstCheckInToday ?? this.isFirstCheckInToday,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      loadedDate: loadedDate ?? this.loadedDate,
     );
   }
 
@@ -75,18 +87,20 @@ const _returnGreetings = [
 // ---------------------------------------------------------------------------
 
 class CheckInNotifier extends StateNotifier<CheckInState> {
-  CheckInNotifier(this._aiService) : super(const CheckInState()) {
+  CheckInNotifier(this._aiService, {this.language}) : super(const CheckInState()) {
     _loadTodayData();
   }
 
   final AiService _aiService;
+  final String? language;
   static const _uuid = Uuid();
   static const _boxName = 'checkin_conversations';
 
-  String get _todayKey {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  static String dateKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
+
+  String get _todayKey => dateKey(DateTime.now());
 
   // ── Persistence ──────────────────────────────────────────────────────
 
@@ -115,6 +129,51 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       'sections': state.sections.map((s) => s.toJson()).toList(),
     };
     await box.put(_todayKey, jsonEncode(data));
+  }
+
+  // ── Load data for a specific date ───────────────────────────────────
+
+  Future<void> loadDataForDate(DateTime date) async {
+    final key = dateKey(date);
+    final box = await Hive.openBox(_boxName);
+    final raw = box.get(key);
+
+    if (raw != null) {
+      final data = jsonDecode(raw as String) as Map<String, dynamic>;
+      final sections = (data['sections'] as List<dynamic>)
+          .map((s) => ConversationSection.fromJson(s as Map<String, dynamic>))
+          .toList();
+
+      state = CheckInState(
+        currentMood: data['mood'] as String?,
+        sections: sections,
+        isFirstCheckInToday: false,
+        loadedDate: date,
+      );
+    } else {
+      state = CheckInState(
+        isFirstCheckInToday: true,
+        loadedDate: date,
+      );
+    }
+  }
+
+  Future<void> goBackToToday() async {
+    state = const CheckInState();
+    await _loadTodayData();
+  }
+
+  static Future<List<DateTime>> getAvailableDates() async {
+    final box = await Hive.openBox(_boxName);
+    final keys = box.keys.cast<String>().toList();
+    final dates = <DateTime>[];
+    for (final key in keys) {
+      try {
+        dates.add(DateTime.parse(key));
+      } catch (_) {}
+    }
+    dates.sort((a, b) => b.compareTo(a)); // newest first
+    return dates;
   }
 
   // ── Mood selection ───────────────────────────────────────────────────
@@ -223,6 +282,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
         messages: history,
         mood: state.currentMood,
         isFirstCheckIn: state.sections.length == 1,
+        language: language,
       );
       _addAiMessage(reply);
       state = state.copyWith(isLoading: false);
@@ -283,15 +343,20 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   Future<String> _getAiMoodResponse(String mood) async {
-    final prompt = _moodPromptMap[mood.toLowerCase()] ??
+    final basePrompt = _moodPromptMap[mood.toLowerCase()] ??
         "The user is feeling $mood today. Respond warmly and ask them to share more.";
+
+    final langInstruction = language != null && language != 'English'
+        ? " The user's preferred language is $language. Default to $language, but if the user writes in a different language, respond in that language instead."
+        : " Respond in the same language the user writes in.";
 
     return _aiService.chat(
       messages: [
-        {'role': 'system', 'content': prompt},
+        {'role': 'system', 'content': basePrompt + langInstruction},
       ],
       mood: mood,
       isFirstCheckIn: true,
+      language: language,
     );
   }
 
@@ -332,5 +397,12 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
 
 final checkInProvider =
     StateNotifierProvider<CheckInNotifier, CheckInState>((ref) {
-  return CheckInNotifier(AiService());
+  final language = ref.watch(localeProvider).languageName;
+  return CheckInNotifier(AiService(), language: language);
+});
+
+final availableDatesProvider = FutureProvider<List<DateTime>>((ref) async {
+  // Re-read whenever checkInProvider changes (new entries saved)
+  ref.watch(checkInProvider);
+  return CheckInNotifier.getAvailableDates();
 });

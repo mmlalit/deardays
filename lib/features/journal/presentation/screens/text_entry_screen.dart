@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
@@ -176,23 +177,10 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgLight,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        centerTitle: true,
-        title: Text(
-          'New Entry',
-          style: GoogleFonts.inter(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-        ),
+      appBar: DearDaysHeader.appBar(
+        context: context,
+        title: 'New Entry',
+        mode: HeaderMode.modal,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : () => _saveEntry(),
@@ -256,7 +244,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
               height: 1.4,
             ),
           ),
@@ -297,7 +285,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           style: GoogleFonts.playfairDisplay(
             fontSize: 24,
             fontWeight: FontWeight.w700,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -309,7 +297,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           style: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w400,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
             height: 1.7,
           ),
           decoration: InputDecoration(
@@ -317,7 +305,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             hintStyle: GoogleFonts.inter(
               fontSize: 16,
               fontWeight: FontWeight.w400,
-              color: Colors.black26,
+              color: AppColors.textMuted,
               height: 1.7,
             ),
             border: InputBorder.none,
@@ -350,7 +338,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                   : Icons.photo_outlined,
               color: _attachedPhotoPath != null
                   ? AppColors.primary
-                  : Colors.black54,
+                  : AppColors.textSecondary,
               size: 24,
             ),
             padding: EdgeInsets.zero,
@@ -365,7 +353,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                   : Icons.location_on_outlined,
               color: _locationName != null
                   ? AppColors.primary
-                  : Colors.black54,
+                  : AppColors.textSecondary,
               size: 24,
             ),
             padding: EdgeInsets.zero,
@@ -391,7 +379,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.black54,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(width: 8),
