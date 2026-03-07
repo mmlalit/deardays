@@ -1,12 +1,12 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 
@@ -23,7 +23,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Trigger check-in after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowCheckIn();
     });
@@ -36,10 +35,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final state = ref.read(checkInProvider);
 
     if (state.isFirstCheckInToday && state.currentMood == null) {
-      // First visit of the day — go to check-in
       context.push('/checkin');
     } else {
-      // Return visit — start a new conversation section and go to check-in
       ref.read(checkInProvider.notifier).startReturnConversation();
       context.push('/checkin');
     }
@@ -55,11 +52,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
+          _buildStreakBadge(),
+          const SizedBox(height: 24),
           _buildMoodSelector(checkInState),
-          const SizedBox(height: 36),
-          _buildRecordButton(),
-          const SizedBox(height: 36),
+          const SizedBox(height: 28),
+          _buildActionButtons(),
+          const SizedBox(height: 28),
           _buildTodayEntry(checkInState),
           const SizedBox(height: 32),
         ],
@@ -67,19 +66,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  // Header
-  // ──────────────────────────────────────────────
+  // -- Header -----------------------------------------------------------
 
   Widget _buildHeader() {
     final now = DateTime.now();
-    final dateStr = DateFormat('MMMM d, yyyy').format(now).toUpperCase();
+    final dateStr = DateFormat('EEEE, MMMM d').format(now);
     final hour = now.hour;
     final greeting = hour < 12
         ? 'Good morning'
         : hour < 17
             ? 'Good afternoon'
             : 'Good evening';
+
+    // Get user's first name or initial
+    final user = Supabase.instance.client.auth.currentUser;
+    final email = user?.email ?? '';
+    final name = user?.userMetadata?['display_name'] as String? ??
+        user?.userMetadata?['full_name'] as String? ??
+        '';
+    final initial = name.isNotEmpty
+        ? name[0].toUpperCase()
+        : email.isNotEmpty
+            ? email[0].toUpperCase()
+            : '?';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,16 +100,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Text(
                 dateStr,
                 style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                  letterSpacing: 1.5,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 greeting,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.playfairDisplay(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
@@ -124,7 +132,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           child: Center(
             child: Text(
-              'S',
+              initial,
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -137,9 +145,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  // Mood selector (shows current mood, tap to re-do)
-  // ──────────────────────────────────────────────
+  // -- Streak Badge -----------------------------------------------------
+
+  Widget _buildStreakBadge() {
+    final streakAsync = ref.watch(streakProvider);
+
+    return streakAsync.when(
+      data: (streak) {
+        final current = streak?.currentStreak ?? 0;
+        if (current == 0) return const SizedBox.shrink();
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.moodOkay.withAlpha(20),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.local_fire_department,
+                size: 18,
+                color: AppColors.moodOkay,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '$current day streak',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.moodOkay.withAlpha(204),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  // -- Mood Selector ----------------------------------------------------
 
   Widget _buildMoodSelector(CheckInState checkInState) {
     return Column(
@@ -183,7 +230,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             return GestureDetector(
               onTap: () {
-                // Navigate to check-in with mood selection
                 if (checkInState.currentMood == null) {
                   ref.read(checkInProvider.notifier).selectMood(mood.label);
                   context.push('/checkin');
@@ -244,68 +290,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  // Record button
-  // ──────────────────────────────────────────────
+  // -- Action Buttons (Talk + Write, equal prominence) -------------------
 
-  Widget _buildRecordButton() {
-    return Center(
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () => context.push('/record'),
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        // Talk button
+        Expanded(
+          child: GestureDetector(
+            onTap: () => context.push('/checkin'),
             child: Container(
-              width: 80,
-              height: 80,
+              padding: const EdgeInsets.symmetric(vertical: 18),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
                 color: AppColors.primary,
+                borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withAlpha(89),
-                    blurRadius: 20,
-                    offset: const Offset(0, 6),
+                    color: AppColors.primary.withAlpha(64),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.mic,
-                size: 36,
-                color: Colors.white,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.mic, size: 22, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Talk',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            'Record your day',
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          GestureDetector(
+        ),
+        const SizedBox(width: 12),
+        // Write button
+        Expanded(
+          child: GestureDetector(
             onTap: () => context.push('/write'),
-            child: Text(
-              'Write instead',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.primary,
-                decoration: TextDecoration.underline,
-                decorationColor: AppColors.primary.withAlpha(102),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.primary.withAlpha(76),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.edit_outlined,
+                      size: 20, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Write',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  // ──────────────────────────────────────────────
-  // Today's entry — shows conversation sections
-  // ──────────────────────────────────────────────
+  // -- Today's Entry ----------------------------------------------------
 
   Widget _buildTodayEntry(CheckInState checkInState) {
     final sections = checkInState.sections;
@@ -416,7 +479,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: mood badge + time
               Row(
                 children: [
                   if (section.mood != null)
@@ -464,7 +526,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              // Preview text
               Text(
                 preview,
                 style: GoogleFonts.playfairDisplay(
@@ -493,9 +554,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ──────────────────────────────────────────────
-  // Mood helpers
-  // ──────────────────────────────────────────────
+  // -- Mood helpers -----------------------------------------------------
 
   IconData _moodIcon(String mood) {
     switch (mood.toLowerCase()) {
@@ -540,10 +599,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         'Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
   ];
 }
-
-// ──────────────────────────────────────────────
-// Data model
-// ──────────────────────────────────────────────
 
 class _MoodOption {
   final String label;

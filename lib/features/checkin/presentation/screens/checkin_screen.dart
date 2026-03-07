@@ -27,7 +27,16 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     _MoodOption('Good', Icons.sentiment_satisfied, AppColors.moodGood),
     _MoodOption('Okay', Icons.sentiment_neutral, AppColors.moodOkay),
     _MoodOption('Low', Icons.sentiment_dissatisfied, AppColors.moodLow),
-    _MoodOption('Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
+    _MoodOption(
+        'Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
+  ];
+
+  static const _promptSuggestions = [
+    'What made me smile today',
+    'Something I learned',
+    'A challenge I faced',
+    'I\'m grateful for...',
+    'How I\'m really feeling',
   ];
 
   @override
@@ -53,7 +62,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(checkInProvider);
 
-    // Scroll to bottom when new messages arrive
     ref.listen(checkInProvider, (prev, next) {
       if (prev != null &&
           next.sections.isNotEmpty &&
@@ -79,9 +87,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
   }
 
-  // ── App Bar ──────────────────────────────────────────────────────────
+  // -- App Bar ----------------------------------------------------------
 
   PreferredSizeWidget _buildAppBar(CheckInState state) {
+    final sessionCount = state.sections.length;
+
     return AppBar(
       backgroundColor: AppColors.bgLight,
       elevation: 0,
@@ -89,13 +99,25 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
         icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
         onPressed: () => context.pop(),
       ),
-      title: Text(
-        'Check-in',
-        style: GoogleFonts.inter(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
+      title: Column(
+        children: [
+          Text(
+            'Check-in',
+            style: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          if (sessionCount > 0)
+            Text(
+              'Session $sessionCount today',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppColors.textMuted,
+              ),
+            ),
+        ],
       ),
       centerTitle: true,
       actions: [
@@ -104,7 +126,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             onTap: () => _showMoodPicker(),
             child: Container(
               margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: _moodColor(state.currentMood!).withAlpha(31),
                 borderRadius: BorderRadius.circular(20),
@@ -134,7 +157,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
   }
 
-  // ── Mood Selection ───────────────────────────────────────────────────
+  // -- Mood Selection ---------------------------------------------------
 
   Widget _buildMoodSelection() {
     return Center(
@@ -166,8 +189,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: _moods.map((mood) {
                 return GestureDetector(
-                  onTap: () =>
-                      ref.read(checkInProvider.notifier).selectMood(mood.label),
+                  onTap: () => ref
+                      .read(checkInProvider.notifier)
+                      .selectMood(mood.label),
                   child: Column(
                     children: [
                       Container(
@@ -193,23 +217,99 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 );
               }).toList(),
             ),
+            const SizedBox(height: 32),
+            GestureDetector(
+              onTap: () =>
+                  ref.read(checkInProvider.notifier).selectMood('Okay'),
+              child: Text(
+                'Skip for now',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.textMuted.withAlpha(102),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ── Chat View ────────────────────────────────────────────────────────
+  // -- Chat View --------------------------------------------------------
 
   Widget _buildChatView(CheckInState state) {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: state.sections.length,
-      itemBuilder: (context, sectionIndex) {
-        final section = state.sections[sectionIndex];
-        return _buildSection(section, sectionIndex);
-      },
+    final hasMessages = state.allMessages.isNotEmpty;
+
+    return hasMessages
+        ? ListView.builder(
+            controller: _scrollController,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            itemCount: state.sections.length,
+            itemBuilder: (context, sectionIndex) {
+              final section = state.sections[sectionIndex];
+              return _buildSection(section, sectionIndex);
+            },
+          )
+        : _buildPromptSuggestions();
+  }
+
+  Widget _buildPromptSuggestions() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Not sure what to write?',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Try one of these prompts to get started',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _promptSuggestions.map((prompt) {
+              return GestureDetector(
+                onTap: () {
+                  _textController.text = prompt;
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withAlpha(38),
+                    ),
+                  ),
+                  child: Text(
+                    prompt,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -220,10 +320,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (sectionIndex > 0) const SizedBox(height: 20),
-        // Section header with time
         Center(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.primary.withAlpha(20),
               borderRadius: BorderRadius.circular(16),
@@ -267,15 +367,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        // Messages
-        ...section.messages.map((msg) => _buildMessageBubble(msg, section.id)),
+        ...section.messages
+            .map((msg) => _buildMessageBubble(msg, section.id)),
       ],
     );
   }
 
   Widget _buildMessageBubble(ChatMessage message, String sectionId) {
     final isUser = message.isUser;
-    final isEditing = _editingMessageId == message.id;
     final timeStr = DateFormat('h:mm a').format(message.timestamp);
 
     return Padding(
@@ -307,12 +406,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   ? () => _startEditing(sectionId, message)
                   : null,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isUser
-                      ? AppColors.primary
-                      : Colors.white,
+                  color: isUser ? AppColors.primary : Colors.white,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
@@ -358,7 +455,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                       message.text,
                       style: GoogleFonts.inter(
                         fontSize: 15,
-                        color: isUser ? Colors.white : AppColors.textPrimary,
+                        color:
+                            isUser ? Colors.white : AppColors.textPrimary,
                         height: 1.4,
                       ),
                     ),
@@ -383,7 +481,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
   }
 
-  // ── Input Bar ────────────────────────────────────────────────────────
+  // -- Input Bar --------------------------------------------------------
 
   Widget _buildInputBar(CheckInState state) {
     final isEditing = _editingMessageId != null;
@@ -422,14 +520,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   const Spacer(),
                   GestureDetector(
                     onTap: _cancelEditing,
-                    child: Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                    child: Icon(Icons.close,
+                        size: 16, color: AppColors.textMuted),
                   ),
                 ],
               ),
             ),
           Row(
             children: [
-              // Record button
               GestureDetector(
                 onTap: () => _handleVoiceRecord(),
                 child: Container(
@@ -447,7 +545,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              // Text input
               Expanded(
                 child: TextField(
                   controller: _textController,
@@ -456,14 +553,17 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     color: AppColors.textPrimary,
                   ),
                   decoration: InputDecoration(
-                    hintText: isEditing ? 'Edit your message...' : 'Type a message...',
+                    hintText: isEditing
+                        ? 'Edit your message...'
+                        : 'Type a message...',
                     hintStyle: GoogleFonts.inter(
                       fontSize: 15,
                       color: AppColors.textMuted,
                     ),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 8),
                   ),
                   textCapitalization: TextCapitalization.sentences,
                   maxLines: 4,
@@ -472,7 +572,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   onSubmitted: (_) => _handleSend(),
                 ),
               ),
-              // Send button
               GestureDetector(
                 onTap: state.isLoading ? null : _handleSend,
                 child: Container(
@@ -489,8 +588,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                           padding: EdgeInsets.all(10),
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white),
                           ),
                         )
                       : const Icon(
@@ -507,7 +606,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
   }
 
-  // ── Actions ──────────────────────────────────────────────────────────
+  // -- Actions ----------------------------------------------------------
 
   void _handleSend() {
     final text = _textController.text.trim();
@@ -528,11 +627,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   void _handleVoiceRecord() {
-    // Navigate to recording screen, then send transcribed text
-    context.push('/record').then((_) {
-      // The recording screen would return transcribed text
-      // For now, this navigates to the existing record screen
-    });
+    context.push('/record').then((_) {});
   }
 
   void _startEditing(String sectionId, ChatMessage message) {
@@ -591,7 +686,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                           shape: BoxShape.circle,
                           color: mood.color.withAlpha(31),
                         ),
-                        child: Icon(mood.icon, size: 26, color: mood.color),
+                        child:
+                            Icon(mood.icon, size: 26, color: mood.color),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -607,14 +703,15 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 );
               }).toList(),
             ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
+            SizedBox(
+                height: MediaQuery.of(context).padding.bottom + 12),
           ],
         ),
       ),
     );
   }
 
-  // ── Mood helpers ─────────────────────────────────────────────────────
+  // -- Mood helpers -----------------------------------------------------
 
   IconData _moodIcon(String mood) {
     switch (mood.toLowerCase()) {

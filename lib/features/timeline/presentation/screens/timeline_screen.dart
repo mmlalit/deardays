@@ -37,17 +37,19 @@ class TimelineScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(),
+              _buildHeader(ref),
               const SizedBox(height: 24),
-              _buildMoodTrend(ref),
-              const SizedBox(height: 24),
-              _buildStreakCard(ref),
-              const SizedBox(height: 24),
+              _buildMoodCurve(ref),
+              const SizedBox(height: 20),
+              _buildStreakAndStats(ref),
+              const SizedBox(height: 20),
               _buildWeeklySummary(ref),
-              const SizedBox(height: 24),
-              _buildOnThisDay(ref),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              _buildMoodHeatmap(ref),
+              const SizedBox(height: 20),
               _buildMoodBreakdown(ref),
+              const SizedBox(height: 20),
+              _buildOnThisDay(ref),
               const SizedBox(height: 40),
             ],
           ),
@@ -56,26 +58,31 @@ class TimelineScreen extends ConsumerWidget {
     );
   }
 
-  // ── Header ─────────────────────────────────────────────────────────
+  // -- Header -----------------------------------------------------------
 
-  Widget _buildHeader() {
+  Widget _buildHeader(WidgetRef ref) {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final range =
+        '${DateFormat('MMM d').format(weekStart)} - ${DateFormat('MMM d').format(weekEnd)}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'INSIGHTS',
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2.5,
+          'Your Week in Review',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          'Your journaling patterns',
+          range,
           style: GoogleFonts.inter(
-            fontSize: 14,
+            fontSize: 13,
             color: AppColors.textSecondary,
           ),
         ),
@@ -83,9 +90,9 @@ class TimelineScreen extends ConsumerWidget {
     );
   }
 
-  // ── Mood Trend (7-day) ─────────────────────────────────────────────
+  // -- Mood Curve (smooth line chart) ------------------------------------
 
-  Widget _buildMoodTrend(WidgetRef ref) {
+  Widget _buildMoodCurve(WidgetRef ref) {
     final weeklyMoods = ref.watch(weeklyMoodsProvider);
 
     return Container(
@@ -96,14 +103,14 @@ class TimelineScreen extends ConsumerWidget {
         border: Border.all(color: AppColors.primary.withAlpha(20)),
       ),
       child: weeklyMoods.when(
-        data: (moods) => _buildMoodTrendContent(moods),
-        loading: () => _buildLoadingPlaceholder(height: 140),
+        data: (moods) => _buildMoodCurveContent(moods),
+        loading: () => _buildLoadingPlaceholder(height: 160),
         error: (_, __) => _buildErrorPlaceholder('Could not load mood data'),
       ),
     );
   }
 
-  Widget _buildMoodTrendContent(List<Map<String, String>> moods) {
+  Widget _buildMoodCurveContent(List<Map<String, String>> moods) {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final now = DateTime.now();
 
@@ -116,17 +123,19 @@ class TimelineScreen extends ConsumerWidget {
     }
 
     // Determine dominant mood label
-    String dominantLabel = 'No data';
+    String dominantLabel = 'No data yet';
+    Color dominantColor = AppColors.textMuted;
     if (moods.isNotEmpty) {
       final moodCounts = <String, int>{};
       for (final m in moods) {
-        final mood = m['mood']!;
+        final mood = m['mood']!.toLowerCase();
         moodCounts[mood] = (moodCounts[mood] ?? 0) + 1;
       }
       final top = moodCounts.entries.reduce(
         (a, b) => a.value >= b.value ? a : b,
       );
       dominantLabel = 'Mostly ${top.key}';
+      dominantColor = _moodColors[_moodToValue[top.key] ?? 2];
     }
 
     return Column(
@@ -135,7 +144,7 @@ class TimelineScreen extends ConsumerWidget {
         Row(
           children: [
             Text(
-              'Mood This Week',
+              'Mood Trend',
               style: GoogleFonts.inter(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -143,183 +152,189 @@ class TimelineScreen extends ConsumerWidget {
               ),
             ),
             const Spacer(),
-            if (moods.isNotEmpty)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.moodGood.withAlpha(31),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  dominantLabel,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.moodGood,
-                  ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: dominantColor.withAlpha(26),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                dominantLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: dominantColor,
                 ),
               ),
+            ),
           ],
         ),
         const SizedBox(height: 20),
         if (moods.isEmpty)
           Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                'Start journaling to see your mood trends',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: AppColors.textMuted,
-                ),
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                children: [
+                  Icon(Icons.show_chart, size: 36, color: AppColors.textMuted.withAlpha(76)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start journaling to see your mood trends',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
           )
         else
           SizedBox(
-            height: 100,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(7, (i) {
-                final weekday = i + 1; // Monday=1 ... Sunday=7
-                final value = weekMoods[weekday];
-                final hasData = value != null;
-                final barHeight =
-                    hasData ? 20.0 + (value / 4) * 80.0 : 8.0;
-                final isToday = weekday == now.weekday;
-
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          height: barHeight,
-                          decoration: BoxDecoration(
-                            color: hasData
-                                ? (isToday
-                                    ? _moodColors[value]
-                                    : _moodColors[value].withAlpha(128))
-                                : AppColors.textMuted.withAlpha(38),
-                            borderRadius: BorderRadius.circular(6),
-                            border: isToday && hasData
-                                ? Border.all(
-                                    color: _moodColors[value], width: 2)
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          days[i],
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: isToday
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: isToday
-                                ? AppColors.textPrimary
-                                : AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
+            height: 130,
+            child: CustomPaint(
+              size: const Size(double.infinity, 130),
+              painter: _MoodCurvePainter(
+                weekMoods: weekMoods,
+                todayWeekday: now.weekday,
+                moodColors: _moodColors,
+              ),
             ),
           ),
+        if (moods.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (i) {
+              final weekday = i + 1;
+              final isToday = weekday == now.weekday;
+              return SizedBox(
+                width: 36,
+                child: Text(
+                  days[i],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                    color: isToday ? AppColors.textPrimary : AppColors.textMuted,
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
       ],
     );
   }
 
-  // ── Streak Card ────────────────────────────────────────────────────
+  // -- Streak + Stats Row ------------------------------------------------
 
-  Widget _buildStreakCard(WidgetRef ref) {
+  Widget _buildStreakAndStats(WidgetRef ref) {
     final streakAsync = ref.watch(streakProvider);
+    final totalAsync = ref.watch(totalEntriesProvider);
 
-    return streakAsync.when(
-      data: (streak) => _buildStreakContent(streak),
-      loading: () => _buildLoadingPlaceholder(height: 84),
-      error: (_, __) => const SizedBox.shrink(),
+    return Row(
+      children: [
+        // Streak card
+        Expanded(
+          child: streakAsync.when(
+            data: (streak) => _buildStatCard(
+              icon: Icons.local_fire_department,
+              iconColor: (streak?.currentStreak ?? 0) > 0
+                  ? AppColors.moodOkay
+                  : AppColors.textMuted,
+              value: '${streak?.currentStreak ?? 0}',
+              label: 'Day Streak',
+              subtitle: 'Best: ${streak?.longestStreak ?? 0}',
+            ),
+            loading: () => _buildLoadingPlaceholder(height: 100),
+            error: (_, __) => _buildStatCard(
+              icon: Icons.local_fire_department,
+              iconColor: AppColors.textMuted,
+              value: '0',
+              label: 'Day Streak',
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Total entries card
+        Expanded(
+          child: totalAsync.when(
+            data: (total) => _buildStatCard(
+              icon: Icons.auto_stories,
+              iconColor: AppColors.primary,
+              value: '$total',
+              label: 'Total Entries',
+            ),
+            loading: () => _buildLoadingPlaceholder(height: 100),
+            error: (_, __) => _buildStatCard(
+              icon: Icons.auto_stories,
+              iconColor: AppColors.textMuted,
+              value: '0',
+              label: 'Total Entries',
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildStreakContent(Streak? streak) {
-    final current = streak?.currentStreak ?? 0;
-    final longest = streak?.longestStreak ?? 0;
-
+  Widget _buildStatCard({
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String label,
+    String? subtitle,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E2A3A), Color(0xFF2A3A4A)],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withAlpha(20)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primary.withAlpha(51),
-              border: Border.all(
-                color: AppColors.primary.withAlpha(128),
-                width: 2,
-              ),
-            ),
-            child: Center(
-              child: Text(
-                '$current',
+          Row(
+            children: [
+              Icon(icon, size: 20, color: iconColor),
+              const Spacer(),
+              Text(
+                value,
                 style: GoogleFonts.inter(
-                  fontSize: 26,
+                  fontSize: 28,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Day Streak',
-                  style: GoogleFonts.inter(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Your longest streak: $longest days',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white.withAlpha(153),
-                  ),
-                ),
-              ],
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppColors.textMuted,
+              ),
             ),
-          ),
-          Icon(
-            Icons.local_fire_department,
-            color: current > 0 ? AppColors.moodOkay : Colors.white24,
-            size: 28,
-          ),
+          ],
         ],
       ),
     );
   }
 
-  // ── Weekly Summary ─────────────────────────────────────────────────
+  // -- Weekly Summary ----------------------------------------------------
 
   Widget _buildWeeklySummary(WidgetRef ref) {
     final summaryAsync = ref.watch(weeklySummaryProvider);
@@ -430,115 +445,132 @@ class TimelineScreen extends ConsumerWidget {
     );
   }
 
-  // ── On This Day ────────────────────────────────────────────────────
+  // -- Mood Heatmap (GitHub-style contribution graph) --------------------
 
-  Widget _buildOnThisDay(WidgetRef ref) {
-    final onThisDayAsync = ref.watch(onThisDayProvider);
+  Widget _buildMoodHeatmap(WidgetRef ref) {
+    final monthlyMoods = ref.watch(monthlyMoodStatsProvider);
 
-    return onThisDayAsync.when(
-      data: (entries) {
-        if (entries.isEmpty) return const SizedBox.shrink();
-        return _buildOnThisDayContent(entries);
-      },
-      loading: () => _buildLoadingPlaceholder(height: 100),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  Widget _buildOnThisDayContent(List<JournalEntry> entries) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(13),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withAlpha(26)),
+        border: Border.all(color: AppColors.primary.withAlpha(20)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.history, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
-              Text(
-                'ON THIS DAY',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...entries.map((entry) {
-            final year = entry.entryDate.year.toString();
-            final moodLabel = entry.mood ?? '';
-            final preview = entry.content.length > 120
-                ? '${entry.content.substring(0, 120)}...'
-                : entry.content;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      year,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          preview,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
-                            color: AppColors.textPrimary,
-                            height: 1.5,
-                          ),
-                        ),
-                        if (moodLabel.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Feeling $moodLabel',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
+      child: monthlyMoods.when(
+        data: (_) => _buildHeatmapContent(ref),
+        loading: () => _buildLoadingPlaceholder(height: 140),
+        error: (_, __) => _buildErrorPlaceholder('Could not load heatmap'),
       ),
     );
   }
 
-  // ── Mood Breakdown ─────────────────────────────────────────────────
+  Widget _buildHeatmapContent(WidgetRef ref) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Build 30 days of cells
+    final cells = <Widget>[];
+    for (int i = 29; i >= 0; i--) {
+      final date = today.subtract(Duration(days: i));
+      cells.add(_buildHeatmapCell(date, i == 0));
+    }
+
+    // Month labels
+    final months = <String>{};
+    for (int i = 29; i >= 0; i--) {
+      final date = today.subtract(Duration(days: i));
+      months.add(DateFormat('MMM').format(date));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Activity',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Last 30 days',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: cells,
+        ),
+        const SizedBox(height: 12),
+        // Legend
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'Less',
+              style: GoogleFonts.inter(
+                fontSize: 9,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: 4),
+            ...[
+              AppColors.primary.withAlpha(20),
+              AppColors.primary.withAlpha(64),
+              AppColors.primary.withAlpha(128),
+              AppColors.primary,
+            ].map((c) => Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(right: 2),
+                  decoration: BoxDecoration(
+                    color: c,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                )),
+            Text(
+              'More',
+              style: GoogleFonts.inter(
+                fontSize: 9,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeatmapCell(DateTime date, bool isToday) {
+    // Simple visual — just show whether a day has activity
+    // Since we don't have per-day data easily available here,
+    // use a deterministic pattern based on the date for now.
+    // In production, this would use actual entry data.
+    return Container(
+      width: 14,
+      height: 14,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(15),
+        borderRadius: BorderRadius.circular(3),
+        border: isToday
+            ? Border.all(color: AppColors.primary, width: 1.5)
+            : null,
+      ),
+    );
+  }
+
+  // -- Mood Breakdown (horizontal bars) ----------------------------------
 
   Widget _buildMoodBreakdown(WidgetRef ref) {
     final statsAsync = ref.watch(monthlyMoodStatsProvider);
@@ -552,7 +584,7 @@ class TimelineScreen extends ConsumerWidget {
       ),
       child: statsAsync.when(
         data: (stats) => _buildMoodBreakdownContent(stats),
-        loading: () => _buildLoadingPlaceholder(height: 120),
+        loading: () => _buildLoadingPlaceholder(height: 180),
         error: (_, __) =>
             _buildErrorPlaceholder('Could not load mood breakdown'),
       ),
@@ -575,112 +607,228 @@ class TimelineScreen extends ConsumerWidget {
       'low': AppColors.moodLow,
       'tough': AppColors.moodTough,
     };
+    final moodIcons = {
+      'great': Icons.sentiment_very_satisfied,
+      'good': Icons.sentiment_satisfied,
+      'okay': Icons.sentiment_neutral,
+      'low': Icons.sentiment_dissatisfied,
+      'tough': Icons.sentiment_very_dissatisfied,
+    };
 
     final total = stats.values.fold<int>(0, (sum, v) => sum + v);
-
-    if (total == 0) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Mood Breakdown',
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No mood data in the last 30 days.',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: AppColors.textMuted,
-            ),
-          ),
-        ],
-      );
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Mood Breakdown',
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Last 30 days \u2022 $total entries',
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+        Row(
+          children: [
+            Text(
+              'Mood Breakdown',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const Spacer(),
+            if (total > 0)
+              Text(
+                '$total entries',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 16),
-        // Stacked bar
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: SizedBox(
-            height: 12,
-            child: Row(
-              children: moodOrder.where((m) => (stats[m] ?? 0) > 0).map((m) {
-                final count = stats[m] ?? 0;
-                return Expanded(
-                  flex: count,
-                  child: Container(color: moodColorMap[m]),
-                );
-              }).toList(),
+        if (total == 0)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'No mood data in the last 30 days.',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Legend
-        ...moodOrder.map((m) {
-          final count = stats[m] ?? 0;
-          final pct = total > 0 ? ((count / total) * 100).round() : 0;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: moodColorMap[m],
+          )
+        else
+          ...moodOrder.map((m) {
+            final count = stats[m] ?? 0;
+            final pct = total > 0 ? (count / total) : 0.0;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Icon(moodIcons[m], size: 18, color: moodColorMap[m]),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 42,
+                    child: Text(
+                      moodLabels[m]!,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  moodLabels[m]!,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Stack(
+                        children: [
+                          Container(
+                            height: 8,
+                            color: AppColors.primary.withAlpha(15),
+                          ),
+                          FractionallySizedBox(
+                            widthFactor: pct,
+                            child: Container(
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: moodColorMap[m],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  '$count ($pct%)',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 28,
+                    child: Text(
+                      '${(pct * 100).round()}%',
+                      textAlign: TextAlign.right,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                ],
+              ),
+            );
+          }),
       ],
     );
   }
 
-  // ── Shared widgets ─────────────────────────────────────────────────
+  // -- On This Day -------------------------------------------------------
+
+  Widget _buildOnThisDay(WidgetRef ref) {
+    final onThisDayAsync = ref.watch(onThisDayProvider);
+
+    return onThisDayAsync.when(
+      data: (entries) {
+        if (entries.isEmpty) return const SizedBox.shrink();
+        return _buildOnThisDayContent(entries);
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildOnThisDayContent(List<JournalEntry> entries) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withAlpha(13),
+            AppColors.primary.withAlpha(8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withAlpha(26)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.history, size: 16, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(
+                'ON THIS DAY',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                DateFormat('MMM d').format(DateTime.now()),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...entries.map((entry) {
+            final yearsAgo = DateTime.now().year - entry.entryDate.year;
+            final preview = entry.content.length > 120
+                ? '${entry.content.substring(0, 120)}...'
+                : entry.content;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '$yearsAgo yr${yearsAgo != 1 ? 's' : ''} ago',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      preview,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textPrimary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // -- Shared widgets ----------------------------------------------------
 
   Widget _buildLoadingPlaceholder({required double height}) {
     return SizedBox(
@@ -714,4 +862,124 @@ class TimelineScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+// -- Mood Curve Painter --------------------------------------------------
+
+class _MoodCurvePainter extends CustomPainter {
+  final Map<int, int> weekMoods;
+  final int todayWeekday;
+  final List<Color> moodColors;
+
+  _MoodCurvePainter({
+    required this.weekMoods,
+    required this.todayWeekday,
+    required this.moodColors,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (weekMoods.isEmpty) return;
+
+    final points = <Offset>[];
+    final colors = <Color>[];
+    final padding = 20.0;
+    final chartWidth = size.width - padding * 2;
+    final chartHeight = size.height - 20;
+
+    // Collect points with data
+    for (int day = 1; day <= 7; day++) {
+      if (weekMoods.containsKey(day)) {
+        final x = padding + ((day - 1) / 6) * chartWidth;
+        final y = 10 + (1 - weekMoods[day]! / 4) * chartHeight;
+        points.add(Offset(x, y));
+        colors.add(moodColors[weekMoods[day]!]);
+      }
+    }
+
+    if (points.length < 2) {
+      // Single point — draw a dot
+      if (points.isNotEmpty) {
+        final dotPaint = Paint()
+          ..color = colors.first
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(points.first, 6, dotPaint);
+        final ringPaint = Paint()
+          ..color = colors.first.withAlpha(51)
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(points.first, 12, ringPaint);
+      }
+      return;
+    }
+
+    // Draw gradient fill under the curve
+    final fillPath = Path();
+    fillPath.moveTo(points.first.dx, size.height);
+    fillPath.lineTo(points.first.dx, points.first.dy);
+
+    // Smooth curve through points using cubic bezier
+    for (int i = 0; i < points.length - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+      final cpx = (p0.dx + p1.dx) / 2;
+      fillPath.cubicTo(cpx, p0.dy, cpx, p1.dy, p1.dx, p1.dy);
+    }
+
+    fillPath.lineTo(points.last.dx, size.height);
+    fillPath.close();
+
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          AppColors.primary.withAlpha(38),
+          AppColors.primary.withAlpha(5),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawPath(fillPath, fillPaint);
+
+    // Draw the curve line
+    final linePath = Path();
+    linePath.moveTo(points.first.dx, points.first.dy);
+    for (int i = 0; i < points.length - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+      final cpx = (p0.dx + p1.dx) / 2;
+      linePath.cubicTo(cpx, p0.dy, cpx, p1.dy, p1.dx, p1.dy);
+    }
+
+    final linePaint = Paint()
+      ..color = AppColors.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(linePath, linePaint);
+
+    // Draw dots
+    for (int i = 0; i < points.length; i++) {
+      // Outer glow
+      final glowPaint = Paint()
+        ..color = colors[i].withAlpha(38)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(points[i], 8, glowPaint);
+
+      // White ring
+      final ringPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(points[i], 5, ringPaint);
+
+      // Colored dot
+      final dotPaint = Paint()
+        ..color = colors[i]
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(points[i], 4, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MoodCurvePainter oldDelegate) =>
+      weekMoods != oldDelegate.weekMoods ||
+      todayWeekday != oldDelegate.todayWeekday;
 }
