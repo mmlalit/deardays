@@ -79,7 +79,8 @@ class LocalStorageService {
   /// already be encrypted at the application layer.
   Future<void> cacheEntry(JournalEntry entry) async {
     _ensureInitialized();
-    final json = jsonEncode(entry.toJson());
+    // Identity function: content is already encrypted at app layer
+    final json = jsonEncode(entry.toJson((s) => s));
     await _entriesBox!.put(entry.id, json);
   }
 
@@ -90,7 +91,7 @@ class LocalStorageService {
     if (json == null) return null;
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
-      return JournalEntry.fromJson(map);
+      return JournalEntry.fromJson(map, (s) => s);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[LocalStorageService] Failed to decode entry $id: $e');
@@ -106,7 +107,7 @@ class LocalStorageService {
     for (final json in _entriesBox!.values) {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
-        entries.add(JournalEntry.fromJson(map));
+        entries.add(JournalEntry.fromJson(map, (s) => s));
       } catch (e) {
         if (kDebugMode) {
           debugPrint('[LocalStorageService] Skipping corrupt entry: $e');
