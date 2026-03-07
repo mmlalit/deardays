@@ -22,9 +22,9 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgLight,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: AppColors.bgLight,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -183,7 +183,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.bg,
+        color: AppColors.bgLight,
         border: Border(
           top: BorderSide(
             color: Colors.black.withOpacity(0.06),

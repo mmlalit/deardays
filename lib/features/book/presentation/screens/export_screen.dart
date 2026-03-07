@@ -34,7 +34,7 @@ class _ExportScreenState extends State<ExportScreen> {
     final coverColor = _coverColors[_selectedColorIndex].color;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgLight,
       body: SafeArea(
         child: Column(
           children: [

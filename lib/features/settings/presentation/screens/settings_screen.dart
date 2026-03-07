@@ -15,7 +15,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgLight,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -263,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.bg, width: 2),
+                    border: Border.all(color: AppColors.bgLight, width: 2),
                   ),
                   child: const Icon(Icons.edit, color: Colors.white, size: 14),
                 ),

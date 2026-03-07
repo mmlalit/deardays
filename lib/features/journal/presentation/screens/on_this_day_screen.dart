@@ -8,7 +8,7 @@ class OnThisDayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.bgLight,
       body: SafeArea(
         child: Column(
           children: [
@@ -217,7 +217,7 @@ class OnThisDayScreen extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.bg,
+                color: AppColors.bgLight,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
