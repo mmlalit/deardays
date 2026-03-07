@@ -251,7 +251,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
         Container(
           width: 4,
           height: 4,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: AppColors.readingText.withOpacity(0.25),
           ),
@@ -269,7 +269,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
         Container(
           width: 4,
           height: 4,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: AppColors.readingText.withOpacity(0.25),
           ),
