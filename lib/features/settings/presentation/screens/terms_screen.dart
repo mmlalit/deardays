@@ -54,6 +54,14 @@ class TermsScreen extends StatelessWidget {
               '\u2022 Impersonate another person or entity',
             ),
             _buildSection(
+              'Age Requirements & Parental Consent',
+              'DearDays enforces age-based access requirements in compliance with applicable laws:\n\n'
+              '\u2022 United States & European Union: You must be at least 13 years old (COPPA/GDPR)\n'
+              '\u2022 India: You must be at least 18 years old (Digital Personal Data Protection Act 2023)\n'
+              '\u2022 Other jurisdictions: You must meet the minimum digital consent age in your country\n\n'
+              'If you are under the applicable age threshold, you may not create an account. We verify age during signup and reserve the right to terminate accounts that do not meet age requirements.',
+            ),
+            _buildSection(
               'Subscriptions & Payments',
               'DearDays offers a free trial period and paid subscription plans:\n\n'
               '\u2022 Free Trial: 30 days of full access, no credit card required\n'
@@ -61,6 +69,12 @@ class TermsScreen extends StatelessWidget {
               '\u2022 Annual Plan: \$29.99/year, billed annually\n\n'
               'Subscriptions auto-renew unless cancelled at least 24 hours before the end of the current billing period. You can manage and cancel subscriptions through your device\'s app store settings.\n\n'
               'Existing entries remain readable even after your subscription expires. You will not lose access to content you have already created.',
+            ),
+            _buildSection(
+              'Health & Mood Data Processing',
+              'DearDays allows you to record mood data alongside journal entries. This data may be classified as health-related information under certain privacy laws (including GDPR Article 9 and the Washington My Health My Data Act).\n\n'
+              'By enabling mood tracking, you provide separate, explicit consent for us to process this special category of data. You may withdraw this consent at any time through Settings, which will stop mood data collection going forward.\n\n'
+              'We never sell, share, or use your mood/health data for advertising, profiling, or any purpose other than providing the journaling service to you.',
             ),
             _buildSection(
               'Refunds',
@@ -76,9 +90,24 @@ class TermsScreen extends StatelessWidget {
               'We reserve the right to modify, suspend, or discontinue the App at any time. In the event of permanent discontinuation, we will provide at least 90 days\' notice and ensure you can export Your Content.',
             ),
             _buildSection(
+              'AI-Generated Content',
+              'DearDays offers optional AI features including writing polish, prompts, and weekly summaries. When using these features:\n\n'
+              '\u2022 AI-generated or AI-modified content is clearly labeled within the App\n'
+              '\u2022 You retain ownership of the original content; AI modifications are derivative works you also own\n'
+              '\u2022 AI processing is transient — your content is not stored on AI servers or used to train models\n'
+              '\u2022 AI features are entirely optional and can be disabled at any time\n\n'
+              'In compliance with the EU AI Act Article 50, all AI-generated content within DearDays is transparently identified with visible badges.',
+            ),
+            _buildSection(
               'Limitation of Liability',
               'To the maximum extent permitted by law, DearDays and its creators shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the App.\n\n'
               'Our total liability shall not exceed the amount you paid for the App in the 12 months preceding the claim.',
+            ),
+            _buildSection(
+              'International Users',
+              'DearDays is available globally. By using the App, you acknowledge that your encrypted data may be transferred to and processed in the United States, where our servers are located.\n\n'
+              'For users in the European Economic Area: We rely on Standard Contractual Clauses (SCCs) for data transfers. Your data is encrypted before transfer, providing an additional safeguard.\n\n'
+              'For users in India: We comply with the Digital Personal Data Protection Act 2023 (DPDPA). Data processing occurs only with your explicit consent, and you may exercise your rights as a Data Principal through the App or by contacting us.',
             ),
             _buildSection(
               'Changes to Terms',

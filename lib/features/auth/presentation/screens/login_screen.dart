@@ -30,6 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _biometricEnabled = false;
   String _lockMethod = 'none'; // none, pin, pattern, biometric
 
+  // Consent & age gate state (signup only)
+  bool _termsAccepted = false;
+  bool _healthConsentGiven = false;
+  bool _ageConfirmed = false;
+
   @override
   void initState() {
     super.initState();
@@ -149,11 +154,28 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (_isSignUp) {
+      if (!_termsAccepted) {
+        _showError('Please accept the Terms of Service and Privacy Policy.');
+        return;
+      }
+      if (!_ageConfirmed) {
+        _showError('Please confirm you meet the minimum age requirement.');
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {
       if (_isSignUp) {
-        final response = await _authService.signUpWithEmail(email, password);
+        final response = await _authService.signUpWithEmail(
+          email,
+          password,
+          consentGivenAt: DateTime.now().toUtc(),
+          healthConsentGivenAt:
+              _healthConsentGiven ? DateTime.now().toUtc() : null,
+        );
         if (response.user != null) {
           if (mounted) widget.onLogin();
         }
@@ -452,6 +474,117 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.primary,
                       ),
                     ),
+                  ),
+                ),
+              ],
+
+              // Consent checkboxes (signup only)
+              if (_isSignUp) ...[
+                const SizedBox(height: 20),
+
+                // Zero-knowledge encryption warning
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          size: 20, color: Colors.amber.shade800),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Your journal is protected by zero-knowledge encryption. '
+                          'If you lose your password, we cannot recover your data. '
+                          'Please store your password safely.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.amber.shade900,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Terms & Privacy consent (required)
+                _ConsentCheckbox(
+                  value: _termsAccepted,
+                  onChanged: _isLoading
+                      ? null
+                      : (v) => setState(() => _termsAccepted = v ?? false),
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'I agree to the ',
+                      style: GoogleFonts.inter(
+                          fontSize: 13, color: AppColors.textSecondary),
+                      children: [
+                        TextSpan(
+                          text: 'Terms of Service',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const TextSpan(text: ' and '),
+                        TextSpan(
+                          text: 'Privacy Policy',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Health data consent (optional but recommended)
+                _ConsentCheckbox(
+                  value: _healthConsentGiven,
+                  onChanged: _isLoading
+                      ? null
+                      : (v) =>
+                          setState(() => _healthConsentGiven = v ?? false),
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'I consent to mood/health data processing ',
+                      style: GoogleFonts.inter(
+                          fontSize: 13, color: AppColors.textSecondary),
+                      children: [
+                        TextSpan(
+                          text: '(optional)',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Age confirmation (required)
+                _ConsentCheckbox(
+                  value: _ageConfirmed,
+                  onChanged: _isLoading
+                      ? null
+                      : (v) => setState(() => _ageConfirmed = v ?? false),
+                  child: Text(
+                    'I confirm I am at least 13 years old (18+ in India)',
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: AppColors.textSecondary),
                   ),
                 ),
               ],
@@ -782,6 +915,50 @@ class _SocialButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ConsentCheckbox extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool?>? onChanged;
+  final Widget child;
+
+  const _ConsentCheckbox({
+    required this.value,
+    required this.onChanged,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onChanged != null ? () => onChanged!(!value) : null,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: Checkbox(
+              value: value,
+              onChanged: onChanged,
+              activeColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              side: BorderSide(color: AppColors.border, width: 1.5),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: child,
+          )),
+        ],
       ),
     );
   }

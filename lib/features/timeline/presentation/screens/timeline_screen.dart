@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/ai_badge.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
@@ -364,6 +365,8 @@ class TimelineScreen extends ConsumerWidget {
                   letterSpacing: 1.2,
                 ),
               ),
+              const SizedBox(width: 8),
+              const AiBadge.generated(),
               const Spacer(),
               weeklyEntries.when(
                 data: (entries) => Text(

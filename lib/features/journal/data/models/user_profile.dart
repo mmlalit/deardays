@@ -15,6 +15,11 @@ class UserProfile {
   final String? revenuecatCustomerId;
   final String bookOrganization;
   final DateTime createdAt;
+  final DateTime? consentGivenAt;
+  final DateTime? healthConsentGivenAt;
+  final DateTime? dateOfBirth;
+  final bool doNotSell;
+  final DateTime? consentWithdrawnAt;
 
   const UserProfile({
     required this.id,
@@ -31,6 +36,11 @@ class UserProfile {
     this.revenuecatCustomerId,
     this.bookOrganization = 'yearly',
     required this.createdAt,
+    this.consentGivenAt,
+    this.healthConsentGivenAt,
+    this.dateOfBirth,
+    this.doNotSell = false,
+    this.consentWithdrawnAt,
   });
 
   /// Whether the user is still within the free trial period.
@@ -59,6 +69,11 @@ class UserProfile {
     String? revenuecatCustomerId,
     String? bookOrganization,
     DateTime? createdAt,
+    DateTime? consentGivenAt,
+    DateTime? healthConsentGivenAt,
+    DateTime? dateOfBirth,
+    bool? doNotSell,
+    DateTime? consentWithdrawnAt,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -77,6 +92,12 @@ class UserProfile {
           revenuecatCustomerId ?? this.revenuecatCustomerId,
       bookOrganization: bookOrganization ?? this.bookOrganization,
       createdAt: createdAt ?? this.createdAt,
+      consentGivenAt: consentGivenAt ?? this.consentGivenAt,
+      healthConsentGivenAt:
+          healthConsentGivenAt ?? this.healthConsentGivenAt,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      doNotSell: doNotSell ?? this.doNotSell,
+      consentWithdrawnAt: consentWithdrawnAt ?? this.consentWithdrawnAt,
     );
   }
 
@@ -96,6 +117,11 @@ class UserProfile {
       'revenuecat_customer_id': revenuecatCustomerId,
       'book_organization': bookOrganization,
       'created_at': createdAt.toIso8601String(),
+      'consent_given_at': consentGivenAt?.toIso8601String(),
+      'health_consent_given_at': healthConsentGivenAt?.toIso8601String(),
+      'date_of_birth': dateOfBirth?.toIso8601String().split('T').first,
+      'do_not_sell': doNotSell,
+      'consent_withdrawn_at': consentWithdrawnAt?.toIso8601String(),
     };
   }
 
@@ -117,6 +143,19 @@ class UserProfile {
       revenuecatCustomerId: map['revenuecat_customer_id'] as String?,
       bookOrganization: (map['book_organization'] as String?) ?? 'yearly',
       createdAt: DateTime.parse(map['created_at'] as String),
+      consentGivenAt: map['consent_given_at'] != null
+          ? DateTime.parse(map['consent_given_at'] as String)
+          : null,
+      healthConsentGivenAt: map['health_consent_given_at'] != null
+          ? DateTime.parse(map['health_consent_given_at'] as String)
+          : null,
+      dateOfBirth: map['date_of_birth'] != null
+          ? DateTime.parse(map['date_of_birth'] as String)
+          : null,
+      doNotSell: (map['do_not_sell'] as bool?) ?? false,
+      consentWithdrawnAt: map['consent_withdrawn_at'] != null
+          ? DateTime.parse(map['consent_withdrawn_at'] as String)
+          : null,
     );
   }
 

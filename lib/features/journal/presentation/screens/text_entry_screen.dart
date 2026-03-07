@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/ai_badge.dart';
 import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
@@ -374,6 +375,10 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             ),
           ],
           const Spacer(),
+          if (_polishWithAI) ...[
+            const AiBadge.polished(),
+            const SizedBox(width: 8),
+          ],
           Text(
             'Polish with AI',
             style: GoogleFonts.inter(

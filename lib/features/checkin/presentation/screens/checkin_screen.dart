@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/ai_badge.dart';
 import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
@@ -437,14 +438,23 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      timeStr,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: isUser
-                            ? Colors.white.withAlpha(153)
-                            : AppColors.textMuted,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!isUser) ...[
+                          const AiBadge.compact(),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          timeStr,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: isUser
+                                ? Colors.white.withAlpha(153)
+                                : AppColors.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -91,6 +91,23 @@ class PrivacyScreen extends StatelessWidget {
               '\u2022 AI-generated content is never used to train models',
             ),
             _buildSection(
+              'International Data Transfers',
+              'DearDays processes data using Supabase infrastructure hosted in the United States. For users in the European Economic Area (EEA), United Kingdom, or other jurisdictions with data transfer restrictions:\n\n'
+              '\u2022 We rely on Standard Contractual Clauses (SCCs) approved by the European Commission\n'
+              '\u2022 We maintain Data Processing Agreements (DPAs) with all sub-processors\n'
+              '\u2022 Your encrypted journal content provides an additional layer of protection — even in transit, your data remains unreadable to us\n\n'
+              'For users in India, data processing complies with the Digital Personal Data Protection Act 2023 (DPDPA). We process personal data only with your explicit consent and for the purposes stated in this policy.',
+            ),
+            _buildSection(
+              'Health & Mood Data',
+              'DearDays collects mood data as part of your journal entries. Under GDPR Article 9, mood data may constitute special category (health-related) data. We process this data only with your explicit, separate consent.\n\n'
+              'Under the Washington My Health My Data Act and similar US state health privacy laws, we:\n\n'
+              '\u2022 Collect mood/health data only with your affirmative consent\n'
+              '\u2022 Never sell, share, or monetize your health data\n'
+              '\u2022 Allow you to withdraw consent and delete health data at any time\n'
+              '\u2022 Do not use health data for advertising or profiling',
+            ),
+            _buildSection(
               'Your Rights',
               'You have the right to:\n\n'
               '\u2022 Access: View all data associated with your account\n'
@@ -101,11 +118,28 @@ class PrivacyScreen extends StatelessWidget {
               'To exercise these rights, use the in-app settings or contact us at privacy@deardays.app.',
             ),
             _buildSection(
+              'Do Not Sell or Share (CCPA/CPRA)',
+              'DearDays does not sell or share your personal information as defined by the California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA).\n\n'
+              'You have the right to:\n\n'
+              '\u2022 Opt out of the sale or sharing of personal information (we don\'t sell, but you can enable this toggle in Settings)\n'
+              '\u2022 Limit the use of sensitive personal information\n'
+              '\u2022 Not be discriminated against for exercising your privacy rights\n\n'
+              'To exercise these rights, use the "Do Not Sell My Data" toggle in Settings > Privacy, or contact us at privacy@deardays.app.',
+            ),
+            _buildSection(
               'Data Retention',
               '\u2022 Active accounts: Data is retained as long as your account is active\n'
               '\u2022 Deleted accounts: All data is permanently deleted within 30 days\n'
               '\u2022 Expired subscriptions: Your encrypted data is retained for 12 months, after which it may be deleted\n\n'
               'You can export your data at any time, regardless of subscription status.',
+            ),
+            _buildSection(
+              'Age Requirements',
+              'DearDays requires users to meet minimum age requirements:\n\n'
+              '\u2022 United States and European Union: You must be at least 13 years old\n'
+              '\u2022 India: You must be at least 18 years old (per DPDPA 2023)\n'
+              '\u2022 Other jurisdictions: You must meet the minimum digital consent age in your country\n\n'
+              'We verify age during account creation. If you are a parent or guardian and believe your child has created an account without meeting age requirements, please contact us immediately at privacy@deardays.app.',
             ),
             _buildSection(
               'Children\'s Privacy',

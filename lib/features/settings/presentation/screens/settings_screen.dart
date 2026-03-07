@@ -34,6 +34,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _biometricLockEnabled = false;
   bool _biometricAvailable = false;
   String _lockMethod = 'none';
+  bool _doNotSell = false;
+  bool _healthConsent = false;
   final _secureStorage = SecureStorageService();
   final _localAuth = LocalAuthentication();
 
@@ -41,6 +43,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _loadBiometricState();
+    _loadPrivacyState();
   }
 
   Future<void> _loadBiometricState() async {
@@ -107,6 +110,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await _secureStorage.clearPattern();
     if (mounted) {
       setState(() => _lockMethod = 'none');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Privacy & Consent
+  // ---------------------------------------------------------------------------
+
+  Future<void> _loadPrivacyState() async {
+    try {
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final profile = await profileRepo.getProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          _doNotSell = profile.doNotSell;
+          _healthConsent = profile.healthConsentGivenAt != null;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleDoNotSell(bool value) async {
+    setState(() => _doNotSell = value);
+    try {
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final profile = await profileRepo.getProfile();
+      if (profile != null) {
+        await profileRepo.updateProfile(profile.copyWith(doNotSell: value));
+      }
+      if (mounted) {
+        AppSnackBar.success(
+          context,
+          value
+              ? '"Do Not Sell" preference saved.'
+              : '"Do Not Sell" preference removed.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _doNotSell = !value);
+        AppSnackBar.error(context, 'Failed to update preference.');
+      }
+    }
+  }
+
+  Future<void> _toggleHealthConsent(bool value) async {
+    if (!value) {
+      // Withdrawing consent — confirm first
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Withdraw Mood Data Consent?',
+              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+          content: Text(
+            'Mood tracking will be disabled. Existing mood data in your entries '
+            'will not be deleted but will no longer be processed.',
+            style: GoogleFonts.inter(
+                fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Withdraw Consent',
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red.shade600)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    setState(() => _healthConsent = value);
+    try {
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final profile = await profileRepo.getProfile();
+      if (profile != null) {
+        await profileRepo.updateProfile(profile.copyWith(
+          healthConsentGivenAt:
+              value ? DateTime.now().toUtc() : null,
+          consentWithdrawnAt: value ? null : DateTime.now().toUtc(),
+        ));
+      }
+      if (mounted) {
+        AppSnackBar.success(
+          context,
+          value
+              ? 'Mood data consent granted.'
+              : 'Mood data consent withdrawn.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _healthConsent = !value);
+        AppSnackBar.error(context, 'Failed to update consent.');
+      }
     }
   }
 
@@ -770,6 +875,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 trailing: Icon(Icons.chevron_right,
                     color: Colors.grey.shade400, size: 22),
                 onTap: _showEncryptionInfo,
+              ),
+              _buildDivider(),
+              _buildSettingsRow(
+                icon: Icons.do_not_disturb_on_outlined,
+                label: 'Do Not Sell My Data',
+                trailing: Switch(
+                  value: _doNotSell,
+                  onChanged: _toggleDoNotSell,
+                  activeColor: Colors.white,
+                  activeTrackColor: AppColors.primary,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Colors.grey.shade300,
+                ),
+              ),
+              _buildDivider(),
+              _buildSettingsRow(
+                icon: Icons.health_and_safety_outlined,
+                label: 'Mood Data Consent',
+                trailing: Switch(
+                  value: _healthConsent,
+                  onChanged: _toggleHealthConsent,
+                  activeColor: Colors.white,
+                  activeTrackColor: AppColors.primary,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Colors.grey.shade300,
+                ),
               ),
               const SizedBox(height: 28),
               _buildSectionLabel('DATA'),

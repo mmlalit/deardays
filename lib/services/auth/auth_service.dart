@@ -56,7 +56,12 @@ class AuthService {
   /// 3. Derives the encryption key from password + salt.
   /// 4. Stores the key in [EncryptionService] memory (never on disk).
   /// 5. Persists the salt locally in secure storage for offline access.
-  Future<AuthResponse> signUpWithEmail(String email, String password) async {
+  Future<AuthResponse> signUpWithEmail(
+    String email,
+    String password, {
+    DateTime? consentGivenAt,
+    DateTime? healthConsentGivenAt,
+  }) async {
     final response = await _client.auth.signUp(
       email: email,
       password: password,
@@ -69,11 +74,22 @@ class AuthService {
       // Store the salt in the user's profile on Supabase.
       // The salt is NOT secret — it just ensures each user has a unique key
       // even if they choose the same password.
-      await _client.from('profiles').upsert({
+      final profileData = <String, dynamic>{
         'id': response.user!.id,
         'encryption_salt': salt,
         'trial_started_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      };
+
+      // Record GDPR/CCPA consent timestamps.
+      if (consentGivenAt != null) {
+        profileData['consent_given_at'] = consentGivenAt.toIso8601String();
+      }
+      if (healthConsentGivenAt != null) {
+        profileData['health_consent_given_at'] =
+            healthConsentGivenAt.toIso8601String();
+      }
+
+      await _client.from('profiles').upsert(profileData);
 
       // Derive the encryption key and hold it in memory.
       final keyBase64 = await _encryption.deriveKey(password, salt);

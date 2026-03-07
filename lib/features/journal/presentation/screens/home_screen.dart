@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/ai_badge.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
@@ -476,6 +477,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             height: 1.45,
                           ),
                         ),
+                        if (!isUser) ...[
+                          const SizedBox(height: 4),
+                          const AiBadge.compact(),
+                        ],
                       ],
                     ),
                   ),
