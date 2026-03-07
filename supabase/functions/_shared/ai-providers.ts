@@ -2,7 +2,7 @@
 // Gemini 2.0 Flash
 // ---------------------------------------------------------------------------
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 export async function geminiGenerate(
   prompt: string,
