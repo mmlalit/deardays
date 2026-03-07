@@ -16,15 +16,7 @@ class ConversationsView extends ConsumerStatefulWidget {
 }
 
 class _ConversationsViewState extends ConsumerState<ConversationsView> {
-  final _searchController = TextEditingController();
-  String _searchQuery = '';
-  final Set<int> _expandedSections = {};
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  int? _activeIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -35,92 +27,443 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
       return _buildEmptyState();
     }
 
-    // Filter sections by search query
-    final filtered = _searchQuery.isEmpty
-        ? sections
-        : sections.where((s) {
-            final userText = s.messages
-                .where((m) => m.isUser)
-                .map((m) => m.text.toLowerCase())
-                .join(' ');
-            return userText.contains(_searchQuery.toLowerCase());
-          }).toList();
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cover / title section
+          _buildTitleSection(sections.length),
+          const SizedBox(height: 28),
+          // Contents list
+          _buildContents(sections),
+          // Active conversation detail
+          if (_activeIndex != null &&
+              _activeIndex! < sections.length) ...[
+            const SizedBox(height: 8),
+            _buildConversationDetail(sections[_activeIndex!]),
+          ],
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
 
-    return Column(
-      children: [
-        // Search bar
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: _buildSearchBar(),
+  // -- Title Section (like Life Book cover) ------------------------------
+
+  Widget _buildTitleSection(int count) {
+    final today = DateTime.now();
+    final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(today);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+        decoration: BoxDecoration(
+          color: AppColors.readingBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.readingText.withAlpha(26),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        // Content
-        Expanded(
-          child: filtered.isEmpty
-              ? _buildNoResults()
-              : ListView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  itemCount: filtered.length + 1, // +1 for header
-                  itemBuilder: (context, index) {
-                    if (index == 0) return _buildDateHeader();
-                    final sectionIndex = index - 1;
-                    final section = filtered[sectionIndex];
-                    final originalIndex = sections.indexOf(section);
-                    return _buildEntryCard(
-                        section, originalIndex, sectionIndex == filtered.length - 1);
-                  },
+        child: Column(
+          children: [
+            Icon(
+              Icons.chat_outlined,
+              size: 36,
+              color: AppColors.primary.withAlpha(153),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Today\'s Conversations',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AppColors.readingText,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              dateStr,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.readingText.withAlpha(128),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.primary.withAlpha(102),
                 ),
+              ),
+              child: Text(
+                '$count session${count != 1 ? 's' : ''}',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  // -- Contents list (like Life Book chapters) ---------------------------
+
+  Widget _buildContents(List<ConversationSection> sections) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Contents',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              fontStyle: FontStyle.italic,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        ...sections.asMap().entries.map((entry) {
+          final index = entry.key;
+          final section = entry.value;
+          return _buildContentItem(section, index);
+        }),
       ],
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withAlpha(26)),
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (v) => setState(() => _searchQuery = v),
-        style: GoogleFonts.inter(
-          fontSize: 14,
-          color: AppColors.textPrimary,
+  Widget _buildContentItem(ConversationSection section, int index) {
+    final isActive = _activeIndex == index;
+    final timeStr = DateFormat('h:mm a').format(section.startTime);
+    final userMessages = section.messages.where((m) => m.isUser).toList();
+    final messageCount = section.messages.length;
+    final wordCount = userMessages.fold<int>(
+        0, (sum, m) => sum + m.text.split(' ').length);
+
+    // Generate a title from the first user message
+    String title;
+    if (userMessages.isNotEmpty) {
+      final firstMsg = userMessages.first.text;
+      title = firstMsg.length > 50
+          ? '${firstMsg.substring(0, 50)}...'
+          : firstMsg;
+    } else {
+      title = 'Conversation at $timeStr';
+    }
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _activeIndex = isActive ? null : index;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppColors.primary.withAlpha(13)
+              : Colors.transparent,
+          border: Border(
+            left: BorderSide(
+              color: isActive ? AppColors.primary : Colors.transparent,
+              width: 3,
+            ),
+          ),
         ),
-        decoration: InputDecoration(
-          hintText: 'Search your entries...',
-          hintStyle: GoogleFonts.inter(
-            fontSize: 14,
-            color: AppColors.textMuted,
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            size: 18,
-            color: AppColors.textMuted,
-          ),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                  child: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: AppColors.textMuted,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title (first user message preview)
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight:
+                          isActive ? FontWeight.w600 : FontWeight.w500,
+                      color: AppColors.readingText,
+                    ),
                   ),
-                )
-              : null,
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  const SizedBox(height: 4),
+                  // Metadata line
+                  Row(
+                    children: [
+                      Text(
+                        timeStr.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.8,
+                          color: AppColors.readingText.withAlpha(102),
+                        ),
+                      ),
+                      if (section.mood != null) ...[
+                        Text(
+                          '  \u2022  ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.readingText.withAlpha(64),
+                          ),
+                        ),
+                        Icon(
+                          _moodIcon(section.mood!),
+                          size: 12,
+                          color: _moodColor(section.mood!),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          section.mood!,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: _moodColor(section.mood!),
+                          ),
+                        ),
+                      ],
+                      Text(
+                        '  \u2022  $messageCount messages',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.readingText.withAlpha(102),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              isActive
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_right,
+              size: 20,
+              color: isActive
+                  ? AppColors.primary
+                  : AppColors.readingText.withAlpha(76),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  // -- Conversation Detail (book-style reading view) --------------------
+
+  Widget _buildConversationDetail(ConversationSection section) {
+    final userMessages = section.messages.where((m) => m.isUser).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Divider(color: AppColors.readingText.withAlpha(20)),
+          const SizedBox(height: 16),
+          // Entry header (date + mood + time)
+          Row(
+            children: [
+              Text(
+                DateFormat('MMMM d, yyyy').format(section.startTime),
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.readingText.withAlpha(153),
+                ),
+              ),
+              if (section.mood != null) ...[
+                const SizedBox(width: 12),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.readingText.withAlpha(64),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(
+                  _moodIcon(section.mood!),
+                  size: 14,
+                  color: _moodColor(section.mood!),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  section.mood!,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: _moodColor(section.mood!),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Render conversation messages
+          ...section.messages.asMap().entries.map((entry) {
+            final msg = entry.value;
+            final isFirst = entry.key == 0 && msg.isUser;
+            return _buildMessageEntry(msg, isFirst);
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageEntry(ChatMessage msg, bool isFirstUserMsg) {
+    if (msg.isUser) {
+      return _buildUserEntry(msg, isFirstUserMsg);
+    } else {
+      return _buildAiEntry(msg);
+    }
+  }
+
+  Widget _buildUserEntry(ChatMessage msg, bool isFirst) {
+    // First user message gets a drop cap like Life Book
+    if (isFirst && msg.text.length > 1) {
+      final firstChar = msg.text[0].toUpperCase();
+      final restText = msg.text.substring(1);
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  firstChar,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 56,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                    height: 0.85,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    restText,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 16,
+                      color: AppColors.readingText,
+                      height: 1.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (msg.isVoice) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.mic, size: 11, color: AppColors.textMuted),
+                  const SizedBox(width: 3),
+                  Text(
+                    'From voice',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Subsequent user messages — regular prose
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            msg.text,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 16,
+              color: AppColors.readingText,
+              height: 1.8,
+            ),
+          ),
+          if (msg.isVoice) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.mic, size: 11, color: AppColors.textMuted),
+                const SizedBox(width: 3),
+                Text(
+                  'From voice',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiEntry(ChatMessage msg) {
+    // AI messages shown as indented, italic prompts with left border
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.only(left: 14),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: AppColors.primary.withAlpha(64),
+              width: 2,
+            ),
+          ),
+        ),
+        child: Text(
+          msg.text,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+            color: AppColors.textSecondary,
+            height: 1.6,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // -- Empty State ------------------------------------------------------
 
   Widget _buildEmptyState() {
     return Center(
@@ -145,7 +488,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start a check-in from the home screen\nto see your journal entries here.',
+              'Start a conversation from the home screen\nto see your journal entries here.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
@@ -159,193 +502,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
     );
   }
 
-  Widget _buildNoResults() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 40,
-              color: AppColors.textMuted.withAlpha(76),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'No matching entries',
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateHeader() {
-    final today = DateTime.now();
-    final dateStr = DateFormat('EEEE, MMMM d').format(today);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Text(
-        dateStr,
-        style: GoogleFonts.playfairDisplay(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEntryCard(
-      ConversationSection section, int originalIndex, bool isLast) {
-    final timeStr = DateFormat('h:mm a').format(section.startTime);
-    final userMessages = section.messages.where((m) => m.isUser).toList();
-    final isExpanded = _expandedSections.contains(originalIndex);
-
-    // Combine user messages into a single narrative
-    final narrative = userMessages.map((m) => m.text).join('\n\n');
-    final preview = narrative.length > 150
-        ? '${narrative.substring(0, 150)}...'
-        : narrative;
-    final wordCount =
-        userMessages.fold<int>(0, (sum, m) => sum + m.text.split(' ').length);
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 32 : 12),
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            if (isExpanded) {
-              _expandedSections.remove(originalIndex);
-            } else {
-              _expandedSections.add(originalIndex);
-            }
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isExpanded
-                  ? AppColors.primary.withAlpha(51)
-                  : AppColors.primary.withAlpha(20),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(isExpanded ? 10 : 5),
-                blurRadius: isExpanded ? 12 : 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row: mood + time + word count
-              Row(
-                children: [
-                  if (section.mood != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _moodColor(section.mood!).withAlpha(26),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _moodIcon(section.mood!),
-                            size: 12,
-                            color: _moodColor(section.mood!),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            section.mood!,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _moodColor(section.mood!),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const Spacer(),
-                  Text(
-                    '$wordCount words',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    timeStr,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Entry text
-              Text(
-                isExpanded ? narrative : preview,
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 15,
-                  color: AppColors.textPrimary,
-                  height: 1.7,
-                ),
-              ),
-              // Voice indicator
-              if (userMessages.any((m) => m.isVoice)) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.mic, size: 12, color: AppColors.textMuted),
-                    const SizedBox(width: 3),
-                    Text(
-                      'From voice',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              // Expand/collapse hint
-              if (narrative.length > 150) ...[
-                const SizedBox(height: 8),
-                Center(
-                  child: Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 18,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // -- Mood helpers -----------------------------------------------------
 
   IconData _moodIcon(String mood) {
     switch (mood.toLowerCase()) {
