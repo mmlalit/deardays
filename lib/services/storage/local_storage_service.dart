@@ -1,0 +1,211 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
+
+/// Local-first encrypted storage backed by Hive.
+///
+/// Journal entry content stored here is already encrypted at the application
+/// layer — this service simply persists the encrypted payloads for offline
+/// access and draft management.
+class LocalStorageService {
+  LocalStorageService._internal();
+
+  static final LocalStorageService _instance = LocalStorageService._internal();
+
+  /// Singleton accessor.
+  static LocalStorageService get instance => _instance;
+
+  factory LocalStorageService() => _instance;
+
+  static const String _entriesBoxName = 'entries';
+  static const String _draftsBoxName = 'drafts';
+  static const String _syncMetaBoxName = 'sync_meta';
+
+  static const String _hiveKeyAlias = 'deardays_hive_encryption_key';
+  static const String _lastSyncKey = 'last_sync_time';
+  static const String _draftKey = 'current_draft';
+
+  Box<String>? _entriesBox;
+  Box<String>? _draftsBox;
+  Box<String>? _syncMetaBox;
+
+  bool _initialized = false;
+
+  // ---------------------------------------------------------------------------
+  // Initialization
+  // ---------------------------------------------------------------------------
+
+  /// Initializes Hive with the app directory and opens encrypted boxes.
+  ///
+  /// The Hive encryption key is generated once and persisted in
+  /// `flutter_secure_storage` so it survives app restarts but is protected by
+  /// the OS keychain.
+  Future<void> init() async {
+    if (_initialized) return;
+
+    await Hive.initFlutter();
+
+    final encryptionKey = await _getOrCreateEncryptionKey();
+    final cipher = HiveAesCipher(encryptionKey);
+
+    _entriesBox = await Hive.openBox<String>(
+      _entriesBoxName,
+      encryptionCipher: cipher,
+    );
+    _draftsBox = await Hive.openBox<String>(
+      _draftsBoxName,
+      encryptionCipher: cipher,
+    );
+    _syncMetaBox = await Hive.openBox<String>(
+      _syncMetaBoxName,
+      encryptionCipher: cipher,
+    );
+
+    _initialized = true;
+    if (kDebugMode) {
+      debugPrint('[LocalStorageService] Initialized with encrypted boxes.');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Journal entry cache
+  // ---------------------------------------------------------------------------
+
+  /// Stores a [JournalEntry] locally. The entry's content is assumed to
+  /// already be encrypted at the application layer.
+  Future<void> cacheEntry(JournalEntry entry) async {
+    _ensureInitialized();
+    final json = jsonEncode(entry.toJson());
+    await _entriesBox!.put(entry.id, json);
+  }
+
+  /// Retrieves a cached [JournalEntry] by its [id], or `null` if not found.
+  Future<JournalEntry?> getCachedEntry(String id) async {
+    _ensureInitialized();
+    final json = _entriesBox!.get(id);
+    if (json == null) return null;
+    try {
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      return JournalEntry.fromJson(map);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[LocalStorageService] Failed to decode entry $id: $e');
+      }
+      return null;
+    }
+  }
+
+  /// Returns all locally cached journal entries.
+  Future<List<JournalEntry>> getCachedEntries() async {
+    _ensureInitialized();
+    final entries = <JournalEntry>[];
+    for (final json in _entriesBox!.values) {
+      try {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        entries.add(JournalEntry.fromJson(map));
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[LocalStorageService] Skipping corrupt entry: $e');
+        }
+      }
+    }
+    return entries;
+  }
+
+  /// Removes a cached entry by [id].
+  Future<void> removeCachedEntry(String id) async {
+    _ensureInitialized();
+    await _entriesBox!.delete(id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Draft management
+  // ---------------------------------------------------------------------------
+
+  /// Saves in-progress journal text so it can be recovered after an app crash
+  /// or backgrounding.
+  Future<void> cacheDraft(String text) async {
+    _ensureInitialized();
+    await _draftsBox!.put(_draftKey, text);
+  }
+
+  /// Returns the most recently saved draft, or `null` if none exists.
+  Future<String?> getDraft() async {
+    _ensureInitialized();
+    return _draftsBox!.get(_draftKey);
+  }
+
+  /// Clears any saved draft.
+  Future<void> clearDraft() async {
+    _ensureInitialized();
+    await _draftsBox!.delete(_draftKey);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sync metadata
+  // ---------------------------------------------------------------------------
+
+  /// Persists the last successful sync timestamp.
+  Future<void> setLastSyncTime(DateTime time) async {
+    _ensureInitialized();
+    await _syncMetaBox!.put(_lastSyncKey, time.toIso8601String());
+  }
+
+  /// Returns the last successful sync timestamp, or `null` if the app has
+  /// never synced.
+  Future<DateTime?> getLastSyncTime() async {
+    _ensureInitialized();
+    final value = _syncMetaBox!.get(_lastSyncKey);
+    if (value == null) return null;
+    return DateTime.tryParse(value);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cleanup
+  // ---------------------------------------------------------------------------
+
+  /// Wipes all local data. Call on user logout.
+  Future<void> clearAll() async {
+    _ensureInitialized();
+    await _entriesBox!.clear();
+    await _draftsBox!.clear();
+    await _syncMetaBox!.clear();
+    if (kDebugMode) {
+      debugPrint('[LocalStorageService] All local data cleared.');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  void _ensureInitialized() {
+    if (!_initialized) {
+      throw StateError(
+        'LocalStorageService has not been initialized. Call init() first.',
+      );
+    }
+  }
+
+  /// Retrieves the Hive encryption key from secure storage, or generates and
+  /// stores a new one if this is the first launch.
+  Future<List<int>> _getOrCreateEncryptionKey() async {
+    const secureStorage = FlutterSecureStorage();
+    final existing = await secureStorage.read(key: _hiveKeyAlias);
+
+    if (existing != null) {
+      return base64Url.decode(existing);
+    }
+
+    final key = Hive.generateSecureKey();
+    await secureStorage.write(
+      key: _hiveKeyAlias,
+      value: base64UrlEncode(key),
+    );
+    return key;
+  }
+}
