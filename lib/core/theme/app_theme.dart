@@ -83,8 +83,8 @@ class AppTheme {
           hintStyle: GoogleFonts.inter(color: AppColors.textMuted),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Colors.white,
-          selectedItemColor: AppColors.primary,
+          backgroundColor: AppColors.navBg,
+          selectedItemColor: AppColors.primaryDark,
           unselectedItemColor: AppColors.textMuted,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
@@ -140,8 +140,8 @@ class AppTheme {
           ),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: AppColors.cardDark,
-          selectedItemColor: AppColors.primary,
+          backgroundColor: AppColors.navBgDark,
+          selectedItemColor: AppColors.primaryLight,
           unselectedItemColor: AppColors.textMuted,
           type: BottomNavigationBarType.fixed,
           elevation: 0,

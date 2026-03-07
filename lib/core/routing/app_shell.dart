@@ -24,13 +24,15 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).brightness == Brightness.dark
-              ? AppColors.cardDark
-              : Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.primary.withAlpha(26),
+              ? AppColors.navBgDark
+              : AppColors.navBg,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
-          ),
+          ],
         ),
         child: SafeArea(
           child: Padding(
@@ -100,10 +102,20 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color: isActive ? AppColors.primary : AppColors.textMuted,
-              size: 24,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppColors.primary.withOpacity(0.12)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                isActive ? activeIcon : icon,
+                color: isActive ? AppColors.primaryDark : AppColors.textMuted,
+                size: 24,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -111,7 +123,7 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? AppColors.primary : AppColors.textMuted,
+                color: isActive ? AppColors.primaryDark : AppColors.textMuted,
               ),
             ),
           ],

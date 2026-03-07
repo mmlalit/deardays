@@ -13,7 +13,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: AppColors.readingBg,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -47,7 +47,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               fontSize: 13,
               fontWeight: FontWeight.w800,
               letterSpacing: 2.5,
-              color: Colors.black87,
+              color: AppColors.readingText,
             ),
           ),
           Container(
@@ -116,7 +116,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             style: GoogleFonts.playfairDisplay(
               fontSize: 30,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: AppColors.readingText,
               height: 1.2,
             ),
           ),
@@ -126,7 +126,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: Colors.black45,
+              color: AppColors.readingText.withOpacity(0.5),
               letterSpacing: 0.5,
             ),
           ),
@@ -196,7 +196,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-              color: Colors.black87,
+              color: AppColors.readingText,
             ),
           ),
           const SizedBox(height: 4),
@@ -206,7 +206,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.0,
-              color: Colors.black38,
+              color: AppColors.readingText.withOpacity(0.4),
             ),
           ),
         ],
@@ -220,7 +220,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Divider(color: Colors.black.withOpacity(0.08)),
+          Divider(color: AppColors.readingText.withOpacity(0.08)),
           const SizedBox(height: 20),
           _buildEntryHeader(),
           const SizedBox(height: 24),
@@ -244,7 +244,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Colors.black54,
+            color: AppColors.readingText.withOpacity(0.6),
           ),
         ),
         const SizedBox(width: 12),
@@ -253,7 +253,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           height: 4,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.black26,
+            color: AppColors.readingText.withOpacity(0.25),
           ),
         ),
         const SizedBox(width: 12),
@@ -271,7 +271,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           height: 4,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.black26,
+            color: AppColors.readingText.withOpacity(0.25),
           ),
         ),
         const SizedBox(width: 12),
@@ -282,7 +282,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               Icon(
                 Icons.location_on_outlined,
                 size: 14,
-                color: Colors.black38,
+                color: AppColors.readingText.withOpacity(0.4),
               ),
               const SizedBox(width: 3),
               Flexible(
@@ -292,7 +292,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: Colors.black38,
+                    color: AppColors.readingText.withOpacity(0.4),
                   ),
                 ),
               ),
@@ -327,7 +327,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             style: GoogleFonts.playfairDisplay(
               fontSize: 16,
               fontWeight: FontWeight.w400,
-              color: Colors.black87,
+              color: AppColors.readingText,
               height: 1.8,
             ),
           ),
@@ -383,7 +383,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       style: GoogleFonts.playfairDisplay(
         fontSize: 16,
         fontWeight: FontWeight.w400,
-        color: Colors.black87,
+        color: AppColors.readingText,
         height: 1.8,
       ),
     );
@@ -397,7 +397,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       style: GoogleFonts.playfairDisplay(
         fontSize: 16,
         fontWeight: FontWeight.w400,
-        color: Colors.black87,
+        color: AppColors.readingText,
         height: 1.8,
       ),
     );
