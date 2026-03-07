@@ -1,0 +1,11 @@
+{
+  "name": "DearDays",
+  "short_name": "DearDays",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8f7f6",
+  "theme_color": "#d4a373",
+  "description": "Your life, your story.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}
