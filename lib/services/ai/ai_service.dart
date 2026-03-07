@@ -72,7 +72,7 @@ class AiService {
     if (!isConfigured) {
       throw AiServiceException(
         '[$method] AI_API_URL is not configured. '
-        'Pass --dart-define=AI_API_URL=https://your-api.com when building.',
+        'Pass --dart-define=AI_API_URL=https://<project-ref>.supabase.co/functions/v1 when building.',
       );
     }
   }
@@ -93,7 +93,7 @@ class AiService {
     _ensureConfigured('polishNarrative');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/polish',
+        '/ai-polish',
         data: {
           'text': rawText,
           'style': style,
@@ -119,7 +119,7 @@ class AiService {
       });
 
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/transcribe',
+        '/ai-transcribe',
         data: formData,
         options: Options(
           receiveTimeout: const Duration(seconds: 60),
@@ -142,7 +142,7 @@ class AiService {
     _ensureConfigured('generateSummary');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/summarize',
+        '/ai-summarize',
         data: {
           'entries': entries,
           'period': period,
@@ -164,7 +164,7 @@ class AiService {
     _ensureConfigured('getWritingPrompt');
     try {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/api/prompt',
+        '/ai-prompt',
         options: Options(
           receiveTimeout: const Duration(seconds: 30),
         ),
@@ -193,7 +193,7 @@ class AiService {
     _ensureConfigured('chat');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/chat',
+        '/ai-chat',
         data: {
           'messages': messages,
           'mood': mood,
@@ -216,7 +216,7 @@ class AiService {
     _ensureConfigured('detectThemes');
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/themes',
+        '/ai-themes',
         data: {
           'entries': entries,
         },
@@ -229,7 +229,7 @@ class AiService {
       if (data != null && data.containsKey('themes')) {
         return List<String>.from(data['themes'] as List);
       }
-      throw AiServiceException('Unexpected response format from /api/themes');
+      throw AiServiceException('Unexpected response format from /ai-themes');
     } on DioException catch (e) {
       throw _handleDioError(e, 'detectThemes');
     }

@@ -1,0 +1,71 @@
+import { corsHeaders } from "../_shared/cors.ts";
+import { getUserTier } from "../_shared/user-tier.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { geminiChat } from "../_shared/ai-providers.ts";
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const { isPremium, userId } = await getUserTier(authHeader);
+
+    // Rate limit check
+    const limit = await checkRateLimit(userId, "chat", isPremium);
+    if (!limit.allowed) {
+      return new Response(
+        JSON.stringify({ error: limit.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { messages, mood, is_first_checkin, language } = await req.json();
+
+    if (!messages || !Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "messages array required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Build system prompt
+    const parts: string[] = [
+      "You are a warm, empathetic journaling companion for DearDays.",
+      "Help users reflect on their day through gentle, supportive conversation.",
+      "Ask thoughtful follow-up questions to help them explore their feelings.",
+      "Keep responses concise — typically 2-3 sentences.",
+      "Never give medical or clinical advice.",
+    ];
+
+    if (mood) {
+      parts.push(`The user's current mood is: ${mood}. Be sensitive to this.`);
+    }
+    if (is_first_checkin) {
+      parts.push(
+        "This is the user's first check-in today. Start with a warm greeting.",
+      );
+    }
+    if (language) {
+      parts.push(
+        `Default to ${language}, but mirror the user's language if they switch.`,
+      );
+    }
+
+    const systemPrompt = parts.join("\n");
+    const text = await geminiChat(messages, systemPrompt);
+
+    return new Response(
+      JSON.stringify({ text }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal error";
+    const status = message === "Unauthorized" ? 401 : 500;
+    return new Response(
+      JSON.stringify({ error: message }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
