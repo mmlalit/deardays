@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Sage Green — calm, grounding, nature-inspired
-  static const Color primary = Color(0xFF7C9A82);
-  static const Color primaryLight = Color(0xFFA3BFA8);
-  static const Color primaryDark = Color(0xFF5E7D63);
+  // Soft Blue — serene, focused, calming
+  static const Color primary = Color(0xFF6B9EB8);
+  static const Color primaryLight = Color(0xFF9DC4D6);
+  static const Color primaryDark = Color(0xFF4A7D99);
 
   // Backgrounds
-  static const Color bgLight = Color(0xFFF7FAF8);
-  static const Color bgDark = Color(0xFF161E18);
+  static const Color bgLight = Color(0xFFF6F9FB);
+  static const Color bgDark = Color(0xFF141C20);
   static const Color cardLight = Colors.white;
-  static const Color cardDark = Color(0xFF1E2A20);
+  static const Color cardDark = Color(0xFF1C2830);
 
   // Text
   static const Color navy = Color(0xFF1E293B);
