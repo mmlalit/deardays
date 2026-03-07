@@ -18,13 +18,13 @@ class SupabaseConfig {
   /// The Supabase project URL (e.g., https://abc123.supabase.co).
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://mcmlawztwyrjcwmieciw.supabase.co',
   );
 
   /// The Supabase anonymous/public API key. This key is safe to include in
   /// client-side code — it only grants access allowed by RLS policies.
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbWxhd3p0d3lyamN3bWllY2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4Nzc0NTgsImV4cCI6MjA4ODQ1MzQ1OH0.qFvDzJrHFUaJjucCxkJXvmtkRdumhm5wC0DxQu-Q-AE',
   );
 }
