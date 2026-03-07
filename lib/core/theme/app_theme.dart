@@ -5,14 +5,21 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get light => ThemeData(
+  /// Default light theme (Warm Cream).
+  static ThemeData get light => lightFrom(AppThemeColor.warmCream);
+
+  /// Default dark theme.
+  static ThemeData get dark => darkFrom(AppThemeColor.warmCream);
+
+  /// Generate a light theme from the chosen color palette.
+  static ThemeData lightFrom(AppThemeColor palette) => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        scaffoldBackgroundColor: AppColors.bgLight,
-        colorScheme: const ColorScheme.light(
+        scaffoldBackgroundColor: palette.bg,
+        colorScheme: ColorScheme.light(
           primary: AppColors.primary,
           secondary: AppColors.primaryLight,
-          surface: AppColors.bgLight,
+          surface: palette.bg,
           error: AppColors.error,
           onPrimary: Colors.white,
           onSecondary: AppColors.bgDark,
@@ -20,7 +27,7 @@ class AppTheme {
         ),
         textTheme: _textTheme(Brightness.light),
         appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.bgLight,
+          backgroundColor: palette.bg,
           foregroundColor: AppColors.textPrimary,
           elevation: 0,
           centerTitle: true,
@@ -60,7 +67,7 @@ class AppTheme {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            side: const BorderSide(color: AppColors.border),
+            side: BorderSide(color: palette.border),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -68,11 +75,11 @@ class AppTheme {
           fillColor: Colors.white,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderSide: BorderSide(color: palette.border),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderSide: BorderSide(color: palette.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -82,8 +89,8 @@ class AppTheme {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           hintStyle: GoogleFonts.inter(color: AppColors.textMuted),
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: AppColors.navBg,
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: palette.navBg,
           selectedItemColor: AppColors.primaryDark,
           unselectedItemColor: AppColors.textMuted,
           type: BottomNavigationBarType.fixed,
@@ -95,22 +102,23 @@ class AppTheme {
         ),
       );
 
-  static ThemeData get dark => ThemeData(
+  /// Generate a dark theme from the chosen color palette.
+  static ThemeData darkFrom(AppThemeColor palette) => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.bgDark,
-        colorScheme: const ColorScheme.dark(
+        scaffoldBackgroundColor: palette.bgDark,
+        colorScheme: ColorScheme.dark(
           primary: AppColors.primary,
           secondary: AppColors.primaryLight,
-          surface: AppColors.bgDark,
+          surface: palette.bgDark,
           error: AppColors.error,
-          onPrimary: AppColors.bgDark,
-          onSecondary: AppColors.bgDark,
+          onPrimary: palette.bgDark,
+          onSecondary: palette.bgDark,
           onSurface: Colors.white,
         ),
         textTheme: _textTheme(Brightness.dark),
         appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.bgDark,
+          backgroundColor: palette.bgDark,
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
@@ -121,7 +129,7 @@ class AppTheme {
           ),
         ),
         cardTheme: CardThemeData(
-          color: AppColors.cardDark,
+          color: palette.cardDark,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -131,7 +139,7 @@ class AppTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.bgDark,
+            foregroundColor: palette.bgDark,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             shape: RoundedRectangleBorder(
@@ -139,8 +147,8 @@ class AppTheme {
             ),
           ),
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: AppColors.navBgDark,
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: palette.navBgDark,
           selectedItemColor: AppColors.primaryLight,
           unselectedItemColor: AppColors.textMuted,
           type: BottomNavigationBarType.fixed,

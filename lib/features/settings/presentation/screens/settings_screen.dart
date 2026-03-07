@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/theme_provider.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _biometricLockEnabled = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -115,6 +117,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 trailing: Icon(Icons.chevron_right,
                     color: Colors.grey.shade400, size: 22),
               ),
+              const SizedBox(height: 28),
+              _buildSectionLabel('APPEARANCE'),
+              _buildThemeSelector(),
               const SizedBox(height: 28),
               _buildSectionLabel('PRIVACY & SECURITY'),
               _buildSettingsRow(
@@ -358,6 +363,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing,
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildThemeSelector() {
+    final currentTheme = ref.watch(themeProvider).themeColor;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: AppThemeColor.values.map((palette) {
+          final isSelected = palette == currentTheme;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => ref.read(themeProvider.notifier).setThemeColor(palette),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: palette.bg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: palette.bg,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade300),
+                        boxShadow: isSelected
+                            ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 6)]
+                            : null,
+                      ),
+                      child: isSelected
+                          ? const Icon(Icons.check, size: 16, color: AppColors.primary)
+                          : null,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      palette.label,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected ? AppColors.primary : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

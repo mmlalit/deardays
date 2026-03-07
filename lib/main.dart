@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:deardays/core/theme/app_theme.dart';
 import 'package:deardays/core/routing/app_router.dart';
 import 'package:deardays/core/config/supabase_config.dart';
+import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 
 void main() async {
@@ -23,16 +23,18 @@ void main() async {
   runApp(const ProviderScope(child: DearDaysApp()));
 }
 
-class DearDaysApp extends StatelessWidget {
+class DearDaysApp extends ConsumerWidget {
   const DearDaysApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(themeProvider);
+
     return MaterialApp.router(
       title: 'DearDays',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: theme.lightTheme,
+      darkTheme: theme.darkTheme,
       themeMode: ThemeMode.light,
       routerConfig: AppRouter.router,
     );

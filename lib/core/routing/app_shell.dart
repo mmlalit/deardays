@@ -23,9 +23,7 @@ class AppShell extends StatelessWidget {
       body: child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppColors.navBgDark
-              : AppColors.navBg,
+          color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
