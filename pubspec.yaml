@@ -33,7 +33,7 @@ dependencies:
   crypto: ^3.0.6
 
   # Voice Recording & Audio
-  record: ^5.2.1
+  record: ^5.2.2
   just_audio: ^0.9.43
 
   # AI & Networking
@@ -68,6 +68,9 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.8
+
+dependency_overrides:
+  record_platform_interface: 1.4.0
 
 dev_dependencies:
   flutter_test:

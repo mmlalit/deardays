@@ -87,7 +87,7 @@ const _returnGreetings = [
 // ---------------------------------------------------------------------------
 
 class CheckInNotifier extends StateNotifier<CheckInState> {
-  CheckInNotifier(this._aiService, {this.language}) : super(const CheckInState()) {
+  CheckInNotifier(this._aiService, {this.language}) : super(CheckInState()) {
     _loadTodayData();
   }
 
@@ -159,7 +159,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   Future<void> goBackToToday() async {
-    state = const CheckInState();
+    state = CheckInState();
     await _loadTodayData();
   }
 
