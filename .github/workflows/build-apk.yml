@@ -24,6 +24,9 @@ jobs:
       - name: Add Android platform
         run: flutter create --platforms android .
 
+      - name: Set minSdkVersion to 24
+        run: sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/' android/app/build.gradle
+
       - name: Get dependencies
         run: flutter pub get
 
