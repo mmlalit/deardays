@@ -1,22 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:deardays/core/theme/app_colors.dart';
+import 'package:intl/intl.dart';
 
-class LifeBookView extends StatelessWidget {
+import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/features/book/presentation/providers/life_book_provider.dart';
+
+class LifeBookView extends ConsumerWidget {
   const LifeBookView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(lifeBookProvider);
+
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.chapters.isEmpty) {
+      return _buildEmptyState();
+    }
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCoverSection(),
+          _buildCoverSection(state),
           const SizedBox(height: 32),
-          _buildContentsSection(),
+          _buildContentsSection(ref, state),
           const SizedBox(height: 28),
-          _buildEntryDetail(),
+          if (state.activeEntry != null)
+            _buildEntryDetail(ref, state),
           const SizedBox(height: 32),
           _buildDownloadButton(context),
           const SizedBox(height: 40),
@@ -25,111 +40,131 @@ class LifeBookView extends StatelessWidget {
     );
   }
 
-  Widget _buildCoverSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Column(
-        children: [
-          // Book cover card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            decoration: BoxDecoration(
-              color: AppColors.readingBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.readingText.withAlpha(26),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.auto_stories_outlined,
+              size: 56,
+              color: AppColors.primary.withAlpha(76),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Your story is waiting',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(15),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
-            child: Column(
-              children: [
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.primary.withAlpha(153),
-                        AppColors.primary,
-                      ],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 34,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'The Story of Sarah',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.readingText,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '2026 \u2014 Present',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.readingText.withAlpha(128),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.primary.withAlpha(102),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Memoir',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            const SizedBox(height: 8),
+            Text(
+              'Start journaling from the home screen.\nYour conversations will appear here\nas beautifully written entries.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildContentsSection() {
+  Widget _buildCoverSection(LifeBookState state) {
+    final totalEntries =
+        state.chapters.fold<int>(0, (sum, ch) => sum + ch.entryCount);
+    final dateRange = _buildDateRange(state.chapters);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        decoration: BoxDecoration(
+          color: AppColors.readingBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.readingText.withAlpha(26)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary.withAlpha(153),
+                    AppColors.primary,
+                  ],
+                ),
+              ),
+              child: const Icon(
+                Icons.auto_stories,
+                size: 34,
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'My Life Book',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.readingText,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              dateRange,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.readingText.withAlpha(128),
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.primary.withAlpha(102)),
+              ),
+              child: Text(
+                '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'}',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContentsSection(WidgetRef ref, LifeBookState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -146,238 +181,311 @@ class LifeBookView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _buildChapterItem(
-          title: 'March 2026: The Beginning',
-          subtitle: 'CHAPTER 1 \u2022 12 ENTRIES',
-          isActive: true,
-        ),
-        _buildChapterItem(
-          title: 'February 2026: Winter Reflections',
-          subtitle: 'CHAPTER 2 \u2022 9 ENTRIES',
-          isActive: false,
-        ),
-        _buildChapterItem(
-          title: 'January 2026: A Fresh Start',
-          subtitle: 'CHAPTER 3 \u2022 15 ENTRIES',
-          isActive: false,
-        ),
+        ...state.chapters.asMap().entries.map((e) {
+          final index = e.key;
+          final chapter = e.value;
+          final isActive = state.activeChapterIndex == index;
+          return _buildChapterItem(
+            ref: ref,
+            title: chapter.title,
+            subtitle:
+                'CHAPTER ${index + 1} \u2022 ${chapter.entryCount} ${chapter.entryCount == 1 ? 'ENTRY' : 'ENTRIES'}',
+            isActive: isActive,
+            onTap: () =>
+                ref.read(lifeBookProvider.notifier).selectChapter(index),
+          );
+        }),
       ],
     );
   }
 
   Widget _buildChapterItem({
+    required WidgetRef ref,
     required String title,
     required String subtitle,
     required bool isActive,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color:
-            isActive ? AppColors.primary.withAlpha(13) : Colors.transparent,
-        border: Border(
-          left: BorderSide(
-            color: isActive ? AppColors.primary : Colors.transparent,
-            width: 3,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color:
+              isActive ? AppColors.primary.withAlpha(13) : Colors.transparent,
+          border: Border(
+            left: BorderSide(
+              color: isActive ? AppColors.primary : Colors.transparent,
+              width: 3,
+            ),
           ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-              color: AppColors.readingText,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                      color: AppColors.readingText,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                      color: AppColors.readingText.withAlpha(102),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.0,
-              color: AppColors.readingText.withAlpha(102),
+            Icon(
+              isActive
+                  ? Icons.keyboard_arrow_down
+                  : Icons.keyboard_arrow_right,
+              size: 20,
+              color: isActive
+                  ? AppColors.primary
+                  : AppColors.readingText.withAlpha(76),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildEntryDetail() {
+  Widget _buildEntryDetail(WidgetRef ref, LifeBookState state) {
+    final entry = state.activeEntry!;
+    final chapterIdx = state.activeChapterIndex!;
+    final chapter = state.chapters[chapterIdx];
+    final entryIdx = state.activeEntryIndex!;
+    final dateStr = DateFormat('MMMM d, yyyy').format(entry.date);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Divider(color: AppColors.readingText.withAlpha(20)),
-          const SizedBox(height: 20),
+
+          // Entry picker if chapter has multiple entries
+          if (chapter.entries.length > 1) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: chapter.entries.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, index) {
+                  final e = chapter.entries[index];
+                  final isSelected = index == entryIdx;
+                  return GestureDetector(
+                    onTap: () => ref
+                        .read(lifeBookProvider.notifier)
+                        .selectEntry(chapterIdx, index),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.primary.withAlpha(13),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text(
+                        DateFormat('MMM d').format(e.date),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+
           // Entry header
           Row(
             children: [
               Text(
-                'March 7, 2026',
+                dateStr,
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.readingText.withAlpha(153),
                 ),
               ),
-              const SizedBox(width: 12),
-              Container(
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.readingText.withAlpha(64),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '\u263A Grateful',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.readingText.withAlpha(64),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 14,
-                      color: AppColors.readingText.withAlpha(102),
-                    ),
-                    const SizedBox(width: 3),
-                    Flexible(
-                      child: Text(
-                        'Home',
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.readingText.withAlpha(102),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // Drop cap paragraph
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'T',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 64,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                  height: 0.85,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'he morning light crept through the curtains in that gentle way it does '
-                  'when spring is just beginning to remember itself. I sat by the window '
-                  'with my coffee, watching the world slowly wake up. There is something '
-                  'profoundly beautiful about these quiet moments before the day demands '
-                  'anything of you.',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.readingText,
-                    height: 1.8,
+              if (entry.mood != null) ...[
+                const SizedBox(width: 12),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.readingText.withAlpha(64),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Photo placeholder
-          Container(
-            width: double.infinity,
-            height: 200,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary.withAlpha(38),
-                  AppColors.primary.withAlpha(20),
-                ],
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+                const SizedBox(width: 12),
                 Icon(
-                  Icons.photo_outlined,
-                  size: 36,
-                  color: AppColors.primary.withAlpha(102),
+                  _moodIcon(entry.mood!),
+                  size: 14,
+                  color: _moodColor(entry.mood!),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(width: 4),
                 Text(
-                  'Photo',
+                  entry.mood!,
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.primary.withAlpha(102),
+                    color: _moodColor(entry.mood!),
                   ),
                 ),
               ],
-            ),
+              const Spacer(),
+              // Re-polish button
+              if (entry.hasPolished)
+                GestureDetector(
+                  onTap: () => ref
+                      .read(lifeBookProvider.notifier)
+                      .repolishEntry(chapterIdx, entryIdx),
+                  child: Icon(
+                    Icons.refresh,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            'I called my mother today. We talked about nothing in particular \u2014 '
-            'the weather, the neighbour\u2019s new dog, whether the tomatoes would '
-            'survive another frost. But it wasn\u2019t about the words. It was about '
-            'the sound of her voice, steady and warm, a reminder that some things '
-            'remain unchanged even as everything else shifts.',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: AppColors.readingText,
-              height: 1.8,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Tonight I will sleep with the window cracked open, letting the cool air '
-            'carry in the scent of damp earth and early blossoms. Tomorrow will bring '
-            'its own questions, but for now, this is enough. This is more than enough.',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: AppColors.readingText,
-              height: 1.8,
-            ),
-          ),
+
+          const SizedBox(height: 24),
+
+          // Entry body
+          if (entry.isPolishing)
+            _buildPolishingIndicator()
+          else
+            _buildEntryBody(entry.displayText),
         ],
       ),
+    );
+  }
+
+  Widget _buildPolishingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Crafting your story...',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEntryBody(String text) {
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    // Split into paragraphs
+    final paragraphs =
+        text.split('\n').where((p) => p.trim().isNotEmpty).toList();
+
+    if (paragraphs.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // First paragraph with drop cap
+        _buildDropCapParagraph(paragraphs.first),
+        // Remaining paragraphs
+        ...paragraphs.skip(1).map((p) => Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(
+                p,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.readingText,
+                  height: 1.8,
+                ),
+              ),
+            )),
+      ],
+    );
+  }
+
+  Widget _buildDropCapParagraph(String text) {
+    if (text.length < 2) {
+      return Text(
+        text,
+        style: GoogleFonts.playfairDisplay(
+          fontSize: 16,
+          color: AppColors.readingText,
+          height: 1.8,
+        ),
+      );
+    }
+
+    final firstChar = text[0].toUpperCase();
+    final restText = text.substring(1);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          firstChar,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 64,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+            height: 0.85,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            restText,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: AppColors.readingText,
+              height: 1.8,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -408,5 +516,53 @@ class LifeBookView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // -- Helpers --
+
+  String _buildDateRange(List<LifeBookChapter> chapters) {
+    if (chapters.isEmpty) return '';
+    final oldest = chapters.last;
+    final newest = chapters.first;
+    final start = DateFormat('MMM yyyy')
+        .format(DateTime(oldest.year, oldest.month));
+    final end = DateFormat('MMM yyyy')
+        .format(DateTime(newest.year, newest.month));
+    if (start == end) return start;
+    return '$start \u2014 $end';
+  }
+
+  IconData _moodIcon(String mood) {
+    switch (mood.toLowerCase()) {
+      case 'great':
+        return Icons.sentiment_very_satisfied;
+      case 'good':
+        return Icons.sentiment_satisfied;
+      case 'okay':
+        return Icons.sentiment_neutral;
+      case 'low':
+        return Icons.sentiment_dissatisfied;
+      case 'tough':
+        return Icons.sentiment_very_dissatisfied;
+      default:
+        return Icons.sentiment_neutral;
+    }
+  }
+
+  Color _moodColor(String mood) {
+    switch (mood.toLowerCase()) {
+      case 'great':
+        return AppColors.moodGreat;
+      case 'good':
+        return AppColors.moodGood;
+      case 'okay':
+        return AppColors.moodOkay;
+      case 'low':
+        return AppColors.moodLow;
+      case 'tough':
+        return AppColors.moodTough;
+      default:
+        return AppColors.textSecondary;
+    }
   }
 }
