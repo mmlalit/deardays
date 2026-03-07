@@ -8,6 +8,7 @@ import 'package:deardays/features/journal/presentation/screens/recording_screen.
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/paywall_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/on_this_day_screen.dart';
+import 'package:deardays/features/book/presentation/screens/library_screen.dart';
 import 'package:deardays/features/book/presentation/screens/my_story_screen.dart';
 import 'package:deardays/features/book/presentation/screens/export_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
@@ -62,7 +63,7 @@ class AppRouter {
           GoRoute(
             path: '/book',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: MyStoryScreen(),
+              child: LibraryScreen(),
             ),
           ),
           GoRoute(
@@ -78,6 +79,12 @@ class AppRouter {
             ),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/book/:id',
+        builder: (context, state) => MyStoryScreen(
+          bookId: state.pathParameters['id']!,
+        ),
       ),
       GoRoute(
         path: '/checkin',

@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
+import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
@@ -19,6 +20,8 @@ import 'package:deardays/features/settings/presentation/screens/terms_screen.dar
 import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
+import 'package:deardays/core/widgets/dear_days_header.dart';
+import 'package:deardays/core/widgets/snack_bar_helper.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -126,16 +129,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     await NotificationService().scheduleDailyReminder(picked);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Daily reminder set for ${picked.format(context)}',
-          ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      AppSnackBar.success(context, 'Daily reminder set for ${picked.format(context)}');
     }
   }
 
@@ -202,25 +196,80 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         await profileRepo.updateProfile(profile.copyWith(writingStyle: picked));
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Writing style updated to ${picked[0].toUpperCase()}${picked.substring(1)}'),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        AppSnackBar.success(context, 'Writing style updated to ${picked[0].toUpperCase()}${picked.substring(1)}');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to update writing style.'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        AppSnackBar.error(context, 'Failed to update writing style.');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Book Organization
+  // ---------------------------------------------------------------------------
+
+  Future<void> _pickBookOrganization() async {
+    final options = [
+      {'value': 'yearly', 'label': 'Yearly', 'desc': 'One book per year (default)'},
+      {'value': 'monthly', 'label': 'Monthly', 'desc': 'One book per month'},
+      {'value': 'quarterly', 'label': 'Quarterly', 'desc': 'One book per quarter'},
+      {'value': 'manual', 'label': 'Manual Only', 'desc': 'Create books manually'},
+    ];
+
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Organize Books By',
+              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            ...options.map((o) => ListTile(
+                  leading: Icon(Icons.library_books_outlined, color: AppColors.primary),
+                  title: Text(o['label']!, style: GoogleFonts.inter(fontSize: 15)),
+                  subtitle: Text(
+                    o['desc']!,
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  onTap: () => Navigator.pop(ctx, o['value']),
+                )),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+
+    if (picked == null || !mounted) return;
+
+    try {
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final profile = await profileRepo.getProfile();
+      if (profile != null) {
+        await profileRepo.updateProfile(profile.copyWith(bookOrganization: picked));
+      }
+      if (mounted) {
+        final label = options.firstWhere((o) => o['value'] == picked)['label']!;
+        AppSnackBar.success(context, 'Books organized by $label');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppSnackBar.error(context, 'Failed to update book organization.');
       }
     }
   }
@@ -255,7 +304,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'your device. The server stores only encrypted blobs — we cannot '
               'read your journal entries.',
               style: GoogleFonts.inter(
-                fontSize: 13, height: 1.5, color: Colors.black54,
+                fontSize: 13, height: 1.5, color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -284,7 +333,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Expanded(
             child: Text(value,
                 style: GoogleFonts.inter(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF2D2D2D))),
+                    fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           ),
         ],
       ),
@@ -347,14 +396,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     // JSON export
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Exporting your data...'),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      AppSnackBar.success(context, 'Exporting your data...');
 
       final journalRepo = ref.read(journalRepositoryProvider);
       final entries = await journalRepo.getEntries(limit: 10000);
@@ -385,14 +427,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        AppSnackBar.error(context, 'Export failed: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}');
       }
     }
   }
@@ -413,7 +448,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'This will permanently delete your account and all journal entries. '
           'This action cannot be undone.\n\n'
           'Your encrypted data will be erased from the server.',
-          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: Colors.black54),
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -488,14 +523,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to delete account. Please try again.'),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        AppSnackBar.error(context, 'Failed to delete account. Please try again.');
       }
     }
   }
@@ -588,7 +616,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF2D2D2D),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),
@@ -623,6 +651,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: Colors.grey.shade400, size: 22),
                 onTap: () => Navigator.of(context).pushNamed('/chapters'),
               ),
+              const SizedBox(height: 28),
+              _buildSectionLabel('LIBRARY'),
+              _buildSettingsRow(
+                icon: Icons.library_books_outlined,
+                label: 'Organize Books By',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Yearly',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right,
+                        color: Colors.grey.shade400, size: 22),
+                  ],
+                ),
+                onTap: _pickBookOrganization,
+              ),
+              const SizedBox(height: 28),
+              _buildSectionLabel('LANGUAGE'),
+              _buildLanguageSelector(),
               const SizedBox(height: 28),
               _buildSectionLabel('APPEARANCE'),
               _buildThemeSelector(),
@@ -794,26 +847,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
-            child: const Icon(Icons.arrow_back_ios_new,
-                color: Color(0xFF2D2D2D), size: 22),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            'Settings',
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF2D2D2D),
-            ),
-          ),
-        ],
-      ),
+    return const DearDaysHeader(
+      title: 'Settings',
+      mode: HeaderMode.push,
     );
   }
 
@@ -877,7 +913,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF2D2D2D),
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -955,7 +991,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: labelColor ?? const Color(0xFF2D2D2D),
+                  color: labelColor ?? AppColors.textPrimary,
                 ),
               ),
             ),
@@ -964,6 +1000,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildLanguageSelector() {
+    final currentLocale = ref.watch(localeProvider).appLocale;
+
+    return _buildSettingsRow(
+      icon: Icons.language,
+      label: 'App Language',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            currentLocale.label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 22),
+        ],
+      ),
+      onTap: () => _pickLanguage(),
+    );
+  }
+
+  Future<void> _pickLanguage() async {
+    final currentLocale = ref.read(localeProvider).appLocale;
+
+    final picked = await showModalBottomSheet<AppLocale>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'App Language',
+              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            ...AppLocale.values.map((locale) => ListTile(
+                  leading: Icon(
+                    locale == AppLocale.system
+                        ? Icons.phone_android
+                        : Icons.translate,
+                    color: AppColors.primary,
+                  ),
+                  title: Text(locale.label, style: GoogleFonts.inter(fontSize: 15)),
+                  trailing: locale == currentLocale
+                      ? Icon(Icons.check_circle, color: AppColors.primary, size: 22)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, locale),
+                )),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+
+    if (picked == null || !mounted) return;
+    ref.read(localeProvider.notifier).setLocale(picked);
   }
 
   Widget _buildThemeSelector() {

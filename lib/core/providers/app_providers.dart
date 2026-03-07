@@ -7,12 +7,15 @@ import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
+import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
+import 'package:deardays/features/book/data/models/book.dart';
+import 'package:deardays/features/book/data/repositories/book_repository.dart';
 
 // --- Core Services ---
 
@@ -88,6 +91,17 @@ final chaptersProvider = FutureProvider<List<Chapter>>((ref) async {
   return ref.watch(profileRepositoryProvider).getChapters();
 });
 
+// --- Books ---
+
+final bookRepositoryProvider = Provider<BookRepository>((ref) {
+  return BookRepository(client: ref.watch(supabaseClientProvider));
+});
+
+final booksProvider = FutureProvider<List<Book>>((ref) async {
+  ref.watch(authStateProvider);
+  return ref.watch(bookRepositoryProvider).getBooks();
+});
+
 // --- Journal Entries ---
 
 final entriesProvider =
@@ -157,11 +171,13 @@ final weeklySummaryProvider = FutureProvider<String?>((ref) async {
   final entries = await ref.watch(weeklyEntriesProvider.future);
   if (entries.isEmpty) return null;
 
+  final language = ref.watch(localeProvider).languageName;
   final texts = entries.map((e) => e.content).toList();
   try {
     return await ref.watch(aiServiceProvider).generateSummary(
           texts,
           period: 'weekly',
+          language: language,
         );
   } catch (_) {
     return null;

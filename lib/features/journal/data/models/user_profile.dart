@@ -13,6 +13,7 @@ class UserProfile {
   final String? subscriptionPlan;
   final DateTime? subscriptionExpiresAt;
   final String? revenuecatCustomerId;
+  final String bookOrganization;
   final DateTime createdAt;
 
   const UserProfile({
@@ -28,6 +29,7 @@ class UserProfile {
     this.subscriptionPlan,
     this.subscriptionExpiresAt,
     this.revenuecatCustomerId,
+    this.bookOrganization = 'yearly',
     required this.createdAt,
   });
 
@@ -55,6 +57,7 @@ class UserProfile {
     String? subscriptionPlan,
     DateTime? subscriptionExpiresAt,
     String? revenuecatCustomerId,
+    String? bookOrganization,
     DateTime? createdAt,
   }) {
     return UserProfile(
@@ -72,6 +75,7 @@ class UserProfile {
           subscriptionExpiresAt ?? this.subscriptionExpiresAt,
       revenuecatCustomerId:
           revenuecatCustomerId ?? this.revenuecatCustomerId,
+      bookOrganization: bookOrganization ?? this.bookOrganization,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -90,6 +94,7 @@ class UserProfile {
       'subscription_plan': subscriptionPlan,
       'subscription_expires_at': subscriptionExpiresAt?.toIso8601String(),
       'revenuecat_customer_id': revenuecatCustomerId,
+      'book_organization': bookOrganization,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -110,6 +115,7 @@ class UserProfile {
           ? DateTime.parse(map['subscription_expires_at'] as String)
           : null,
       revenuecatCustomerId: map['revenuecat_customer_id'] as String?,
+      bookOrganization: (map['book_organization'] as String?) ?? 'yearly',
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
