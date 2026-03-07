@@ -22,8 +22,8 @@ class AppColors {
   static const Color readingBg = Color(0xFFFBF0D9);
   static const Color readingText = Color(0xFF3D3228);
 
-  // Bottom navigation
-  static const Color navBg = Color(0xFFF9F5F0);
+  // Bottom navigation — white to contrast with body
+  static const Color navBg = Color(0xFFFFFFFF);
   static const Color navBgDark = Color(0xFF1E1B18);
 
   // Text
@@ -48,9 +48,9 @@ class AppColors {
 
 /// Theme color palettes the user can choose from in Settings.
 enum AppThemeColor {
-  warmCream('Warm Cream', Color(0xFFFCF9F5), Color(0xFFF9F5F0), Color(0xFFE8E4DF), Color(0xFF1A1816), Color(0xFF252220), Color(0xFF1E1B18)),
-  sageGreen('Sage Green', Color(0xFFF7FAF8), Color(0xFFF2F7F3), Color(0xFFE2E8F0), Color(0xFF161E18), Color(0xFF1E2A20), Color(0xFF1A241C)),
-  classicWhite('Classic White', Color(0xFFFFFFFF), Color(0xFFFAFAFA), Color(0xFFE5E7EB), Color(0xFF111111), Color(0xFF1C1C1C), Color(0xFF161616));
+  warmCream('Warm Cream', Color(0xFFFCF9F5), Color(0xFFFFFFFF), Color(0xFFE8E4DF), Color(0xFF1A1816), Color(0xFF252220), Color(0xFF1E1B18)),
+  sageGreen('Sage Green', Color(0xFFF7FAF8), Color(0xFFFFFFFF), Color(0xFFE2E8F0), Color(0xFF161E18), Color(0xFF1E2A20), Color(0xFF1A241C)),
+  classicWhite('Classic White', Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFFE5E7EB), Color(0xFF111111), Color(0xFF1C1C1C), Color(0xFF161616));
 
   const AppThemeColor(this.label, this.bg, this.navBg, this.border, this.bgDark, this.cardDark, this.navBgDark);
 

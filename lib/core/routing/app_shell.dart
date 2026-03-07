@@ -24,17 +24,15 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+          border: Border(
+            top: BorderSide(
+              color: Colors.black.withOpacity(0.08),
             ),
-          ],
+          ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -90,6 +88,9 @@ class _NavItem extends StatelessWidget {
     required this.onTap,
   });
 
+  static const _activeColor = Color(0xFF1A1A1A);
+  static const _inactiveColor = Color(0xFF999999);
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -100,20 +101,10 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.primary.withOpacity(0.12)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                isActive ? activeIcon : icon,
-                color: isActive ? AppColors.primaryDark : AppColors.textMuted,
-                size: 24,
-              ),
+            Icon(
+              isActive ? activeIcon : icon,
+              color: isActive ? _activeColor : _inactiveColor,
+              size: 24,
             ),
             const SizedBox(height: 4),
             Text(
@@ -121,7 +112,7 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? AppColors.primaryDark : AppColors.textMuted,
+                color: isActive ? _activeColor : _inactiveColor,
               ),
             ),
           ],
