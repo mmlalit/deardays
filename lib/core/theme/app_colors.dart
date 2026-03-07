@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // From Stitch designs — exact values
-  static const Color primary = Color(0xFFD4A373);
-  static const Color primaryLight = Color(0xFFE8C89A);
-  static const Color primaryDark = Color(0xFFC08B5C);
+  // Sage Green — calm, grounding, nature-inspired
+  static const Color primary = Color(0xFF7C9A82);
+  static const Color primaryLight = Color(0xFFA3BFA8);
+  static const Color primaryDark = Color(0xFF5E7D63);
 
   // Backgrounds
-  static const Color bgLight = Color(0xFFF8F7F6);
-  static const Color bgDark = Color(0xFF1E1914);
+  static const Color bgLight = Color(0xFFF7FAF8);
+  static const Color bgDark = Color(0xFF161E18);
   static const Color cardLight = Colors.white;
-  static const Color cardDark = Color(0xFF2A2420);
+  static const Color cardDark = Color(0xFF1E2A20);
 
   // Text
   static const Color navy = Color(0xFF1E293B);
