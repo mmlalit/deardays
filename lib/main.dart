@@ -5,6 +5,7 @@ import 'package:deardays/core/routing/app_router.dart';
 import 'package:deardays/core/config/supabase_config.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
+import 'package:deardays/services/subscription/revenuecat_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,9 @@ void main() async {
 
   // Initialize local encrypted storage
   await LocalStorageService().init();
+
+  // Initialize RevenueCat for in-app purchases
+  await RevenueCatService().init();
 
   runApp(const ProviderScope(child: DearDaysApp()));
 }

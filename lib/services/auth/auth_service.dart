@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
+import 'package:deardays/services/subscription/revenuecat_service.dart';
 
 /// Authentication service wrapping Supabase Auth with zero-knowledge
 /// encryption key management.
@@ -21,6 +22,7 @@ class AuthService {
 
   final EncryptionService _encryption = EncryptionService();
   final SecureStorageService _secureStorage = SecureStorageService();
+  final RevenueCatService _revenueCat = RevenueCatService();
 
   // ---------------------------------------------------------------------------
   // Supabase client accessor
@@ -80,6 +82,9 @@ class AuthService {
       // Cache the salt locally so we can re-derive the key on next login
       // without hitting the network (useful for offline / biometric unlock).
       await _secureStorage.saveEncryptionSalt(salt);
+
+      // Link this user to RevenueCat for purchase tracking.
+      await _revenueCat.login(response.user!.id);
     }
 
     return response;
@@ -97,6 +102,9 @@ class AuthService {
 
     if (response.user != null) {
       await _deriveAndStoreKey(response.user!.id, password);
+
+      // Link this user to RevenueCat for purchase tracking.
+      await _revenueCat.login(response.user!.id);
     }
 
     return response;
@@ -146,6 +154,9 @@ class AuthService {
 
     // Clear all locally stored sensitive data (salt cache, tokens, etc.).
     await _secureStorage.clearAll();
+
+    // Reset RevenueCat to anonymous user.
+    await _revenueCat.logout();
 
     // Sign out from Supabase (revokes refresh token on server).
     await _client.auth.signOut();

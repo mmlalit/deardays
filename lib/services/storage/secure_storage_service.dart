@@ -30,6 +30,9 @@ class SecureStorageService {
   static const String _keyEncryptionSalt = 'dd_encryption_salt';
   static const String _keyBiometricEnabled = 'dd_biometric_enabled';
   static const String _keyAuthToken = 'dd_auth_token';
+  static const String _keyPinHash = 'dd_pin_hash';
+  static const String _keyPatternHash = 'dd_pattern_hash';
+  static const String _keyLockMethod = 'dd_lock_method'; // none, pin, pattern, biometric
 
   // ---------------------------------------------------------------------------
   // Secure storage instance with platform-specific options
@@ -85,6 +88,50 @@ class SecureStorageService {
   Future<bool> getBiometricEnabled() async {
     final value = await _storage.read(key: _keyBiometricEnabled);
     return value == 'true';
+  }
+
+  // ---------------------------------------------------------------------------
+  // PIN lock
+  // ---------------------------------------------------------------------------
+
+  Future<void> savePinHash(String pinHash) async {
+    await _storage.write(key: _keyPinHash, value: pinHash);
+  }
+
+  Future<String?> getPinHash() async {
+    return await _storage.read(key: _keyPinHash);
+  }
+
+  Future<void> clearPin() async {
+    await _storage.delete(key: _keyPinHash);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pattern lock
+  // ---------------------------------------------------------------------------
+
+  Future<void> savePatternHash(String patternHash) async {
+    await _storage.write(key: _keyPatternHash, value: patternHash);
+  }
+
+  Future<String?> getPatternHash() async {
+    return await _storage.read(key: _keyPatternHash);
+  }
+
+  Future<void> clearPattern() async {
+    await _storage.delete(key: _keyPatternHash);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lock method preference
+  // ---------------------------------------------------------------------------
+
+  Future<void> saveLockMethod(String method) async {
+    await _storage.write(key: _keyLockMethod, value: method);
+  }
+
+  Future<String> getLockMethod() async {
+    return await _storage.read(key: _keyLockMethod) ?? 'none';
   }
 
   // ---------------------------------------------------------------------------

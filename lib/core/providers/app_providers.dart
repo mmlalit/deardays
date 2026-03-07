@@ -52,13 +52,13 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository(
-    ref.watch(supabaseClientProvider),
-    ref.watch(encryptionServiceProvider),
+    client: ref.watch(supabaseClientProvider),
+    encryption: ref.watch(encryptionServiceProvider),
   );
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepository(ref.watch(supabaseClientProvider));
+  return ProfileRepository(client: ref.watch(supabaseClientProvider));
 });
 
 // --- Auth State ---
@@ -120,6 +120,65 @@ final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 
 final totalEntriesProvider = FutureProvider<int>((ref) async {
   return ref.watch(journalRepositoryProvider).getTotalEntries();
+});
+
+// --- Insights ---
+
+/// Mood values for the last 7 days (for the weekly bar chart).
+final weeklyMoodsProvider =
+    FutureProvider<List<Map<String, String>>>((ref) async {
+  return ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: 7);
+});
+
+/// Mood breakdown for the last 30 days.
+final monthlyMoodStatsProvider =
+    FutureProvider<Map<String, int>>((ref) async {
+  final now = DateTime.now();
+  final start = DateTime(now.year, now.month - 1, now.day);
+  return ref
+      .watch(journalRepositoryProvider)
+      .getMoodStatsByRange(start: start, end: now);
+});
+
+/// Weekly entries for AI summary generation.
+final weeklyEntriesProvider =
+    FutureProvider<List<JournalEntry>>((ref) async {
+  final now = DateTime.now();
+  final weekStart = now.subtract(const Duration(days: 6));
+  return ref.watch(journalRepositoryProvider).getEntries(
+        startDate: DateTime(weekStart.year, weekStart.month, weekStart.day),
+        endDate: now,
+        limit: 50,
+      );
+});
+
+/// AI-generated weekly summary text.
+final weeklySummaryProvider = FutureProvider<String?>((ref) async {
+  final entries = await ref.watch(weeklyEntriesProvider.future);
+  if (entries.isEmpty) return null;
+
+  final texts = entries.map((e) => e.content).toList();
+  try {
+    return await ref.watch(aiServiceProvider).generateSummary(
+          texts,
+          period: 'weekly',
+        );
+  } catch (_) {
+    return null;
+  }
+});
+
+/// AI-detected themes from this week's entries.
+final weeklyThemesProvider = FutureProvider<List<String>>((ref) async {
+  final entries = await ref.watch(weeklyEntriesProvider.future);
+  if (entries.isEmpty) return [];
+
+  final texts = entries.map((e) => e.content).toList();
+  try {
+    return await ref.watch(aiServiceProvider).detectThemes(texts);
+  } catch (_) {
+    return [];
+  }
 });
 
 // --- Filter Model ---

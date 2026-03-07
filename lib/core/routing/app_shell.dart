@@ -26,7 +26,7 @@ class AppShell extends StatelessWidget {
           color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
           border: Border(
             top: BorderSide(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withAlpha(20),
             ),
           ),
         ),
@@ -44,16 +44,16 @@ class AppShell extends StatelessWidget {
                   onTap: () => context.go('/home'),
                 ),
                 _NavItem(
-                  icon: Icons.menu_book_outlined,
-                  activeIcon: Icons.menu_book,
-                  label: 'Book',
+                  icon: Icons.auto_stories_outlined,
+                  activeIcon: Icons.auto_stories,
+                  label: 'My Story',
                   isActive: index == 1,
                   onTap: () => context.go('/book'),
                 ),
                 _NavItem(
-                  icon: Icons.timeline_outlined,
-                  activeIcon: Icons.timeline,
-                  label: 'Timeline',
+                  icon: Icons.insights_outlined,
+                  activeIcon: Icons.insights,
+                  label: 'Insights',
                   isActive: index == 2,
                   onTap: () => context.go('/timeline'),
                 ),

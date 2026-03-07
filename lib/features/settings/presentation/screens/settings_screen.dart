@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
+import 'package:deardays/services/storage/secure_storage_service.dart';
+import 'package:deardays/features/auth/presentation/screens/pin_screen.dart';
+import 'package:deardays/features/auth/presentation/screens/pattern_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/terms_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -12,7 +21,84 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _biometricLockEnabled = true;
+  bool _biometricLockEnabled = false;
+  bool _biometricAvailable = false;
+  String _lockMethod = 'none';
+  final _secureStorage = SecureStorageService();
+  final _localAuth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      final enabled = await _secureStorage.getBiometricEnabled();
+      final lockMethod = await _secureStorage.getLockMethod();
+
+      if (mounted) {
+        setState(() {
+          _biometricAvailable = canCheck && isDeviceSupported;
+          _biometricLockEnabled = enabled;
+          _lockMethod = lockMethod;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value && _biometricAvailable) {
+      // Verify biometric before enabling
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Verify your identity to enable biometric lock',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+      if (!authenticated) return;
+    }
+
+    await _secureStorage.saveBiometricEnabled(value);
+    if (mounted) {
+      setState(() => _biometricLockEnabled = value);
+    }
+  }
+
+  Future<void> _setupPin() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PinScreen(mode: PinMode.setup, onSuccess: () {}),
+      ),
+    );
+    if (result == true && mounted) {
+      setState(() => _lockMethod = 'pin');
+    }
+  }
+
+  Future<void> _setupPattern() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PatternScreen(mode: PatternMode.setup, onSuccess: () {}),
+      ),
+    );
+    if (result == true && mounted) {
+      setState(() => _lockMethod = 'pattern');
+    }
+  }
+
+  Future<void> _clearLockMethod() async {
+    await _secureStorage.saveLockMethod('none');
+    await _secureStorage.clearPin();
+    await _secureStorage.clearPattern();
+    if (mounted) {
+      setState(() => _lockMethod = 'none');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,12 +118,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildSettingsRow(
                 icon: Icons.email_outlined,
                 label: 'Email',
-                trailing: Text(
-                  'sarah@example.com',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.grey.shade400,
-                  ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      Supabase.instance.client.auth.currentUser?.email ?? '',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right,
+                        color: Colors.grey.shade400, size: 22),
+                  ],
+                ),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                 ),
               ),
               _buildDivider(),
@@ -46,16 +143,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 label: 'Password',
                 trailing: Icon(Icons.chevron_right,
                     color: Colors.grey.shade400, size: 22),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                ),
               ),
               _buildDivider(),
               _buildSettingsRow(
                 icon: Icons.workspace_premium_outlined,
                 label: 'Subscription',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Premium Plan',
+                      'Manage',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -127,16 +230,82 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 label: 'Biometric Lock',
                 trailing: Switch(
                   value: _biometricLockEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _biometricLockEnabled = value;
-                    });
-                  },
+                  onChanged: _biometricAvailable ? _toggleBiometric : null,
                   activeColor: Colors.white,
                   activeTrackColor: AppColors.primary,
                   inactiveThumbColor: Colors.white,
                   inactiveTrackColor: Colors.grey.shade300,
                 ),
+              ),
+              _buildDivider(),
+              _buildSettingsRow(
+                icon: Icons.dialpad,
+                label: 'PIN Lock',
+                trailing: _lockMethod == 'pin'
+                    ? GestureDetector(
+                        onTap: _clearLockMethod,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(26),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            'Active',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: _setupPin,
+                        child: Text(
+                          'Set up',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+              ),
+              _buildDivider(),
+              _buildSettingsRow(
+                icon: Icons.pattern,
+                label: 'Pattern Lock',
+                trailing: _lockMethod == 'pattern'
+                    ? GestureDetector(
+                        onTap: _clearLockMethod,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(26),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            'Active',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: _setupPattern,
+                        child: Text(
+                          'Set up',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
               ),
               _buildDivider(),
               _buildSettingsRow(
@@ -192,15 +361,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildSettingsRow(
                 icon: Icons.privacy_tip_outlined,
                 label: 'Privacy Policy',
-                trailing: Icon(Icons.open_in_new,
-                    color: Colors.grey.shade400, size: 18),
+                trailing: Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400, size: 22),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                ),
               ),
               _buildDivider(),
               _buildSettingsRow(
                 icon: Icons.description_outlined,
                 label: 'Terms of Service',
-                trailing: Icon(Icons.open_in_new,
-                    color: Colors.grey.shade400, size: 18),
+                trailing: Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400, size: 22),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const TermsScreen()),
+                ),
               ),
               const SizedBox(height: 36),
               _buildFooter(),
@@ -247,7 +422,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withOpacity(0.15),
+                  color: AppColors.primary.withAlpha(38),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -294,7 +469,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 14),
           OutlinedButton(
-            onPressed: () {},
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: BorderSide(color: AppColors.primary),
@@ -340,9 +517,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required Widget trailing,
     Color? labelColor,
     Color? iconColor,
+    VoidCallback? onTap,
   }) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
@@ -399,7 +577,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.grey.shade300),
                         boxShadow: isSelected
-                            ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 6)]
+                            ? [BoxShadow(color: AppColors.primary.withAlpha(76), blurRadius: 6)]
                             : null,
                       ),
                       child: isSelected

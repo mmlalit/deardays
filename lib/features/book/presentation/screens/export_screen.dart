@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
+import 'package:deardays/services/encryption/encryption_service.dart';
 
 class ExportScreen extends StatefulWidget {
   const ExportScreen({super.key});
@@ -18,8 +26,152 @@ class _CoverColor {
 class _ExportScreenState extends State<ExportScreen> {
   String _selectedRange = 'All Time';
   int _selectedColorIndex = 2; // default sand (primary)
+  bool _isExporting = false;
+
+  late final JournalRepository _repository = JournalRepository(
+    client: Supabase.instance.client,
+    encryption: EncryptionService(),
+  );
 
   static const _dateRanges = ['All Time', 'Last Year', 'Custom'];
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExporting = true);
+
+    try {
+      DateTime? startDate;
+      if (_selectedRange == 'Last Year') {
+        startDate = DateTime.now().subtract(const Duration(days: 365));
+      }
+
+      final entries = await _repository.getEntries(
+        startDate: startDate,
+        limit: 500,
+      );
+
+      if (entries.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No entries to export.')),
+          );
+        }
+        return;
+      }
+
+      final coverColor = _coverColors[_selectedColorIndex].color;
+      final pdfDoc = await _buildPdfDocument(entries, coverColor);
+
+      if (mounted) {
+        await Printing.layoutPdf(
+          onLayout: (_) => pdfDoc.save(),
+          name: 'DearDays_Journal.pdf',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: ${e.toString().length > 80 ? e.toString().substring(0, 80) : e}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  Future<pw.Document> _buildPdfDocument(
+    List<JournalEntry> entries,
+    Color coverColor,
+  ) async {
+    final pdf = pw.Document();
+    final pdfCoverColor = PdfColor.fromInt(coverColor.value);
+
+    // Cover page
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => pw.Container(
+          color: pdfCoverColor,
+          width: double.infinity,
+          height: double.infinity,
+          child: pw.Column(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Text(
+                'A PERSONAL JOURNEY',
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 12,
+                  letterSpacing: 3,
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'My DearDays\nJournal',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  color: PdfColors.white,
+                  fontSize: 36,
+                  fontWeight: pw.FontWeight.bold,
+                  lineSpacing: 6,
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Text(
+                '${entries.length} entries',
+                style: pw.TextStyle(
+                  color: PdfColor.fromInt(0xCCFFFFFF),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Entry pages
+    for (final entry in entries) {
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(48),
+          build: (context) {
+            final dateStr = DateFormat.yMMMMd().format(entry.entryDate);
+            final moodStr = entry.mood != null ? ' \u2022 ${entry.mood}' : '';
+
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '$dateStr$moodStr',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                    letterSpacing: 1,
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+                pw.SizedBox(height: 16),
+                pw.Text(
+                  entry.content,
+                  style: const pw.TextStyle(
+                    fontSize: 12,
+                    lineSpacing: 6,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    return pdf;
+  }
 
   static const _coverColors = [
     _CoverColor('Sage', Color(0xFF8FAE8B)),
@@ -157,7 +309,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                       ? [
                                           BoxShadow(
                                             color:
-                                                cc.color.withOpacity(0.35),
+                                                cc.color.withAlpha(89),
                                             blurRadius: 8,
                                             offset: const Offset(0, 3),
                                           )
@@ -192,7 +344,7 @@ class _ExportScreenState extends State<ExportScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withAlpha(10),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -224,16 +376,26 @@ class _ExportScreenState extends State<ExportScreen> {
                             width: double.infinity,
                             height: 48,
                             child: ElevatedButton(
-                              onPressed: () {},
+                              onPressed: _isExporting ? null : _exportPdf,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
+                                disabledBackgroundColor: AppColors.primary.withAlpha(128),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: Text(
+                              child: _isExporting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
                                 'Download High-Quality PDF',
                                 style: GoogleFonts.inter(
                                   fontSize: 15,
@@ -276,7 +438,11 @@ class _ExportScreenState extends State<ExportScreen> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Print ordering coming soon!')),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1E293B),
                           foregroundColor: Colors.white,
@@ -322,7 +488,7 @@ class _ExportScreenState extends State<ExportScreen> {
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withAlpha(38),
                 blurRadius: 24,
                 offset: const Offset(6, 10),
               ),
@@ -340,8 +506,8 @@ class _ExportScreenState extends State<ExportScreen> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      Colors.white.withOpacity(0.35),
-                      Colors.white.withOpacity(0.05),
+                      Colors.white.withAlpha(89),
+                      Colors.white.withAlpha(13),
                     ],
                   ),
                 ),
@@ -354,7 +520,7 @@ class _ExportScreenState extends State<ExportScreen> {
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 2,
-                  color: Colors.white.withOpacity(0.75),
+                  color: Colors.white.withAlpha(191),
                 ),
               ),
               const SizedBox(height: 10),
@@ -375,7 +541,7 @@ class _ExportScreenState extends State<ExportScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withAlpha(178),
                 ),
               ),
             ],
@@ -411,7 +577,7 @@ class _ExportScreenState extends State<ExportScreen> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withAlpha(10),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

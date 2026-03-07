@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/login_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
@@ -7,17 +8,35 @@ import 'package:deardays/features/journal/presentation/screens/recording_screen.
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/paywall_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/on_this_day_screen.dart';
-import 'package:deardays/features/book/presentation/screens/book_view_screen.dart';
+import 'package:deardays/features/book/presentation/screens/my_story_screen.dart';
 import 'package:deardays/features/book/presentation/screens/export_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
+import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
 import 'package:deardays/core/routing/app_shell.dart';
 
 class AppRouter {
   AppRouter._();
 
+  static const _publicPaths = {'/onboarding', '/login'};
+
   static final router = GoRouter(
     initialLocation: '/onboarding',
+    redirect: (context, state) {
+      final user = Supabase.instance.client.auth.currentUser;
+      final isLoggedIn = user != null;
+      final currentPath = state.matchedLocation;
+
+      if (isLoggedIn && _publicPaths.contains(currentPath)) {
+        return '/home';
+      }
+
+      if (!isLoggedIn && !_publicPaths.contains(currentPath)) {
+        return '/login';
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/onboarding',
@@ -43,7 +62,7 @@ class AppRouter {
           GoRoute(
             path: '/book',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: BookViewScreen(),
+              child: MyStoryScreen(),
             ),
           ),
           GoRoute(
@@ -59,6 +78,10 @@ class AppRouter {
             ),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/checkin',
+        builder: (context, state) => const CheckInScreen(),
       ),
       GoRoute(
         path: '/record',

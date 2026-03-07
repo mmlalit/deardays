@@ -3,8 +3,15 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
+import 'package:deardays/services/encryption/encryption_service.dart';
 
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({super.key});
@@ -15,10 +22,19 @@ class RecordingScreen extends StatefulWidget {
 
 class _RecordingScreenState extends State<RecordingScreen>
     with SingleTickerProviderStateMixin {
-  bool _isRecording = true;
+  bool _isRecording = false;
   bool _showBottomSheet = false;
+  bool _isSaving = false;
   int _elapsedSeconds = 0;
   Timer? _timer;
+  String? _recordingPath;
+
+  final AudioRecorder _audioRecorder = AudioRecorder();
+
+  late final JournalRepository _repository = JournalRepository(
+    client: Supabase.instance.client,
+    encryption: EncryptionService(),
+  );
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
@@ -42,17 +58,46 @@ class _RecordingScreenState extends State<RecordingScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _startTimer();
+    _startRecording();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _pulseController.dispose();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
+  Future<void> _startRecording() async {
+    if (await _audioRecorder.hasPermission()) {
+      final dir = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+
+      setState(() {
+        _isRecording = true;
+        _recordingPath = path;
+        _elapsedSeconds = 0;
+      });
+
+      _startTimer();
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission is required.')),
+        );
+        Navigator.of(context).maybePop();
+      }
+    }
+  }
+
   void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_isRecording) {
         setState(() => _elapsedSeconds++);
@@ -60,18 +105,67 @@ class _RecordingScreenState extends State<RecordingScreen>
     });
   }
 
-  void _toggleRecording() {
-    setState(() {
-      if (_isRecording) {
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      final path = await _audioRecorder.stop();
+      _timer?.cancel();
+      setState(() {
         _isRecording = false;
+        _recordingPath = path;
         _pulseController.stop();
         _showBottomSheet = true;
-      } else {
-        _isRecording = true;
+      });
+    } else {
+      setState(() {
         _showBottomSheet = false;
-        _pulseController.repeat(reverse: true);
+      });
+      await _startRecording();
+      _pulseController.repeat(reverse: true);
+    }
+  }
+
+  Future<void> _saveVoiceEntry() async {
+    setState(() => _isSaving = true);
+
+    try {
+      final now = DateTime.now().toUtc();
+      final durationText = '$_minutes:$_seconds';
+      final entry = JournalEntry(
+        id: const Uuid().v4(),
+        userId: Supabase.instance.client.auth.currentUser!.id,
+        content: 'Voice journal entry ($durationText)',
+        rawContent: 'Voice recording: $durationText',
+        entryDate: now,
+        entryTime: TimeOfDay.fromDateTime(now),
+        hasVoice: true,
+        wordCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await _repository.createEntry(entry);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Voice entry saved!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        Navigator.of(context).maybePop();
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save: ${e.toString().length > 80 ? e.toString().substring(0, 80) : e}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   String get _minutes =>
@@ -88,7 +182,7 @@ class _RecordingScreenState extends State<RecordingScreen>
         children: [
           // Dark backdrop
           Container(
-            color: AppColors.bgDark.withOpacity(0.95),
+            color: AppColors.bgDark.withAlpha(242),
           ),
 
           // Main content
@@ -132,7 +226,7 @@ class _RecordingScreenState extends State<RecordingScreen>
               height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withAlpha(26),
               ),
               child: const Icon(
                 Icons.close,
@@ -188,7 +282,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       width: 72,
       height: 72,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withAlpha(26),
         borderRadius: BorderRadius.circular(14),
       ),
       alignment: Alignment.center,
@@ -224,8 +318,8 @@ class _RecordingScreenState extends State<RecordingScreen>
             height: _isRecording ? height : 8,
             margin: const EdgeInsets.symmetric(horizontal: 1.5),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(
-                _isRecording ? opacity : 0.25,
+              color: AppColors.primary.withAlpha(
+                ((_isRecording ? opacity : 0.25) * 255).round(),
               ),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -257,19 +351,19 @@ class _RecordingScreenState extends State<RecordingScreen>
                 boxShadow: _isRecording
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.2),
+                          color: AppColors.primary.withAlpha(51),
                           blurRadius: 40,
                           spreadRadius: 16,
                         ),
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.35),
+                          color: AppColors.primary.withAlpha(89),
                           blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
                       ]
                     : [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.25),
+                          color: AppColors.primary.withAlpha(64),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -307,7 +401,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           _isRecording ? 'Tap to stop' : 'Review your entry below',
           style: GoogleFonts.inter(
             fontSize: 13,
-            color: AppColors.primary.withOpacity(0.7),
+            color: AppColors.primary.withAlpha(178),
           ),
         ),
       ],
@@ -335,7 +429,7 @@ class _RecordingScreenState extends State<RecordingScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withAlpha(51),
                 blurRadius: 20,
                 offset: const Offset(0, -4),
               ),
@@ -355,7 +449,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.textMuted.withOpacity(0.3),
+                        color: AppColors.textMuted.withAlpha(76),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -367,7 +461,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                     children: [
                       Expanded(
                         child: Text(
-                          'JOURNAL ENTRY \u2022 NOV 14',
+                          'VOICE ENTRY \u2022 $_minutes:$_seconds',
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -403,9 +497,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).maybePop();
-                      },
+                      onPressed: _isSaving ? null : _saveVoiceEntry,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -439,7 +531,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       height: 38,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.primary.withOpacity(0.1),
+        color: AppColors.primary.withAlpha(26),
       ),
       child: Icon(
         icon,

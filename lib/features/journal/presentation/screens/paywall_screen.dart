@@ -1,27 +1,85 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/subscription_providers.dart';
+import 'package:deardays/features/settings/presentation/screens/terms_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
 
-class PaywallScreen extends StatefulWidget {
+class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({super.key});
 
   @override
-  State<PaywallScreen> createState() => _PaywallScreenState();
+  ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
 }
 
 enum _Plan { yearly, monthly }
 
-class _PaywallScreenState extends State<PaywallScreen> {
+class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   _Plan _selectedPlan = _Plan.yearly;
+
+  Future<void> _handleSubscribe() async {
+    final notifier = ref.read(subscriptionProvider.notifier);
+
+    bool success;
+    if (_selectedPlan == _Plan.yearly) {
+      success = await notifier.purchaseYearly();
+    } else {
+      success = await notifier.purchaseMonthly();
+    }
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Welcome to DearDays Premium!'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    }
+
+    final error = ref.read(subscriptionProvider).error;
+    if (error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleRestore() async {
+    final notifier = ref.read(subscriptionProvider.notifier);
+    final restored = await notifier.restorePurchases();
+
+    if (mounted) {
+      if (restored) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Purchases restored!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        Navigator.of(context).pop(true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No previous purchases found.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final sub = ref.watch(subscriptionProvider);
+
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ──
+            // Header
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -32,7 +90,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     alignment: Alignment.centerLeft,
                     child: GestureDetector(
                       onTap: () => Navigator.of(context).maybePop(),
-                      child: Icon(Icons.close, size: 26, color: Colors.black87),
+                      child: const Icon(Icons.close, size: 26, color: Colors.black87),
                     ),
                   ),
                   Text(
@@ -47,7 +105,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
               ),
             ),
 
-            // ── Scrollable body ──
+            // Scrollable body
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -55,7 +113,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   children: [
                     const SizedBox(height: 16),
 
-                    // ── Headline ──
+                    // Headline
                     Text(
                       'Your story has\n30 pages.\nKeep writing?',
                       textAlign: TextAlign.center,
@@ -68,18 +126,18 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     ),
                     const SizedBox(height: 28),
 
-                    // ── Book preview mockup ──
+                    // Book preview mockup
                     _buildBookPreview(),
                     const SizedBox(height: 32),
 
-                    // ── Feature checkmarks 2x2 grid ──
+                    // Feature checkmarks
                     _buildFeatureGrid(),
                     const SizedBox(height: 32),
 
-                    // ── Pricing cards ──
+                    // Pricing cards — use real prices from RevenueCat
                     _buildPricingCard(
                       plan: _Plan.yearly,
-                      title: '\$29.99 / year',
+                      title: '${sub.yearlyPrice} / year',
                       subtitle: 'Billed annually',
                       badgeText: 'BEST VALUE',
                       label: 'MOST POPULAR',
@@ -87,37 +145,61 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     const SizedBox(height: 12),
                     _buildPricingCard(
                       plan: _Plan.monthly,
-                      title: '\$3.99 / month',
+                      title: '${sub.monthlyPrice} / month',
                       subtitle: 'Billed monthly',
                     ),
                     const SizedBox(height: 28),
 
-                    // ── CTA button ──
+                    // CTA button
                     SizedBox(
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: sub.isLoading ? null : _handleSubscribe,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: AppColors.primary.withAlpha(128),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                           elevation: 0,
                         ),
-                        child: Text(
-                          'Continue my story \u2192',
-                          style: GoogleFonts.inter(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: sub.isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Continue my story \u2192',
+                                style: GoogleFonts.inter(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Restore purchases
+                    TextButton(
+                      onPressed: sub.isLoading ? null : _handleRestore,
+                      child: Text(
+                        'Restore Purchases',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
 
-                    // ── Footer ──
+                    // Footer
                     Text(
                       'Your existing entries are always readable, free forever.',
                       textAlign: TextAlign.center,
@@ -131,7 +213,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         GestureDetector(
-                          onTap: () {},
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const TermsScreen()),
+                          ),
                           child: Text(
                             'Terms',
                             style: GoogleFonts.inter(
@@ -152,7 +236,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () {},
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                          ),
                           child: Text(
                             'Privacy Policy',
                             style: GoogleFonts.inter(
@@ -175,7 +261,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  // ── Book preview mockup ──
+  // Book preview mockup
   Widget _buildBookPreview() {
     return Center(
       child: Transform.rotate(
@@ -188,7 +274,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.10),
+                color: Colors.black.withAlpha(26),
                 blurRadius: 20,
                 offset: const Offset(4, 8),
               ),
@@ -198,7 +284,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // placeholder lines
               _placeholderLine(0.9),
               const SizedBox(height: 8),
               _placeholderLine(0.75),
@@ -243,7 +328,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  // ── Feature grid ──
+  // Feature grid
   Widget _buildFeatureGrid() {
     const features = [
       'Unlimited entries',
@@ -286,7 +371,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  // ── Pricing card ──
+  // Pricing card
   Widget _buildPricingCard({
     required _Plan plan,
     required String title,
@@ -310,7 +395,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
         ),
         child: Row(
           children: [
-            // radio
             Container(
               width: 22,
               height: 22,
@@ -335,7 +419,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   : null,
             ),
             const SizedBox(width: 14),
-            // text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,7 +439,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.15),
+                            color: AppColors.primary.withAlpha(38),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(

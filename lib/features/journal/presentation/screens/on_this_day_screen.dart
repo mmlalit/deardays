@@ -115,6 +115,98 @@ class OnThisDayScreen extends StatelessWidget {
   }
 
   // ── Memory card ──
+  void _showFullEntry(BuildContext context, {
+    required String year,
+    required String location,
+    required String mood,
+    required String quote,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (_, controller) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: ListView(
+            controller: controller,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.primary, width: 1.5),
+                    ),
+                    child: Text(
+                      year,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(Icons.place, size: 14, color: Colors.black45),
+                  const SizedBox(width: 4),
+                  Text(
+                    location,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.favorite, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    mood,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                quote,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 17,
+                  fontStyle: FontStyle.italic,
+                  height: 1.7,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMemoryCard(
     BuildContext context, {
     required String year,
@@ -129,7 +221,7 @@ class OnThisDayScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -265,7 +357,13 @@ class OnThisDayScreen extends StatelessWidget {
               width: double.infinity,
               height: 44,
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: () => _showFullEntry(
+                  context,
+                  year: year,
+                  location: location,
+                  mood: mood,
+                  quote: quote,
+                ),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: AppColors.primary),
                   shape: RoundedRectangleBorder(
@@ -298,7 +396,7 @@ class OnThisDayScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withAlpha(10),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),

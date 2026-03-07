@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 
@@ -98,7 +99,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primary.withOpacity(0.6),
+                  AppColors.primary.withAlpha(153),
                   AppColors.primary,
                 ],
               ),
@@ -126,7 +127,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: AppColors.readingText.withOpacity(0.5),
+              color: AppColors.readingText.withAlpha(128),
               letterSpacing: 0.5,
             ),
           ),
@@ -180,7 +181,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primary.withOpacity(0.05) : Colors.transparent,
+        color: isActive ? AppColors.primary.withAlpha(13) : Colors.transparent,
         border: Border(
           left: BorderSide(
             color: isActive ? AppColors.primary : Colors.transparent,
@@ -206,7 +207,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.0,
-              color: AppColors.readingText.withOpacity(0.4),
+              color: AppColors.readingText.withAlpha(102),
             ),
           ),
         ],
@@ -220,7 +221,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Divider(color: AppColors.readingText.withOpacity(0.08)),
+          Divider(color: AppColors.readingText.withAlpha(20)),
           const SizedBox(height: 20),
           _buildEntryHeader(),
           const SizedBox(height: 24),
@@ -244,7 +245,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.readingText.withOpacity(0.6),
+            color: AppColors.readingText.withAlpha(153),
           ),
         ),
         const SizedBox(width: 12),
@@ -253,7 +254,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           height: 4,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.readingText.withOpacity(0.25),
+            color: AppColors.readingText.withAlpha(64),
           ),
         ),
         const SizedBox(width: 12),
@@ -271,7 +272,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           height: 4,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.readingText.withOpacity(0.25),
+            color: AppColors.readingText.withAlpha(64),
           ),
         ),
         const SizedBox(width: 12),
@@ -282,7 +283,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               Icon(
                 Icons.location_on_outlined,
                 size: 14,
-                color: AppColors.readingText.withOpacity(0.4),
+                color: AppColors.readingText.withAlpha(102),
               ),
               const SizedBox(width: 3),
               Flexible(
@@ -292,7 +293,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.readingText.withOpacity(0.4),
+                    color: AppColors.readingText.withAlpha(102),
                   ),
                 ),
               ),
@@ -346,8 +347,8 @@ class _BookViewScreenState extends State<BookViewScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withOpacity(0.15),
-            AppColors.primary.withOpacity(0.08),
+            AppColors.primary.withAlpha(38),
+            AppColors.primary.withAlpha(20),
           ],
         ),
       ),
@@ -357,7 +358,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           Icon(
             Icons.photo_outlined,
             size: 36,
-            color: AppColors.primary.withOpacity(0.4),
+            color: AppColors.primary.withAlpha(102),
           ),
           const SizedBox(height: 8),
           Text(
@@ -365,7 +366,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             style: GoogleFonts.inter(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.primary.withOpacity(0.4),
+              color: AppColors.primary.withAlpha(102),
             ),
           ),
         ],
@@ -410,9 +411,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
         width: double.infinity,
         height: 52,
         child: ElevatedButton.icon(
-          onPressed: () {
-            // TODO: download as PDF
-          },
+          onPressed: () => context.push('/export'),
           icon: const Icon(Icons.download_rounded, size: 20),
           label: Text(
             'Download as PDF',

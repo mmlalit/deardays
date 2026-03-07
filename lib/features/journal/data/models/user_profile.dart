@@ -12,6 +12,7 @@ class UserProfile {
   final bool isSubscribed;
   final String? subscriptionPlan;
   final DateTime? subscriptionExpiresAt;
+  final String? revenuecatCustomerId;
   final DateTime createdAt;
 
   const UserProfile({
@@ -26,6 +27,7 @@ class UserProfile {
     this.isSubscribed = false,
     this.subscriptionPlan,
     this.subscriptionExpiresAt,
+    this.revenuecatCustomerId,
     required this.createdAt,
   });
 
@@ -52,6 +54,7 @@ class UserProfile {
     bool? isSubscribed,
     String? subscriptionPlan,
     DateTime? subscriptionExpiresAt,
+    String? revenuecatCustomerId,
     DateTime? createdAt,
   }) {
     return UserProfile(
@@ -67,6 +70,8 @@ class UserProfile {
       subscriptionPlan: subscriptionPlan ?? this.subscriptionPlan,
       subscriptionExpiresAt:
           subscriptionExpiresAt ?? this.subscriptionExpiresAt,
+      revenuecatCustomerId:
+          revenuecatCustomerId ?? this.revenuecatCustomerId,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -84,6 +89,7 @@ class UserProfile {
       'is_subscribed': isSubscribed,
       'subscription_plan': subscriptionPlan,
       'subscription_expires_at': subscriptionExpiresAt?.toIso8601String(),
+      'revenuecat_customer_id': revenuecatCustomerId,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -103,6 +109,7 @@ class UserProfile {
       subscriptionExpiresAt: map['subscription_expires_at'] != null
           ? DateTime.parse(map['subscription_expires_at'] as String)
           : null,
+      revenuecatCustomerId: map['revenuecat_customer_id'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }

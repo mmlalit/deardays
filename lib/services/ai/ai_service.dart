@@ -155,6 +155,35 @@ class AiService {
     }
   }
 
+  /// Sends a conversational message and returns the AI's reply.
+  ///
+  /// [messages] is the conversation history as a list of {role, content} maps.
+  /// [mood] is the user's current mood (optional context for the AI).
+  /// [isFirstCheckIn] indicates if this is the first check-in of the day.
+  Future<String> chat({
+    required List<Map<String, String>> messages,
+    String? mood,
+    bool isFirstCheckIn = false,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/api/chat',
+        data: {
+          'messages': messages,
+          'mood': mood,
+          'is_first_checkin': isFirstCheckIn,
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
+
+      return _extractText(response);
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'chat');
+    }
+  }
+
   /// Detects recurring themes and patterns across the supplied entries.
   Future<List<String>> detectThemes(List<String> entries) async {
     try {

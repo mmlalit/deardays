@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/services/auth/auth_service.dart';
+import 'package:deardays/services/storage/secure_storage_service.dart';
+import 'package:deardays/features/auth/presentation/screens/pin_screen.dart';
+import 'package:deardays/features/auth/presentation/screens/pattern_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLogin;
@@ -14,13 +20,196 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
+  final _secureStorage = SecureStorageService();
+  final _localAuth = LocalAuthentication();
   bool _obscurePassword = true;
+  bool _isSignUp = true;
+  bool _isLoading = false;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  String _lockMethod = 'none'; // none, pin, pattern, biometric
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLockOptions();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkLockOptions() async {
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      final biometricEnabled = await _secureStorage.getBiometricEnabled();
+      final lockMethod = await _secureStorage.getLockMethod();
+
+      if (mounted) {
+        setState(() {
+          _biometricAvailable = canCheck && isDeviceSupported;
+          _biometricEnabled = biometricEnabled;
+          _lockMethod = lockMethod;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Unlock DearDays with biometrics',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+
+      if (!authenticated) {
+        if (mounted) _showError('Biometric authentication failed.');
+        return;
+      }
+
+      // Biometric passed — check if there's an active Supabase session
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        if (mounted) widget.onLogin();
+      } else {
+        if (mounted) {
+          _showError('Session expired. Please log in with email and password.');
+        }
+      }
+    } catch (e) {
+      if (mounted) _showError('Biometric authentication not available.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handlePinLogin() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _showError('Session expired. Please log in with email and password.');
+      return;
+    }
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PinScreen(
+          mode: PinMode.verify,
+          onSuccess: () {},
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      widget.onLogin();
+    }
+  }
+
+  Future<void> _handlePatternLogin() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _showError('Session expired. Please log in with email and password.');
+      return;
+    }
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PatternScreen(
+          mode: PatternMode.verify,
+          onSuccess: () {},
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      widget.onLogin();
+    }
+  }
+
+  Future<void> _handleEmailAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showError('Please enter your email and password.');
+      return;
+    }
+
+    if (password.length < 6) {
+      _showError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (_isSignUp) {
+        final response = await _authService.signUpWithEmail(email, password);
+        if (response.user != null) {
+          if (mounted) widget.onLogin();
+        }
+      } else {
+        final response = await _authService.signInWithEmail(email, password);
+        if (response.user != null) {
+          if (mounted) widget.onLogin();
+        }
+      }
+    } on AuthException catch (e) {
+      if (mounted) _showError(e.message);
+    } on AuthEncryptionException catch (e) {
+      if (mounted) _showError(e.message);
+    } catch (e) {
+      if (mounted) _showError('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.signInWithApple();
+      // OAuth flow will redirect; auth state change will be picked up by router
+    } on AuthException catch (e) {
+      if (mounted) _showError(e.message);
+    } catch (e) {
+      if (mounted) _showError('Apple sign-in failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.signInWithGoogle();
+    } on AuthException catch (e) {
+      if (mounted) _showError(e.message);
+    } catch (e) {
+      if (mounted) _showError('Google sign-in failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
@@ -53,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
 
-              // "DearDays" title — Playfair Display bold
+              // "DearDays" title
               Center(
                 child: Text(
                   'DearDays',
@@ -83,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _SocialButton(
                 label: 'Continue with Apple',
                 icon: Icons.apple,
-                onPressed: () {},
+                onPressed: _isLoading ? () {} : _handleAppleSignIn,
               ),
               const SizedBox(height: 12),
 
@@ -91,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _SocialButton(
                 label: 'Continue with Google',
                 icon: Icons.g_mobiledata,
-                onPressed: () {},
+                onPressed: _isLoading ? () {} : _handleGoogleSignIn,
               ),
               const SizedBox(height: 28),
 
@@ -139,6 +328,7 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                enabled: !_isLoading,
                 decoration: InputDecoration(
                   hintText: 'you@example.com',
                   hintStyle: GoogleFonts.inter(color: AppColors.textMuted),
@@ -180,8 +370,9 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                enabled: !_isLoading,
                 decoration: InputDecoration(
-                  hintText: 'Create a password',
+                  hintText: _isSignUp ? 'Create a password' : 'Enter your password',
                   hintStyle: GoogleFonts.inter(color: AppColors.textMuted),
                   filled: true,
                   fillColor: Colors.white,
@@ -218,93 +409,327 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+
+              // Forgot password (only in sign-in mode)
+              if (!_isSignUp) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    onTap: _isLoading
+                        ? null
+                        : () async {
+                            final email = _emailController.text.trim();
+                            if (email.isEmpty) {
+                              _showError('Enter your email first.');
+                              return;
+                            }
+                            try {
+                              await _authService.resetPassword(email);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Password reset email sent.'),
+                                    backgroundColor: AppColors.primary,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                              }
+                            } catch (_) {
+                              if (mounted) {
+                                _showError('Could not send reset email.');
+                              }
+                            }
+                          },
+                    child: Text(
+                      'Forgot password?',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 28),
 
-              // "Create My Journal" primary button
+              // Primary button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: widget.onLogin,
+                  onPressed: _isLoading ? null : _handleEmailAuth,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
+                    disabledBackgroundColor: AppColors.primary.withAlpha(128),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _isSignUp ? 'Create My Journal' : 'Log In',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Trial info box (only for sign-up)
+              if (_isSignUp)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(13),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Text(
-                    'Create My Journal',
+                    'Start your 30-day free trial. No card required.',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.primaryDark,
                     ),
                   ),
                 ),
-              ),
               const SizedBox(height: 20),
 
-              // Trial info box — primary/5 background
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+              // Biometric login button (sign-in mode, biometric available & enabled)
+              if (!_isSignUp && _biometricAvailable && _biometricEnabled) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                  ],
                 ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(13),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Start your 30-day free trial. No card required.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.primaryDark,
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _handleBiometricLogin,
+                    icon: const Icon(Icons.fingerprint, size: 24),
+                    label: Text(
+                      'Log in with Biometrics',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
+              ],
 
-              // Face ID & Fingerprint row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.fingerprint,
-                    size: 18,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Face ID & Fingerprint setup after signup',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
+              // Biometric info for sign-up mode
+              if (_isSignUp) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.fingerprint,
+                      size: 18,
                       color: AppColors.textSecondary,
                     ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Face ID & Fingerprint setup after signup',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // PIN login button (sign-in mode, lock method is pin)
+              if (!_isSignUp && _lockMethod == 'pin') ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _handlePinLogin,
+                    icon: const Icon(Icons.dialpad, size: 24),
+                    label: Text(
+                      'Log in with PIN',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
+
+              // Pattern login button (sign-in mode, lock method is pattern)
+              if (!_isSignUp && _lockMethod == 'pattern') ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Divider(color: AppColors.border, thickness: 1),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _handlePatternLogin,
+                    icon: const Icon(Icons.pattern, size: 24),
+                    label: Text(
+                      'Log in with Pattern',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              // Biometric not enabled hint (sign-in mode, biometric available but not enabled)
+              if (!_isSignUp && _biometricAvailable && !_biometricEnabled) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.fingerprint,
+                      size: 18,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Enable biometrics in Settings after login',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 32),
 
-              // "Already have an account? Log in" link
+              // Toggle sign-up / sign-in
               Center(
                 child: GestureDetector(
-                  onTap: () {
-                    // Navigate to sign-in flow
-                  },
+                  onTap: _isLoading
+                      ? null
+                      : () => setState(() => _isSignUp = !_isSignUp),
                   child: RichText(
                     text: TextSpan(
-                      text: 'Already have an account? ',
+                      text: _isSignUp
+                          ? 'Already have an account? '
+                          : "Don't have an account? ",
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         color: AppColors.textSecondary,
                       ),
                       children: [
                         TextSpan(
-                          text: 'Log in',
+                          text: _isSignUp ? 'Log in' : 'Sign up',
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
