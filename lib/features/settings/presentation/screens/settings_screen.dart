@@ -381,9 +381,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await file.writeAsString(jsonStr);
 
       if (mounted) {
-        await SharePlus.instance.share(
-          ShareParams(files: [XFile(file.path)]),
-        );
+        await Share.shareXFiles([XFile(file.path)]);
       }
     } catch (e) {
       if (mounted) {

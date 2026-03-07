@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide MultipartFile;
 
 /// AI service for narrative generation, transcription, and writing assistance.
 ///

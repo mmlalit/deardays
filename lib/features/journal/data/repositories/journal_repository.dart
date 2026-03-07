@@ -32,9 +32,7 @@ class JournalRepository {
     var query = _client
         .from('journal_entries')
         .select('*, entry_media(*)')
-        .eq('user_id', _userId)
-        .order('entry_date', ascending: false)
-        .order('created_at', ascending: false);
+        .eq('user_id', _userId);
 
     if (startDate != null) {
       query = query.gte('entry_date', startDate.toIso8601String());
@@ -46,7 +44,10 @@ class JournalRepository {
       query = query.eq('mood', mood);
     }
 
-    final response = await query.range(offset, offset + limit - 1);
+    final response = await query
+        .order('entry_date', ascending: false)
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
 
     return (response as List<dynamic>)
         .map((row) => JournalEntry.fromSupabaseMap(
