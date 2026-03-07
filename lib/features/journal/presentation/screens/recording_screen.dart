@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:record/record.dart';
@@ -65,31 +66,52 @@ class _RecordingScreenState extends State<RecordingScreen>
   void dispose() {
     _timer?.cancel();
     _pulseController.dispose();
-    _audioRecorder.dispose();
+    try {
+      _audioRecorder.dispose();
+    } catch (_) {}
     super.dispose();
   }
 
   Future<void> _startRecording() async {
-    if (await _audioRecorder.hasPermission()) {
-      final dir = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
-
-      await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc),
-        path: path,
-      );
-
-      setState(() {
-        _isRecording = true;
-        _recordingPath = path;
-        _elapsedSeconds = 0;
-      });
-
-      _startTimer();
-    } else {
+    if (kIsWeb) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Microphone permission is required.')),
+          const SnackBar(content: Text('Voice recording is not supported on web. Please use the mobile app.')),
+        );
+        Navigator.of(context).maybePop();
+      }
+      return;
+    }
+
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getApplicationDocumentsDirectory();
+        final path = '${dir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+        await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: path,
+        );
+
+        setState(() {
+          _isRecording = true;
+          _recordingPath = path;
+          _elapsedSeconds = 0;
+        });
+
+        _startTimer();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission is required.')),
+          );
+          Navigator.of(context).maybePop();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Recording not available: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}')),
         );
         Navigator.of(context).maybePop();
       }
@@ -106,21 +128,29 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   Future<void> _toggleRecording() async {
-    if (_isRecording) {
-      final path = await _audioRecorder.stop();
-      _timer?.cancel();
-      setState(() {
-        _isRecording = false;
-        _recordingPath = path;
-        _pulseController.stop();
-        _showBottomSheet = true;
-      });
-    } else {
-      setState(() {
-        _showBottomSheet = false;
-      });
-      await _startRecording();
-      _pulseController.repeat(reverse: true);
+    try {
+      if (_isRecording) {
+        final path = await _audioRecorder.stop();
+        _timer?.cancel();
+        setState(() {
+          _isRecording = false;
+          _recordingPath = path;
+          _pulseController.stop();
+          _showBottomSheet = true;
+        });
+      } else {
+        setState(() {
+          _showBottomSheet = false;
+        });
+        await _startRecording();
+        _pulseController.repeat(reverse: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Recording error: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}')),
+        );
+      }
     }
   }
 
@@ -216,23 +246,16 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withAlpha(26),
-              ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 20,
-              ),
+          IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.close, color: Colors.white, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withAlpha(26),
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(40, 40),
             ),
           ),
           const Spacer(),
