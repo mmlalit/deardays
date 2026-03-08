@@ -6,6 +6,7 @@ import 'package:deardays/features/auth/presentation/screens/login_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/recording_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/paywall_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/on_this_day_screen.dart';
 import 'package:deardays/features/book/presentation/screens/library_screen.dart';
@@ -97,6 +98,12 @@ class AppRouter {
       GoRoute(
         path: '/write',
         builder: (context, state) => const TextEntryScreen(),
+      ),
+      GoRoute(
+        path: '/review',
+        builder: (context, state) => ReviewSaveScreen(
+          data: state.extra as ReviewData,
+        ),
       ),
       GoRoute(
         path: '/paywall',

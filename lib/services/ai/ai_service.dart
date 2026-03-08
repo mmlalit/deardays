@@ -81,6 +81,32 @@ class AiService {
   // Public API
   // ---------------------------------------------------------------------------
 
+  /// Light-polishes raw text: fixes grammar, spelling, and punctuation
+  /// while preserving the user's voice and meaning. No literary embellishment.
+  Future<String> lightPolish(
+    String rawText, {
+    String? language,
+  }) async {
+    _ensureConfigured('lightPolish');
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-polish',
+        data: {
+          'text': rawText,
+          'style': 'clean',
+          if (language != null) 'language': language,
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
+
+      return _extractText(response);
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'lightPolish');
+    }
+  }
+
   /// Sends raw journal text to the AI and returns a polished narrative.
   ///
   /// [style] defaults to `'memoir'` but can be any supported style such as

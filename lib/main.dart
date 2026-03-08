@@ -9,6 +9,7 @@ import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
+import 'package:deardays/services/notification/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,9 @@ void main() async {
 
   // Initialize RevenueCat for in-app purchases
   await RevenueCatService().init();
+
+  // Initialize local notifications
+  await NotificationService().init();
 
   runApp(const ProviderScope(child: DearDaysApp()));
 }

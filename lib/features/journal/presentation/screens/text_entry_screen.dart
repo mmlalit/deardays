@@ -1,16 +1,12 @@
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
+import 'package:go_router/go_router.dart';
 import 'package:deardays/core/theme/app_colors.dart';
-import 'package:deardays/core/widgets/ai_badge.dart';
-import 'package:deardays/core/widgets/dear_days_header.dart';
-import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
+import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/services/location/location_service.dart';
 
 class TextEntryScreen extends StatefulWidget {
@@ -24,8 +20,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   final TextEditingController _textController = TextEditingController();
   final _imagePicker = ImagePicker();
   final _locationService = LocationService();
-  bool _polishWithAI = false;
-  bool _isSaving = false;
+  bool _polishWithAI = true;
   String? _attachedPhotoPath;
   String? _locationName;
   int _promptIndex = 0;
@@ -47,11 +42,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     'What\'s a memory that always makes you happy?',
     'What challenged you today, and how did you handle it?',
   ];
-
-  late final JournalRepository _repository = JournalRepository(
-    client: Supabase.instance.client,
-    encryption: EncryptionService(),
-  );
 
   @override
   void initState() {
@@ -121,7 +111,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     }
   }
 
-  Future<void> _saveEntry({bool addToBook = false}) async {
+  void _goToReview() {
     final text = _textController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -130,307 +120,499 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       return;
     }
 
-    setState(() => _isSaving = true);
-
-    try {
-      final now = DateTime.now().toUtc();
-      final entry = JournalEntry(
-        id: const Uuid().v4(),
-        userId: Supabase.instance.client.auth.currentUser!.id,
-        content: text,
-        rawContent: text,
-        entryDate: now,
-        entryTime: TimeOfDay.fromDateTime(now),
-        isAiPolished: _polishWithAI,
-        locationName: _locationName,
-        hasPhoto: _attachedPhotoPath != null,
-        wordCount: text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await _repository.createEntry(entry);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(addToBook ? 'Saved to your book!' : 'Entry saved!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save: ${e.toString().length > 80 ? e.toString().substring(0, 80) : e}'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
+    context.push('/review', extra: ReviewData(
+      rawText: text,
+      locationName: _locationName,
+      attachedPhotoPath: _attachedPhotoPath,
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgLight,
-      appBar: DearDaysHeader.appBar(
-        context: context,
-        title: 'New Entry',
-        mode: HeaderMode.modal,
-        actions: [
-          TextButton(
-            onPressed: _isSaving ? null : () => _saveEntry(),
-            child: Text(
-              'Save',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+      body: Stack(
+        children: [
+          // Scrollable content
+          Column(
+            children: [
+              _buildTopBar(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 160),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      _buildAISuggestionCard(),
+                      _buildWritingArea(),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
+          ),
+
+          // Floating bottom bar with gradient
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildFloatingBottom(),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Top bar — X close, "New Entry" center, "Post" right
+  // ──────────────────────────────────────────────
+
+  Widget _buildTopBar() {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.bgLight.withAlpha(204),
+            border: Border(
+              bottom: BorderSide(
+                color: AppColors.primary.withAlpha(26),
+              ),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
                 children: [
-                  const SizedBox(height: 12),
-                  _buildAISuggestionCard(),
-                  const SizedBox(height: 24),
-                  _buildTextArea(),
+                  // Close button
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.close, size: 24),
+                      color: AppColors.textPrimary,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                  // Title
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        'New Entry',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Post button
+                  SizedBox(
+                    width: 40,
+                    child: GestureDetector(
+                      onTap: _goToReview,
+                      child: Text(
+                        'Post',
+                        textAlign: TextAlign.end,
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          _buildBottomToolbar(),
-          _buildSaveToBookButton(),
-        ],
+        ),
       ),
     );
   }
+
+  // ──────────────────────────────────────────────
+  // AI Suggestion Card — white, border, serif italic
+  // ──────────────────────────────────────────────
 
   Widget _buildAISuggestionCard() {
-    return Container(
-      width: double.infinity,
+    return Padding(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(13),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'AI SUGGESTION',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-              color: AppColors.primary,
-            ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.primary.withAlpha(51),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _prompts[_promptIndex],
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
-              height: 1.4,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(8),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
             ),
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _nextPrompt,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.refresh_rounded,
-                  size: 16,
-                  color: AppColors.primary,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // "AI SUGGESTION" label
+            Text(
+              'AI SUGGESTION',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Prompt text — serif italic
+            Text(
+              _prompts[_promptIndex],
+              style: GoogleFonts.lora(
+                fontSize: 18,
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w400,
+                color: AppColors.textPrimary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // "New Prompt" pill button
+            GestureDetector(
+              onTap: _nextPrompt,
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(26),
+                  borderRadius: BorderRadius.circular(9999),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  'New Prompt',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextArea() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Dear Diary,',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _textController,
-          maxLines: null,
-          minLines: 12,
-          keyboardType: TextInputType.multiline,
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-            color: AppColors.textPrimary,
-            height: 1.7,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Start writing your thoughts...',
-            hintStyle: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textMuted,
-              height: 1.7,
-            ),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomToolbar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.bgLight,
-        border: Border(
-          top: BorderSide(
-            color: Colors.black.withAlpha(15),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: _attachPhoto,
-            icon: Icon(
-              _attachedPhotoPath != null
-                  ? Icons.photo
-                  : Icons.photo_outlined,
-              color: _attachedPhotoPath != null
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-              size: 24,
-            ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: _addLocation,
-            icon: Icon(
-              _locationName != null
-                  ? Icons.location_on
-                  : Icons.location_on_outlined,
-              color: _locationName != null
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-              size: 24,
-            ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-          ),
-          if (_locationName != null) ...[
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                _locationName!,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w500,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.refresh,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'New Prompt',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
-          const Spacer(),
-          if (_polishWithAI) ...[
-            const AiBadge.polished(),
-            const SizedBox(width: 8),
-          ],
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Writing area — "Dear Diary," + paper-lined text
+  // ──────────────────────────────────────────────
+
+  Widget _buildWritingArea() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          // "Dear Diary," heading
           Text(
-            'Polish with AI',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+            'Dear Diary,',
+            style: GoogleFonts.lora(
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(width: 8),
-          Switch(
-            value: _polishWithAI,
-            onChanged: (value) {
-              setState(() {
-                _polishWithAI = value;
-              });
-            },
-            activeColor: Colors.white,
-            activeTrackColor: AppColors.primary,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: Colors.black12,
+          const SizedBox(height: 16),
+          // Text field with paper lines
+          Stack(
+            children: [
+              // Paper lines background
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _PaperLinesPainter(
+                    lineColor: const Color(0xFFE8E1D9),
+                    lineHeight: 40.0,
+                  ),
+                ),
+              ),
+              // Actual text field
+              TextField(
+                controller: _textController,
+                maxLines: null,
+                minLines: 14,
+                keyboardType: TextInputType.multiline,
+                style: GoogleFonts.lora(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textPrimary.withAlpha(204),
+                  height: 2.0, // matches 40px line height at 20px font
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Start writing your thoughts...',
+                  hintStyle: GoogleFonts.lora(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textMuted,
+                    height: 2.0,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSaveToBookButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: ElevatedButton.icon(
-          onPressed: _isSaving ? null : () => _saveEntry(addToBook: true),
-          icon: const Icon(Icons.book_outlined, size: 20),
-          label: Text(
-            'Save to Book',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+  // ──────────────────────────────────────────────
+  // Floating bottom — gradient fade, tools, save
+  // ──────────────────────────────────────────────
+
+  Widget _buildFloatingBottom() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.bgLight.withAlpha(0),
+            AppColors.bgLight,
+            AppColors.bgLight,
+          ],
+          stops: const [0.0, 0.3, 1.0],
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 40, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Quick tools row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    // Image button
+                    _toolCircleButton(
+                      icon: Icons.image,
+                      isActive: _attachedPhotoPath != null,
+                      onTap: _attachPhoto,
+                    ),
+                    const SizedBox(width: 8),
+                    // Location button
+                    _toolCircleButton(
+                      icon: Icons.location_on,
+                      isActive: _locationName != null,
+                      onTap: _addLocation,
+                    ),
+                    const Spacer(),
+                    // Polish with AI pill
+                    _buildPolishToggle(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Save to Book button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _goToReview,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textPrimary,
+                    elevation: 4,
+                    shadowColor: AppColors.primary.withAlpha(76),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.auto_stories,
+                        size: 20,
+                        color: AppColors.textPrimary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Save to Book',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  Widget _toolCircleButton({
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+          border: Border.all(
+            color: AppColors.primary.withAlpha(51),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: isActive ? AppColors.primary : AppColors.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPolishToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(9999),
+        border: Border.all(
+          color: AppColors.primary.withAlpha(51),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.auto_fix_high,
+            size: 20,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Polish with AI',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Custom toggle
+          GestureDetector(
+            onTap: () => setState(() => _polishWithAI = !_polishWithAI),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 44,
+              height: 24,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: _polishWithAI
+                    ? AppColors.primary
+                    : const Color(0xFFCBD5E1),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 200),
+                alignment: _polishWithAI
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(38),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// Paper lines painter
+// ──────────────────────────────────────────────
+
+class _PaperLinesPainter extends CustomPainter {
+  final Color lineColor;
+  final double lineHeight;
+
+  _PaperLinesPainter({
+    required this.lineColor,
+    required this.lineHeight,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 1;
+
+    double y = lineHeight;
+    while (y < size.height) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+      y += lineHeight;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PaperLinesPainter oldDelegate) =>
+      oldDelegate.lineColor != lineColor ||
+      oldDelegate.lineHeight != lineHeight;
 }

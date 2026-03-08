@@ -5,8 +5,9 @@ import 'package:deardays/features/journal/data/models/entry_media.dart';
 class JournalEntry {
   final String id;
   final String userId;
-  final String content; // decrypted narrative
+  final String content; // light-polished text (grammar/spelling fixed)
   final String? rawContent; // decrypted original text/transcript
+  final String? polishedContent; // AI literary narrative for Book view
   final String? mood; // great, good, okay, low, tough
   final DateTime entryDate;
   final TimeOfDay? entryTime;
@@ -26,6 +27,7 @@ class JournalEntry {
     required this.userId,
     required this.content,
     this.rawContent,
+    this.polishedContent,
     this.mood,
     required this.entryDate,
     this.entryTime,
@@ -46,6 +48,7 @@ class JournalEntry {
     String? userId,
     String? content,
     String? rawContent,
+    String? polishedContent,
     String? mood,
     DateTime? entryDate,
     TimeOfDay? entryTime,
@@ -65,6 +68,7 @@ class JournalEntry {
       userId: userId ?? this.userId,
       content: content ?? this.content,
       rawContent: rawContent ?? this.rawContent,
+      polishedContent: polishedContent ?? this.polishedContent,
       mood: mood ?? this.mood,
       entryDate: entryDate ?? this.entryDate,
       entryTime: entryTime ?? this.entryTime,
@@ -88,6 +92,7 @@ class JournalEntry {
       'user_id': userId,
       'content': encryptFn(content),
       'raw_content': rawContent != null ? encryptFn(rawContent!) : null,
+      'polished_content': polishedContent != null ? encryptFn(polishedContent!) : null,
       'mood': mood,
       'entry_date': entryDate.toIso8601String(),
       'entry_time': entryTime != null
@@ -116,6 +121,9 @@ class JournalEntry {
       content: decryptFn(json['content'] as String),
       rawContent: json['raw_content'] != null
           ? decryptFn(json['raw_content'] as String)
+          : null,
+      polishedContent: json['polished_content'] != null
+          ? decryptFn(json['polished_content'] as String)
           : null,
       mood: json['mood'] as String?,
       entryDate: DateTime.parse(json['entry_date'] as String),
@@ -146,6 +154,7 @@ class JournalEntry {
       'user_id': userId,
       'content': encryptFn(content),
       'raw_content': rawContent != null ? encryptFn(rawContent!) : null,
+      'polished_content': polishedContent != null ? encryptFn(polishedContent!) : null,
       'mood': mood,
       'entry_date': entryDate.toIso8601String(),
       'entry_time': entryTime != null
@@ -175,6 +184,9 @@ class JournalEntry {
       content: decryptFn(map['content'] as String),
       rawContent: map['raw_content'] != null
           ? decryptFn(map['raw_content'] as String)
+          : null,
+      polishedContent: map['polished_content'] != null
+          ? decryptFn(map['polished_content'] as String)
           : null,
       mood: map['mood'] as String?,
       entryDate: DateTime.parse(map['entry_date'] as String),

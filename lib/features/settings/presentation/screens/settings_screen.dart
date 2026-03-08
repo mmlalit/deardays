@@ -20,7 +20,6 @@ import 'package:deardays/features/settings/presentation/screens/terms_screen.dar
 import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
-import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/core/widgets/snack_bar_helper.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -636,340 +635,283 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              _buildHeader(context),
-              const SizedBox(height: 24),
-              _buildProfileSection(),
-              const SizedBox(height: 28),
-              _buildSectionLabel('ACCOUNT'),
-              _buildSettingsRow(
-                icon: Icons.email_outlined,
-                label: 'Email',
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      Supabase.instance.client.auth.currentUser?.email ?? '',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey.shade400,
+      backgroundColor: AppColors.bgLight,
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildProfileSection(),
+                  const SizedBox(height: 24),
+                  // ACCOUNT
+                  _buildSectionLabel('Account'),
+                  _buildCardGroup([
+                    _buildCardRow(
+                      icon: Icons.mail_outlined,
+                      label: 'Email',
+                      trailing: Text(
+                        Supabase.instance.client.auth.currentUser?.email ?? '',
+                        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.chevron_right,
-                        color: Colors.grey.shade400, size: 22),
-                  ],
-                ),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.lock_outline,
-                label: 'Password',
-                trailing: Icon(Icons.chevron_right,
-                    color: Colors.grey.shade400, size: 22),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.workspace_premium_outlined,
-                label: 'Subscription',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Manage',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
+                    _buildCardRow(
+                      icon: Icons.lock_outlined,
+                      label: 'Password',
+                      trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.chevron_right,
-                        color: Colors.grey.shade400, size: 22),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              _buildSectionLabel('JOURNALING'),
-              _buildSettingsRow(
-                icon: Icons.notifications_none_rounded,
-                label: 'Daily Reminder',
-                trailing: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
+                    _buildCardRow(
+                      icon: Icons.star,
+                      iconColor: AppColors.primary,
+                      label: 'Subscription',
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Premium Plan',
+                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                        ),
+                      ),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                      ),
+                      isLast: true,
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+                  // JOURNALING
+                  _buildSectionLabel('Journaling'),
+                  _buildCardGroup([
+                    _buildCardRow(
+                      icon: Icons.notifications_outlined,
+                      label: 'Daily Reminder',
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgLight,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary.withAlpha(51)),
+                        ),
+                        child: Text(
+                          '8:30 PM',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                        ),
+                      ),
+                      onTap: _pickReminderTime,
+                    ),
+                    _buildCardRow(
+                      icon: Icons.auto_stories_outlined,
+                      label: 'Writing Style',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Memoir', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
+                        ],
+                      ),
+                      onTap: _pickWritingStyle,
+                    ),
+                    _buildCardRow(
+                      icon: Icons.account_tree_outlined,
+                      label: 'Chapter Organization',
+                      trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
+                      onTap: _pickBookOrganization,
+                      isLast: true,
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+                  // LANGUAGE & APPEARANCE
+                  _buildSectionLabel('Preferences'),
+                  _buildCardGroup([
+                    _buildLanguageSelector(),
+                    _buildCardRow(
+                      icon: Icons.palette_outlined,
+                      label: 'Appearance',
+                      trailing: const SizedBox.shrink(),
+                      isLast: true,
+                    ),
+                  ]),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: _buildThemeSelector(),
                   ),
+                  const SizedBox(height: 24),
+                  // PRIVACY & SECURITY
+                  _buildSectionLabel('Privacy & Security'),
+                  _buildCardGroup([
+                    _buildCardRow(
+                      icon: Icons.fingerprint,
+                      label: 'Biometric Lock',
+                      trailing: _buildCustomToggle(
+                        value: _biometricLockEnabled,
+                        onChanged: _biometricAvailable ? _toggleBiometric : null,
+                      ),
+                    ),
+                    _buildCardRow(
+                      icon: Icons.dialpad,
+                      label: 'PIN Lock',
+                      trailing: _lockMethod == 'pin'
+                          ? GestureDetector(
+                              onTap: _clearLockMethod,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withAlpha(20),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text('Active', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                              ),
+                            )
+                          : GestureDetector(
+                              onTap: _setupPin,
+                              child: Text('Set up', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                            ),
+                    ),
+                    _buildCardRow(
+                      icon: Icons.pattern,
+                      label: 'Pattern Lock',
+                      trailing: _lockMethod == 'pattern'
+                          ? GestureDetector(
+                              onTap: _clearLockMethod,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withAlpha(20),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text('Active', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                              ),
+                            )
+                          : GestureDetector(
+                              onTap: _setupPattern,
+                              child: Text('Set up', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                            ),
+                    ),
+                    _buildCardRow(
+                      icon: Icons.enhanced_encryption_outlined,
+                      label: 'Encryption Info',
+                      trailing: Icon(Icons.info_outline, size: 16, color: AppColors.textMuted.withAlpha(102)),
+                      onTap: _showEncryptionInfo,
+                    ),
+                    _buildCardRow(
+                      icon: Icons.do_not_disturb_on_outlined,
+                      label: 'Do Not Sell My Data',
+                      trailing: _buildCustomToggle(value: _doNotSell, onChanged: _toggleDoNotSell),
+                    ),
+                    _buildCardRow(
+                      icon: Icons.health_and_safety_outlined,
+                      label: 'Mood Data Consent',
+                      trailing: _buildCustomToggle(value: _healthConsent, onChanged: _toggleHealthConsent),
+                      isLast: true,
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+                  // DATA
+                  _buildSectionLabel('Data'),
+                  _buildCardGroup([
+                    _buildCardRow(
+                      icon: Icons.download_outlined,
+                      label: 'Export All Data',
+                      trailing: Text(
+                        'PDF / JSON',
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
+                      ),
+                      onTap: _exportAllData,
+                    ),
+                    _buildCardRow(
+                      icon: Icons.delete_forever,
+                      iconColor: Colors.red.shade400,
+                      label: 'Delete Account',
+                      labelColor: Colors.red.shade500.withAlpha(204),
+                      trailing: const SizedBox.shrink(),
+                      onTap: _deleteAccount,
+                      isLast: true,
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+                  // ABOUT
+                  _buildSectionLabel('About'),
+                  _buildCardGroup([
+                    _buildCardRow(
+                      icon: null,
+                      label: 'Version',
+                      trailing: Text('1.2.0', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+                    ),
+                    _buildCardRow(
+                      icon: null,
+                      label: 'Privacy Policy',
+                      trailing: Icon(Icons.open_in_new, size: 14, color: AppColors.textMuted.withAlpha(76)),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                      ),
+                    ),
+                    _buildCardRow(
+                      icon: null,
+                      label: 'Terms of Service',
+                      trailing: Icon(Icons.open_in_new, size: 14, color: AppColors.textMuted.withAlpha(76)),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const TermsScreen()),
+                      ),
+                      isLast: true,
+                    ),
+                  ]),
+                  const SizedBox(height: 36),
+                  _buildFooter(),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Header — frosted, sticky
+  // ---------------------------------------------------------------------------
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgLight.withAlpha(204),
+        border: Border(bottom: BorderSide(color: AppColors.primary.withAlpha(26))),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.of(context).maybePop(),
+                child: Icon(Icons.arrow_back_ios, size: 20, color: AppColors.textPrimary),
+              ),
+              Expanded(
+                child: Center(
                   child: Text(
-                    '8:30 PM',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    'Settings',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
                 ),
-                onTap: _pickReminderTime,
               ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.edit_note_rounded,
-                label: 'Writing Style',
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Memoir',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.chevron_right,
-                        color: Colors.grey.shade400, size: 22),
-                  ],
-                ),
-                onTap: _pickWritingStyle,
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.auto_stories_outlined,
-                label: 'Chapter Organization',
-                trailing: Icon(Icons.chevron_right,
-                    color: Colors.grey.shade400, size: 22),
-                onTap: () => Navigator.of(context).pushNamed('/chapters'),
-              ),
-              const SizedBox(height: 28),
-              _buildSectionLabel('LIBRARY'),
-              _buildSettingsRow(
-                icon: Icons.library_books_outlined,
-                label: 'Organize Books By',
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Yearly',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.chevron_right,
-                        color: Colors.grey.shade400, size: 22),
-                  ],
-                ),
-                onTap: _pickBookOrganization,
-              ),
-              const SizedBox(height: 28),
-              _buildSectionLabel('LANGUAGE'),
-              _buildLanguageSelector(),
-              const SizedBox(height: 28),
-              _buildSectionLabel('APPEARANCE'),
-              _buildThemeSelector(),
-              const SizedBox(height: 28),
-              _buildSectionLabel('PRIVACY & SECURITY'),
-              _buildSettingsRow(
-                icon: Icons.fingerprint,
-                label: 'Biometric Lock',
-                trailing: Switch(
-                  value: _biometricLockEnabled,
-                  onChanged: _biometricAvailable ? _toggleBiometric : null,
-                  activeColor: Colors.white,
-                  activeTrackColor: AppColors.primary,
-                  inactiveThumbColor: Colors.white,
-                  inactiveTrackColor: Colors.grey.shade300,
-                ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.dialpad,
-                label: 'PIN Lock',
-                trailing: _lockMethod == 'pin'
-                    ? GestureDetector(
-                        onTap: _clearLockMethod,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(26),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            'Active',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      )
-                    : GestureDetector(
-                        onTap: _setupPin,
-                        child: Text(
-                          'Set up',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.pattern,
-                label: 'Pattern Lock',
-                trailing: _lockMethod == 'pattern'
-                    ? GestureDetector(
-                        onTap: _clearLockMethod,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(26),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            'Active',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      )
-                    : GestureDetector(
-                        onTap: _setupPattern,
-                        child: Text(
-                          'Set up',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.enhanced_encryption_outlined,
-                label: 'Encryption Info',
-                trailing: Icon(Icons.chevron_right,
-                    color: Colors.grey.shade400, size: 22),
-                onTap: _showEncryptionInfo,
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.do_not_disturb_on_outlined,
-                label: 'Do Not Sell My Data',
-                trailing: Switch(
-                  value: _doNotSell,
-                  onChanged: _toggleDoNotSell,
-                  activeColor: Colors.white,
-                  activeTrackColor: AppColors.primary,
-                  inactiveThumbColor: Colors.white,
-                  inactiveTrackColor: Colors.grey.shade300,
-                ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.health_and_safety_outlined,
-                label: 'Mood Data Consent',
-                trailing: Switch(
-                  value: _healthConsent,
-                  onChanged: _toggleHealthConsent,
-                  activeColor: Colors.white,
-                  activeTrackColor: AppColors.primary,
-                  inactiveThumbColor: Colors.white,
-                  inactiveTrackColor: Colors.grey.shade300,
-                ),
-              ),
-              const SizedBox(height: 28),
-              _buildSectionLabel('DATA'),
-              _buildSettingsRow(
-                icon: Icons.download_outlined,
-                label: 'Export All Data',
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'PDF / JSON',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.chevron_right,
-                        color: Colors.grey.shade400, size: 22),
-                  ],
-                ),
-                onTap: _exportAllData,
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.delete_outline,
-                label: 'Delete Account',
-                labelColor: Colors.red.shade600,
-                iconColor: Colors.red.shade600,
-                trailing: Icon(Icons.chevron_right,
-                    color: Colors.red.shade300, size: 22),
-                onTap: _deleteAccount,
-              ),
-              const SizedBox(height: 28),
-              _buildSectionLabel('ABOUT'),
-              _buildSettingsRow(
-                icon: Icons.info_outline,
-                label: 'Version',
-                trailing: Text(
-                  '1.2.0',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.grey.shade400,
-                  ),
-                ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.privacy_tip_outlined,
-                label: 'Privacy Policy',
-                trailing: Icon(Icons.chevron_right,
-                    color: Colors.grey.shade400, size: 22),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PrivacyScreen()),
-                ),
-              ),
-              _buildDivider(),
-              _buildSettingsRow(
-                icon: Icons.description_outlined,
-                label: 'Terms of Service',
-                trailing: Icon(Icons.chevron_right,
-                    color: Colors.grey.shade400, size: 22),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const TermsScreen()),
-                ),
-              ),
-              const SizedBox(height: 36),
-              _buildFooter(),
-              const SizedBox(height: 32),
+              const SizedBox(width: 24), // spacer for symmetry
             ],
           ),
         ),
@@ -977,12 +919,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return const DearDaysHeader(
-      title: 'Settings',
-      mode: HeaderMode.push,
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Profile — avatar ring, Playfair name, Edit Profile pill
+  // ---------------------------------------------------------------------------
 
   Widget _buildProfileSection() {
     final user = Supabase.instance.client.auth.currentUser;
@@ -1000,127 +939,176 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             .join()
         : '?';
 
-    return Center(
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withAlpha(38),
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: Center(
+        child: Column(
+          children: [
+            // Avatar with gold border ring
+            Stack(
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary.withAlpha(38),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initials,
+                      style: GoogleFonts.inter(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
                 ),
-                alignment: Alignment.center,
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.bgLight, width: 2),
+                    ),
+                    child: const Icon(Icons.edit, color: Colors.white, size: 14),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Name — Playfair Display serif bold
+            Text(
+              displayName,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              email,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Edit Profile pill button
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(20),
+                  borderRadius: BorderRadius.circular(9999),
+                ),
                 child: Text(
-                  initials,
+                  'Edit Profile',
                   style: GoogleFonts.inter(
-                    fontSize: 28,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.primary,
                   ),
                 ),
               ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.bgLight, width: 2),
-                  ),
-                  child: const Icon(Icons.edit, color: Colors.white, size: 14),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            displayName,
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            email,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: Colors.grey.shade500,
-            ),
-          ),
-          const SizedBox(height: 14),
-          OutlinedButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-            ),
-            child: Text(
-              'Edit Profile',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade400,
-            letterSpacing: 1.5,
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSettingsRow({
-    required IconData icon,
+  // ---------------------------------------------------------------------------
+  // Section label — gold uppercase
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+      child: Text(
+        label.toUpperCase(),
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: AppColors.primary,
+          letterSpacing: 1.5,
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Card group — white rounded container
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCardGroup(List<Widget> children) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withAlpha(13)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(8),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(children: children),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Card row — single row inside a card group
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCardRow({
+    IconData? icon,
     required String label,
     required Widget trailing,
-    Color? labelColor,
     Color? iconColor,
+    Color? labelColor,
     VoidCallback? onTap,
+    bool isLast = false,
   }) {
-    return InkWell(
-      onTap: onTap ?? () {},
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          border: isLast ? null : Border(bottom: BorderSide(color: AppColors.primary.withAlpha(13))),
+        ),
         child: Row(
           children: [
-            Icon(icon,
-                color: iconColor ?? Colors.grey.shade600, size: 22),
-            const SizedBox(width: 14),
+            if (icon != null) ...[
+              Icon(icon, color: iconColor ?? AppColors.textPrimary.withAlpha(102), size: 22),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: labelColor ?? AppColors.textPrimary,
                 ),
@@ -1133,10 +1121,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Custom gold toggle
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCustomToggle({
+    required bool value,
+    ValueChanged<bool>? onChanged,
+  }) {
+    return GestureDetector(
+      onTap: onChanged != null ? () => onChanged(!value) : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 44,
+        height: 24,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: value ? AppColors.primary : const Color(0xFFE0DCD7),
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 200),
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 20,
+            height: 20,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLanguageSelector() {
     final currentLocale = ref.watch(localeProvider).appLocale;
 
-    return _buildSettingsRow(
+    return _buildCardRow(
       icon: Icons.language,
       label: 'App Language',
       trailing: Row(
@@ -1144,16 +1167,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           Text(
             currentLocale.label,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: Colors.grey.shade400,
-            ),
+            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(width: 4),
-          Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 22),
+          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
         ],
       ),
       onTap: () => _pickLanguage(),
+      isLast: true,
     );
   }
 
@@ -1209,84 +1230,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildThemeSelector() {
     final currentTheme = ref.watch(themeProvider).themeColor;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Row(
-        children: AppThemeColor.values.map((palette) {
-          final isSelected = palette == currentTheme;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => ref.read(themeProvider.notifier).setThemeColor(palette),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: palette.bg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : Colors.grey.shade300,
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: palette.bg,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade300),
-                        boxShadow: isSelected
-                            ? [BoxShadow(color: AppColors.primary.withAlpha(76), blurRadius: 6)]
-                            : null,
-                      ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 16, color: AppColors.primary)
-                          : null,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      palette.label,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected ? AppColors.primary : Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+    return Row(
+      children: AppThemeColor.values.map((palette) {
+        final isSelected = palette == currentTheme;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => ref.read(themeProvider.notifier).setThemeColor(palette),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: palette.bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : AppColors.primary.withAlpha(26),
+                  width: isSelected ? 2 : 1,
                 ),
               ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: palette.bg,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : AppColors.primary.withAlpha(51),
+                      ),
+                      boxShadow: isSelected
+                          ? [BoxShadow(color: AppColors.primary.withAlpha(76), blurRadius: 6)]
+                          : null,
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check, size: 16, color: AppColors.primary)
+                        : null,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    palette.label,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Divider(height: 1, color: Colors.grey.shade100),
+          ),
+        );
+      }).toList(),
     );
   }
 
   Widget _buildFooter() {
     return Center(
-      child: Column(
-        children: [
-          Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 28),
-          const SizedBox(height: 6),
-          Text(
-            'DearDays',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
+      child: Opacity(
+        opacity: 0.2,
+        child: Column(
+          children: [
+            Icon(Icons.auto_stories, size: 36, color: AppColors.textPrimary),
+            const SizedBox(height: 8),
+            Text(
+              'DearDays',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

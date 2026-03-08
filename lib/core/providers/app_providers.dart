@@ -16,6 +16,7 @@ import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/repositories/book_repository.dart';
+import 'package:deardays/services/media/media_service.dart';
 
 // --- Core Services ---
 
@@ -45,6 +46,10 @@ final secureStorageProvider = Provider<SecureStorageService>((ref) {
 
 final locationServiceProvider = Provider<LocationService>((ref) {
   return LocationService();
+});
+
+final mediaServiceProvider = Provider<MediaService>((ref) {
+  return MediaService(client: ref.watch(supabaseClientProvider));
 });
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -134,6 +139,12 @@ final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 
 final totalEntriesProvider = FutureProvider<int>((ref) async {
   return ref.watch(journalRepositoryProvider).getTotalEntries();
+});
+
+/// All entries for the timeline screen (most recent, paginated).
+final timelineEntriesProvider =
+    FutureProvider<List<JournalEntry>>((ref) async {
+  return ref.watch(journalRepositoryProvider).getEntries(limit: 50);
 });
 
 // --- Insights ---

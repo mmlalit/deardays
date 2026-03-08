@@ -4,15 +4,13 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
-import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
+import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({super.key});
@@ -25,25 +23,19 @@ class _RecordingScreenState extends State<RecordingScreen>
     with SingleTickerProviderStateMixin {
   bool _isRecording = false;
   bool _showBottomSheet = false;
-  bool _isSaving = false;
   int _elapsedSeconds = 0;
   Timer? _timer;
   String? _recordingPath;
 
   final AudioRecorder _audioRecorder = AudioRecorder();
 
-  late final JournalRepository _repository = JournalRepository(
-    client: Supabase.instance.client,
-    encryption: EncryptionService(),
-  );
-
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
 
-  // Waveform bar heights — simulated
+  // Waveform bar heights — 9 bars to match mockup
   final List<double> _barHeights = List.generate(
-    30,
-    (i) => 0.2 + (sin(i * 0.7) * 0.3 + 0.3).clamp(0.1, 1.0),
+    9,
+    (i) => 0.3 + (sin(i * 1.2) * 0.4 + 0.3).clamp(0.1, 1.0),
   );
 
   @override
@@ -55,7 +47,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
@@ -154,48 +146,13 @@ class _RecordingScreenState extends State<RecordingScreen>
     }
   }
 
-  Future<void> _saveVoiceEntry() async {
-    setState(() => _isSaving = true);
-
-    try {
-      final now = DateTime.now().toUtc();
-      final durationText = '$_minutes:$_seconds';
-      final entry = JournalEntry(
-        id: const Uuid().v4(),
-        userId: Supabase.instance.client.auth.currentUser!.id,
-        content: 'Voice journal entry ($durationText)',
-        rawContent: 'Voice recording: $durationText',
-        entryDate: now,
-        entryTime: TimeOfDay.fromDateTime(now),
-        hasVoice: true,
-        wordCount: 0,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await _repository.createEntry(entry);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Voice entry saved!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-        Navigator.of(context).maybePop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save: ${e.toString().length > 80 ? e.toString().substring(0, 80) : e}'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
+  void _goToReview() {
+    // For voice entries, the raw text is a placeholder until transcription is added
+    final durationText = '$_minutes:$_seconds';
+    context.push('/review', extra: ReviewData(
+      rawText: 'Voice journal entry ($durationText)',
+      isVoice: true,
+    ));
   }
 
   String get _minutes =>
@@ -203,6 +160,9 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   String get _seconds =>
       (_elapsedSeconds % 60).toString().padLeft(2, '0');
+
+  String get _formattedDate =>
+      DateFormat('MMM d').format(DateTime.now()).toUpperCase();
 
   @override
   Widget build(BuildContext context) {
@@ -222,11 +182,11 @@ class _RecordingScreenState extends State<RecordingScreen>
                 _buildTopBar(),
                 const Spacer(flex: 2),
                 _buildTimer(),
-                const SizedBox(height: 40),
-                _buildWaveform(),
                 const SizedBox(height: 48),
+                _buildWaveform(),
+                const SizedBox(height: 56),
                 _buildMicButton(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 _buildStatusText(),
                 const Spacer(flex: 3),
               ],
@@ -268,7 +228,6 @@ class _RecordingScreenState extends State<RecordingScreen>
             ),
           ),
           const Spacer(),
-          // Invisible spacer to balance the row
           const SizedBox(width: 40),
         ],
       ),
@@ -276,16 +235,16 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Timer
+  // Timer with MIN / SEC labels
   // ──────────────────────────────────────────────
 
   Widget _buildTimer() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _timerBox(_minutes),
+        _timerBox(_minutes, 'MIN'),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.only(left: 10, right: 10, bottom: 20),
           child: Text(
             ':',
             style: GoogleFonts.inter(
@@ -295,54 +254,70 @@ class _RecordingScreenState extends State<RecordingScreen>
             ),
           ),
         ),
-        _timerBox(_seconds),
+        _timerBox(_seconds, 'SEC'),
       ],
     );
   }
 
-  Widget _timerBox(String value) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(26),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        value,
-        style: GoogleFonts.inter(
-          fontSize: 32,
-          fontWeight: FontWeight.w700,
-          color: AppColors.primary,
+  Widget _timerBox(String value, String label) {
+    return Column(
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(26),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.white.withAlpha(26),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.primary.withAlpha(178),
+            letterSpacing: 1.5,
+          ),
+        ),
+      ],
     );
   }
 
   // ──────────────────────────────────────────────
-  // Waveform
+  // Waveform — 9 bars, 4px wide, gold
   // ──────────────────────────────────────────────
 
   Widget _buildWaveform() {
     return SizedBox(
-      height: 64,
+      height: 96,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: List.generate(_barHeights.length, (index) {
-          // Vary opacity across bars
-          final opacity = 0.3 + (_barHeights[index] * 0.7);
-          final height = 12 + (_barHeights[index] * 52);
+          final opacity = 0.4 + (_barHeights[index] * 0.6);
+          final height = 16 + (_barHeights[index] * 80);
 
           return AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            width: 3,
-            height: _isRecording ? height : 8,
-            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+            width: 4,
+            height: _isRecording ? height : 10,
+            margin: const EdgeInsets.symmetric(horizontal: 3),
             decoration: BoxDecoration(
               color: AppColors.primary.withAlpha(
-                ((_isRecording ? opacity : 0.25) * 255).round(),
+                ((_isRecording ? opacity : 0.3) * 255).round(),
               ),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -353,7 +328,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Mic button with pulse / glow
+  // Mic button — 112px, dark icon on gold bg
   // ──────────────────────────────────────────────
 
   Widget _buildMicButton() {
@@ -366,36 +341,36 @@ class _RecordingScreenState extends State<RecordingScreen>
           return Transform.scale(
             scale: scale,
             child: Container(
-              width: 88,
-              height: 88,
+              width: 112,
+              height: 112,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.primary,
                 boxShadow: _isRecording
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(51),
-                          blurRadius: 40,
-                          spreadRadius: 16,
+                          color: AppColors.primary.withAlpha(64),
+                          blurRadius: 48,
+                          spreadRadius: 20,
                         ),
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(89),
-                          blurRadius: 16,
+                          color: AppColors.primary.withAlpha(102),
+                          blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
                       ]
                     : [
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(64),
-                          blurRadius: 12,
+                          color: AppColors.primary.withAlpha(76),
+                          blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
                       ],
               ),
               child: Icon(
                 _isRecording ? Icons.mic : Icons.stop,
-                size: 40,
-                color: Colors.white,
+                size: 44,
+                color: AppColors.bgDark,
               ),
             ),
           );
@@ -414,7 +389,7 @@ class _RecordingScreenState extends State<RecordingScreen>
         Text(
           _isRecording ? 'Recording your thoughts...' : 'Recording stopped',
           style: GoogleFonts.inter(
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.w500,
             color: Colors.white,
           ),
@@ -432,7 +407,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Bottom entry sheet
+  // Bottom entry sheet — 40px radius, strong shadow
   // ──────────────────────────────────────────────
 
   Widget _buildEntrySheet() {
@@ -448,13 +423,18 @@ class _RecordingScreenState extends State<RecordingScreen>
           decoration: BoxDecoration(
             color: AppColors.bgLight,
             borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(24),
+              top: Radius.circular(40),
+            ),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withAlpha(13),
+              ),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(51),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
+                color: Colors.black.withAlpha(76),
+                blurRadius: 30,
+                offset: const Offset(0, -8),
               ),
             ],
           ),
@@ -484,7 +464,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                     children: [
                       Expanded(
                         child: Text(
-                          'VOICE ENTRY \u2022 $_minutes:$_seconds',
+                          'JOURNAL ENTRY \u2022 $_formattedDate',
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -507,8 +487,8 @@ class _RecordingScreenState extends State<RecordingScreen>
                     'time of year that makes ordinary moments feel like small '
                     'gifts \u2014 the way the steam curls upward, the warmth of '
                     'the cup in my hands...',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 16,
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
                       fontStyle: FontStyle.italic,
                       color: AppColors.textPrimary,
                       height: 1.7,
@@ -516,25 +496,31 @@ class _RecordingScreenState extends State<RecordingScreen>
                   ),
                   const SizedBox(height: 24),
 
-                  // Save button
+                  // Save button — gold bg, dark text, with icon
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveVoiceEntry,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: _goToReview,
+                      icon: Icon(
+                        Icons.auto_stories,
+                        size: 20,
+                        color: AppColors.bgDark,
                       ),
-                      child: Text(
-                        'Save to Book',
+                      label: Text(
+                        'Save to book',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
+                          color: AppColors.bgDark,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.bgDark,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                     ),
@@ -550,10 +536,10 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   Widget _sheetActionButton(IconData icon) {
     return Container(
-      width: 38,
-      height: 38,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(10),
         color: AppColors.primary.withAlpha(26),
       ),
       child: Icon(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:record/record.dart';
@@ -36,13 +37,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   AudioRecorder? _audioRecorder;
   String? _recordingPath;
 
-  static const _promptSuggestions = [
-    'What made me smile today',
-    'Something I learned',
-    'A challenge I faced',
-    'I\'m grateful for...',
-    'How I\'m really feeling',
-  ];
+  // Whether the user tapped "Write instead" to show the chat view
+  bool _showChat = false;
 
   @override
   void dispose() {
@@ -71,37 +67,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(checkInProvider);
 
-    // Scroll to bottom when new messages arrive
+    // Scroll to bottom when new messages arrive (chat mode)
     ref.listen(checkInProvider, (prev, next) {
-      if (prev != null &&
+      if (_showChat &&
+          prev != null &&
           next.sections.isNotEmpty &&
           (prev.allMessages.length != next.allMessages.length)) {
         _scrollToBottom();
       }
     });
 
-    final isToday = state.isViewingToday;
+    // If user is in chat mode (tapped Write instead or has messages)
+    if (_showChat) {
+      return _buildChatView(state);
+    }
 
-    return Column(
-      children: [
-        // Top bar
-        _buildTopBar(state),
-        // Main content
-        Expanded(
-          child: isToday && state.currentMood == null && state.isFirstCheckInToday
-              ? _buildMoodSelection()
-              : _buildConversation(state),
-        ),
-        // Input bar (only for today)
-        if (isToday && (state.currentMood != null || !state.isFirstCheckInToday))
-          _buildInputBar(state),
-      ],
-    );
+    // Dashboard mode — the default scrollable home
+    return _buildDashboard(state);
   }
 
-  // -- Top Bar ----------------------------------------------------------
+  // =========================================================================
+  // DASHBOARD VIEW (matches mockup)
+  // =========================================================================
 
-  Widget _buildTopBar(CheckInState state) {
+  Widget _buildDashboard(CheckInState state) {
     final now = DateTime.now();
     final hour = now.hour;
     final greeting = hour < 12
@@ -110,145 +99,151 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? 'Good afternoon'
             : 'Good evening';
 
-    // Show date label if viewing a past date
-    final isToday = state.isViewingToday;
-    final dateLabel = isToday
-        ? greeting
-        : DateFormat('EEEE, MMM d').format(state.loadedDate);
+    final dateStr = DateFormat('MMMM d, yyyy').format(now).toUpperCase();
+    final hasEntry = state.allMessages.isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-      child: Row(
-        children: [
-          if (!isToday)
-            GestureDetector(
-              onTap: () => ref.read(checkInProvider.notifier).goBackToToday(),
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Icon(
-                  Icons.arrow_back_ios,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          Expanded(
-            child: Text(
-              dateLabel,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: isToday ? 22 : 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          // Chat history button
-          GestureDetector(
-            onTap: _showChatHistory,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(20),
-              ),
-              child: Icon(
-                Icons.calendar_today_outlined,
-                size: 16,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Mood pill (tap to change)
-          if (state.currentMood != null)
-            GestureDetector(
-              onTap: _showMoodPicker,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _moodColor(state.currentMood!).withAlpha(26),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _moodIcon(state.currentMood!),
-                      size: 16,
-                      color: _moodColor(state.currentMood!),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      state.currentMood!,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _moodColor(state.currentMood!),
+    return SafeArea(
+      bottom: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // -- Header -------------------------------------------------------
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        dateStr,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                          letterSpacing: 1.5,
+                        ),
                       ),
+                      // Profile avatar
+                      GestureDetector(
+                        onTap: _showChatHistory,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.primary.withAlpha(51),
+                            border: Border.all(
+                              color: AppColors.primary.withAlpha(26),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.person,
+                            size: 22,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$greeting, there',
+                    style: GoogleFonts.inter(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.5,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-        ],
+
+            // -- Mood Selector ------------------------------------------------
+            _buildMoodSection(state),
+
+            // -- Record CTA or Today's Entry ----------------------------------
+            if (hasEntry)
+              _buildTodayEntryCard(state)
+            else
+              _buildRecordCTA(),
+
+            // -- On This Day --------------------------------------------------
+            _buildOnThisDay(),
+          ],
+        ),
       ),
     );
   }
 
-  // -- Mood Selection (first visit of the day) --------------------------
+  // -- Mood Section (inline card) -------------------------------------------
 
-  Widget _buildMoodSelection() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'How are you\nfeeling today?',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-                height: 1.3,
-              ),
+  Widget _buildMoodSection(CheckInState state) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'How are you feeling?',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Tap to share your mood',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withAlpha(26)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(8),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            const SizedBox(height: 48),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: _moods.map((mood) {
+                final isSelected =
+                    state.currentMood?.toLowerCase() == mood.label.toLowerCase();
                 return GestureDetector(
-                  onTap: () =>
-                      ref.read(checkInProvider.notifier).selectMood(mood.label),
+                  onTap: () {
+                    if (state.currentMood == null) {
+                      ref.read(checkInProvider.notifier).selectMood(mood.label);
+                    } else {
+                      ref.read(checkInProvider.notifier).redoMood(mood.label);
+                    }
+                  },
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: mood.color.withAlpha(31),
-                        ),
-                        child: Icon(mood.icon, size: 30, color: mood.color),
+                      Icon(
+                        mood.icon,
+                        size: 30,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.primary.withAlpha(102),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
                         mood.label,
                         style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
+                          fontSize: 10,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textMuted,
                         ),
                       ),
                     ],
@@ -256,17 +251,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 32),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -- Record CTA (mic button) ----------------------------------------------
+
+  Widget _buildRecordCTA() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Center(
+        child: Column(
+          children: [
+            // Mic button
             GestureDetector(
-              onTap: () =>
-                  ref.read(checkInProvider.notifier).selectMood('Okay'),
+              onTap: () => context.push('/record'),
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha(102),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.mic,
+                  size: 40,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Record your day',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => context.push('/write'),
               child: Text(
-                'Skip for now',
+                'Write instead',
                 style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: AppColors.textMuted,
-                  decoration: TextDecoration.underline,
-                  decorationColor: AppColors.textMuted.withAlpha(102),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.primary,
                 ),
               ),
             ),
@@ -276,15 +316,393 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // -- Conversation Area ------------------------------------------------
+  // -- Today's Entry Card ---------------------------------------------------
 
-  Widget _buildConversation(CheckInState state) {
-    final hasMessages = state.allMessages.isNotEmpty;
+  Widget _buildTodayEntryCard(CheckInState state) {
+    final lastUserMessage = state.allMessages
+        .where((m) => m.isUser)
+        .toList();
+    if (lastUserMessage.isEmpty) return _buildRecordCTA();
 
-    if (!hasMessages) {
-      return _buildEmptyState();
+    final latestMsg = lastUserMessage.last;
+    final timeStr = state.sections.isNotEmpty
+        ? DateFormat('h:mm a').format(state.sections.last.startTime)
+        : '';
+    final moodLabel = state.currentMood ?? '';
+
+    // Format narrative text with quotes + italic style
+    final narrativeText = '"${latestMsg.text}"';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      child: GestureDetector(
+        onTap: () => setState(() => _showChat = true),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primary.withAlpha(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(10),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Photo area placeholder (warm gradient)
+              Container(
+                height: 140,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFFFAF6EF),
+                      AppColors.primaryLight.withAlpha(51),
+                    ],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Decorative icon
+                    Center(
+                      child: Icon(
+                        Icons.auto_stories,
+                        size: 48,
+                        color: AppColors.primary.withAlpha(38),
+                      ),
+                    ),
+                    // Mood badge — top right
+                    if (moodLabel.isNotEmpty)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withAlpha(51),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            moodLabel.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Content area
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Italic narrative text (Playfair Display)
+                    Text(
+                      narrativeText,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.textPrimary.withAlpha(204),
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Bottom row: time + tap hint
+                    Row(
+                      children: [
+                        if (timeStr.isNotEmpty) ...[
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            timeStr,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Text(
+                          'Tap to continue...',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // -- On This Day ----------------------------------------------------------
+
+  Widget _buildOnThisDay() {
+    // Check if there's a conversation from ~1 year ago
+    final datesAsync = ref.watch(availableDatesProvider);
+    final dates = datesAsync.valueOrNull ?? [];
+    final now = DateTime.now();
+    final oneYearAgo = DateTime(now.year - 1, now.month, now.day);
+
+    DateTime? matchDate;
+    for (final d in dates) {
+      if (d.year == oneYearAgo.year &&
+          d.month == oneYearAgo.month &&
+          d.day == oneYearAgo.day) {
+        matchDate = d;
+        break;
+      }
     }
 
+    // Always show the section (with placeholder if no data)
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withAlpha(13),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary.withAlpha(51)),
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'ON THIS DAY',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      Text(
+                        matchDate != null ? '1 Year Ago' : '',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      // Placeholder image
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(51),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.auto_stories,
+                          size: 24,
+                          color: AppColors.primary.withAlpha(178),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          matchDate != null
+                              ? '"Your memories from this day last year..."'
+                              : '"Start journaling to build your On This Day memories"',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Decorative history icon
+            Positioned(
+              right: -16,
+              bottom: -16,
+              child: Icon(
+                Icons.history,
+                size: 96,
+                color: AppColors.primary.withAlpha(26),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =========================================================================
+  // CHAT VIEW (existing conversation UI)
+  // =========================================================================
+
+  Widget _buildChatView(CheckInState state) {
+    final isToday = state.isViewingToday;
+
+    return Column(
+      children: [
+        // Chat top bar
+        _buildChatTopBar(state),
+        // Messages
+        Expanded(
+          child: state.allMessages.isEmpty
+              ? _buildEmptyState()
+              : _buildConversation(state),
+        ),
+        // Input bar
+        if (isToday && (state.currentMood != null || !state.isFirstCheckInToday))
+          _buildInputBar(state),
+      ],
+    );
+  }
+
+  Widget _buildChatTopBar(CheckInState state) {
+    final isToday = state.isViewingToday;
+    final dateLabel = isToday
+        ? 'Today'
+        : DateFormat('EEEE, MMM d').format(state.loadedDate);
+
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () {
+                if (!isToday) {
+                  ref.read(checkInProvider.notifier).goBackToToday();
+                }
+                setState(() => _showChat = false);
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  Icons.arrow_back_ios,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                dateLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            // Chat history button
+            GestureDetector(
+              onTap: _showChatHistory,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withAlpha(20),
+                ),
+                child: Icon(
+                  Icons.calendar_today_outlined,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Mood pill (tap to change)
+            if (state.currentMood != null)
+              GestureDetector(
+                onTap: _showMoodPicker,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(26),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _moodIcon(state.currentMood!),
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        state.currentMood!,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -- Conversation Area --------------------------------------------------
+
+  Widget _buildConversation(CheckInState state) {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -310,7 +728,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 16),
           Text(
             'What\'s on your mind?',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
@@ -361,6 +779,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  static const _promptSuggestions = [
+    'What made me smile today',
+    'Something I learned',
+    'A challenge I faced',
+    'I\'m grateful for...',
+    'How I\'m really feeling',
+  ];
+
   Widget _buildSection(ConversationSection section, int sectionIndex) {
     final timeStr = DateFormat('h:mm a').format(section.startTime);
 
@@ -368,7 +794,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (sectionIndex > 0) const SizedBox(height: 16),
-        // Time divider
         Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -381,7 +806,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         ),
-        // Messages
         ...section.messages
             .map((msg) => _buildMessageBubble(msg, section.id)),
       ],
@@ -506,7 +930,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // -- Input Bar --------------------------------------------------------
+  // -- Input Bar ----------------------------------------------------------
 
   Widget _buildInputBar(CheckInState state) {
     final isEditing = _editingMessageId != null;
@@ -561,8 +985,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // -- Input bar variants ------------------------------------------------
-
   Widget _buildTextInputBar(CheckInState state) {
     return Container(
       decoration: BoxDecoration(
@@ -573,10 +995,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Row(
         children: [
           const SizedBox(width: 4),
-          // Mic button (hidden on web)
           if (!kIsWeb)
             GestureDetector(
-              onTap: _startRecording,
+              onTap: () => context.push('/record'),
               child: Container(
                 width: 36,
                 height: 36,
@@ -593,7 +1014,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           if (!kIsWeb) const SizedBox(width: 8),
           if (kIsWeb) const SizedBox(width: 12),
-          // Text input
           Expanded(
             child: TextField(
               controller: _textController,
@@ -618,7 +1038,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onSubmitted: (_) => _handleSend(),
             ),
           ),
-          // Send button
           GestureDetector(
             onTap: state.isLoading ? null : _handleSend,
             child: Container(
@@ -662,17 +1081,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          // Red pulsing dot
           Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.red,
             ),
           ),
           const SizedBox(width: 10),
-          // Timer
           Text(
             _formatRecordingTime(),
             style: GoogleFonts.inter(
@@ -682,7 +1099,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          // Waveform hint
           Expanded(
             child: Text(
               'Recording...',
@@ -692,7 +1108,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-          // Cancel button
           GestureDetector(
             onTap: _cancelRecording,
             child: Container(
@@ -706,7 +1121,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          // Stop button
           GestureDetector(
             onTap: _stopRecording,
             child: Container(
@@ -774,6 +1188,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         setState(() {
           _isRecording = true;
+          _showChat = true; // Switch to chat view for recording UI
           _recordingPath = path;
           _recordingSeconds = 0;
         });
@@ -814,7 +1229,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (path == null) return;
 
-      // Try to transcribe
       setState(() => _isTranscribing = true);
       try {
         final aiService = AiService();
@@ -823,7 +1237,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _textController.text = transcription;
         }
       } catch (_) {
-        // Transcription failed — send as voice entry
         if (mounted) {
           ref.read(checkInProvider.notifier).sendMessage(
                 'Voice entry (${_formatRecordingTime()})',
@@ -865,8 +1278,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final state = ref.read(checkInProvider);
 
-    // If no active section yet (e.g. user skipped mood or it's a return visit),
-    // start a conversation section first
     if (state.sections.isEmpty ||
         (state.activeSection?.messages.isEmpty ?? true)) {
       if (state.sections.isEmpty) {
@@ -940,10 +1351,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         height: 52,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: mood.color.withAlpha(31),
+                          color: AppColors.primary.withAlpha(31),
                         ),
                         child:
-                            Icon(mood.icon, size: 26, color: mood.color),
+                            Icon(mood.icon, size: 26, color: AppColors.primary),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -984,7 +1395,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final today = DateTime(now.year, now.month, now.day);
         final yesterday = today.subtract(const Duration(days: 1));
 
-        // Group dates into quick filters
         final thisWeekDates = dates.where((d) {
           final diff = today.difference(DateTime(d.year, d.month, d.day)).inDays;
           return diff >= 0 && diff < 7;
@@ -1004,7 +1414,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Drag handle
                   Center(
                     child: Container(
                       width: 36,
@@ -1018,14 +1427,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'Chat History',
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Quick filters
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -1035,6 +1443,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         onTap: () {
                           Navigator.pop(ctx);
                           ref.read(checkInProvider.notifier).goBackToToday();
+                          setState(() => _showChat = true);
                         },
                       ),
                       if (dates.any((d) =>
@@ -1048,6 +1457,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ref
                                 .read(checkInProvider.notifier)
                                 .loadDataForDate(yesterday);
+                            setState(() => _showChat = true);
                           },
                         ),
                       _historyChip(
@@ -1073,6 +1483,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ref
                                 .read(checkInProvider.notifier)
                                 .loadDataForDate(picked);
+                            setState(() => _showChat = true);
                           }
                         },
                       ),
@@ -1175,6 +1586,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         .read(checkInProvider.notifier)
                                         .loadDataForDate(date);
                                   }
+                                  setState(() => _showChat = true);
                                 },
                               );
                             },
@@ -1245,37 +1657,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Color _moodColor(String mood) {
-    switch (mood.toLowerCase()) {
-      case 'great':
-        return AppColors.moodGreat;
-      case 'good':
-        return AppColors.moodGood;
-      case 'okay':
-        return AppColors.moodOkay;
-      case 'low':
-        return AppColors.moodLow;
-      case 'tough':
-        return AppColors.moodTough;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
-
   static const List<_MoodOption> _moods = [
-    _MoodOption('Great', Icons.sentiment_very_satisfied, AppColors.moodGreat),
-    _MoodOption('Good', Icons.sentiment_satisfied, AppColors.moodGood),
-    _MoodOption('Okay', Icons.sentiment_neutral, AppColors.moodOkay),
-    _MoodOption('Low', Icons.sentiment_dissatisfied, AppColors.moodLow),
-    _MoodOption(
-        'Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
+    _MoodOption('Great', Icons.sentiment_very_satisfied),
+    _MoodOption('Good', Icons.sentiment_satisfied),
+    _MoodOption('Okay', Icons.sentiment_neutral),
+    _MoodOption('Low', Icons.sentiment_dissatisfied),
+    _MoodOption('Tough', Icons.sentiment_very_dissatisfied),
   ];
 }
 
 class _MoodOption {
   final String label;
   final IconData icon;
-  final Color color;
 
-  const _MoodOption(this.label, this.icon, this.color);
+  const _MoodOption(this.label, this.icon);
 }
