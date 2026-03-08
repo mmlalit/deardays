@@ -75,18 +75,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
           child: Column(
             children: [
-              Row(
-                children: [
-                  Text(
-                    'Timeline',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
+              Center(
+                child: Text(
+                  'Timeline',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
                   ),
-                  const Spacer(),
-                ],
+                ),
               ),
                   const SizedBox(height: 12),
                   // Row 2: Search bar

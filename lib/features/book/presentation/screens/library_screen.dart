@@ -57,7 +57,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           Text(
             'My Books',
             style: GoogleFonts.playfairDisplay(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
               color: textColor,
             ),
@@ -130,7 +130,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       padding: const EdgeInsets.all(20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.72,
+        childAspectRatio: 0.85,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -247,57 +247,58 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           child: Column(
             children: [
               Expanded(
-                flex: 3,
+                flex: 5,
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [color, color.withAlpha(200)],
+                      colors: [color, color.withAlpha(180)],
                     ),
                   ),
                   child: Stack(
                     children: [
+                      // Spine shadow
                       Positioned(
-                        left: 0, top: 0, bottom: 0, width: 16,
+                        left: 0, top: 0, bottom: 0, width: 12,
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.black.withAlpha(64),
-                                Colors.black.withAlpha(15),
+                                Colors.black.withAlpha(50),
                                 Colors.transparent,
                               ],
-                              stops: const [0.0, 0.4, 1.0],
                             ),
                           ),
                         ),
                       ),
-                      Positioned(
-                        right: 0, top: 0, bottom: 0, width: 8,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Colors.transparent, Colors.white.withAlpha(26)],
-                            ),
-                          ),
-                        ),
-                      ),
+                      // Book icon + title
                       Center(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            book.title,
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              height: 1.3,
-                            ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_stories_rounded,
+                                size: 32,
+                                color: Colors.white.withAlpha(200),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                book.title,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.playfairDisplay(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -306,7 +307,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
               Expanded(
-                flex: 1,
+                flex: 2,
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

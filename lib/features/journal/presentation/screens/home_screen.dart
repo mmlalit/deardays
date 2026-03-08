@@ -160,7 +160,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Text(
                     '$greeting, there',
                     style: GoogleFonts.playfairDisplay(
-                      fontSize: 28,
+                      fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: textColor,
                     ),
@@ -354,7 +354,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildTodayEntryCard(CheckInState state) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppColors.cardDark : Colors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
 
     final lastUserMessage = state.allMessages
@@ -367,18 +366,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? DateFormat('h:mm a').format(state.sections.last.startTime)
         : '';
     final moodLabel = state.currentMood ?? '';
-
-    // Format narrative text with quotes + italic style
-    final narrativeText = '"${latestMsg.text}"';
+    final moodColor = moodLabel.isNotEmpty ? _moodColorForLabel(moodLabel) : AppColors.primary;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
       child: GestureDetector(
         onTap: () => setState(() => _showChat = true),
         child: Container(
-          clipBehavior: Clip.antiAlias,
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: cardColor,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.primary.withAlpha(20)),
             boxShadow: [
@@ -389,115 +386,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Photo area placeholder (warm gradient)
+              // Colorful icon
               Container(
-                height: 140,
-                width: double.infinity,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFFFAF6EF),
-                      AppColors.primaryLight.withAlpha(51),
-                    ],
+                    colors: [moodColor.withAlpha(180), moodColor],
                   ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Stack(
-                  children: [
-                    // Decorative icon
-                    Center(
-                      child: Icon(
-                        Icons.auto_stories,
-                        size: 48,
-                        color: AppColors.primary.withAlpha(38),
-                      ),
-                    ),
-                    // Mood badge — top right
-                    if (moodLabel.isNotEmpty)
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withAlpha(51),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            moodLabel.toUpperCase(),
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                child: const Icon(Icons.chat_bubble_rounded, size: 24, color: Colors.white),
               ),
-              // Content area
-              Padding(
-                padding: const EdgeInsets.all(16),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Italic narrative text (Playfair Display)
-                    Text(
-                      narrativeText,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 16,
-                        fontStyle: FontStyle.italic,
-                        color: textColor.withAlpha(204),
-                        height: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Bottom row: time + tap hint
                     Row(
                       children: [
-                        if (timeStr.isNotEmpty) ...[
-                          Icon(
-                            Icons.access_time,
-                            size: 12,
-                            color: AppColors.textMuted,
+                        Text(
+                          "Today's Check-in",
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            timeStr,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
+                        ),
+                        if (moodLabel.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: moodColor.withAlpha(26),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              moodLabel,
+                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: moodColor),
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      latestMsg.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: textColor.withAlpha(178),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (timeStr.isNotEmpty) ...[
+                          Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
+                          const SizedBox(width: 4),
+                          Text(timeStr, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
+                        ],
                         const Spacer(),
                         Text(
-                          'Tap to continue...',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.primary,
-                          ),
+                          'Tap to continue',
+                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
                         ),
+                        const SizedBox(width: 2),
+                        Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.primary),
                       ],
                     ),
                   ],
@@ -514,7 +476,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildJournalEntryCard(JournalEntry entry) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppColors.cardDark : Colors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
 
     final timeStr = entry.entryTime != null
@@ -522,167 +483,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : '';
     final displayText = entry.polishedContent ?? entry.content;
     final isPolished = entry.isAiPolished && entry.polishedContent != null;
+    final moodColor = entry.mood != null ? _moodColorForLabel(entry.mood!) : AppColors.primary;
+
+    // Pick a colorful icon based on entry type
+    final IconData entryIcon = entry.hasVoice
+        ? Icons.mic_rounded
+        : isPolished
+            ? Icons.auto_fix_high_rounded
+            : Icons.edit_note_rounded;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
       child: GestureDetector(
         onTap: () => setState(() => _showChat = true),
         child: Container(
-          clipBehavior: Clip.antiAlias,
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withAlpha(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(10),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Gradient header
-            Container(
-              height: 80,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFFFAF6EF),
-                    AppColors.primaryLight.withAlpha(51),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primary.withAlpha(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(10),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Colorful icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [moodColor.withAlpha(180), moodColor],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(entryIcon, size: 24, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          "Today's Entry",
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                        if (isPolished) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withAlpha(26),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_fix_high, size: 10, color: AppColors.primary),
+                                const SizedBox(width: 3),
+                                Text('AI', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (entry.mood != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: moodColor.withAlpha(26),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              entry.mood!,
+                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: moodColor),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      displayText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: textColor.withAlpha(178),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (timeStr.isNotEmpty) ...[
+                          Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
+                          const SizedBox(width: 4),
+                          Text(timeStr, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
+                        ],
+                        if (entry.locationName != null) ...[
+                          const SizedBox(width: 10),
+                          Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              entry.locationName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Text(
+                          'Saved to Book',
+                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              child: Stack(
-                children: [
-                  Center(
-                    child: Icon(
-                      Icons.auto_stories,
-                      size: 36,
-                      color: AppColors.primary.withAlpha(38),
-                    ),
-                  ),
-                  if (entry.mood != null && entry.mood!.isNotEmpty)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          entry.mood!.toUpperCase(),
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (isPolished)
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(204),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.auto_fix_high, size: 12, color: AppColors.primary),
-                            const SizedBox(width: 4),
-                            Text(
-                              'AI Polished',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    displayText,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 15,
-                      fontStyle: isPolished ? FontStyle.italic : FontStyle.normal,
-                      color: textColor.withAlpha(204),
-                      height: 1.6,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      if (timeStr.isNotEmpty) ...[
-                        Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text(
-                          timeStr,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                      if (entry.locationName != null) ...[
-                        const SizedBox(width: 12),
-                        Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
-                        const SizedBox(width: 2),
-                        Flexible(
-                          child: Text(
-                            entry.locationName!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const Spacer(),
-                      Text(
-                        'Saved to Book',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1611,220 +1549,240 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Chat History -----------------------------------------------------
 
   void _showChatHistory() {
-    final datesAsync = ref.read(availableDatesProvider);
+    // Invalidate to force a fresh read from Hive
+    ref.invalidate(availableDatesProvider);
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.cardDark : Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        final dates = datesAsync.valueOrNull ?? [];
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        final yesterday = today.subtract(const Duration(days: 1));
+        return Consumer(
+          builder: (ctx, watchRef, _) {
+            final datesAsync = watchRef.watch(availableDatesProvider);
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final yesterday = today.subtract(const Duration(days: 1));
 
-        final thisWeekDates = dates.where((d) {
-          final diff = today.difference(DateTime(d.year, d.month, d.day)).inDays;
-          return diff >= 0 && diff < 7;
-        }).toList();
-        final thisMonthDates = dates.where((d) {
-          return d.year == now.year && d.month == now.month;
-        }).toList();
+            return DraggableScrollableSheet(
+              initialChildSize: 0.55,
+              minChildSize: 0.3,
+              maxChildSize: 0.85,
+              expand: false,
+              builder: (_, scrollController) {
+                return datesAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (_, __) => Center(
+                    child: Text(
+                      'Failed to load conversations',
+                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary),
+                    ),
+                  ),
+                  data: (dates) {
+                    final thisWeekDates = dates.where((d) {
+                      final diff = today.difference(DateTime(d.year, d.month, d.day)).inDays;
+                      return diff >= 0 && diff < 7;
+                    }).toList();
+                    final thisMonthDates = dates.where((d) {
+                      return d.year == now.year && d.month == now.month;
+                    }).toList();
 
-        return DraggableScrollableSheet(
-          initialChildSize: 0.55,
-          minChildSize: 0.3,
-          maxChildSize: 0.85,
-          expand: false,
-          builder: (_, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.textMuted.withAlpha(76),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Chat History',
-                    style: GoogleFonts.inter(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _historyChip(
-                        'Today',
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          ref.read(checkInProvider.notifier).goBackToToday();
-                          setState(() => _showChat = true);
-                        },
-                      ),
-                      if (dates.any((d) =>
-                          d.year == yesterday.year &&
-                          d.month == yesterday.month &&
-                          d.day == yesterday.day))
-                        _historyChip(
-                          'Yesterday',
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            ref
-                                .read(checkInProvider.notifier)
-                                .loadDataForDate(yesterday);
-                            setState(() => _showChat = true);
-                          },
-                        ),
-                      _historyChip(
-                        'This Week (${thisWeekDates.length})',
-                        enabled: thisWeekDates.length > 1,
-                      ),
-                      _historyChip(
-                        'This Month (${thisMonthDates.length})',
-                        enabled: thisMonthDates.length > 1,
-                      ),
-                      _historyChip(
-                        'Pick Date',
-                        icon: Icons.calendar_month,
-                        onTap: () async {
-                          Navigator.pop(ctx);
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: now,
-                            firstDate: DateTime(2020),
-                            lastDate: now,
-                          );
-                          if (picked != null) {
-                            ref
-                                .read(checkInProvider.notifier)
-                                .loadDataForDate(picked);
-                            setState(() => _showChat = true);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'ALL CONVERSATIONS',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: dates.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No conversations yet',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
+                    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 36,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AppColors.textMuted.withAlpha(76),
+                                borderRadius: BorderRadius.circular(2),
                               ),
                             ),
-                          )
-                        : ListView.builder(
-                            controller: scrollController,
-                            itemCount: dates.length,
-                            itemBuilder: (_, index) {
-                              final date = dates[index];
-                              final isToday = date.year == today.year &&
-                                  date.month == today.month &&
-                                  date.day == today.day;
-                              final isYesterday =
-                                  date.year == yesterday.year &&
-                                      date.month == yesterday.month &&
-                                      date.day == yesterday.day;
-
-                              String label;
-                              if (isToday) {
-                                label = 'Today';
-                              } else if (isYesterday) {
-                                label = 'Yesterday';
-                              } else {
-                                label = DateFormat('EEEE, MMM d, yyyy')
-                                    .format(date);
-                              }
-
-                              return ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withAlpha(20),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${date.day}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                title: Text(
-                                  label,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  DateFormat('MMMM yyyy').format(date),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                                trailing: Icon(
-                                  Icons.chevron_right,
-                                  size: 20,
-                                  color: AppColors.textMuted,
-                                ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Chat History',
+                            style: GoogleFonts.inter(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _historyChip(
+                                'Today',
                                 onTap: () {
                                   Navigator.pop(ctx);
-                                  if (isToday) {
-                                    ref
-                                        .read(checkInProvider.notifier)
-                                        .goBackToToday();
-                                  } else {
-                                    ref
-                                        .read(checkInProvider.notifier)
-                                        .loadDataForDate(date);
-                                  }
+                                  ref.read(checkInProvider.notifier).goBackToToday();
                                   setState(() => _showChat = true);
                                 },
-                              );
-                            },
+                              ),
+                              if (dates.any((d) =>
+                                  d.year == yesterday.year &&
+                                  d.month == yesterday.month &&
+                                  d.day == yesterday.day))
+                                _historyChip(
+                                  'Yesterday',
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    ref
+                                        .read(checkInProvider.notifier)
+                                        .loadDataForDate(yesterday);
+                                    setState(() => _showChat = true);
+                                  },
+                                ),
+                              _historyChip(
+                                'This Week (${thisWeekDates.length})',
+                                enabled: thisWeekDates.length > 1,
+                              ),
+                              _historyChip(
+                                'This Month (${thisMonthDates.length})',
+                                enabled: thisMonthDates.length > 1,
+                              ),
+                              _historyChip(
+                                'Pick Date',
+                                icon: Icons.calendar_month,
+                                onTap: () async {
+                                  Navigator.pop(ctx);
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: now,
+                                    firstDate: DateTime(2020),
+                                    lastDate: now,
+                                  );
+                                  if (picked != null) {
+                                    ref
+                                        .read(checkInProvider.notifier)
+                                        .loadDataForDate(picked);
+                                    setState(() => _showChat = true);
+                                  }
+                                },
+                              ),
+                            ],
                           ),
-                  ),
-                ],
-              ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'ALL CONVERSATIONS',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: dates.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'No conversations yet',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    controller: scrollController,
+                                    itemCount: dates.length,
+                                    itemBuilder: (_, index) {
+                                      final date = dates[index];
+                                      final isToday = date.year == today.year &&
+                                          date.month == today.month &&
+                                          date.day == today.day;
+                                      final isYesterday =
+                                          date.year == yesterday.year &&
+                                              date.month == yesterday.month &&
+                                              date.day == yesterday.day;
+
+                                      String label;
+                                      if (isToday) {
+                                        label = 'Today';
+                                      } else if (isYesterday) {
+                                        label = 'Yesterday';
+                                      } else {
+                                        label = DateFormat('EEEE, MMM d, yyyy')
+                                            .format(date);
+                                      }
+
+                                      return ListTile(
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        leading: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withAlpha(20),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              '${date.day}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        title: Text(
+                                          label,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          DateFormat('MMMM yyyy').format(date),
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                        trailing: Icon(
+                                          Icons.chevron_right,
+                                          size: 20,
+                                          color: AppColors.textMuted,
+                                        ),
+                                        onTap: () {
+                                          Navigator.pop(ctx);
+                                          if (isToday) {
+                                            ref
+                                                .read(checkInProvider.notifier)
+                                                .goBackToToday();
+                                          } else {
+                                            ref
+                                                .read(checkInProvider.notifier)
+                                                .loadDataForDate(date);
+                                          }
+                                          setState(() => _showChat = true);
+                                        },
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
             );
           },
         );

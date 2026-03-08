@@ -29,16 +29,19 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen>
+    with AutomaticKeepAliveClientMixin {
   bool _biometricLockEnabled = false;
   bool _biometricAvailable = false;
   String _lockMethod = 'none';
-  // _doNotSell removed — we don't sell data
   bool _healthConsent = false;
   bool _notificationsEnabled = false;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 30);
   final _secureStorage = SecureStorageService();
   final _localAuth = LocalAuthentication();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -783,7 +786,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final themeState = ref.watch(themeProvider);
     final isDark = themeState.effectiveThemeMode == ThemeMode.dark;
     final bgColor = isDark ? themeState.themeColor.bgDark : themeState.themeColor.bg;
@@ -1099,12 +1104,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Text(
-            'Settings',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: textColor,
+          child: Center(
+            child: Text(
+              'Settings',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
             ),
           ),
         ),
