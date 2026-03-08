@@ -194,7 +194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: AppColors.of(context).accent.withAlpha(51),
                         border: Border.all(color: AppColors.of(context).accent.withAlpha(26)),
                       ),
-                      child: Icon(Icons.person, size: 22, color: AppColors.of(context).accent),
+                      child: Icon(Icons.history_rounded, size: 22, color: AppColors.of(context).accent),
                     ),
                   ),
                 ],
