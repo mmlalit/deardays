@@ -55,33 +55,6 @@ class AppShell extends StatelessWidget {
                   isActive: index == 1,
                   onTap: () => context.go('/book'),
                 ),
-                // Center mic button
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    context.push('/record');
-                  },
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.accent,
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.accent.withAlpha(80),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.mic_rounded,
-                      color: Colors.white,
-                      size: 26,
-                    ),
-                  ),
-                ),
                 _NavItem(
                   icon: Icons.timeline_outlined,
                   activeIcon: Icons.timeline_rounded,

@@ -74,7 +74,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Photo attached'),
-          backgroundColor: AppColors.of(context).accent,
+          backgroundColor: const Color(0xFF111111),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -448,7 +448,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 child: ElevatedButton(
                   onPressed: _goToReview,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.of(context).accent,
+                    backgroundColor: const Color(0xFF111111),
                     foregroundColor: Colors.white,
                     elevation: 4,
                     shadowColor: AppColors.of(context).accent.withAlpha(76),

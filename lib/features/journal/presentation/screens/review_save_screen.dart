@@ -331,10 +331,12 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                       if (_activeTab == 0 || _activeTab == 1)
                         _buildRevertButton(),
                       const SizedBox(height: 16),
-                    ] else ...[
-                      // Show AI Polish button if not yet polished
+                    ] else if (!widget.data.isVoice) ...[
+                      // AI Polish only for text entries (voice is polished on recording screen)
                       const SizedBox(height: 8),
                       _buildAIPolishButton(),
+                      const SizedBox(height: 16),
+                    ] else ...[
                       const SizedBox(height: 16),
                     ],
                     if (_polishError != null) ...[
@@ -797,17 +799,26 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       child: Row(
         children: [
           _actionPill(
-            icon: Icons.camera_alt_outlined,
+            icon: Icons.photo_library_outlined,
             label: _attachedPhotoPath != null ? 'Photo added' : 'Add photo',
             isActive: _attachedPhotoPath != null,
             onTap: _pickPhoto,
           ),
           const SizedBox(width: 12),
           _actionPill(
-            icon: Icons.location_on_outlined,
-            label: _locationName ?? 'Add location',
-            isActive: _locationName != null,
-            onTap: () {},
+            icon: Icons.camera_alt_outlined,
+            label: 'Take photo',
+            isActive: false,
+            onTap: () async {
+              final picked = await _imagePicker.pickImage(
+                source: ImageSource.camera,
+                maxWidth: 1920,
+                imageQuality: 85,
+              );
+              if (picked != null && mounted) {
+                setState(() => _attachedPhotoPath = picked.path);
+              }
+            },
           ),
         ],
       ),
@@ -885,7 +896,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.of(context).accent,
+                backgroundColor: const Color(0xFF111111),
                 disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                 elevation: 0,
                 shape: RoundedRectangleBorder(

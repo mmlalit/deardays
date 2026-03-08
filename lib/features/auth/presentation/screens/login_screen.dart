@@ -203,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Password reset email sent.'),
-            backgroundColor: AppColors.of(context).accent,
+            backgroundColor: const Color(0xFF111111),
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -619,7 +619,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleEmailAuth,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.of(context).accent,
+                backgroundColor: const Color(0xFF111111),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),

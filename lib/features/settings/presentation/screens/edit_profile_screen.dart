@@ -167,7 +167,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.of(context).accent,
+        backgroundColor: const Color(0xFF111111),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -332,7 +332,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     child: ElevatedButton(
                       onPressed: _isSaving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.of(context).accent,
+                        backgroundColor: const Color(0xFF111111),
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                         elevation: 0,

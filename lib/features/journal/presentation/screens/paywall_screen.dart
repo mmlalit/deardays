@@ -33,7 +33,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Welcome to DearDays Premium!'),
-          backgroundColor: AppColors.of(context).accent,
+          backgroundColor: const Color(0xFF111111),
         ),
       );
       Navigator.of(context).pop(true);
@@ -59,7 +59,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Purchases restored!'),
-            backgroundColor: AppColors.of(context).accent,
+            backgroundColor: const Color(0xFF111111),
           ),
         );
         Navigator.of(context).pop(true);
@@ -159,7 +159,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       child: ElevatedButton(
                         onPressed: sub.isLoading ? null : _handleSubscribe,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.of(context).accent,
+                          backgroundColor: const Color(0xFF111111),
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                           shape: RoundedRectangleBorder(

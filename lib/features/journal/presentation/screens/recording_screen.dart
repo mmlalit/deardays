@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/services/ai/ai_service.dart';
 
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({super.key});
@@ -27,12 +29,25 @@ class _RecordingScreenState extends State<RecordingScreen>
   Timer? _timer;
   String? _recordingPath;
 
+  // Transcription state
+  bool _isTranscribing = false;
+  String? _transcribedText;
+
+  // AI Polish state
+  bool _isPolishing = false;
+  String? _polishedText;
+
+  // Photo
+  String? _attachedPhotoPath;
+  final _imagePicker = ImagePicker();
+
+  final _aiService = AiService();
   final AudioRecorder _audioRecorder = AudioRecorder();
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
 
-  // Waveform bar heights — 9 bars to match mockup
+  // Waveform bar heights — 9 bars
   final List<double> _barHeights = List.generate(
     9,
     (i) => 0.3 + (sin(i * 1.2) * 0.4 + 0.3).clamp(0.1, 1.0),
@@ -129,10 +144,16 @@ class _RecordingScreenState extends State<RecordingScreen>
           _recordingPath = path;
           _pulseController.stop();
           _showBottomSheet = true;
+          _isTranscribing = true;
         });
+        // Transcribe the audio
+        await _transcribeAudio(path);
       } else {
         setState(() {
           _showBottomSheet = false;
+          _transcribedText = null;
+          _polishedText = null;
+          _attachedPhotoPath = null;
         });
         await _startRecording();
         _pulseController.repeat(reverse: true);
@@ -146,12 +167,69 @@ class _RecordingScreenState extends State<RecordingScreen>
     }
   }
 
+  Future<void> _transcribeAudio(String? path) async {
+    if (path == null) {
+      if (mounted) setState(() => _isTranscribing = false);
+      return;
+    }
+    try {
+      final text = await _aiService.transcribeAudio(path);
+      if (mounted) {
+        setState(() {
+          _transcribedText = text;
+          _isTranscribing = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTranscribing = false;
+          // Fallback: show duration text so user can still proceed
+          _transcribedText = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _polishTranscription() async {
+    final text = _transcribedText;
+    if (text == null || text.isEmpty) return;
+    setState(() => _isPolishing = true);
+    try {
+      final polished = await _aiService.lightPolish(text);
+      if (mounted) {
+        setState(() {
+          _polishedText = polished;
+          _isPolishing = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isPolishing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('AI Polish failed. Your original text is preserved.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickPhoto() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      imageQuality: 85,
+    );
+    if (picked != null && mounted) {
+      setState(() => _attachedPhotoPath = picked.path);
+    }
+  }
+
   void _goToReview() {
-    // For voice entries, the raw text is a placeholder until transcription is added
-    final durationText = '$_minutes:$_seconds';
+    final finalText = _polishedText ?? _transcribedText ?? 'Voice journal entry ($_minutes:$_seconds)';
     context.push('/review', extra: ReviewData(
-      rawText: 'Voice journal entry ($durationText)',
+      rawText: finalText,
       isVoice: true,
+      attachedPhotoPath: _attachedPhotoPath,
     ));
   }
 
@@ -166,7 +244,6 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -271,9 +348,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           decoration: BoxDecoration(
             color: Colors.white.withAlpha(26),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.white.withAlpha(26),
-            ),
+            border: Border.all(color: Colors.white.withAlpha(26)),
           ),
           alignment: Alignment.center,
           child: Text(
@@ -300,7 +375,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Waveform — 9 bars, 4px wide, gold
+  // Waveform
   // ──────────────────────────────────────────────
 
   Widget _buildWaveform() {
@@ -332,7 +407,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Mic button — 112px, dark icon on gold bg
+  // Mic button
   // ──────────────────────────────────────────────
 
   Widget _buildMicButton() {
@@ -413,7 +488,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // ──────────────────────────────────────────────
-  // Bottom entry sheet — 40px radius, strong shadow
+  // Bottom entry sheet
   // ──────────────────────────────────────────────
 
   Widget _buildEntrySheet() {
@@ -427,16 +502,13 @@ class _RecordingScreenState extends State<RecordingScreen>
         curve: Curves.easeOutCubic,
         offset: _showBottomSheet ? Offset.zero : const Offset(0, 1),
         child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.72,
+          ),
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(24),
-            ),
-            border: Border(
-              top: BorderSide(
-                color: Colors.white.withAlpha(13),
-              ),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: Colors.white.withAlpha(13))),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(76),
@@ -447,14 +519,13 @@ class _RecordingScreenState extends State<RecordingScreen>
           ),
           child: SafeArea(
             top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Drag handle
-                  Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Center(
                     child: Container(
                       width: 36,
                       height: 4,
@@ -464,10 +535,13 @@ class _RecordingScreenState extends State<RecordingScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ),
+                const SizedBox(height: 14),
 
-                  // Header row
-                  Row(
+                // Header row
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
                     children: [
                       Expanded(
                         child: Text(
@@ -480,57 +554,99 @@ class _RecordingScreenState extends State<RecordingScreen>
                           ),
                         ),
                       ),
-                      _sheetActionButton(Icons.camera_alt_outlined),
-                      const SizedBox(width: 10),
-                      _sheetActionButton(Icons.location_on_outlined),
+                      // Add Photo button
+                      GestureDetector(
+                        onTap: _pickPhoto,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _attachedPhotoPath != null
+                                ? colors.accent.withAlpha(25)
+                                : colors.accent.withAlpha(13),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: colors.accent.withAlpha(
+                                _attachedPhotoPath != null ? 60 : 30,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _attachedPhotoPath != null
+                                    ? Icons.check_circle_outline
+                                    : Icons.camera_alt_outlined,
+                                size: 15,
+                                color: colors.accent,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                _attachedPhotoPath != null ? 'Photo added' : 'Add photo',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                ),
+                const SizedBox(height: 14),
 
-                  // Recording summary
-                  Text(
-                    'You recorded $_minutes:$_seconds of audio. '
-                    'Your voice entry will be transcribed and polished by AI '
-                    'into a beautiful story.',
-                    style: GoogleFonts.manrope(
-                      fontSize: 16,
-                      color: colors.textSecondary,
-                      height: 1.6,
-                    ),
+                // Content area
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildTranscriptContent(colors),
                   ),
-                  const SizedBox(height: 24),
+                ),
+                const SizedBox(height: 16),
 
-                  // Save button — gold bg, dark text, with icon
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: _goToReview,
-                      icon: const Icon(
-                        Icons.auto_stories,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                      label: Text(
-                        'Save to book',
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                // Action buttons
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Column(
+                    children: [
+                      // AI Polish button — only show if transcription done and not yet polished
+                      if (!_isTranscribing && _transcribedText != null && _polishedText == null)
+                        _buildAIPolishButton(colors),
+                      if (!_isTranscribing && _transcribedText != null && _polishedText == null)
+                        const SizedBox(height: 10),
+
+                      // Add to Book button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton.icon(
+                          onPressed: (_isTranscribing || _isPolishing) ? null : _goToReview,
+                          icon: const Icon(Icons.auto_stories, size: 20, color: Colors.white),
+                          label: Text(
+                            'Add to Book',
+                            style: GoogleFonts.manrope(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF111111),
+                            disabledBackgroundColor: colors.accent.withAlpha(100),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
                         ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.accent,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -538,19 +654,162 @@ class _RecordingScreenState extends State<RecordingScreen>
     );
   }
 
-  Widget _sheetActionButton(IconData icon) {
-    final colors = AppColors.of(context);
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: colors.accent.withAlpha(26),
-      ),
-      child: Icon(
-        icon,
-        size: 18,
-        color: colors.accent,
+  Widget _buildTranscriptContent(AppPalette colors) {
+    // Transcribing state
+    if (_isTranscribing) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: colors.accent,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Transcribing your recording...',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: colors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'This may take a few seconds',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                color: colors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Polish in progress
+    if (_isPolishing) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: colors.accent),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'AI is polishing your words...',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: colors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Transcription failed
+    if (_transcribedText == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Icon(Icons.mic_off_outlined, size: 32, color: colors.textMuted),
+            const SizedBox(height: 10),
+            Text(
+              'Transcription unavailable',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Your recording ($_minutes:$_seconds) is saved.\nYou can still add it to your book.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                color: colors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show polished or transcribed text
+    final displayText = _polishedText ?? _transcribedText!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_polishedText != null)
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(20),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_fix_high, size: 13, color: colors.accent),
+                const SizedBox(width: 5),
+                Text(
+                  'AI Polished',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colors.accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Text(
+          displayText,
+          style: GoogleFonts.manrope(
+            fontSize: 15,
+            color: colors.textPrimary,
+            height: 1.7,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAIPolishButton(AppPalette colors) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: _polishTranscription,
+        icon: Icon(Icons.auto_fix_high, size: 18, color: colors.accent),
+        label: Text(
+          'AI Polish — Fix grammar & improve readability',
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: colors.textPrimary,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colors.accent.withAlpha(60)),
+          backgroundColor: colors.accent.withAlpha(10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
     );
   }

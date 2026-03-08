@@ -6,11 +6,11 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  /// Default light theme (Warm Cream).
-  static ThemeData get light => lightFrom(AppThemeColor.warmCream);
+  /// Default light theme (Classic White).
+  static ThemeData get light => lightFrom(AppThemeColor.classicWhite);
 
   /// Default dark theme.
-  static ThemeData get dark => darkFrom(AppThemeColor.warmCream);
+  static ThemeData get dark => darkFrom(AppThemeColor.classicWhite);
 
   /// Generate a light theme from the chosen color palette.
   static ThemeData lightFrom(AppThemeColor themeColor) {
@@ -64,7 +64,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: p.accent,
+          backgroundColor: const Color(0xFF111111),
           foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size(double.infinity, 56),

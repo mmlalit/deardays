@@ -518,7 +518,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.of(context).accent,
+                backgroundColor: const Color(0xFF111111),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

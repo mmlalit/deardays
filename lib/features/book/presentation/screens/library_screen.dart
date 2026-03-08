@@ -396,7 +396,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
+                backgroundColor: const Color(0xFF111111),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),

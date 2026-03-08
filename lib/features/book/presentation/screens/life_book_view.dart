@@ -519,7 +519,7 @@ class LifeBookView extends ConsumerWidget {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: colors.accent,
+            backgroundColor: const Color(0xFF111111),
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(

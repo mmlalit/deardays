@@ -103,10 +103,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             : 'Good evening';
 
     final textColor = AppColors.of(context).textPrimary;
-    final dateStr = DateFormat('MMMM d, yyyy').format(now).toUpperCase();
     final hasCheckInEntry = state.allMessages.isNotEmpty;
     final todayEntryAsync = ref.watch(todayEntryProvider);
     final todayJournalEntry = todayEntryAsync.valueOrNull;
+    final profile = ref.watch(profileProvider).valueOrNull;
+    final firstName = profile?.displayName?.split(' ').first ?? '';
 
     return SafeArea(
       bottom: false,
@@ -118,50 +119,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // -- Header -------------------------------------------------------
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        dateStr,
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                      // Profile avatar
-                      GestureDetector(
-                        onTap: _showChatHistory,
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.of(context).accent.withAlpha(51),
-                            border: Border.all(
-                              color: AppColors.of(context).accent.withAlpha(26),
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.person,
-                            size: 22,
-                            color: AppColors.of(context).accent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    '$greeting, there',
+                    '$greeting${firstName.isNotEmpty ? ', $firstName' : ''}',
                     style: GoogleFonts.manrope(
-                      fontSize: 22,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: textColor,
+                    ),
+                  ),
+                  // Profile avatar
+                  GestureDetector(
+                    onTap: _showChatHistory,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.of(context).accent.withAlpha(51),
+                        border: Border.all(color: AppColors.of(context).accent.withAlpha(26)),
+                      ),
+                      child: Icon(Icons.person, size: 22, color: AppColors.of(context).accent),
                     ),
                   ),
                 ],
@@ -337,7 +317,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.of(context).accent,
+                  color: AppColors.of(context).textPrimary,
                 ),
               ),
             ),
@@ -651,16 +631,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colors.accent.withAlpha(18),
-                colors.accentFaint,
-              ],
-            ),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.accent.withAlpha(30)),
+            border: Border.all(color: colors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(8),
+                blurRadius: 12,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Stack(
             children: [
@@ -694,11 +674,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       height: 50,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: colors.accent.withAlpha(25),
-                        border: Border.all(
-                          color: colors.accent.withAlpha(40),
-                          width: 1.5,
-                        ),
+                        color: colors.accentFaint,
+                        border: Border.all(color: colors.border, width: 1.5),
                       ),
                       child: Icon(
                         hasMemories ? Icons.auto_awesome_rounded : Icons.history_rounded,

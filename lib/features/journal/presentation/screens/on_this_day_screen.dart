@@ -228,7 +228,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
           // Photo placeholder
           AspectRatio(
             aspectRatio: 4 / 3,
-            child: Container(color: const Color(0xFFE8E1D9)),
+            child: Container(color: colors.border),
           ),
           Padding(
             padding: const EdgeInsets.all(20),
@@ -668,7 +668,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   Widget _photoPlaceholder() {
     final colors = AppColors.of(context);
     return Container(
-      color: const Color(0xFFE8E1D9),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Center(
         child: Icon(
           Icons.image_outlined,

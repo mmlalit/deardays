@@ -251,7 +251,7 @@ class _PatternScreenState extends State<PatternScreen> {
                     child: ElevatedButton(
                       onPressed: _selectedDots.length >= 4 ? _onPatternComplete : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.of(context).accent,
+                        backgroundColor: const Color(0xFF111111),
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: AppColors.of(context).accent.withAlpha(80),
                         disabledForegroundColor: Colors.white54,
