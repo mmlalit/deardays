@@ -17,6 +17,7 @@ import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -43,6 +44,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Whether the user tapped "Write instead" to show the chat view
   bool _showChat = false;
 
+  // Save conversation to book
+  bool _isSummarizing = false;
+  final _aiService = AiService();
+
   @override
   void dispose() {
     _textController.dispose();
@@ -64,6 +69,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       }
     });
+  }
+
+  Future<void> _saveConversationToBook() async {
+    final state = ref.read(checkInProvider);
+    // Collect all user messages across all sections
+    final userMessages = state.allMessages
+        .where((m) => m.isUser)
+        .map((m) => m.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    if (userMessages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No messages to save yet.')),
+      );
+      return;
+    }
+
+    setState(() => _isSummarizing = true);
+
+    try {
+      // Join user messages into a single readable text
+      final rawText = userMessages.join('\n\n');
+      // Light-polish to fix grammar and flow
+      String cleanedText;
+      try {
+        cleanedText = await _aiService.lightPolish(rawText);
+      } catch (_) {
+        cleanedText = rawText; // Fallback to unpolished
+      }
+
+      if (!mounted) return;
+      setState(() => _isSummarizing = false);
+
+      // Navigate to Review & Save
+      context.push('/review', extra: ReviewData(
+        rawText: cleanedText,
+        mood: state.currentMood,
+        isVoice: false,
+      ));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSummarizing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to prepare entry. Try again.')),
+        );
+      }
+    }
   }
 
   @override
@@ -811,6 +864,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
+            // Add to Book button
+            if (isToday)
+              GestureDetector(
+                onTap: _isSummarizing ? null : _saveConversationToBook,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF111111),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: _isSummarizing
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_stories, size: 14, color: Colors.white),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Add to Book',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            const SizedBox(width: 8),
             // Chat history button
             GestureDetector(
               onTap: _showChatHistory,
