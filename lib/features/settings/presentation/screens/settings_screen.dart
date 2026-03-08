@@ -1431,7 +1431,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 width: 14,
                 height: 14,
                 decoration: BoxDecoration(
-                  color: currentTheme.bg,
+                  color: currentTheme.light.bg,
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.of(context).accent.withAlpha(76)),
                 ),
@@ -1482,7 +1482,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: palette.bg,
+                      color: palette.light.bg,
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.of(context).accent.withAlpha(76)),
                     ),
