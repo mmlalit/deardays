@@ -76,7 +76,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final sub = ref.watch(subscriptionProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [

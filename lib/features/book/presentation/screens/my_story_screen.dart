@@ -86,7 +86,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
 
     if (state.isLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFFFDFBF7),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
@@ -112,7 +112,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
     // Fullscreen mode — just the page view + tap to exit
     if (_isFullscreen) {
       return Scaffold(
-        backgroundColor: const Color(0xFFFDFBF7),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: GestureDetector(
           onTap: _toggleFullscreen,
           child: PageView.builder(
@@ -136,7 +136,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF7),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildTopNav(context, book),
@@ -492,7 +492,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
   void _showStylePicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: Padding(

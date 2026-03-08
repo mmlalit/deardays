@@ -162,7 +162,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   void _showMoodFilterSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

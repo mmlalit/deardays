@@ -305,7 +305,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildHeader(),

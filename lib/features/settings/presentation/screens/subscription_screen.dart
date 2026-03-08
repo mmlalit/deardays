@@ -180,7 +180,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final sub = ref.watch(subscriptionProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: DearDaysHeader.appBar(
         context: context,
         title: 'Subscription',
