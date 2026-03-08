@@ -102,6 +102,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? 'Good afternoon'
             : 'Good evening';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final dateStr = DateFormat('MMMM d, yyyy').format(now).toUpperCase();
     final hasCheckInEntry = state.allMessages.isNotEmpty;
     final todayEntryAsync = ref.watch(todayEntryProvider);
@@ -160,15 +162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     style: GoogleFonts.playfairDisplay(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'What\'s your story today?',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                      color: textColor,
                     ),
                   ),
                 ],
@@ -201,6 +195,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Mood Section (inline card) -------------------------------------------
 
   Widget _buildMoodSection(CheckInState state) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
       child: Column(
@@ -211,14 +209,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: subtextColor,
             ),
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.primary.withAlpha(26)),
               boxShadow: [
@@ -293,6 +291,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Record CTA (mic button) ----------------------------------------------
 
   Widget _buildRecordCTA() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Center(
@@ -328,7 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -352,6 +353,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Today's Entry Card ---------------------------------------------------
 
   Widget _buildTodayEntryCard(CheckInState state) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
     final lastUserMessage = state.allMessages
         .where((m) => m.isUser)
         .toList();
@@ -373,7 +378,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.primary.withAlpha(20)),
             boxShadow: [
@@ -460,7 +465,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 16,
                         fontStyle: FontStyle.italic,
-                        color: AppColors.textPrimary.withAlpha(204),
+                        color: textColor.withAlpha(204),
                         height: 1.6,
                       ),
                     ),
@@ -508,6 +513,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Journal Entry Card (saved entries from Supabase) --------------------
 
   Widget _buildJournalEntryCard(JournalEntry entry) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
     final timeStr = entry.entryTime != null
         ? '${entry.entryTime!.hourOfPeriod == 0 ? 12 : entry.entryTime!.hourOfPeriod}:${entry.entryTime!.minute.toString().padLeft(2, '0')} ${entry.entryTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
         : '';
@@ -516,10 +525,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: Colors.white,
+      child: GestureDetector(
+        onTap: () => setState(() => _showChat = true),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.primary.withAlpha(20)),
           boxShadow: [
@@ -620,7 +631,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     style: GoogleFonts.playfairDisplay(
                       fontSize: 15,
                       fontStyle: isPolished ? FontStyle.italic : FontStyle.normal,
-                      color: AppColors.textPrimary.withAlpha(204),
+                      color: textColor.withAlpha(204),
                       height: 1.6,
                     ),
                   ),
@@ -672,6 +683,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -683,6 +695,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final dates = datesAsync.valueOrNull ?? [];
     final now = DateTime.now();
     final oneYearAgo = DateTime(now.year - 1, now.month, now.day);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
 
     DateTime? matchDate;
     for (final d in dates) {
@@ -697,7 +711,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Always show the section (with placeholder if no data)
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      child: Container(
+      child: GestureDetector(
+        onTap: () => context.push('/on-this-day'),
+        child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: AppColors.primary.withAlpha(13),
@@ -760,7 +776,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             fontStyle: FontStyle.italic,
-                            color: AppColors.textSecondary,
+                            color: subtextColor,
                           ),
                         ),
                       ),
@@ -781,6 +797,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -810,6 +827,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildChatTopBar(CheckInState state) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
     final isToday = state.isViewingToday;
     final dateLabel = isToday
         ? 'Today'
@@ -843,7 +862,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: textColor,
                 ),
               ),
             ),
@@ -918,6 +937,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Column(
@@ -934,7 +957,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: textColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -942,7 +965,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             'Type below or try a prompt to get started',
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: subtextColor,
             ),
           ),
           const SizedBox(height: 24),
@@ -1016,6 +1039,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMessageBubble(ChatMessage message, String sectionId) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bubbleBg = isDark ? AppColors.cardDark : Colors.white;
+    final bubbleText = isDark ? Colors.white : AppColors.textPrimary;
     final isUser = message.isUser;
 
     return Padding(
@@ -1054,7 +1080,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isUser ? AppColors.primary : Colors.white,
+                      color: isUser ? AppColors.primary : bubbleBg,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(18),
                         topRight: const Radius.circular(18),
@@ -1100,7 +1126,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             color:
-                                isUser ? Colors.white : AppColors.textPrimary,
+                                isUser ? Colors.white : bubbleText,
                             height: 1.45,
                           ),
                         ),
@@ -1136,6 +1162,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Input Bar ----------------------------------------------------------
 
   Widget _buildInputBar(CheckInState state) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final barColor = isDark ? AppColors.cardDark : Colors.white;
     final isEditing = _editingMessageId != null;
 
     return Container(
@@ -1146,7 +1174,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         bottom: 8,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: barColor,
         border: Border(
           top: BorderSide(color: Colors.black.withAlpha(13)),
         ),

@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -122,7 +120,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildHeader(context),
@@ -330,6 +328,10 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildEmptyState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -347,7 +349,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               style: GoogleFonts.inter(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -358,7 +360,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 fontSize: 15,
                 fontStyle: FontStyle.italic,
                 height: 1.5,
-                color: AppColors.textSecondary,
+                color: subtextColor,
               ),
             ),
           ],
@@ -372,71 +374,73 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.bgLight.withAlpha(204),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(
+          bottom: BorderSide(color: AppColors.primary.withAlpha(26)),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: IconButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          icon: const Icon(Icons.arrow_back, size: 24),
-                          color: AppColors.textPrimary,
-                          padding: EdgeInsets.zero,
-                        ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            'ON THIS DAY',
-                            style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: IconButton(
-                          onPressed: () {
-                            // TODO: date picker for browsing other dates
-                          },
-                          icon: const Icon(Icons.calendar_month, size: 24),
-                          color: AppColors.textPrimary,
-                          padding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back, size: 24),
+                      color: textColor,
+                      padding: EdgeInsets.zero,
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Revisiting your favorite chapters',
-                    style: GoogleFonts.lora(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        'ON THIS DAY',
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: textColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: IconButton(
+                      onPressed: () {
+                        // TODO: date picker for browsing other dates
+                      },
+                      icon: const Icon(Icons.calendar_month, size: 24),
+                      color: textColor,
+                      padding: EdgeInsets.zero,
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 4),
+              Text(
+                'Revisiting your favorite chapters',
+                style: GoogleFonts.lora(
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -486,6 +490,10 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildMemoryCard(BuildContext context, JournalEntry entry) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
     final year = entry.entryDate.year.toString();
     final location = entry.locationName?.toUpperCase();
     final moodInfo = _moodDisplay(entry.mood);
@@ -498,7 +506,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.primary.withAlpha(26)),
         boxShadow: [
@@ -622,7 +630,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     fontSize: 17,
                     fontStyle: FontStyle.italic,
                     height: 1.6,
-                    color: AppColors.textPrimary.withAlpha(230),
+                    color: textColor.withAlpha(230),
                   ),
                 ),
                 const SizedBox(height: 16),

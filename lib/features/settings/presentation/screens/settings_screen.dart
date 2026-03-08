@@ -1277,7 +1277,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, color: iconColor ?? (textColor ?? AppColors.textPrimary).withAlpha(102), size: 22),
+              Icon(icon, color: iconColor ?? (textColor ?? AppColors.textPrimary).withAlpha(178), size: 22),
               const SizedBox(width: 12),
             ],
             Expanded(

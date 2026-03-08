@@ -90,8 +90,8 @@ class JournalEntry {
     return {
       'id': id,
       'user_id': userId,
-      'content': encryptFn(content),
-      'raw_content': rawContent != null ? encryptFn(rawContent!) : null,
+      'encrypted_content': encryptFn(content),
+      'encrypted_raw_content': rawContent != null ? encryptFn(rawContent!) : null,
       'polished_content': polishedContent != null ? encryptFn(polishedContent!) : null,
       'mood': mood,
       'entry_date': entryDate.toIso8601String(),
@@ -118,9 +118,9 @@ class JournalEntry {
     return JournalEntry(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      content: decryptFn(json['content'] as String),
-      rawContent: json['raw_content'] != null
-          ? decryptFn(json['raw_content'] as String)
+      content: decryptFn(json['encrypted_content'] as String),
+      rawContent: json['encrypted_raw_content'] != null
+          ? decryptFn(json['encrypted_raw_content'] as String)
           : null,
       polishedContent: json['polished_content'] != null
           ? decryptFn(json['polished_content'] as String)
@@ -152,8 +152,8 @@ class JournalEntry {
     return {
       'id': id,
       'user_id': userId,
-      'content': encryptFn(content),
-      'raw_content': rawContent != null ? encryptFn(rawContent!) : null,
+      'encrypted_content': encryptFn(content),
+      'encrypted_raw_content': rawContent != null ? encryptFn(rawContent!) : null,
       'polished_content': polishedContent != null ? encryptFn(polishedContent!) : null,
       'mood': mood,
       'entry_date': entryDate.toIso8601String(),
@@ -181,9 +181,9 @@ class JournalEntry {
     return JournalEntry(
       id: map['id'] as String,
       userId: map['user_id'] as String,
-      content: decryptFn(map['content'] as String),
-      rawContent: map['raw_content'] != null
-          ? decryptFn(map['raw_content'] as String)
+      content: decryptFn(map['encrypted_content'] as String),
+      rawContent: map['encrypted_raw_content'] != null
+          ? decryptFn(map['encrypted_raw_content'] as String)
           : null,
       polishedContent: map['polished_content'] != null
           ? decryptFn(map['polished_content'] as String)
