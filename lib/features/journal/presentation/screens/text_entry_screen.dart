@@ -21,7 +21,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   final TextEditingController _textController = TextEditingController();
   final _imagePicker = ImagePicker();
   final _locationService = LocationService();
-  bool _polishWithAI = true;
+  bool _polishWithAI = false;
   String? _attachedPhotoPath;
   String? _locationName;
   int _promptIndex = 0;
@@ -126,6 +126,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       rawText: text,
       locationName: _locationName,
       attachedPhotoPath: _attachedPhotoPath,
+      polishWithAI: _polishWithAI,
     ));
   }
 
@@ -536,7 +537,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           ),
           const SizedBox(width: 10),
           Text(
-            'Polish with AI',
+            'AI Polish',
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w700,

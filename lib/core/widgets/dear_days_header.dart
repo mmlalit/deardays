@@ -65,10 +65,11 @@ class DearDaysHeader extends StatelessWidget {
   }
 
   Widget _buildBackButton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return IconButton(
       onPressed: onBack ?? () => Navigator.of(context).maybePop(),
       icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-      color: AppColors.textPrimary,
+      color: isDark ? Colors.white : AppColors.textPrimary,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       style: IconButton.styleFrom(
@@ -78,10 +79,11 @@ class DearDaysHeader extends StatelessWidget {
   }
 
   Widget _buildCloseButton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return IconButton(
       onPressed: onBack ?? () => Navigator.of(context).maybePop(),
       icon: const Icon(Icons.close, size: 24),
-      color: AppColors.textPrimary,
+      color: isDark ? Colors.white : AppColors.textPrimary,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       style: IconButton.styleFrom(
@@ -91,71 +93,83 @@ class DearDaysHeader extends StatelessWidget {
   }
 
   Widget _buildTopLevelTitle() {
-    if (subtitle != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+    return Builder(builder: (context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final textColor = isDark ? Colors.white : AppColors.textPrimary;
+      final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
+      if (subtitle != null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle!,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: AppColors.textSecondary,
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: subtextColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        );
+      }
+      return Text(
+        title,
+        style: GoogleFonts.playfairDisplay(
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+        ),
       );
-    }
-    return Text(
-      title,
-      style: GoogleFonts.playfairDisplay(
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
-        color: AppColors.textPrimary,
-      ),
-    );
+    });
   }
 
   Widget _buildPushTitle() {
-    if (subtitle != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+    return Builder(builder: (context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final textColor = isDark ? Colors.white : AppColors.textPrimary;
+      final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
+      if (subtitle != null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle!,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: AppColors.textSecondary,
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: subtextColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        );
+      }
+      return Text(
+        title,
+        style: GoogleFonts.inter(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
       );
-    }
-    return Text(
-      title,
-      style: GoogleFonts.inter(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
-      ),
-    );
+    });
   }
 
   /// Creates an AppBar equivalent for screens that need one.
@@ -166,17 +180,20 @@ class DearDaysHeader extends StatelessWidget {
     List<Widget>? actions,
     VoidCallback? onBack,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
     return AppBar(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: mode == HeaderMode.modal
           ? IconButton(
-              icon: const Icon(Icons.close, size: 24, color: AppColors.textPrimary),
+              icon: Icon(Icons.close, size: 24, color: textColor),
               onPressed: onBack ?? () => Navigator.of(context).maybePop(),
             )
           : IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.textPrimary),
+              icon: Icon(Icons.arrow_back_ios_new, size: 20, color: textColor),
               onPressed: onBack ?? () => Navigator.of(context).maybePop(),
             ),
       title: Text(
@@ -184,7 +201,7 @@ class DearDaysHeader extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: textColor,
         ),
       ),
       centerTitle: true,

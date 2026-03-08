@@ -12,9 +12,11 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/widgets/ai_badge.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -101,7 +103,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             : 'Good evening';
 
     final dateStr = DateFormat('MMMM d, yyyy').format(now).toUpperCase();
-    final hasEntry = state.allMessages.isNotEmpty;
+    final hasCheckInEntry = state.allMessages.isNotEmpty;
+    final todayEntryAsync = ref.watch(todayEntryProvider);
+    final todayJournalEntry = todayEntryAsync.valueOrNull;
 
     return SafeArea(
       bottom: false,
@@ -176,10 +180,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // -- Mood Selector ------------------------------------------------
             _buildMoodSection(state),
 
-            // -- Record CTA or Today's Entry ----------------------------------
-            if (hasEntry)
+            // -- Today's Journal Entry (from Supabase) ------------------------
+            if (todayJournalEntry != null)
+              _buildJournalEntryCard(todayJournalEntry),
+
+            // -- Record CTA or Today's Check-in Entry -------------------------
+            if (hasCheckInEntry)
               _buildTodayEntryCard(state)
-            else
+            else if (todayJournalEntry == null)
               _buildRecordCTA(),
 
             // -- On This Day --------------------------------------------------
@@ -226,6 +234,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: _moods.map((mood) {
                 final isSelected =
                     state.currentMood?.toLowerCase() == mood.label.toLowerCase();
+                final moodColor = _moodColorForLabel(mood.label);
                 return GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -238,12 +247,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        mood.icon,
-                        size: 30,
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.primary.withAlpha(102),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected
+                              ? moodColor.withAlpha(40)
+                              : moodColor.withAlpha(20),
+                          border: isSelected
+                              ? Border.all(color: moodColor, width: 2)
+                              : null,
+                        ),
+                        child: Icon(
+                          mood.icon,
+                          size: 24,
+                          color: isSelected
+                              ? moodColor
+                              : moodColor.withAlpha(180),
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -251,9 +273,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 10,
                           fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
                           color: isSelected
-                              ? AppColors.primary
+                              ? moodColor
                               : AppColors.textMuted,
                         ),
                       ),
@@ -478,6 +500,176 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // -- Journal Entry Card (saved entries from Supabase) --------------------
+
+  Widget _buildJournalEntryCard(JournalEntry entry) {
+    final timeStr = entry.entryTime != null
+        ? '${entry.entryTime!.hourOfPeriod == 0 ? 12 : entry.entryTime!.hourOfPeriod}:${entry.entryTime!.minute.toString().padLeft(2, '0')} ${entry.entryTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
+        : '';
+    final displayText = entry.polishedContent ?? entry.content;
+    final isPolished = entry.isAiPolished && entry.polishedContent != null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withAlpha(20)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Gradient header
+            Container(
+              height: 80,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFFFAF6EF),
+                    AppColors.primaryLight.withAlpha(51),
+                  ],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Icon(
+                      Icons.auto_stories,
+                      size: 36,
+                      color: AppColors.primary.withAlpha(38),
+                    ),
+                  ),
+                  if (entry.mood != null && entry.mood!.isNotEmpty)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          entry.mood!.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (isPolished)
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(204),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.auto_fix_high, size: 12, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'AI Polished',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayText,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 15,
+                      fontStyle: isPolished ? FontStyle.italic : FontStyle.normal,
+                      color: AppColors.textPrimary.withAlpha(204),
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (timeStr.isNotEmpty) ...[
+                        Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          timeStr,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                      if (entry.locationName != null) ...[
+                        const SizedBox(width: 12),
+                        Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
+                        const SizedBox(width: 2),
+                        Flexible(
+                          child: Text(
+                            entry.locationName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        'Saved to Book',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1650,6 +1842,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // -- Mood helpers -----------------------------------------------------
+
+  Color _moodColorForLabel(String label) {
+    switch (label.toLowerCase()) {
+      case 'great':
+        return AppColors.moodGreat;
+      case 'good':
+        return AppColors.moodGood;
+      case 'okay':
+        return AppColors.moodOkay;
+      case 'low':
+        return AppColors.moodLow;
+      case 'tough':
+        return AppColors.moodTough;
+      default:
+        return AppColors.primary;
+    }
+  }
 
   IconData _moodIcon(String mood) {
     switch (mood.toLowerCase()) {

@@ -74,7 +74,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _buildAppBar(state),
       body: Column(
         children: [
@@ -178,7 +178,22 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         height: 60,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: mood.color.withAlpha(31),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              mood.color.withAlpha(60),
+                              mood.color.withAlpha(25),
+                            ],
+                          ),
+                          border: Border.all(color: mood.color.withAlpha(80), width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: mood.color.withAlpha(40),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Icon(mood.icon, size: 30, color: mood.color),
                       ),
@@ -187,8 +202,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         mood.label,
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          color: mood.color,
                         ),
                       ),
                     ],

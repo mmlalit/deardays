@@ -32,12 +32,12 @@ class AppColors {
   static const Color textSecondary = Color(0xFF64748B);
   static const Color textMuted = Color(0xFF94A3B8);
 
-  // Moods (warm palette to match primary)
-  static const Color moodGreat = Color(0xFF8DB580);
-  static const Color moodGood = Color(0xFFB8C98A);
-  static const Color moodOkay = Color(0xFFD4A373);
-  static const Color moodLow = Color(0xFFD49A6A);
-  static const Color moodTough = Color(0xFFCB8B8B);
+  // Moods (vibrant palette)
+  static const Color moodGreat = Color(0xFF4CAF50);
+  static const Color moodGood = Color(0xFF8BC34A);
+  static const Color moodOkay = Color(0xFFFFB74D);
+  static const Color moodLow = Color(0xFFFF8A65);
+  static const Color moodTough = Color(0xFFEF5350);
 
   // Utility
   static const Color border = Color(0xFFE8E4DF);
@@ -50,7 +50,8 @@ class AppColors {
 enum AppThemeColor {
   warmCream('Warm Cream', Color(0xFFF8F7F6), Color(0xFFFFFFFF), Color(0xFFE8E4DF), Color(0xFF1E1914), Color(0xFF252220), Color(0xFF1E1B18)),
   sageGreen('Sage Green', Color(0xFFF7FAF8), Color(0xFFFFFFFF), Color(0xFFE2E8F0), Color(0xFF161E18), Color(0xFF1E2A20), Color(0xFF1A241C)),
-  classicWhite('Classic White', Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFFE5E7EB), Color(0xFF111111), Color(0xFF1C1C1C), Color(0xFF161616));
+  classicWhite('Classic White', Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFFE5E7EB), Color(0xFF111111), Color(0xFF1C1C1C), Color(0xFF161616)),
+  warmDark('Dark', Color(0xFF1E1914), Color(0xFF252220), Color(0xFF3D3228), Color(0xFF1E1914), Color(0xFF252220), Color(0xFF1E1B18));
 
   const AppThemeColor(this.label, this.bg, this.navBg, this.border, this.bgDark, this.cardDark, this.navBgDark);
 
@@ -61,4 +62,7 @@ enum AppThemeColor {
   final Color bgDark;
   final Color cardDark;
   final Color navBgDark;
+
+  /// Whether this palette is inherently dark.
+  bool get isDark => this == warmDark;
 }

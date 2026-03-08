@@ -59,6 +59,7 @@ class AuthService {
   Future<AuthResponse> signUpWithEmail(
     String email,
     String password, {
+    String? displayName,
     DateTime? consentGivenAt,
     DateTime? healthConsentGivenAt,
   }) async {
@@ -79,6 +80,10 @@ class AuthService {
         'encryption_salt': salt,
         'trial_started_at': DateTime.now().toUtc().toIso8601String(),
       };
+
+      if (displayName != null && displayName.trim().isNotEmpty) {
+        profileData['display_name'] = displayName.trim();
+      }
 
       // Record GDPR/CCPA consent timestamps.
       if (consentGivenAt != null) {

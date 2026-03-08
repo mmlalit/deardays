@@ -33,8 +33,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _biometricLockEnabled = false;
   bool _biometricAvailable = false;
   String _lockMethod = 'none';
-  bool _doNotSell = false;
+  // _doNotSell removed — we don't sell data
   bool _healthConsent = false;
+  bool _notificationsEnabled = false;
+  TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 30);
   final _secureStorage = SecureStorageService();
   final _localAuth = LocalAuthentication();
 
@@ -43,6 +45,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _loadBiometricState();
     _loadPrivacyState();
+    _loadNotificationState();
   }
 
   Future<void> _loadBiometricState() async {
@@ -122,33 +125,104 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final profile = await profileRepo.getProfile();
       if (profile != null && mounted) {
         setState(() {
-          _doNotSell = profile.doNotSell;
           _healthConsent = profile.healthConsentGivenAt != null;
         });
       }
     } catch (_) {}
   }
 
-  Future<void> _toggleDoNotSell(bool value) async {
-    setState(() => _doNotSell = value);
+  Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Sign Out?',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        content: Text(
+          'You will need to sign in again to access your journal.',
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Sign Out',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     try {
-      final profileRepo = ref.read(profileRepositoryProvider);
-      final profile = await profileRepo.getProfile();
-      if (profile != null) {
-        await profileRepo.updateProfile(profile.copyWith(doNotSell: value));
-      }
+      await Supabase.instance.client.auth.signOut();
       if (mounted) {
-        AppSnackBar.success(
-          context,
-          value
-              ? '"Do Not Sell" preference saved.'
-              : '"Do Not Sell" preference removed.',
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => _doNotSell = !value);
-        AppSnackBar.error(context, 'Failed to update preference.');
+        AppSnackBar.error(context, 'Failed to sign out. Please try again.');
+      }
+    }
+  }
+
+  Future<void> _changePassword() async {
+    final emailController = TextEditingController();
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    emailController.text = email;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Change Password',
+            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'We will send a password reset link to your email.',
+              style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Send Reset Link',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (mounted) {
+        AppSnackBar.success(context, 'Password reset link sent to $email');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.error(context, 'Failed to send reset link.');
       }
     }
   }
@@ -215,13 +289,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Daily Reminder
+  // Notifications
   // ---------------------------------------------------------------------------
+
+  Future<void> _loadNotificationState() async {
+    try {
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final profile = await profileRepo.getProfile();
+      if (profile != null && mounted) {
+        final hasReminder = profile.reminderTime != null && profile.reminderTime!.isNotEmpty;
+        setState(() {
+          _notificationsEnabled = hasReminder;
+          if (hasReminder) {
+            final parts = profile.reminderTime!.split(':');
+            if (parts.length >= 2) {
+              _reminderTime = TimeOfDay(
+                hour: int.parse(parts[0]),
+                minute: int.parse(parts[1]),
+              );
+            }
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    setState(() => _notificationsEnabled = value);
+
+    try {
+      if (value) {
+        // Enable: schedule notification and save time to profile
+        await NotificationService().scheduleDailyReminder(_reminderTime);
+        await _saveReminderTimeToProfile(_reminderTime);
+        if (mounted) {
+          AppSnackBar.success(context, 'Daily reminder set for ${_reminderTime.format(context)}');
+        }
+      } else {
+        // Disable: cancel notification and clear time from profile
+        await NotificationService().cancelReminder();
+        await _clearReminderTimeFromProfile();
+        if (mounted) {
+          AppSnackBar.success(context, 'Daily reminder turned off');
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _notificationsEnabled = !value);
+        AppSnackBar.error(context, 'Failed to update notification settings.');
+      }
+    }
+  }
 
   Future<void> _pickReminderTime() async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 20, minute: 30),
+      initialTime: _reminderTime,
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: ColorScheme.light(primary: AppColors.primary),
@@ -231,9 +354,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (picked == null || !mounted) return;
 
-    await NotificationService().scheduleDailyReminder(picked);
-    if (mounted) {
-      AppSnackBar.success(context, 'Daily reminder set for ${picked.format(context)}');
+    setState(() => _reminderTime = picked);
+
+    try {
+      await NotificationService().scheduleDailyReminder(picked);
+      await _saveReminderTimeToProfile(picked);
+      if (mounted) {
+        AppSnackBar.success(context, 'Reminder updated to ${picked.format(context)}');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppSnackBar.error(context, 'Failed to update reminder time.');
+      }
+    }
+  }
+
+  Future<void> _saveReminderTimeToProfile(TimeOfDay time) async {
+    final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    final profileRepo = ref.read(profileRepositoryProvider);
+    final profile = await profileRepo.getProfile();
+    if (profile != null) {
+      await profileRepo.updateProfile(profile.copyWith(reminderTime: timeStr));
+    }
+  }
+
+  Future<void> _clearReminderTimeFromProfile() async {
+    final profileRepo = ref.read(profileRepositoryProvider);
+    final client = ref.read(supabaseClientProvider);
+    final userId = client.auth.currentUser?.id;
+    if (userId != null) {
+      await client.from('profiles').update({'reminder_time': null}).eq('id', userId);
     }
   }
 
@@ -634,44 +784,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeState = ref.watch(themeProvider);
+    final isDark = themeState.effectiveThemeMode == ThemeMode.dark;
+    final bgColor = isDark ? themeState.themeColor.bgDark : themeState.themeColor.bg;
+    final cardColor = isDark ? themeState.themeColor.cardDark : Colors.white;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: bgColor,
       body: Column(
         children: [
-          _buildHeader(context),
+          _buildHeader(context, isDark, bgColor, textColor),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProfileSection(),
+                  _buildProfileSection(isDark, textColor, subtextColor),
                   const SizedBox(height: 24),
                   // ACCOUNT
                   _buildSectionLabel('Account'),
-                  _buildCardGroup([
+                  _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.mail_outlined,
                       label: 'Email',
+                      textColor: textColor,
                       trailing: Text(
                         Supabase.instance.client.auth.currentUser?.email ?? '',
-                        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
-                      ),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                        style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
                       ),
                     ),
                     _buildCardRow(
                       icon: Icons.lock_outlined,
                       label: 'Password',
-                      trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                      ),
+                      textColor: textColor,
+                      trailing: Text('Change', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                      onTap: _changePassword,
                     ),
                     _buildCardRow(
                       icon: Icons.star,
                       iconColor: AppColors.primary,
                       label: 'Subscription',
+                      textColor: textColor,
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -690,33 +845,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ]),
                   const SizedBox(height: 24),
-                  // JOURNALING
-                  _buildSectionLabel('Journaling'),
-                  _buildCardGroup([
+                  // NOTIFICATIONS
+                  _buildSectionLabel('Notifications'),
+                  _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.notifications_outlined,
                       label: 'Daily Reminder',
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.bgLight,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.primary.withAlpha(51)),
-                        ),
-                        child: Text(
-                          '8:30 PM',
-                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                        ),
+                      textColor: textColor,
+                      trailing: _buildCustomToggle(
+                        value: _notificationsEnabled,
+                        onChanged: _toggleNotifications,
                       ),
-                      onTap: _pickReminderTime,
                     ),
+                    if (_notificationsEnabled)
+                      _buildCardRow(
+                        icon: Icons.access_time,
+                        label: 'Reminder Time',
+                        textColor: textColor,
+                        trailing: GestureDetector(
+                          onTap: _pickReminderTime,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.primary.withAlpha(51)),
+                            ),
+                            child: Text(
+                              _reminderTime.format(context),
+                              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
+                            ),
+                          ),
+                        ),
+                        isLast: !_notificationsEnabled,
+                      ),
+                    _buildCardRow(
+                      icon: Icons.celebration_outlined,
+                      label: 'Streak Milestones',
+                      textColor: textColor,
+                      trailing: _buildCustomToggle(
+                        value: _notificationsEnabled,
+                        onChanged: null,
+                      ),
+                      isLast: true,
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+                  // JOURNALING
+                  _buildSectionLabel('Journaling'),
+                  _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.auto_stories_outlined,
                       label: 'Writing Style',
+                      textColor: textColor,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('Memoir', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+                          Text('Memoir', style: GoogleFonts.inter(fontSize: 12, color: subtextColor)),
                           const SizedBox(width: 4),
                           Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
                         ],
@@ -726,43 +911,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildCardRow(
                       icon: Icons.account_tree_outlined,
                       label: 'Chapter Organization',
+                      textColor: textColor,
                       trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
                       onTap: _pickBookOrganization,
                       isLast: true,
                     ),
                   ]),
                   const SizedBox(height: 24),
-                  // LANGUAGE & APPEARANCE
+                  // PREFERENCES
                   _buildSectionLabel('Preferences'),
-                  _buildCardGroup([
-                    _buildLanguageSelector(),
-                    _buildCardRow(
-                      icon: Icons.palette_outlined,
-                      label: 'Appearance',
-                      trailing: const SizedBox.shrink(),
-                      isLast: true,
-                    ),
-                  ]),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: _buildThemeSelector(),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildCardGroup([
-                    _buildCardRow(
-                      icon: Icons.dark_mode_outlined,
-                      label: 'Dark Mode',
-                      trailing: _buildDarkModeToggle(),
-                      isLast: true,
-                    ),
+                  _buildCardGroup(cardColor, [
+                    _buildLanguageSelector(textColor, subtextColor),
+                    _buildAppearanceDropdown(textColor, subtextColor),
                   ]),
                   const SizedBox(height: 24),
                   // PRIVACY & SECURITY
                   _buildSectionLabel('Privacy & Security'),
-                  _buildCardGroup([
+                  _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.fingerprint,
                       label: 'Biometric Lock',
+                      textColor: textColor,
                       trailing: _buildCustomToggle(
                         value: _biometricLockEnabled,
                         onChanged: _biometricAvailable ? _toggleBiometric : null,
@@ -771,6 +940,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildCardRow(
                       icon: Icons.dialpad,
                       label: 'PIN Lock',
+                      textColor: textColor,
                       trailing: _lockMethod == 'pin'
                           ? GestureDetector(
                               onTap: _clearLockMethod,
@@ -791,6 +961,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildCardRow(
                       icon: Icons.pattern,
                       label: 'Pattern Lock',
+                      textColor: textColor,
                       trailing: _lockMethod == 'pattern'
                           ? GestureDetector(
                               onTap: _clearLockMethod,
@@ -811,17 +982,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildCardRow(
                       icon: Icons.enhanced_encryption_outlined,
                       label: 'Encryption Info',
+                      textColor: textColor,
                       trailing: Icon(Icons.info_outline, size: 16, color: AppColors.textMuted.withAlpha(102)),
                       onTap: _showEncryptionInfo,
                     ),
                     _buildCardRow(
-                      icon: Icons.do_not_disturb_on_outlined,
-                      label: 'Do Not Sell My Data',
-                      trailing: _buildCustomToggle(value: _doNotSell, onChanged: _toggleDoNotSell),
-                    ),
-                    _buildCardRow(
                       icon: Icons.health_and_safety_outlined,
                       label: 'Mood Data Consent',
+                      textColor: textColor,
                       trailing: _buildCustomToggle(value: _healthConsent, onChanged: _toggleHealthConsent),
                       isLast: true,
                     ),
@@ -829,10 +997,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 24),
                   // DATA
                   _buildSectionLabel('Data'),
-                  _buildCardGroup([
+                  _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.download_outlined,
                       label: 'Export All Data',
+                      textColor: textColor,
                       trailing: Text(
                         'PDF / JSON',
                         style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
@@ -843,6 +1012,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       icon: Icons.delete_forever,
                       iconColor: Colors.red.shade400,
                       label: 'Delete Account',
+                      textColor: textColor,
                       labelColor: Colors.red.shade500.withAlpha(204),
                       trailing: const SizedBox.shrink(),
                       onTap: _deleteAccount,
@@ -852,15 +1022,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 24),
                   // ABOUT
                   _buildSectionLabel('About'),
-                  _buildCardGroup([
+                  _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: null,
                       label: 'Version',
+                      textColor: textColor,
                       trailing: Text('1.2.0', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
                     ),
                     _buildCardRow(
                       icon: null,
                       label: 'Privacy Policy',
+                      textColor: textColor,
                       trailing: Icon(Icons.open_in_new, size: 14, color: AppColors.textMuted.withAlpha(76)),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const PrivacyScreen()),
@@ -869,6 +1041,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildCardRow(
                       icon: null,
                       label: 'Terms of Service',
+                      textColor: textColor,
                       trailing: Icon(Icons.open_in_new, size: 14, color: AppColors.textMuted.withAlpha(76)),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const TermsScreen()),
@@ -876,8 +1049,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       isLast: true,
                     ),
                   ]),
+                  const SizedBox(height: 24),
+                  // SIGN OUT
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: _signOut,
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: Text(
+                          'Sign Out',
+                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: BorderSide(color: AppColors.error.withAlpha(76)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 36),
-                  _buildFooter(),
+                  _buildFooter(textColor),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -889,39 +1086,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Header — frosted, sticky
+  // Header — uses DearDaysHeader pattern
   // ---------------------------------------------------------------------------
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isDark, Color bgColor, Color textColor) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bgLight.withAlpha(204),
+        color: bgColor.withAlpha(204),
         border: Border(bottom: BorderSide(color: AppColors.primary.withAlpha(26))),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.of(context).maybePop(),
-                child: Icon(Icons.arrow_back_ios, size: 20, color: AppColors.textPrimary),
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'Settings',
-                    style: GoogleFonts.playfairDisplay(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 24), // spacer for symmetry
-            ],
+          child: Text(
+            'Settings',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
           ),
         ),
       ),
@@ -932,7 +1116,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // Profile — avatar ring, Playfair name, Edit Profile pill
   // ---------------------------------------------------------------------------
 
-  Widget _buildProfileSection() {
+  Widget _buildProfileSection(bool isDark, Color textColor, Color subtextColor) {
     final user = Supabase.instance.client.auth.currentUser;
     final email = user?.email ?? '';
     final meta = user?.userMetadata;
@@ -953,7 +1137,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Center(
         child: Column(
           children: [
-            // Avatar with gold border ring
             Stack(
               children: [
                 Container(
@@ -989,7 +1172,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.bgLight, width: 2),
+                      border: Border.all(color: isDark ? AppColors.bgDark : AppColors.bgLight, width: 2),
                     ),
                     child: const Icon(Icons.edit, color: Colors.white, size: 14),
                   ),
@@ -997,25 +1180,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            // Name — Playfair Display serif bold
             Text(
               displayName,
               style: GoogleFonts.playfairDisplay(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               email,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
+              style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
             ),
             const SizedBox(height: 16),
-            // Edit Profile pill button
             GestureDetector(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const EditProfileScreen()),
@@ -1042,10 +1220,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Section label — gold uppercase
-  // ---------------------------------------------------------------------------
-
   Widget _buildSectionLabel(String label) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
@@ -1061,16 +1235,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Card group — white rounded container
-  // ---------------------------------------------------------------------------
-
-  Widget _buildCardGroup(List<Widget> children) {
+  Widget _buildCardGroup(Color cardColor, List<Widget> children) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.primary.withAlpha(13)),
           boxShadow: [
@@ -1086,16 +1256,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Card row — single row inside a card group
-  // ---------------------------------------------------------------------------
-
   Widget _buildCardRow({
     IconData? icon,
     required String label,
     required Widget trailing,
     Color? iconColor,
     Color? labelColor,
+    Color? textColor,
     VoidCallback? onTap,
     bool isLast = false,
   }) {
@@ -1110,7 +1277,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, color: iconColor ?? AppColors.textPrimary.withAlpha(102), size: 22),
+              Icon(icon, color: iconColor ?? (textColor ?? AppColors.textPrimary).withAlpha(102), size: 22),
               const SizedBox(width: 12),
             ],
             Expanded(
@@ -1119,7 +1286,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: labelColor ?? AppColors.textPrimary,
+                  color: labelColor ?? textColor ?? AppColors.textPrimary,
                 ),
               ),
             ),
@@ -1129,28 +1296,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Dark mode toggle
-  // ---------------------------------------------------------------------------
-
-  Widget _buildDarkModeToggle() {
-    final themeMode = ref.watch(themeProvider).themeMode;
-    final isDark = themeMode == ThemeMode.dark;
-
-    return _buildCustomToggle(
-      value: isDark,
-      onChanged: (value) {
-        ref.read(themeProvider.notifier).setThemeMode(
-              value ? ThemeMode.dark : ThemeMode.light,
-            );
-      },
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Custom gold toggle
-  // ---------------------------------------------------------------------------
 
   Widget _buildCustomToggle({
     required bool value,
@@ -1183,25 +1328,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildLanguageSelector() {
+  Widget _buildLanguageSelector(Color textColor, Color subtextColor) {
     final currentLocale = ref.watch(localeProvider).appLocale;
 
     return _buildCardRow(
       icon: Icons.language,
       label: 'App Language',
+      textColor: textColor,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             currentLocale.label,
-            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+            style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
           ),
           const SizedBox(width: 4),
           Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
         ],
       ),
       onTap: () => _pickLanguage(),
-      isLast: true,
     );
   }
 
@@ -1254,78 +1399,121 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.read(localeProvider.notifier).setLocale(picked);
   }
 
-  Widget _buildThemeSelector() {
+  // ---------------------------------------------------------------------------
+  // Appearance dropdown (replaces old theme selector + dark mode toggle)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAppearanceDropdown(Color textColor, Color subtextColor) {
     final currentTheme = ref.watch(themeProvider).themeColor;
 
-    return Row(
-      children: AppThemeColor.values.map((palette) {
-        final isSelected = palette == currentTheme;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => ref.read(themeProvider.notifier).setThemeColor(palette),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: palette.bg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.primary.withAlpha(26),
-                  width: isSelected ? 2 : 1,
+    return _buildCardRow(
+      icon: Icons.palette_outlined,
+      label: 'Appearance',
+      textColor: textColor,
+      trailing: GestureDetector(
+        onTap: _pickAppearance,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.primary.withAlpha(51)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: currentTheme.bg,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary.withAlpha(76)),
                 ),
               ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: palette.bg,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? AppColors.primary : AppColors.primary.withAlpha(51),
-                      ),
-                      boxShadow: isSelected
-                          ? [BoxShadow(color: AppColors.primary.withAlpha(76), blurRadius: 6)]
-                          : null,
-                    ),
-                    child: isSelected
-                        ? const Icon(Icons.check, size: 16, color: AppColors.primary)
-                        : null,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    palette.label,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 6),
+              Text(
+                currentTheme.label,
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: subtextColor),
               ),
-            ),
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_down, size: 16, color: subtextColor),
+            ],
           ),
-        );
-      }).toList(),
+        ),
+      ),
+      isLast: true,
     );
   }
 
-  Widget _buildFooter() {
+  Future<void> _pickAppearance() async {
+    final currentTheme = ref.read(themeProvider).themeColor;
+
+    final picked = await showModalBottomSheet<AppThemeColor>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Appearance',
+              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            ...AppThemeColor.values.map((palette) => ListTile(
+                  leading: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: palette.bg,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.primary.withAlpha(76)),
+                    ),
+                    child: palette.isDark
+                        ? Icon(Icons.dark_mode, size: 16, color: AppColors.primary)
+                        : null,
+                  ),
+                  title: Text(palette.label, style: GoogleFonts.inter(fontSize: 15)),
+                  trailing: palette == currentTheme
+                      ? Icon(Icons.check_circle, color: AppColors.primary, size: 22)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, palette),
+                )),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+
+    if (picked == null || !mounted) return;
+    ref.read(themeProvider.notifier).setThemeColor(picked);
+  }
+
+  Widget _buildFooter(Color textColor) {
     return Center(
       child: Opacity(
         opacity: 0.2,
         child: Column(
           children: [
-            Icon(Icons.auto_stories, size: 36, color: AppColors.textPrimary),
+            Icon(Icons.auto_stories, size: 36, color: textColor),
             const SizedBox(height: 8),
             Text(
               'DearDays',
               style: GoogleFonts.playfairDisplay(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: textColor,
               ),
             ),
           ],

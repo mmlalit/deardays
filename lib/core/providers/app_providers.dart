@@ -121,9 +121,11 @@ final entriesProvider =
 });
 
 final todayEntryProvider = FutureProvider<JournalEntry?>((ref) async {
+  final now = DateTime.now().toUtc();
+  final startOfDay = DateTime.utc(now.year, now.month, now.day);
   final entries = await ref.watch(journalRepositoryProvider).getEntries(
-        startDate: DateTime.now().copyWith(hour: 0, minute: 0, second: 0),
-        endDate: DateTime.now(),
+        startDate: startOfDay,
+        endDate: now,
         limit: 1,
       );
   return entries.isEmpty ? null : entries.first;

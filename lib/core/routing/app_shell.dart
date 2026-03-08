@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -22,58 +20,66 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBgColor = isDark ? AppColors.navBgDark : AppColors.navBg;
+    final inactiveColor = isDark ? Colors.white54 : AppColors.textPrimary.withAlpha(128);
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(204),
-              border: Border(
-                top: BorderSide(
-                  color: AppColors.primary.withAlpha(26),
-                ),
-              ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: navBgColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(isDark ? 40 : 15),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
             ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _NavItem(
-                      icon: Icons.home_outlined,
-                      activeIcon: Icons.home,
-                      label: 'Home',
-                      isActive: index == 0,
-                      onTap: () => context.go('/home'),
-                    ),
-                    _NavItem(
-                      icon: Icons.menu_book_outlined,
-                      activeIcon: Icons.menu_book,
-                      label: 'Book',
-                      isActive: index == 1,
-                      onTap: () => context.go('/book'),
-                    ),
-                    _NavItem(
-                      icon: Icons.timeline_outlined,
-                      activeIcon: Icons.timeline,
-                      label: 'Timeline',
-                      isActive: index == 2,
-                      onTap: () => context.go('/timeline'),
-                    ),
-                    _NavItem(
-                      icon: Icons.settings_outlined,
-                      activeIcon: Icons.settings,
-                      label: 'Settings',
-                      isActive: index == 3,
-                      onTap: () => context.go('/settings'),
-                    ),
-                  ],
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Home',
+                  isActive: index == 0,
+                  isDark: isDark,
+                  inactiveColor: inactiveColor,
+                  onTap: () => context.go('/home'),
                 ),
-              ),
+                _NavItem(
+                  icon: Icons.menu_book_outlined,
+                  activeIcon: Icons.menu_book_rounded,
+                  label: 'Book',
+                  isActive: index == 1,
+                  isDark: isDark,
+                  inactiveColor: inactiveColor,
+                  onTap: () => context.go('/book'),
+                ),
+                _NavItem(
+                  icon: Icons.timeline_outlined,
+                  activeIcon: Icons.timeline_rounded,
+                  label: 'Timeline',
+                  isActive: index == 2,
+                  isDark: isDark,
+                  inactiveColor: inactiveColor,
+                  onTap: () => context.go('/timeline'),
+                ),
+                _NavItem(
+                  icon: Icons.settings_outlined,
+                  activeIcon: Icons.settings_rounded,
+                  label: 'Settings',
+                  isActive: index == 3,
+                  isDark: isDark,
+                  inactiveColor: inactiveColor,
+                  onTap: () => context.go('/settings'),
+                ),
+              ],
             ),
           ),
         ),
@@ -87,6 +93,8 @@ class _NavItem extends StatelessWidget {
   final IconData activeIcon;
   final String label;
   final bool isActive;
+  final bool isDark;
+  final Color inactiveColor;
   final VoidCallback onTap;
 
   const _NavItem({
@@ -94,44 +102,49 @@ class _NavItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.isActive,
+    required this.isDark,
+    required this.inactiveColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = AppColors.primary;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
       },
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isActive ? 20 : 16,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: isActive
+              ? activeColor.withAlpha(isDark ? 40 : 20)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.primary.withAlpha(26)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                isActive ? activeIcon : icon,
-                color: isActive ? AppColors.primary : AppColors.textMuted,
-                size: 24,
-              ),
+            Icon(
+              isActive ? activeIcon : icon,
+              color: isActive ? activeColor : inactiveColor,
+              size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? AppColors.primary : AppColors.textMuted,
+                color: isActive ? activeColor : inactiveColor,
               ),
             ),
           ],

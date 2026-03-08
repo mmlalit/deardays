@@ -7,7 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/widgets/save_success_overlay.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
@@ -24,6 +27,7 @@ class ReviewData {
   final String? locationName;
   final String? attachedPhotoPath;
   final bool isVoice;
+  final bool polishWithAI;
 
   const ReviewData({
     required this.rawText,
@@ -31,19 +35,20 @@ class ReviewData {
     this.locationName,
     this.attachedPhotoPath,
     this.isVoice = false,
+    this.polishWithAI = false,
   });
 }
 
-class ReviewSaveScreen extends StatefulWidget {
+class ReviewSaveScreen extends ConsumerStatefulWidget {
   final ReviewData data;
 
   const ReviewSaveScreen({super.key, required this.data});
 
   @override
-  State<ReviewSaveScreen> createState() => _ReviewSaveScreenState();
+  ConsumerState<ReviewSaveScreen> createState() => _ReviewSaveScreenState();
 }
 
-class _ReviewSaveScreenState extends State<ReviewSaveScreen>
+class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     with SingleTickerProviderStateMixin {
   final _aiService = AiService();
   late final JournalRepository _repository = JournalRepository(
@@ -56,7 +61,7 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
   final _imagePicker = ImagePicker();
 
   // Polish state
-  bool _isPolishing = true;
+  bool _isPolishing = false;
   double _polishProgress = 0.0;
   String? _cleanedText; // light polish: grammar/spelling fixed
   String? _polishedText; // full AI literary narrative
@@ -85,7 +90,12 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
       duration: const Duration(milliseconds: 1500),
     )..repeat();
 
-    _polishText();
+    // Only auto-polish if the user turned on AI Polish
+    if (widget.data.polishWithAI) {
+      _polishText();
+    } else {
+      _activeTab = 2; // Show original/raw text by default
+    }
   }
 
   @override
@@ -255,6 +265,11 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
       } catch (_) {}
 
       if (mounted) {
+        // Invalidate providers so home screen and timeline refresh
+        ref.invalidate(todayEntryProvider);
+        ref.invalidate(timelineEntriesProvider);
+        ref.invalidate(booksProvider);
+
         await SaveSuccessOverlay.show(
           context,
           onDismiss: () {
@@ -303,7 +318,16 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
                     if (_polishedText != null || _cleanedText != null) ...[
                       const SizedBox(height: 8),
                       _buildViewToggle(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
+                      // Revert button when viewing polished/cleaned text
+                      if (_activeTab == 0 || _activeTab == 1)
+                        _buildRevertButton(),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      // Show AI Polish button if not yet polished
+                      const SizedBox(height: 8),
+                      _buildAIPolishButton(),
+                      const SizedBox(height: 16),
                     ],
                     if (_polishError != null) ...[
                       _buildErrorState(),
@@ -486,6 +510,78 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
             const Color(0xFFE8E4DF),
             const Color(0xFFF5F0EA),
             const Color(0xFFE8E4DF),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI Polish Button (shown when text hasn't been polished yet)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAIPolishButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: _polishText,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withAlpha(13),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primary.withAlpha(51)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.auto_fix_high, size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'AI Polish',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '— Fix spelling & improve readability',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Revert Button (shown when viewing polished text)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildRevertButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: () => setState(() => _activeTab = 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.undo, size: 14, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(
+              'Revert to original',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),

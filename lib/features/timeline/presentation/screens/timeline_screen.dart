@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,7 +30,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildStickyHeader(),
@@ -60,44 +58,36 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // ──────────────────────────────────────────────
 
   Widget _buildStickyHeader() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.bgLight.withAlpha(204),
-            border: Border(
-              bottom: BorderSide(color: AppColors.primary.withAlpha(26)),
-            ),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-              child: Column(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(
+          bottom: BorderSide(color: AppColors.primary.withAlpha(26)),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  // Row 1: icon, title, bell
-                  Row(
-                    children: [
-                      Icon(Icons.auto_stories, color: AppColors.primary, size: 24),
-                      const Spacer(),
-                      Text(
-                        'DearDays',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () {},
-                        icon: Icon(Icons.notifications_outlined, color: AppColors.textPrimary, size: 24),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                      ),
-                    ],
+                  Text(
+                    'Timeline',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
                   ),
+                  const Spacer(),
+                ],
+              ),
                   const SizedBox(height: 12),
                   // Row 2: Search bar
                   Container(
@@ -141,8 +131,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _filterChip(String label, IconData icon, {required VoidCallback onTap}) {

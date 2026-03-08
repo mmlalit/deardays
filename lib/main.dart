@@ -47,7 +47,7 @@ class DearDaysApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: theme.lightTheme,
       darkTheme: theme.darkTheme,
-      themeMode: theme.themeMode,
+      themeMode: theme.effectiveThemeMode,
       locale: localeState.locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
