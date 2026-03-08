@@ -148,7 +148,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
-              color: AppColors.primary,
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -263,7 +263,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: AppColors.primary,
+            color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(width: 12),
@@ -313,7 +313,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           style: GoogleFonts.manrope(
             fontSize: 64,
             fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+            color: AppColors.textPrimary,
             height: 0.85,
           ),
         ),

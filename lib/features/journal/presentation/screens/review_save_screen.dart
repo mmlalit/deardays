@@ -550,7 +550,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(width: 6),

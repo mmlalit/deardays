@@ -589,7 +589,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: AppColors.primary,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const Spacer(),

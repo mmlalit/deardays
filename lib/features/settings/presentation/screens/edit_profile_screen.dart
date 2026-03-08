@@ -206,7 +206,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             style: GoogleFonts.manrope(
                               fontSize: 32,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
@@ -258,7 +258,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ),
@@ -314,7 +314,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                     ),

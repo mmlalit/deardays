@@ -130,7 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: textColor,
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -456,10 +456,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Spacer(),
                         Text(
                           'Tap to continue',
-                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
+                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
                         ),
                         const SizedBox(width: 2),
-                        Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.primary),
+                        Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.textSecondary),
                       ],
                     ),
                   ],
@@ -611,7 +611,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Spacer(),
                         Text(
                           'Saved to Book',
-                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
+                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
@@ -1131,7 +1131,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     'Editing message',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: AppColors.primary,
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

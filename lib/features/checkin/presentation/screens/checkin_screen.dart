@@ -516,7 +516,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     'Editing message',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: AppColors.primary,
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

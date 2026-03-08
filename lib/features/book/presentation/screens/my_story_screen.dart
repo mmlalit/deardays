@@ -162,7 +162,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                 const SizedBox(width: 12),
                 Text(
                   _currentPage == 0 ? 'Cover' : 'Page $_currentPage of ${totalPages - 1}',
-                  style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
+                  style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
                 ),
                 const SizedBox(width: 12),
                 GestureDetector(
@@ -649,7 +649,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                   decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.primary.withAlpha(26)))),
                   child: Text(
                     'Contents',
-                    style: GoogleFonts.manrope(fontSize: 18, fontStyle: FontStyle.italic, color: AppColors.primary),
+                    style: GoogleFonts.manrope(fontSize: 18, fontStyle: FontStyle.italic, color: AppColors.textPrimary),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -738,7 +738,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                           Expanded(
                             child: Row(
                               children: [
-                                Text(dateStr, style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5, color: AppColors.primary)),
+                                Text(dateStr, style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5, color: AppColors.textSecondary)),
                                 if (moodLabel != null) ...[
                                   Container(
                                     width: 4,
@@ -763,7 +763,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                               ),
                             ),
                           ),
-                          Text('Page $pageNumber', style: GoogleFonts.manrope(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.primary.withAlpha(102))),
+                          Text('Page $pageNumber', style: GoogleFonts.manrope(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.textSecondary.withAlpha(102))),
                         ],
                       ),
                     ),
@@ -849,7 +849,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
           padding: const EdgeInsets.only(right: 12, top: 4),
           child: Text(
             firstChar,
-            style: GoogleFonts.manrope(fontSize: 52, fontWeight: FontWeight.w700, color: AppColors.primary, height: 0.85),
+            style: GoogleFonts.manrope(fontSize: 52, fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 0.85),
           ),
         ),
         Expanded(

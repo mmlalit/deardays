@@ -274,7 +274,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
-                color: AppColors.primary,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),

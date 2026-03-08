@@ -100,7 +100,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     style: GoogleFonts.manrope(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],

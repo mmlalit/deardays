@@ -137,7 +137,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
-              color: AppColors.primary,
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -363,7 +363,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                   style: GoogleFonts.manrope(
                     fontSize: 56,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: AppColors.textPrimary,
                     height: 0.85,
                   ),
                 ),
