@@ -254,7 +254,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       }
     } catch (e) {
       if (mounted) {
-        SnackBarHelper.show(context, 'Failed to update photo: $e');
+        AppSnackBar.error(context, 'Failed to update photo: $e');
       }
     }
   }
