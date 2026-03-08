@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
+import 'package:deardays/features/checkin/data/repositories/checkin_repository.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 
@@ -87,12 +89,14 @@ const _returnGreetings = [
 // ---------------------------------------------------------------------------
 
 class CheckInNotifier extends StateNotifier<CheckInState> {
-  CheckInNotifier(this._aiService, {this.language}) : super(CheckInState()) {
+  CheckInNotifier(this._aiService, {this.language, this.repository})
+      : super(CheckInState()) {
     _loadTodayData();
   }
 
   final AiService _aiService;
   final String? language;
+  final CheckInRepository? repository;
   static const _uuid = Uuid();
   static const _boxName = 'checkin_conversations';
 
@@ -109,17 +113,39 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     final raw = box.get(_todayKey);
 
     if (raw != null) {
+      // Hive hit — load locally
       final data = jsonDecode(raw as String) as Map<String, dynamic>;
-      final sections = (data['sections'] as List<dynamic>)
-          .map((s) => ConversationSection.fromJson(s as Map<String, dynamic>))
-          .toList();
-
-      state = state.copyWith(
-        currentMood: data['mood'] as String?,
-        sections: sections,
-        isFirstCheckInToday: false,
-      );
+      _applyData(data);
+    } else {
+      // Hive miss — try Supabase (e.g. fresh install / new device)
+      try {
+        final remote = await repository?.getConversation(_todayKey);
+        if (remote != null) {
+          // Write to Hive so future reads are instant
+          await box.put(_todayKey, jsonEncode({
+            'mood': remote['mood'],
+            'sections': remote['sections'],
+          }));
+          _applyData({
+            'mood': remote['mood'],
+            'sections': remote['sections'],
+          });
+        }
+      } catch (_) {
+        // Network unavailable — stay empty, no crash
+      }
     }
+  }
+
+  void _applyData(Map<String, dynamic> data) {
+    final sections = (data['sections'] as List<dynamic>)
+        .map((s) => ConversationSection.fromJson(s as Map<String, dynamic>))
+        .toList();
+    state = state.copyWith(
+      currentMood: data['mood'] as String?,
+      sections: sections,
+      isFirstCheckInToday: false,
+    );
   }
 
   Future<void> _persist() async {
@@ -129,6 +155,9 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       'sections': state.sections.map((s) => s.toJson()).toList(),
     };
     await box.put(_todayKey, jsonEncode(data));
+
+    // Background sync to Supabase — don't await, don't block UI
+    repository?.upsertConversation(_todayKey, data).catchError((_) {});
   }
 
   // ── Load data for a specific date ───────────────────────────────────
@@ -151,6 +180,27 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
         loadedDate: date,
       );
     } else {
+      // Hive miss — try Supabase fallback
+      try {
+        final remote = await repository?.getConversation(key);
+        if (remote != null) {
+          await box.put(key, jsonEncode({
+            'mood': remote['mood'],
+            'sections': remote['sections'],
+          }));
+          final sections = (remote['sections'] as List<dynamic>)
+              .map((s) => ConversationSection.fromJson(s as Map<String, dynamic>))
+              .toList();
+          state = CheckInState(
+            currentMood: remote['mood'] as String?,
+            sections: sections,
+            isFirstCheckInToday: false,
+            loadedDate: date,
+          );
+          return;
+        }
+      } catch (_) {}
+
       state = CheckInState(
         isFirstCheckInToday: true,
         loadedDate: date,
@@ -402,11 +452,34 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
 final checkInProvider =
     StateNotifierProvider<CheckInNotifier, CheckInState>((ref) {
   final language = ref.watch(localeProvider).languageName;
-  return CheckInNotifier(AiService(), language: language);
+  final repository = ref.watch(checkInRepositoryProvider);
+  return CheckInNotifier(AiService(), language: language, repository: repository);
+});
+
+final checkInRepositoryProvider = Provider<CheckInRepository>((ref) {
+  return CheckInRepository(client: Supabase.instance.client);
 });
 
 final availableDatesProvider = FutureProvider<List<DateTime>>((ref) async {
   // Re-read whenever checkInProvider changes (new entries saved)
   ref.watch(checkInProvider);
-  return CheckInNotifier.getAvailableDates();
+
+  // Merge Hive local dates with Supabase remote dates
+  final hiveDates = await CheckInNotifier.getAvailableDates();
+  final hiveKeys = hiveDates.map(CheckInNotifier.dateKey).toSet();
+
+  try {
+    final repository = ref.read(checkInRepositoryProvider);
+    final remoteKeys = await repository.getAvailableDateKeys();
+    for (final key in remoteKeys) {
+      if (!hiveKeys.contains(key)) {
+        try {
+          hiveDates.add(DateTime.parse(key));
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+
+  hiveDates.sort((a, b) => b.compareTo(a)); // newest first
+  return hiveDates;
 });
