@@ -374,8 +374,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.bgLight.withAlpha(204),
-            border: Border(bottom: BorderSide(color: AppColors.primary.withAlpha(26))),
+            color: Theme.of(context).scaffoldBackgroundColor.withAlpha(204),
+            border: Border(bottom: BorderSide(color: AppColors.of(context).accent.withAlpha(26))),
           ),
           child: SafeArea(
             bottom: false,
@@ -385,7 +385,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: Icon(Icons.close, size: 22, color: AppColors.textPrimary),
+                    child: Icon(Icons.close, size: 22, color: AppColors.of(context).textPrimary),
                   ),
                   Expanded(
                     child: Center(
@@ -394,7 +394,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                         style: GoogleFonts.manrope(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: AppColors.of(context).textPrimary,
                         ),
                       ),
                     ),
@@ -411,7 +411,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                       style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        color: AppColors.of(context).textSecondary,
                       ),
                     ),
                   ),
@@ -437,7 +437,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
+              Icon(Icons.auto_awesome, size: 16, color: AppColors.of(context).accent),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -447,7 +447,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: AppColors.of(context).textPrimary,
                   ),
                 ),
               ),
@@ -456,7 +456,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+                  color: AppColors.of(context).textSecondary,
                 ),
               ),
             ],
@@ -466,8 +466,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: _polishProgress,
-              backgroundColor: AppColors.primary.withAlpha(26),
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              backgroundColor: AppColors.of(context).accent.withAlpha(26),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.of(context).accent),
               minHeight: 4,
             ),
           ),
@@ -536,21 +536,21 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.primary.withAlpha(13),
+            color: AppColors.of(context).accent.withAlpha(13),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withAlpha(51)),
+            border: Border.all(color: AppColors.of(context).accent.withAlpha(51)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.auto_fix_high, size: 18, color: AppColors.primary),
+              Icon(Icons.auto_fix_high, size: 18, color: AppColors.of(context).accent),
               const SizedBox(width: 8),
               Text(
                 'AI Polish',
                 style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: AppColors.of(context).textPrimary,
                 ),
               ),
               const SizedBox(width: 6),
@@ -558,7 +558,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 '— Fix spelling & improve readability',
                 style: GoogleFonts.manrope(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: AppColors.of(context).textSecondary,
                 ),
               ),
             ],
@@ -580,14 +580,14 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.undo, size: 14, color: AppColors.textSecondary),
+            Icon(Icons.undo, size: 14, color: AppColors.of(context).textSecondary),
             const SizedBox(width: 6),
             Text(
               'Revert to original',
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
+                color: AppColors.of(context).textSecondary,
               ),
             ),
           ],
@@ -612,7 +612,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: AppColors.primary.withAlpha(13),
+          color: AppColors.of(context).accent.withAlpha(13),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -646,7 +646,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                color: isActive ? AppColors.primary : AppColors.textSecondary,
+                color: isActive ? AppColors.of(context).accent : AppColors.of(context).textSecondary,
               ),
             ),
           ),
@@ -667,7 +667,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Divider
-          Divider(color: AppColors.primary.withAlpha(26), height: 1),
+          Divider(color: AppColors.of(context).accent.withAlpha(26), height: 1),
           const SizedBox(height: 28),
           // Title
           if (_generatedTitle != null)
@@ -676,7 +676,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
                 height: 1.3,
               ),
             ),
@@ -688,7 +688,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               fontSize: 18,
               fontStyle: FontStyle.italic,
               fontWeight: FontWeight.w400,
-              color: AppColors.textPrimary.withAlpha(204),
+              color: AppColors.of(context).textPrimary.withAlpha(204),
               height: 1.7,
             ),
           ),
@@ -708,13 +708,13 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Divider(color: AppColors.primary.withAlpha(26), height: 1),
+          Divider(color: AppColors.of(context).accent.withAlpha(26), height: 1),
           const SizedBox(height: 24),
           Text(
             _cleanedText!,
             style: GoogleFonts.manrope(
               fontSize: 16,
-              color: AppColors.textPrimary.withAlpha(215),
+              color: AppColors.of(context).textPrimary.withAlpha(215),
               height: 1.7,
             ),
           ),
@@ -734,13 +734,13 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Divider(color: AppColors.primary.withAlpha(26), height: 1),
+          Divider(color: AppColors.of(context).accent.withAlpha(26), height: 1),
           const SizedBox(height: 24),
           Text(
             widget.data.rawText,
             style: GoogleFonts.manrope(
               fontSize: 15,
-              color: AppColors.textPrimary.withAlpha(204),
+              color: AppColors.of(context).textPrimary.withAlpha(204),
               height: 1.7,
             ),
           ),
@@ -778,7 +778,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               onTap: _polishText,
               child: Text(
                 'Retry',
-                style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
+                style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.of(context).accent),
               ),
             ),
           ],
@@ -825,23 +825,23 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primary.withAlpha(13) : Colors.transparent,
+          color: isActive ? AppColors.of(context).accent.withAlpha(13) : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isActive ? AppColors.primary.withAlpha(51) : AppColors.textMuted.withAlpha(51),
+            color: isActive ? AppColors.of(context).accent.withAlpha(51) : AppColors.of(context).textMuted.withAlpha(51),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: isActive ? AppColors.primary : AppColors.textSecondary),
+            Icon(icon, size: 18, color: isActive ? AppColors.of(context).accent : AppColors.of(context).textSecondary),
             const SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: isActive ? AppColors.primary : AppColors.textSecondary,
+                color: isActive ? AppColors.of(context).accent : AppColors.of(context).textSecondary,
               ),
             ),
           ],
@@ -857,8 +857,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   Widget _buildBottomBar() {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bgLight,
-        border: Border(top: BorderSide(color: AppColors.primary.withAlpha(13))),
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: AppColors.of(context).accent.withAlpha(13))),
       ),
       child: SafeArea(
         top: false,
@@ -885,8 +885,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                disabledBackgroundColor: AppColors.primary.withAlpha(128),
+                backgroundColor: AppColors.of(context).accent,
+                disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

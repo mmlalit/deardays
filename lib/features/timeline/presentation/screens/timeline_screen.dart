@@ -58,15 +58,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // ──────────────────────────────────────────────
 
   Widget _buildStickyHeader() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final colors = AppColors.of(context);
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(
-          bottom: BorderSide(color: AppColors.primary.withAlpha(26)),
+          bottom: BorderSide(color: colors.accent.withAlpha(26)),
         ),
       ),
       child: SafeArea(
@@ -81,7 +80,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: textColor,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -90,20 +89,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   Container(
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(13),
+                      color: AppColors.of(context).accent.withAlpha(13),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: TextField(
                       controller: _searchController,
                       onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-                      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.textPrimary),
+                      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.of(context).textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Search keywords, dates, or moods',
                         hintStyle: GoogleFonts.manrope(
                           fontSize: 14,
-                          color: AppColors.textPrimary.withAlpha(102),
+                          color: AppColors.of(context).textPrimary.withAlpha(102),
                         ),
-                        prefixIcon: Icon(Icons.search, color: AppColors.primary.withAlpha(153), size: 20),
+                        prefixIcon: Icon(Icons.search, color: AppColors.of(context).accent.withAlpha(153), size: 20),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -136,9 +135,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.primary.withAlpha(26),
+          color: AppColors.of(context).accent.withAlpha(26),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.primary.withAlpha(51)),
+          border: Border.all(color: AppColors.of(context).accent.withAlpha(51)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -148,11 +147,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(width: 4),
-            Icon(icon, size: 14, color: AppColors.textPrimary),
+            Icon(icon, size: 14, color: AppColors.of(context).textPrimary),
           ],
         ),
       ),
@@ -201,11 +200,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       },
       child: Chip(
         label: Text(label),
-        backgroundColor: isActive ? AppColors.primary : AppColors.primary.withAlpha(26),
+        backgroundColor: isActive ? AppColors.of(context).accent : AppColors.of(context).accent.withAlpha(26),
         labelStyle: GoogleFonts.manrope(
           fontSize: 13,
           fontWeight: FontWeight.w500,
-          color: isActive ? Colors.white : AppColors.textPrimary,
+          color: isActive ? Colors.white : AppColors.of(context).textPrimary,
         ),
       ),
     );
@@ -237,7 +236,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                   letterSpacing: 1.5,
                 ),
               ),
@@ -289,7 +288,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.favorite, size: 14, color: AppColors.primary),
+                  Icon(Icons.favorite, size: 14, color: AppColors.of(context).accent),
                   const SizedBox(width: 6),
                   moodStatsAsync.when(
                     data: (stats) {
@@ -372,7 +371,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               bottom: 0,
               child: Container(
                 width: 1,
-                color: AppColors.primary.withAlpha(51),
+                color: AppColors.of(context).accent.withAlpha(51),
               ),
             ),
             // Timeline items
@@ -388,12 +387,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ],
         );
       },
-      loading: () => const Center(
+      loading: () => Center(
         child: Padding(
-          padding: EdgeInsets.only(top: 60),
+          padding: const EdgeInsets.only(top: 60),
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.of(context).accent),
           ),
         ),
       ),
@@ -402,7 +401,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           padding: const EdgeInsets.only(top: 60),
           child: Text(
             'Could not load entries',
-            style: GoogleFonts.manrope(fontSize: 14, color: AppColors.textMuted),
+            style: GoogleFonts.manrope(fontSize: 14, color: AppColors.of(context).textMuted),
           ),
         ),
       ),
@@ -430,9 +429,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         width: 140,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(13),
+                          color: AppColors.of(context).accent.withAlpha(13),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary.withAlpha(26)),
+                          border: Border.all(color: AppColors.of(context).accent.withAlpha(26)),
                         ),
                       ),
                     ),
@@ -445,9 +444,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         width: 140,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(20),
+                          color: AppColors.of(context).accent.withAlpha(20),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary.withAlpha(38)),
+                          border: Border.all(color: AppColors.of(context).accent.withAlpha(38)),
                         ),
                       ),
                     ),
@@ -458,18 +457,18 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.primary.withAlpha(51)),
+                      border: Border.all(color: AppColors.of(context).accent.withAlpha(51)),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.auto_stories, size: 28, color: AppColors.primary.withAlpha(128)),
+                        Icon(Icons.auto_stories, size: 28, color: AppColors.of(context).accent.withAlpha(128)),
                         const SizedBox(height: 4),
                         Container(
                           width: 60,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(38),
+                            color: AppColors.of(context).accent.withAlpha(38),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -478,7 +477,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           width: 80,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(26),
+                            color: AppColors.of(context).accent.withAlpha(26),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -494,7 +493,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -503,7 +502,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: AppColors.of(context).textSecondary,
                 height: 1.5,
               ),
             ),
@@ -519,7 +518,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AppColors.of(context).accent,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -563,8 +562,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               height: 12,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary,
-                border: Border.all(color: AppColors.primary.withAlpha(51), width: 4),
+                color: AppColors.of(context).accent,
+                border: Border.all(color: AppColors.of(context).accent.withAlpha(51), width: 4),
               ),
             ),
           ),
@@ -573,9 +572,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             margin: const EdgeInsets.only(left: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(13),
+              color: AppColors.of(context).accent.withAlpha(13),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primary.withAlpha(51)),
+              border: Border.all(color: AppColors.of(context).accent.withAlpha(51)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,11 +588,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: AppColors.textPrimary,
+                        color: AppColors.of(context).textPrimary,
                       ),
                     ),
                     const Spacer(),
-                    Icon(Icons.star, size: 16, color: AppColors.primary),
+                    Icon(Icons.star, size: 16, color: AppColors.of(context).accent),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -610,7 +609,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                             style: GoogleFonts.manrope(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: AppColors.of(context).textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -620,7 +619,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.manrope(
                               fontSize: 12,
-                              color: AppColors.textPrimary.withAlpha(178),
+                              color: AppColors.of(context).textPrimary.withAlpha(178),
                               height: 1.4,
                             ),
                           ),
@@ -669,7 +668,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(102),
+                color: AppColors.of(context).accent.withAlpha(102),
               ),
             ),
           ),
@@ -688,7 +687,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary.withAlpha(153),
+                          color: AppColors.of(context).textPrimary.withAlpha(153),
                         ),
                       ),
                     ),
@@ -696,7 +695,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       Icon(
                         moodIcon,
                         size: 20,
-                        color: AppColors.primary.withAlpha(moodOpacity),
+                        color: AppColors.of(context).accent.withAlpha(moodOpacity),
                       ),
                   ],
                 ),
@@ -713,7 +712,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontStyle: FontStyle.italic,
-                          color: AppColors.textPrimary.withAlpha(230),
+                          color: AppColors.of(context).textPrimary.withAlpha(230),
                           height: 1.6,
                         ),
                       ),
@@ -751,10 +750,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: AppColors.primary.withAlpha(26),
+            color: AppColors.of(context).accent.withAlpha(26),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(Icons.image, size: size * 0.4, color: AppColors.primary.withAlpha(76)),
+          child: Icon(Icons.image, size: size * 0.4, color: AppColors.of(context).accent.withAlpha(76)),
         ),
       ),
     );

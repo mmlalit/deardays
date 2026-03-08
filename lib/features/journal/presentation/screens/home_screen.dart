@@ -102,8 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? 'Good afternoon'
             : 'Good evening';
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final textColor = AppColors.of(context).textPrimary;
     final dateStr = DateFormat('MMMM d, yyyy').format(now).toUpperCase();
     final hasCheckInEntry = state.allMessages.isNotEmpty;
     final todayEntryAsync = ref.watch(todayEntryProvider);
@@ -142,15 +141,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           height: 40,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.primary.withAlpha(51),
+                            color: AppColors.of(context).accent.withAlpha(51),
                             border: Border.all(
-                              color: AppColors.primary.withAlpha(26),
+                              color: AppColors.of(context).accent.withAlpha(26),
                             ),
                           ),
                           child: Icon(
                             Icons.person,
                             size: 22,
-                            color: AppColors.primary,
+                            color: AppColors.of(context).accent,
                           ),
                         ),
                       ),
@@ -195,9 +194,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Mood Section (inline card) -------------------------------------------
 
   Widget _buildMoodSection(CheckInState state) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
-    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+    final subtextColor = AppColors.of(context).textSecondary;
+    final cardColor = AppColors.of(context).card;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -218,7 +216,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             decoration: BoxDecoration(
               color: cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary.withAlpha(26)),
+              border: Border.all(color: AppColors.of(context).accent.withAlpha(26)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withAlpha(8),
@@ -274,7 +272,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               isSelected ? FontWeight.w700 : FontWeight.w500,
                           color: isSelected
                               ? moodColor
-                              : AppColors.textMuted,
+                              : AppColors.of(context).textMuted,
                         ),
                       ),
                     ],
@@ -291,8 +289,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Record CTA (mic button) ----------------------------------------------
 
   Widget _buildRecordCTA() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final textColor = AppColors.of(context).textPrimary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
@@ -307,10 +304,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 height: 96,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withAlpha(102),
+                      color: AppColors.of(context).accent.withAlpha(102),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -340,7 +337,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ),
             ),
@@ -353,8 +350,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Today's Entry Card ---------------------------------------------------
 
   Widget _buildTodayEntryCard(CheckInState state) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final textColor = AppColors.of(context).textPrimary;
 
     final lastUserMessage = state.allMessages
         .where((m) => m.isUser)
@@ -366,7 +362,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ? DateFormat('h:mm a').format(state.sections.last.startTime)
         : '';
     final moodLabel = state.currentMood ?? '';
-    final moodColor = moodLabel.isNotEmpty ? _moodColorForLabel(moodLabel) : AppColors.primary;
+    final moodColor = moodLabel.isNotEmpty ? _moodColorForLabel(moodLabel) : AppColors.of(context).accent;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -377,7 +373,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primary.withAlpha(20)),
+            border: Border.all(color: AppColors.of(context).accent.withAlpha(20)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(10),
@@ -449,17 +445,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Row(
                       children: [
                         if (timeStr.isNotEmpty) ...[
-                          Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
+                          Icon(Icons.access_time, size: 12, color: AppColors.of(context).textMuted),
                           const SizedBox(width: 4),
-                          Text(timeStr, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.textMuted)),
+                          Text(timeStr, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.of(context).textMuted)),
                         ],
                         const Spacer(),
                         Text(
                           'Tap to continue',
-                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.of(context).textSecondary),
                         ),
                         const SizedBox(width: 2),
-                        Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.textSecondary),
+                        Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.of(context).textSecondary),
                       ],
                     ),
                   ],
@@ -475,15 +471,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Journal Entry Card (saved entries from Supabase) --------------------
 
   Widget _buildJournalEntryCard(JournalEntry entry) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final textColor = AppColors.of(context).textPrimary;
 
     final timeStr = entry.entryTime != null
         ? '${entry.entryTime!.hourOfPeriod == 0 ? 12 : entry.entryTime!.hourOfPeriod}:${entry.entryTime!.minute.toString().padLeft(2, '0')} ${entry.entryTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
         : '';
     final displayText = entry.polishedContent ?? entry.content;
     final isPolished = entry.isAiPolished && entry.polishedContent != null;
-    final moodColor = entry.mood != null ? _moodColorForLabel(entry.mood!) : AppColors.primary;
+    final moodColor = entry.mood != null ? _moodColorForLabel(entry.mood!) : AppColors.of(context).accent;
 
     // Pick a colorful icon based on entry type
     final IconData entryIcon = entry.hasVoice
@@ -501,7 +496,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primary.withAlpha(20)),
+            border: Border.all(color: AppColors.of(context).accent.withAlpha(20)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(10),
@@ -547,15 +542,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withAlpha(26),
+                              color: AppColors.of(context).accent.withAlpha(26),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.auto_fix_high, size: 10, color: AppColors.primary),
+                                Icon(Icons.auto_fix_high, size: 10, color: AppColors.of(context).accent),
                                 const SizedBox(width: 3),
-                                Text('AI', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                                Text('AI', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.of(context).accent)),
                               ],
                             ),
                           ),
@@ -591,27 +586,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Row(
                       children: [
                         if (timeStr.isNotEmpty) ...[
-                          Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
+                          Icon(Icons.access_time, size: 12, color: AppColors.of(context).textMuted),
                           const SizedBox(width: 4),
-                          Text(timeStr, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.textMuted)),
+                          Text(timeStr, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.of(context).textMuted)),
                         ],
                         if (entry.locationName != null) ...[
                           const SizedBox(width: 10),
-                          Icon(Icons.location_on, size: 12, color: AppColors.textMuted),
+                          Icon(Icons.location_on, size: 12, color: AppColors.of(context).textMuted),
                           const SizedBox(width: 2),
                           Flexible(
                             child: Text(
                               entry.locationName!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.manrope(fontSize: 11, color: AppColors.textMuted),
+                              style: GoogleFonts.manrope(fontSize: 11, color: AppColors.of(context).textMuted),
                             ),
                           ),
                         ],
                         const Spacer(),
                         Text(
                           'Saved to Book',
-                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.of(context).textSecondary),
                         ),
                       ],
                     ),
@@ -633,8 +628,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final dates = datesAsync.valueOrNull ?? [];
     final now = DateTime.now();
     final oneYearAgo = DateTime(now.year - 1, now.month, now.day);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+
+    final subtextColor = AppColors.of(context).textSecondary;
 
     DateTime? matchDate;
     for (final d in dates) {
@@ -654,9 +649,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: AppColors.primary.withAlpha(13),
+          color: AppColors.of(context).accent.withAlpha(13),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withAlpha(51)),
+          border: Border.all(color: AppColors.of(context).accent.withAlpha(51)),
         ),
         child: Stack(
           children: [
@@ -673,7 +668,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          color: AppColors.of(context).accent,
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -682,7 +677,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textMuted,
+                          color: AppColors.of(context).textMuted,
                         ),
                       ),
                     ],
@@ -695,13 +690,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(51),
+                          color: AppColors.of(context).accent.withAlpha(51),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           Icons.auto_stories,
                           size: 24,
-                          color: AppColors.primary.withAlpha(178),
+                          color: AppColors.of(context).accent.withAlpha(178),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -730,7 +725,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Icon(
                 Icons.history,
                 size: 96,
-                color: AppColors.primary.withAlpha(26),
+                color: AppColors.of(context).accent.withAlpha(26),
               ),
             ),
           ],
@@ -765,8 +760,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildChatTopBar(CheckInState state) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final textColor = AppColors.of(context).textPrimary;
     final isToday = state.isViewingToday;
     final dateLabel = isToday
         ? 'Today'
@@ -790,7 +784,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Icon(
                   Icons.arrow_back_ios,
                   size: 18,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ),
             ),
@@ -812,12 +806,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withAlpha(20),
+                  color: AppColors.of(context).accent.withAlpha(20),
                 ),
                 child: Icon(
                   Icons.calendar_today_outlined,
                   size: 16,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ),
             ),
@@ -830,7 +824,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(26),
+                    color: AppColors.of(context).accent.withAlpha(26),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -839,7 +833,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Icon(
                         _moodIcon(state.currentMood!),
                         size: 16,
-                        color: AppColors.primary,
+                        color: AppColors.of(context).accent,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -847,7 +841,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: AppColors.of(context).accent,
                         ),
                       ),
                     ],
@@ -875,9 +869,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildEmptyState() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final textColor = AppColors.of(context).textPrimary;
+    final subtextColor = AppColors.of(context).textSecondary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -887,7 +880,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Icon(
             Icons.chat_bubble_outline,
             size: 48,
-            color: AppColors.primary.withAlpha(64),
+            color: AppColors.of(context).accent.withAlpha(64),
           ),
           const SizedBox(height: 16),
           Text(
@@ -923,14 +916,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppColors.primary.withAlpha(38),
+                      color: AppColors.of(context).accent.withAlpha(38),
                     ),
                   ),
                   child: Text(
                     prompt,
                     style: GoogleFonts.manrope(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: AppColors.of(context).textSecondary,
                     ),
                   ),
                 ),
@@ -965,7 +958,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               timeStr,
               style: GoogleFonts.manrope(
                 fontSize: 11,
-                color: AppColors.textMuted,
+                color: AppColors.of(context).textMuted,
               ),
             ),
           ),
@@ -977,9 +970,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMessageBubble(ChatMessage message, String sectionId) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bubbleBg = isDark ? AppColors.cardDark : Colors.white;
-    final bubbleText = isDark ? Colors.white : AppColors.textPrimary;
+    final bubbleBg = AppColors.of(context).card;
+    final bubbleText = AppColors.of(context).textPrimary;
     final isUser = message.isUser;
 
     return Padding(
@@ -996,12 +988,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               margin: const EdgeInsets.only(top: 2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(31),
+                color: AppColors.of(context).accent.withAlpha(31),
               ),
               child: Icon(
                 Icons.auto_awesome,
                 size: 14,
-                color: AppColors.primary,
+                color: AppColors.of(context).accent,
               ),
             ),
             const SizedBox(width: 8),
@@ -1018,7 +1010,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isUser ? AppColors.primary : bubbleBg,
+                      color: isUser ? AppColors.of(context).accent : bubbleBg,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(18),
                         topRight: const Radius.circular(18),
@@ -1028,7 +1020,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       border: isUser
                           ? null
                           : Border.all(
-                              color: AppColors.primary.withAlpha(20)),
+                              color: AppColors.of(context).accent.withAlpha(20)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1044,7 +1036,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   size: 12,
                                   color: isUser
                                       ? Colors.white.withAlpha(178)
-                                      : AppColors.textMuted,
+                                      : AppColors.of(context).textMuted,
                                 ),
                                 const SizedBox(width: 2),
                                 Text(
@@ -1053,7 +1045,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     fontSize: 10,
                                     color: isUser
                                         ? Colors.white.withAlpha(178)
-                                        : AppColors.textMuted,
+                                        : AppColors.of(context).textMuted,
                                   ),
                                 ),
                               ],
@@ -1084,7 +1076,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Icon(
                         Icons.edit_outlined,
                         size: 14,
-                        color: AppColors.textMuted,
+                        color: AppColors.of(context).textMuted,
                       ),
                     ),
                   ),
@@ -1100,8 +1092,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- Input Bar ----------------------------------------------------------
 
   Widget _buildInputBar(CheckInState state) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final barColor = isDark ? AppColors.cardDark : Colors.white;
+    final barColor = AppColors.of(context).card;
     final isEditing = _editingMessageId != null;
 
     return Container(
@@ -1125,13 +1116,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
-                  Icon(Icons.edit, size: 14, color: AppColors.primary),
+                  Icon(Icons.edit, size: 14, color: AppColors.of(context).accent),
                   const SizedBox(width: 6),
                   Text(
                     'Editing message',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: AppColors.of(context).textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1139,7 +1130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   GestureDetector(
                     onTap: _cancelEditing,
                     child:
-                        Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                        Icon(Icons.close, size: 16, color: AppColors.of(context).textMuted),
                   ),
                 ],
               ),
@@ -1157,9 +1148,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildTextInputBar(CheckInState state) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bgLight,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.primary.withAlpha(26)),
+        border: Border.all(color: AppColors.of(context).accent.withAlpha(26)),
       ),
       child: Row(
         children: [
@@ -1172,12 +1163,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withAlpha(20),
+                  color: AppColors.of(context).accent.withAlpha(20),
                 ),
                 child: Icon(
                   Icons.mic,
                   size: 18,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ),
             ),
@@ -1188,13 +1179,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               controller: _textController,
               style: GoogleFonts.manrope(
                 fontSize: 15,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: 'Message...',
                 hintStyle: GoogleFonts.manrope(
                   fontSize: 15,
-                  color: AppColors.textMuted,
+                  color: AppColors.of(context).textMuted,
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -1216,8 +1207,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: state.isLoading
-                    ? AppColors.primary.withAlpha(76)
-                    : AppColors.primary,
+                    ? AppColors.of(context).accent.withAlpha(76)
+                    : AppColors.of(context).accent,
               ),
               child: state.isLoading
                   ? const Padding(
@@ -1310,9 +1301,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildTranscribingBar() {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bgLight,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.primary.withAlpha(26)),
+        border: Border.all(color: AppColors.of(context).accent.withAlpha(26)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -1322,7 +1313,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             height: 18,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.of(context).accent),
             ),
           ),
           const SizedBox(width: 12),
@@ -1330,7 +1321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             'Transcribing...',
             style: GoogleFonts.manrope(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.of(context).textSecondary,
             ),
           ),
         ],
@@ -1501,7 +1492,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(height: 24),
@@ -1520,10 +1511,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         height: 52,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary.withAlpha(31),
+                          color: AppColors.of(context).accent.withAlpha(31),
                         ),
                         child:
-                            Icon(mood.icon, size: 26, color: AppColors.primary),
+                            Icon(mood.icon, size: 26, color: AppColors.of(context).accent),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -1531,7 +1522,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
+                          color: AppColors.of(context).textSecondary,
                         ),
                       ),
                     ],
@@ -1552,11 +1543,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Invalidate to force a fresh read from Hive
     ref.invalidate(availableDatesProvider);
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? AppColors.cardDark : Colors.white,
+      backgroundColor: AppColors.of(context).card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1580,7 +1569,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   error: (_, __) => Center(
                     child: Text(
                       'Failed to load conversations',
-                      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.textSecondary),
+                      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.of(context).textSecondary),
                     ),
                   ),
                   data: (dates) {
@@ -1592,7 +1581,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       return d.year == now.year && d.month == now.month;
                     }).toList();
 
-                    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+                    final textColor = AppColors.of(context).textPrimary;
 
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -1604,7 +1593,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               width: 36,
                               height: 4,
                               decoration: BoxDecoration(
-                                color: AppColors.textMuted.withAlpha(76),
+                                color: AppColors.of(context).textMuted.withAlpha(76),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),
@@ -1681,7 +1670,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.2,
-                              color: AppColors.textMuted,
+                              color: AppColors.of(context).textMuted,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -1692,7 +1681,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       'No conversations yet',
                                       style: GoogleFonts.manrope(
                                         fontSize: 14,
-                                        color: AppColors.textSecondary,
+                                        color: AppColors.of(context).textSecondary,
                                       ),
                                     ),
                                   )
@@ -1726,7 +1715,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           width: 40,
                                           height: 40,
                                           decoration: BoxDecoration(
-                                            color: AppColors.primary.withAlpha(20),
+                                            color: AppColors.of(context).accent.withAlpha(20),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Center(
@@ -1735,7 +1724,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                               style: GoogleFonts.manrope(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w700,
-                                                color: AppColors.primary,
+                                                color: AppColors.of(context).accent,
                                               ),
                                             ),
                                           ),
@@ -1752,13 +1741,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           DateFormat('MMMM yyyy').format(date),
                                           style: GoogleFonts.manrope(
                                             fontSize: 12,
-                                            color: AppColors.textMuted,
+                                            color: AppColors.of(context).textMuted,
                                           ),
                                         ),
                                         trailing: Icon(
                                           Icons.chevron_right,
                                           size: 20,
-                                          color: AppColors.textMuted,
+                                          color: AppColors.of(context).textMuted,
                                         ),
                                         onTap: () {
                                           Navigator.pop(ctx);
@@ -1802,15 +1791,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: enabled
-              ? AppColors.primary.withAlpha(20)
-              : AppColors.textMuted.withAlpha(13),
+              ? AppColors.of(context).accent.withAlpha(20)
+              : AppColors.of(context).textMuted.withAlpha(13),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 14, color: AppColors.primary),
+              Icon(icon, size: 14, color: AppColors.of(context).accent),
               const SizedBox(width: 4),
             ],
             Text(
@@ -1818,7 +1807,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: enabled ? AppColors.primary : AppColors.textMuted,
+                color: enabled ? AppColors.of(context).accent : AppColors.of(context).textMuted,
               ),
             ),
           ],
@@ -1842,7 +1831,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case 'tough':
         return AppColors.moodTough;
       default:
-        return AppColors.primary;
+        return AppColors.of(context).accent;
     }
   }
 

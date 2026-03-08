@@ -167,7 +167,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.of(context).accent,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -198,7 +198,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           height: 90,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.primary.withAlpha(38),
+                            color: AppColors.of(context).accent.withAlpha(38),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -206,7 +206,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             style: GoogleFonts.manrope(
                               fontSize: 32,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: AppColors.of(context).textPrimary,
                             ),
                           ),
                         ),
@@ -217,9 +217,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
+                              color: AppColors.of(context).accent,
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.bgLight, width: 2),
+                              border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
                             ),
                             child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
                           ),
@@ -258,7 +258,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.of(context).textPrimary,
                         ),
                       ),
                     ),
@@ -314,7 +314,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: AppColors.of(context).textPrimary,
                               ),
                             ),
                     ),
@@ -332,9 +332,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     child: ElevatedButton(
                       onPressed: _isSaving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: AppColors.of(context).accent,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppColors.primary.withAlpha(128),
+                        disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -399,7 +399,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
-      style: GoogleFonts.manrope(fontSize: 15, color: AppColors.textPrimary),
+      style: GoogleFonts.manrope(fontSize: 15, color: AppColors.of(context).textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.manrope(fontSize: 15, color: Colors.grey.shade400),
@@ -427,7 +427,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: AppColors.of(context).accent, width: 2),
         ),
       ),
     );

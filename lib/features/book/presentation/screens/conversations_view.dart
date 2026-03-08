@@ -78,7 +78,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             Icon(
               Icons.chat_outlined,
               size: 36,
-              color: AppColors.primary.withAlpha(153),
+              color: AppColors.of(context).accent.withAlpha(153),
             ),
             const SizedBox(height: 16),
             Text(
@@ -105,7 +105,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: AppColors.primary.withAlpha(102),
+                  color: AppColors.of(context).accent.withAlpha(102),
                 ),
               ),
               child: Text(
@@ -113,7 +113,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                 style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ),
             ),
@@ -137,7 +137,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
             ),
           ),
         ),
@@ -182,11 +182,11 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
           color: isActive
-              ? AppColors.primary.withAlpha(13)
+              ? AppColors.of(context).accent.withAlpha(13)
               : Colors.transparent,
           border: Border(
             left: BorderSide(
-              color: isActive ? AppColors.primary : Colors.transparent,
+              color: isActive ? AppColors.of(context).accent : Colors.transparent,
               width: 3,
             ),
           ),
@@ -264,7 +264,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                   : Icons.keyboard_arrow_right,
               size: 20,
               color: isActive
-                  ? AppColors.primary
+                  ? AppColors.of(context).accent
                   : AppColors.readingText.withAlpha(76),
             ),
           ],
@@ -363,7 +363,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                   style: GoogleFonts.manrope(
                     fontSize: 56,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: AppColors.of(context).textPrimary,
                     height: 0.85,
                   ),
                 ),
@@ -384,13 +384,13 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(Icons.mic, size: 11, color: AppColors.textMuted),
+                  Icon(Icons.mic, size: 11, color: AppColors.of(context).textMuted),
                   const SizedBox(width: 3),
                   Text(
                     'From voice',
                     style: GoogleFonts.manrope(
                       fontSize: 10,
-                      color: AppColors.textMuted,
+                      color: AppColors.of(context).textMuted,
                     ),
                   ),
                 ],
@@ -419,13 +419,13 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.mic, size: 11, color: AppColors.textMuted),
+                Icon(Icons.mic, size: 11, color: AppColors.of(context).textMuted),
                 const SizedBox(width: 3),
                 Text(
                   'From voice',
                   style: GoogleFonts.manrope(
                     fontSize: 10,
-                    color: AppColors.textMuted,
+                    color: AppColors.of(context).textMuted,
                   ),
                 ),
               ],
@@ -445,7 +445,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
         decoration: BoxDecoration(
           border: Border(
             left: BorderSide(
-              color: AppColors.primary.withAlpha(64),
+              color: AppColors.of(context).accent.withAlpha(64),
               width: 2,
             ),
           ),
@@ -455,7 +455,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
           style: GoogleFonts.manrope(
             fontSize: 14,
             fontStyle: FontStyle.italic,
-            color: AppColors.textSecondary,
+            color: AppColors.of(context).textSecondary,
             height: 1.6,
           ),
         ),
@@ -475,7 +475,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             Icon(
               Icons.auto_stories_outlined,
               size: 56,
-              color: AppColors.primary.withAlpha(76),
+              color: AppColors.of(context).accent.withAlpha(76),
             ),
             const SizedBox(height: 16),
             Text(
@@ -483,7 +483,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -492,7 +492,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: AppColors.of(context).textSecondary,
                 height: 1.5,
               ),
             ),
@@ -534,7 +534,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
       case 'tough':
         return AppColors.moodTough;
       default:
-        return AppColors.textSecondary;
+        return AppColors.of(context).textSecondary;
     }
   }
 }

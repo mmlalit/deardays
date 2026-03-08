@@ -203,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Password reset email sent.'),
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.of(context).accent,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -272,15 +272,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.primaryLight.withAlpha(100),
-                    AppColors.primary.withAlpha(60),
+                    AppColors.of(context).accentLight.withAlpha(100),
+                    AppColors.of(context).accent.withAlpha(60),
                   ],
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.auto_stories_rounded,
                 size: 36,
-                color: AppColors.primaryDark,
+                color: AppColors.of(context).accent,
               ),
             ),
           ),
@@ -293,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 34,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
           ),
@@ -306,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontStyle: FontStyle.italic,
-                color: AppColors.textSecondary,
+                color: AppColors.of(context).textSecondary,
               ),
             ),
           ),
@@ -332,17 +332,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? null
                   : () => setState(() => _showEmailForm = true),
               icon: Icon(Icons.mail_outline_rounded,
-                  size: 20, color: AppColors.textPrimary),
+                  size: 20, color: AppColors.of(context).textPrimary),
               label: Text(
                 'Continue with Email',
                 style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: AppColors.of(context).textPrimary,
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.border),
+                side: BorderSide(color: AppColors.of(context).border),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -358,7 +358,7 @@ class _LoginScreenState extends State<LoginScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 12,
-                color: AppColors.textMuted,
+                color: AppColors.of(context).textMuted,
                 height: 1.5,
               ),
             ),
@@ -372,7 +372,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Row(
               children: [
                 Expanded(
-                    child: Divider(color: AppColors.border, thickness: 1)),
+                    child: Divider(color: AppColors.of(context).border, thickness: 1)),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
@@ -380,13 +380,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted,
+                      color: AppColors.of(context).textMuted,
                       letterSpacing: 1.2,
                     ),
                   ),
                 ),
                 Expanded(
-                    child: Divider(color: AppColors.border, thickness: 1)),
+                    child: Divider(color: AppColors.of(context).border, thickness: 1)),
               ],
             ),
             const SizedBox(height: 16),
@@ -412,13 +412,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
           if (_isLoading) ...[
             const SizedBox(height: 32),
-            const Center(
+            Center(
               child: SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ),
             ),
@@ -449,7 +449,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? null
                   : () => setState(() => _showEmailForm = false),
               icon: const Icon(Icons.arrow_back_rounded),
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
@@ -462,7 +462,7 @@ class _LoginScreenState extends State<LoginScreen> {
             style: GoogleFonts.manrope(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
             ),
           ),
           const SizedBox(height: 6),
@@ -472,7 +472,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 : 'Pick up where you left off.',
             style: GoogleFonts.manrope(
               fontSize: 15,
-              color: AppColors.textSecondary,
+              color: AppColors.of(context).textSecondary,
             ),
           ),
           const SizedBox(height: 32),
@@ -523,7 +523,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   _obscurePassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: AppColors.textMuted,
+                  color: AppColors.of(context).textMuted,
                   size: 20,
                 ),
                 onPressed: () =>
@@ -544,7 +544,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.primary,
+                    color: AppColors.of(context).accent,
                   ),
                 ),
               ),
@@ -571,11 +571,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? null
                           : (v) => setState(
                               () => _healthConsentGiven = v ?? false),
-                      activeColor: AppColors.primary,
+                      activeColor: AppColors.of(context).accent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      side: BorderSide(color: AppColors.border, width: 1.5),
+                      side: BorderSide(color: AppColors.of(context).border, width: 1.5),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       visualDensity: VisualDensity.compact,
                     ),
@@ -589,7 +589,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           text: 'I consent to mood & health data processing ',
                           style: GoogleFonts.manrope(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: AppColors.of(context).textSecondary,
                           ),
                           children: [
                             TextSpan(
@@ -597,7 +597,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontStyle: FontStyle.italic,
-                                color: AppColors.textMuted,
+                                color: AppColors.of(context).textMuted,
                               ),
                             ),
                           ],
@@ -619,10 +619,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleEmailAuth,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AppColors.of(context).accent,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                disabledBackgroundColor: AppColors.primary.withAlpha(128),
+                disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -655,7 +655,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
                   fontSize: 12,
-                  color: AppColors.textMuted,
+                  color: AppColors.of(context).textMuted,
                   height: 1.5,
                 ),
               ),
@@ -676,7 +676,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       : "Don't have an account? ",
                   style: GoogleFonts.manrope(
                     fontSize: 14,
-                    color: AppColors.textSecondary,
+                    color: AppColors.of(context).textSecondary,
                   ),
                   children: [
                     TextSpan(
@@ -684,7 +684,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+                        color: AppColors.of(context).accent,
                       ),
                     ),
                   ],
@@ -706,22 +706,22 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(color: AppColors.textMuted, fontSize: 14),
-      prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.textMuted),
+      hintStyle: GoogleFonts.manrope(color: AppColors.of(context).textMuted, fontSize: 14),
+      prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.of(context).textMuted),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.of(context).border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.of(context).border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        borderSide: BorderSide(color: AppColors.of(context).accent, width: 2),
       ),
     );
   }
@@ -740,7 +740,7 @@ class _FieldLabel extends StatelessWidget {
       style: GoogleFonts.manrope(
         fontSize: 13,
         fontWeight: FontWeight.w500,
-        color: AppColors.textPrimary,
+        color: AppColors.of(context).textPrimary,
       ),
     );
   }
@@ -804,11 +804,11 @@ class _GoogleButton extends StatelessWidget {
           style: GoogleFonts.manrope(
             fontSize: 15,
             fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
+            color: AppColors.of(context).textPrimary,
           ),
         ),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: AppColors.of(context).border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -837,18 +837,18 @@ class _QuickUnlockButton extends StatelessWidget {
       height: 52,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, size: 22, color: AppColors.primary),
+        icon: Icon(icon, size: 22, color: AppColors.of(context).accent),
         label: Text(
           label,
           style: GoogleFonts.manrope(
             fontSize: 15,
             fontWeight: FontWeight.w500,
-            color: AppColors.primary,
+            color: AppColors.of(context).accent,
           ),
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          foregroundColor: AppColors.of(context).accent,
+          side: BorderSide(color: AppColors.of(context).accent, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),

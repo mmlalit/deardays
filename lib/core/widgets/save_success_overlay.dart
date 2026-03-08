@@ -99,6 +99,7 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return FadeTransition(
       opacity: _fadeIn,
       child: Material(
@@ -110,7 +111,7 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
               width: 280,
               padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 28),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.card,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -147,7 +148,7 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
                     style: GoogleFonts.manrope(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -161,10 +162,10 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.bgLight,
+                        color: Theme.of(context).scaffoldBackgroundColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.primary.withAlpha(26),
+                          color: colors.accent.withAlpha(26),
                         ),
                       ),
                       child: Row(
@@ -173,7 +174,7 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
                           Icon(
                             Icons.home_rounded,
                             size: 18,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -181,7 +182,7 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
                             style: GoogleFonts.manrope(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary,
+                              color: colors.textSecondary,
                             ),
                           ),
                         ],

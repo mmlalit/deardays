@@ -19,15 +19,17 @@ class PrivacyScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildLastUpdated(),
+            _buildLastUpdated(context),
             const SizedBox(height: 16),
             _buildHighlight(),
             const SizedBox(height: 24),
             _buildSection(
+              context,
               'Our Privacy Commitment',
               'DearDays is built on the principle that your journal is deeply personal and private. We use zero-knowledge encryption, which means your entries are encrypted on your device before they ever reach our servers. We cannot read, access, or share your journal content — ever.',
             ),
             _buildSection(
+              context,
               'Information We Collect',
               'We collect the minimum information necessary to provide our service:\n\n'
               'Account Information:\n'
@@ -47,6 +49,7 @@ class PrivacyScreen extends StatelessWidget {
               '\u2022 Browsing history or tracking identifiers',
             ),
             _buildSection(
+              context,
               'Zero-Knowledge Encryption',
               'All journal content is encrypted using AES-256-GCM encryption with keys derived from your password via PBKDF2 (100,000 iterations). Your encryption key never leaves your device in an unencrypted form.\n\n'
               'This means:\n\n'
@@ -57,6 +60,7 @@ class PrivacyScreen extends StatelessWidget {
               'We strongly recommend using the app\'s export feature to maintain personal backups.',
             ),
             _buildSection(
+              context,
               'How We Use Your Information',
               '\u2022 Authentication: To verify your identity and protect your account\n'
               '\u2022 Service delivery: To sync your encrypted data across devices\n'
@@ -66,6 +70,7 @@ class PrivacyScreen extends StatelessWidget {
               'We never use your information for advertising or sell it to third parties.',
             ),
             _buildSection(
+              context,
               'Data Storage & Security',
               'Your encrypted data is stored on Supabase infrastructure with:\n\n'
               '\u2022 Row-Level Security (RLS) ensuring each user can only access their own data\n'
@@ -75,6 +80,7 @@ class PrivacyScreen extends StatelessWidget {
               'Authentication credentials (PIN hash, pattern hash, biometric preference) are stored locally on your device using platform-secure storage (iOS Keychain / Android Keystore).',
             ),
             _buildSection(
+              context,
               'Third-Party Services',
               'We use the following third-party services:\n\n'
               '\u2022 Supabase: Database and authentication (hosted in the US)\n'
@@ -83,6 +89,7 @@ class PrivacyScreen extends StatelessWidget {
               'We do not use analytics SDKs, advertising networks, or social media trackers.',
             ),
             _buildSection(
+              context,
               'AI Features',
               'DearDays offers optional AI-powered features such as writing prompts, mood insights, and weekly summaries. When you use these features:\n\n'
               '\u2022 Content is sent to our AI service only when you explicitly request it\n'
@@ -91,6 +98,7 @@ class PrivacyScreen extends StatelessWidget {
               '\u2022 AI-generated content is never used to train models',
             ),
             _buildSection(
+              context,
               'International Data Transfers',
               'DearDays processes data using Supabase infrastructure hosted in the United States. For users in the European Economic Area (EEA), United Kingdom, or other jurisdictions with data transfer restrictions:\n\n'
               '\u2022 We rely on Standard Contractual Clauses (SCCs) approved by the European Commission\n'
@@ -99,6 +107,7 @@ class PrivacyScreen extends StatelessWidget {
               'For users in India, data processing complies with the Digital Personal Data Protection Act 2023 (DPDPA). We process personal data only with your explicit consent and for the purposes stated in this policy.',
             ),
             _buildSection(
+              context,
               'Health & Mood Data',
               'DearDays collects mood data as part of your journal entries. Under GDPR Article 9, mood data may constitute special category (health-related) data. We process this data only with your explicit, separate consent.\n\n'
               'Under the Washington My Health My Data Act and similar US state health privacy laws, we:\n\n'
@@ -108,6 +117,7 @@ class PrivacyScreen extends StatelessWidget {
               '\u2022 Do not use health data for advertising or profiling',
             ),
             _buildSection(
+              context,
               'Your Rights',
               'You have the right to:\n\n'
               '\u2022 Access: View all data associated with your account\n'
@@ -118,6 +128,7 @@ class PrivacyScreen extends StatelessWidget {
               'To exercise these rights, use the in-app settings or contact us at privacy@deardays.app.',
             ),
             _buildSection(
+              context,
               'Do Not Sell or Share (CCPA/CPRA)',
               'DearDays does not sell or share your personal information as defined by the California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA).\n\n'
               'You have the right to:\n\n'
@@ -127,6 +138,7 @@ class PrivacyScreen extends StatelessWidget {
               'To exercise these rights, use the "Do Not Sell My Data" toggle in Settings > Privacy, or contact us at privacy@deardays.app.',
             ),
             _buildSection(
+              context,
               'Data Retention',
               '\u2022 Active accounts: Data is retained as long as your account is active\n'
               '\u2022 Deleted accounts: All data is permanently deleted within 30 days\n'
@@ -134,6 +146,7 @@ class PrivacyScreen extends StatelessWidget {
               'You can export your data at any time, regardless of subscription status.',
             ),
             _buildSection(
+              context,
               'Age Requirements',
               'DearDays requires users to meet minimum age requirements:\n\n'
               '\u2022 United States and European Union: You must be at least 13 years old\n'
@@ -142,14 +155,17 @@ class PrivacyScreen extends StatelessWidget {
               'We verify age during account creation. If you are a parent or guardian and believe your child has created an account without meeting age requirements, please contact us immediately at privacy@deardays.app.',
             ),
             _buildSection(
+              context,
               'Children\'s Privacy',
               'DearDays is not intended for children under 13. We do not knowingly collect personal information from children under 13. If we discover that a child under 13 has created an account, we will promptly delete it.',
             ),
             _buildSection(
+              context,
               'Changes to This Policy',
               'We may update this Privacy Policy from time to time. We will notify you of material changes through the App or via email at least 30 days before they take effect. Your continued use of the App constitutes acceptance of the updated policy.',
             ),
             _buildSection(
+              context,
               'Contact Us',
               'For privacy-related questions or concerns:\n\n'
               'Email: privacy@deardays.app\n\n'
@@ -162,23 +178,24 @@ class PrivacyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLastUpdated() {
+  Widget _buildLastUpdated(BuildContext context) {
+    final colors = AppColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(13),
+        color: colors.accent.withAlpha(13),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+          Icon(Icons.info_outline, size: 18, color: colors.accent),
           const SizedBox(width: 10),
           Text(
             'Last updated: March 1, 2026',
             style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.primary,
+              color: colors.accent,
             ),
           ),
         ],
@@ -227,7 +244,8 @@ class PrivacyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(String title, String body) {
+  Widget _buildSection(BuildContext context, String title, String body) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -238,7 +256,7 @@ class PrivacyScreen extends StatelessWidget {
             style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
             ),
           ),
           const SizedBox(height: 10),
@@ -247,7 +265,7 @@ class PrivacyScreen extends StatelessWidget {
             style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
+              color: colors.textSecondary,
               height: 1.65,
             ),
           ),

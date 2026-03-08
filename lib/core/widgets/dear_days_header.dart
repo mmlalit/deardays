@@ -55,8 +55,8 @@ class DearDaysHeader extends StatelessWidget {
           if (mode != HeaderMode.topLevel) const SizedBox(width: 12),
           Expanded(
             child: mode == HeaderMode.topLevel
-                ? _buildTopLevelTitle()
-                : _buildPushTitle(),
+                ? _buildTopLevelTitle(context)
+                : _buildPushTitle(context),
           ),
           if (trailing != null) trailing!,
         ],
@@ -65,11 +65,11 @@ class DearDaysHeader extends StatelessWidget {
   }
 
   Widget _buildBackButton(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = AppColors.of(context);
     return IconButton(
       onPressed: onBack ?? () => Navigator.of(context).maybePop(),
       icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-      color: isDark ? Colors.white : AppColors.textPrimary,
+      color: colors.textPrimary,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       style: IconButton.styleFrom(
@@ -79,11 +79,11 @@ class DearDaysHeader extends StatelessWidget {
   }
 
   Widget _buildCloseButton(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = AppColors.of(context);
     return IconButton(
       onPressed: onBack ?? () => Navigator.of(context).maybePop(),
       icon: const Icon(Icons.close, size: 24),
-      color: isDark ? Colors.white : AppColors.textPrimary,
+      color: colors.textPrimary,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       style: IconButton.styleFrom(
@@ -92,84 +92,76 @@ class DearDaysHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildTopLevelTitle() {
-    return Builder(builder: (context) {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      final textColor = isDark ? Colors.white : AppColors.textPrimary;
-      final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+  Widget _buildTopLevelTitle(BuildContext context) {
+    final colors = AppColors.of(context);
 
-      if (subtitle != null) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.manrope(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-              ),
+    if (subtitle != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.manrope(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
             ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle!,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: subtextColor,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle!,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              color: colors.textSecondary,
             ),
-          ],
-        );
-      }
-      return Text(
-        title,
-        style: GoogleFonts.manrope(
-          fontSize: 24,
-          fontWeight: FontWeight.w700,
-          color: textColor,
-        ),
+          ),
+        ],
       );
-    });
+    }
+    return Text(
+      title,
+      style: GoogleFonts.manrope(
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+        color: colors.textPrimary,
+      ),
+    );
   }
 
-  Widget _buildPushTitle() {
-    return Builder(builder: (context) {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      final textColor = isDark ? Colors.white : AppColors.textPrimary;
-      final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+  Widget _buildPushTitle(BuildContext context) {
+    final colors = AppColors.of(context);
 
-      if (subtitle != null) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.manrope(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
+    if (subtitle != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.manrope(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: colors.textPrimary,
             ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle!,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: subtextColor,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle!,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              color: colors.textSecondary,
             ),
-          ],
-        );
-      }
-      return Text(
-        title,
-        style: GoogleFonts.manrope(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: textColor,
-        ),
+          ),
+        ],
       );
-    });
+    }
+    return Text(
+      title,
+      style: GoogleFonts.manrope(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: colors.textPrimary,
+      ),
+    );
   }
 
   /// Creates an AppBar equivalent for screens that need one.
@@ -180,8 +172,7 @@ class DearDaysHeader extends StatelessWidget {
     List<Widget>? actions,
     VoidCallback? onBack,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final colors = AppColors.of(context);
 
     return AppBar(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -189,11 +180,11 @@ class DearDaysHeader extends StatelessWidget {
       scrolledUnderElevation: 0,
       leading: mode == HeaderMode.modal
           ? IconButton(
-              icon: Icon(Icons.close, size: 24, color: textColor),
+              icon: Icon(Icons.close, size: 24, color: colors.textPrimary),
               onPressed: onBack ?? () => Navigator.of(context).maybePop(),
             )
           : IconButton(
-              icon: Icon(Icons.arrow_back_ios_new, size: 20, color: textColor),
+              icon: Icon(Icons.arrow_back_ios_new, size: 20, color: colors.textPrimary),
               onPressed: onBack ?? () => Navigator.of(context).maybePop(),
             ),
       title: Text(
@@ -201,7 +192,7 @@ class DearDaysHeader extends StatelessWidget {
         style: GoogleFonts.manrope(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: textColor,
+          color: colors.textPrimary,
         ),
       ),
       centerTitle: true,

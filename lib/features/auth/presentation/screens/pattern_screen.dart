@@ -180,13 +180,13 @@ class _PatternScreenState extends State<PatternScreen> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(26),
+                color: AppColors.of(context).accent.withAlpha(26),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.pattern,
                 size: 28,
-                color: AppColors.primary,
+                color: AppColors.of(context).accent,
               ),
             ),
             const SizedBox(height: 24),
@@ -197,7 +197,7 @@ class _PatternScreenState extends State<PatternScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -205,7 +205,7 @@ class _PatternScreenState extends State<PatternScreen> {
               _subtitle,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: _hasError ? Colors.red.shade600 : AppColors.textSecondary,
+                color: _hasError ? Colors.red.shade600 : AppColors.of(context).textSecondary,
               ),
             ),
             const Spacer(flex: 1),
@@ -230,8 +230,8 @@ class _PatternScreenState extends State<PatternScreen> {
                         });
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textSecondary,
-                        side: BorderSide(color: AppColors.border),
+                        foregroundColor: AppColors.of(context).textSecondary,
+                        side: BorderSide(color: AppColors.of(context).border),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -251,9 +251,9 @@ class _PatternScreenState extends State<PatternScreen> {
                     child: ElevatedButton(
                       onPressed: _selectedDots.length >= 4 ? _onPatternComplete : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: AppColors.of(context).accent,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppColors.primary.withAlpha(80),
+                        disabledBackgroundColor: AppColors.of(context).accent.withAlpha(80),
                         disabledForegroundColor: Colors.white54,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -317,7 +317,7 @@ class _PatternScreenState extends State<PatternScreen> {
             gridSpacing: _gridSpacing,
             dotRadius: _dotRadius,
             hasError: _hasError,
-            primaryColor: AppColors.primary,
+            primaryColor: AppColors.of(context).accent,
           ),
           child: Container(),
         ),

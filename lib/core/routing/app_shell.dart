@@ -20,18 +20,16 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final navBgColor = isDark ? AppColors.navBgDark : AppColors.navBg;
-    final inactiveColor = isDark ? Colors.white54 : AppColors.textPrimary.withAlpha(128);
+    final colors = AppColors.of(context);
 
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: navBgColor,
+          color: colors.navBg,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(isDark ? 40 : 15),
+              color: Colors.black.withAlpha(Theme.of(context).brightness == Brightness.dark ? 40 : 15),
               blurRadius: 20,
               offset: const Offset(0, -4),
             ),
@@ -48,8 +46,6 @@ class AppShell extends StatelessWidget {
                   activeIcon: Icons.home_rounded,
                   label: 'Home',
                   isActive: index == 0,
-                  isDark: isDark,
-                  inactiveColor: inactiveColor,
                   onTap: () => context.go('/home'),
                 ),
                 _NavItem(
@@ -57,8 +53,6 @@ class AppShell extends StatelessWidget {
                   activeIcon: Icons.menu_book_rounded,
                   label: 'Book',
                   isActive: index == 1,
-                  isDark: isDark,
-                  inactiveColor: inactiveColor,
                   onTap: () => context.go('/book'),
                 ),
                 _NavItem(
@@ -66,8 +60,6 @@ class AppShell extends StatelessWidget {
                   activeIcon: Icons.timeline_rounded,
                   label: 'Timeline',
                   isActive: index == 2,
-                  isDark: isDark,
-                  inactiveColor: inactiveColor,
                   onTap: () => context.go('/timeline'),
                 ),
                 _NavItem(
@@ -75,8 +67,6 @@ class AppShell extends StatelessWidget {
                   activeIcon: Icons.settings_rounded,
                   label: 'Settings',
                   isActive: index == 3,
-                  isDark: isDark,
-                  inactiveColor: inactiveColor,
                   onTap: () => context.go('/settings'),
                 ),
               ],
@@ -93,8 +83,6 @@ class _NavItem extends StatelessWidget {
   final IconData activeIcon;
   final String label;
   final bool isActive;
-  final bool isDark;
-  final Color inactiveColor;
   final VoidCallback onTap;
 
   const _NavItem({
@@ -102,14 +90,15 @@ class _NavItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.isActive,
-    required this.isDark,
-    required this.inactiveColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = AppColors.primary;
+    final colors = AppColors.of(context);
+    final activeColor = colors.accent;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inactiveColor = isDark ? Colors.white54 : colors.textPrimary.withAlpha(128);
 
     return GestureDetector(
       onTap: () {

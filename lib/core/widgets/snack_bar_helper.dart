@@ -13,7 +13,7 @@ class AppSnackBar {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? const Color(0xFFB91C1C) : AppColors.primary,
+        backgroundColor: isError ? const Color(0xFFB91C1C) : AppColors.of(context).accent,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

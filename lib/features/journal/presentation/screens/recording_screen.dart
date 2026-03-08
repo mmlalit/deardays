@@ -166,13 +166,14 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           // Dark backdrop
           Container(
-            color: AppColors.bgDark.withAlpha(242),
+            color: Theme.of(context).scaffoldBackgroundColor.withAlpha(242),
           ),
 
           // Main content
@@ -239,6 +240,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   // ──────────────────────────────────────────────
 
   Widget _buildTimer() {
+    final colors = AppColors.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -250,7 +252,7 @@ class _RecordingScreenState extends State<RecordingScreen>
             style: GoogleFonts.manrope(
               fontSize: 32,
               fontWeight: FontWeight.w700,
-              color: AppColors.primary,
+              color: colors.accent,
             ),
           ),
         ),
@@ -260,6 +262,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   Widget _timerBox(String value, String label) {
+    final colors = AppColors.of(context);
     return Column(
       children: [
         Container(
@@ -278,7 +281,7 @@ class _RecordingScreenState extends State<RecordingScreen>
             style: GoogleFonts.manrope(
               fontSize: 32,
               fontWeight: FontWeight.w700,
-              color: AppColors.primary,
+              color: colors.accent,
             ),
           ),
         ),
@@ -288,7 +291,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           style: GoogleFonts.manrope(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: AppColors.primary.withAlpha(178),
+            color: colors.accent.withAlpha(178),
             letterSpacing: 1.5,
           ),
         ),
@@ -301,6 +304,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   // ──────────────────────────────────────────────
 
   Widget _buildWaveform() {
+    final colors = AppColors.of(context);
     return SizedBox(
       height: 96,
       child: Row(
@@ -316,7 +320,7 @@ class _RecordingScreenState extends State<RecordingScreen>
             height: _isRecording ? height : 10,
             margin: const EdgeInsets.symmetric(horizontal: 3),
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(
+              color: colors.accent.withAlpha(
                 ((_isRecording ? opacity : 0.3) * 255).round(),
               ),
               borderRadius: BorderRadius.circular(2),
@@ -332,6 +336,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   // ──────────────────────────────────────────────
 
   Widget _buildMicButton() {
+    final colors = AppColors.of(context);
     return GestureDetector(
       onTap: _toggleRecording,
       child: AnimatedBuilder(
@@ -345,23 +350,23 @@ class _RecordingScreenState extends State<RecordingScreen>
               height: 112,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary,
+                color: colors.accent,
                 boxShadow: _isRecording
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(64),
+                          color: colors.accent.withAlpha(64),
                           blurRadius: 48,
                           spreadRadius: 20,
                         ),
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(102),
+                          color: colors.accent.withAlpha(102),
                           blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
                       ]
                     : [
                         BoxShadow(
-                          color: AppColors.primary.withAlpha(76),
+                          color: colors.accent.withAlpha(76),
                           blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
@@ -370,7 +375,7 @@ class _RecordingScreenState extends State<RecordingScreen>
               child: Icon(
                 _isRecording ? Icons.mic : Icons.stop,
                 size: 44,
-                color: AppColors.bgDark,
+                color: Theme.of(context).scaffoldBackgroundColor,
               ),
             ),
           );
@@ -384,6 +389,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   // ──────────────────────────────────────────────
 
   Widget _buildStatusText() {
+    final colors = AppColors.of(context);
     return Column(
       children: [
         Text(
@@ -399,7 +405,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           _isRecording ? 'Tap to stop' : 'Review your entry below',
           style: GoogleFonts.manrope(
             fontSize: 13,
-            color: AppColors.primary.withAlpha(178),
+            color: colors.accent.withAlpha(178),
           ),
         ),
       ],
@@ -411,6 +417,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   // ──────────────────────────────────────────────
 
   Widget _buildEntrySheet() {
+    final colors = AppColors.of(context);
     return Positioned(
       left: 0,
       right: 0,
@@ -421,7 +428,7 @@ class _RecordingScreenState extends State<RecordingScreen>
         offset: _showBottomSheet ? Offset.zero : const Offset(0, 1),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.bgLight,
+            color: Theme.of(context).scaffoldBackgroundColor,
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(24),
             ),
@@ -452,7 +459,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.textMuted.withAlpha(76),
+                        color: colors.textMuted.withAlpha(76),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -468,7 +475,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                           style: GoogleFonts.manrope(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                            color: colors.accent,
                             letterSpacing: 1.2,
                           ),
                         ),
@@ -487,7 +494,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                     'into a beautiful story.',
                     style: GoogleFonts.manrope(
                       fontSize: 16,
-                      color: AppColors.textSecondary,
+                      color: colors.textSecondary,
                       height: 1.6,
                     ),
                   ),
@@ -513,7 +520,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: colors.accent,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -532,17 +539,18 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   Widget _sheetActionButton(IconData icon) {
+    final colors = AppColors.of(context);
     return Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: AppColors.primary.withAlpha(26),
+        color: colors.accent.withAlpha(26),
       ),
       child: Icon(
         icon,
         size: 18,
-        color: AppColors.primary,
+        color: colors.accent,
       ),
     );
   }

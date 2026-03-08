@@ -31,9 +31,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Welcome to DearDays Premium!'),
-          backgroundColor: AppColors.primary,
+        SnackBar(
+          content: const Text('Welcome to DearDays Premium!'),
+          backgroundColor: AppColors.of(context).accent,
         ),
       );
       Navigator.of(context).pop(true);
@@ -57,9 +57,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     if (mounted) {
       if (restored) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Purchases restored!'),
-            backgroundColor: AppColors.primary,
+          SnackBar(
+            content: const Text('Purchases restored!'),
+            backgroundColor: AppColors.of(context).accent,
           ),
         );
         Navigator.of(context).pop(true);
@@ -90,7 +90,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     alignment: Alignment.centerLeft,
                     child: IconButton(
                       onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.close, size: 24, color: AppColors.textPrimary),
+                      icon: Icon(Icons.close, size: 24, color: AppColors.of(context).textPrimary),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                     ),
@@ -100,7 +100,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     style: GoogleFonts.manrope(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: AppColors.of(context).textPrimary,
                     ),
                   ),
                 ],
@@ -123,7 +123,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         height: 1.25,
-                        color: AppColors.textPrimary,
+                        color: AppColors.of(context).textPrimary,
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -159,9 +159,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       child: ElevatedButton(
                         onPressed: sub.isLoading ? null : _handleSubscribe,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: AppColors.of(context).accent,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: AppColors.primary.withAlpha(128),
+                          disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -195,7 +195,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
+                          color: AppColors.of(context).accent,
                         ),
                       ),
                     ),
@@ -207,7 +207,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.manrope(
                         fontSize: 13,
-                        color: AppColors.textMuted,
+                        color: AppColors.of(context).textMuted,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -222,7 +222,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             'Terms',
                             style: GoogleFonts.manrope(
                               fontSize: 13,
-                              color: AppColors.textSecondary,
+                              color: AppColors.of(context).textSecondary,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -233,7 +233,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             'and',
                             style: GoogleFonts.manrope(
                               fontSize: 13,
-                              color: AppColors.textMuted,
+                              color: AppColors.of(context).textMuted,
                             ),
                           ),
                         ),
@@ -245,7 +245,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             'Privacy Policy',
                             style: GoogleFonts.manrope(
                               fontSize: 13,
-                              color: AppColors.textSecondary,
+                              color: AppColors.of(context).textSecondary,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -299,7 +299,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
-                  color: AppColors.textPrimary,
+                  color: AppColors.of(context).textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -307,7 +307,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 'Page 30',
                 style: GoogleFonts.manrope(
                   fontSize: 11,
-                  color: AppColors.textMuted,
+                  color: AppColors.of(context).textMuted,
                 ),
               ),
             ],
@@ -362,7 +362,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: AppColors.of(context).textPrimary,
                   ),
                 ),
               ),
@@ -391,7 +391,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppColors.primary : Colors.grey.shade300,
+            color: selected ? AppColors.of(context).accent : Colors.grey.shade300,
             width: selected ? 2 : 1,
           ),
         ),
@@ -403,7 +403,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: selected ? AppColors.primary : Colors.grey.shade400,
+                  color: selected ? AppColors.of(context).accent : Colors.grey.shade400,
                   width: 2,
                 ),
               ),
@@ -414,7 +414,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         height: 12,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary,
+                          color: AppColors.of(context).accent,
                         ),
                       ),
                     )
@@ -432,7 +432,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.of(context).textPrimary,
                         ),
                       ),
                       if (badgeText != null) ...[
@@ -441,7 +441,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(38),
+                            color: AppColors.of(context).accent.withAlpha(38),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -449,7 +449,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             style: GoogleFonts.manrope(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                              color: AppColors.of(context).accent,
                             ),
                           ),
                         ),
@@ -461,7 +461,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     subtitle,
                     style: GoogleFonts.manrope(
                       fontSize: 13,
-                      color: AppColors.textMuted,
+                      color: AppColors.of(context).textMuted,
                     ),
                   ),
                 ],
@@ -472,7 +472,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

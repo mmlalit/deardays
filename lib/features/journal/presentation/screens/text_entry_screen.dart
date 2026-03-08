@@ -74,7 +74,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Photo attached'),
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.of(context).accent,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -178,10 +178,10 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.bgLight.withAlpha(204),
+            color: Theme.of(context).scaffoldBackgroundColor.withAlpha(204),
             border: Border(
               bottom: BorderSide(
-                color: AppColors.primary.withAlpha(26),
+                color: AppColors.of(context).accent.withAlpha(26),
               ),
             ),
           ),
@@ -198,7 +198,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                     child: IconButton(
                       onPressed: () => Navigator.of(context).maybePop(),
                       icon: const Icon(Icons.close, size: 24),
-                      color: AppColors.textPrimary,
+                      color: AppColors.of(context).textPrimary,
                       padding: EdgeInsets.zero,
                     ),
                   ),
@@ -210,7 +210,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: AppColors.of(context).textPrimary,
                         ),
                       ),
                     ),
@@ -226,7 +226,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          color: AppColors.of(context).accent,
                         ),
                       ),
                     ),
@@ -254,7 +254,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.primary.withAlpha(51),
+            color: AppColors.of(context).accent.withAlpha(51),
           ),
           boxShadow: [
             BoxShadow(
@@ -274,7 +274,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -285,7 +285,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 fontSize: 18,
                 fontStyle: FontStyle.italic,
                 fontWeight: FontWeight.w400,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
                 height: 1.4,
               ),
             ),
@@ -297,7 +297,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 height: 36,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(26),
+                  color: AppColors.of(context).accent.withAlpha(26),
                   borderRadius: BorderRadius.circular(9999),
                 ),
                 child: Row(
@@ -306,7 +306,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                     Icon(
                       Icons.refresh,
                       size: 16,
-                      color: AppColors.primary,
+                      color: AppColors.of(context).accent,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -314,7 +314,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+                        color: AppColors.of(context).accent,
                       ),
                     ),
                   ],
@@ -344,7 +344,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             style: GoogleFonts.manrope(
               fontSize: 32,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
             ),
           ),
           const SizedBox(height: 16),
@@ -369,7 +369,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.textPrimary.withAlpha(204),
+                  color: AppColors.of(context).textPrimary.withAlpha(204),
                   height: 2.0, // matches 40px line height at 20px font
                 ),
                 decoration: InputDecoration(
@@ -377,7 +377,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                   hintStyle: GoogleFonts.manrope(
                     fontSize: 20,
                     fontWeight: FontWeight.w400,
-                    color: AppColors.textMuted,
+                    color: AppColors.of(context).textMuted,
                     height: 2.0,
                   ),
                   border: InputBorder.none,
@@ -402,9 +402,9 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppColors.bgLight.withAlpha(0),
-            AppColors.bgLight,
-            AppColors.bgLight,
+            Theme.of(context).scaffoldBackgroundColor.withAlpha(0),
+            Theme.of(context).scaffoldBackgroundColor,
+            Theme.of(context).scaffoldBackgroundColor,
           ],
           stops: const [0.0, 0.3, 1.0],
         ),
@@ -448,10 +448,10 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 child: ElevatedButton(
                   onPressed: _goToReview,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: AppColors.of(context).accent,
                     foregroundColor: Colors.white,
                     elevation: 4,
-                    shadowColor: AppColors.primary.withAlpha(76),
+                    shadowColor: AppColors.of(context).accent.withAlpha(76),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -498,13 +498,13 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           shape: BoxShape.circle,
           color: Colors.white,
           border: Border.all(
-            color: AppColors.primary.withAlpha(51),
+            color: AppColors.of(context).accent.withAlpha(51),
           ),
         ),
         child: Icon(
           icon,
           size: 20,
-          color: isActive ? AppColors.primary : AppColors.textPrimary,
+          color: isActive ? AppColors.of(context).accent : AppColors.of(context).textPrimary,
         ),
       ),
     );
@@ -517,7 +517,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(9999),
         border: Border.all(
-          color: AppColors.primary.withAlpha(51),
+          color: AppColors.of(context).accent.withAlpha(51),
         ),
         boxShadow: [
           BoxShadow(
@@ -533,7 +533,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           Icon(
             Icons.auto_fix_high,
             size: 20,
-            color: AppColors.primary,
+            color: AppColors.of(context).accent,
           ),
           const SizedBox(width: 10),
           Text(
@@ -541,7 +541,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
             ),
           ),
           const SizedBox(width: 12),
@@ -559,7 +559,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 color: _polishWithAI
-                    ? AppColors.primary
+                    ? AppColors.of(context).accent
                     : const Color(0xFFCBD5E1),
               ),
               child: AnimatedAlign(

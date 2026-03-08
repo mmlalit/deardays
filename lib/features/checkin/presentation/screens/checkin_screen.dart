@@ -150,7 +150,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
                 height: 1.3,
               ),
             ),
@@ -159,7 +159,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               'Tap to share your mood',
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: AppColors.of(context).textSecondary,
               ),
             ),
             const SizedBox(height: 48),
@@ -219,9 +219,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 'Skip for now',
                 style: GoogleFonts.manrope(
                   fontSize: 13,
-                  color: AppColors.textMuted,
+                  color: AppColors.of(context).textMuted,
                   decoration: TextDecoration.underline,
-                  decorationColor: AppColors.textMuted.withAlpha(102),
+                  decorationColor: AppColors.of(context).textMuted.withAlpha(102),
                 ),
               ),
             ),
@@ -261,7 +261,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             style: GoogleFonts.manrope(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -269,7 +269,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             'Try one of these prompts to get started',
             style: GoogleFonts.manrope(
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: AppColors.of(context).textSecondary,
             ),
           ),
           const SizedBox(height: 16),
@@ -288,14 +288,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.primary.withAlpha(38),
+                      color: AppColors.of(context).accent.withAlpha(38),
                     ),
                   ),
                   child: Text(
                     prompt,
                     style: GoogleFonts.manrope(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: AppColors.of(context).textSecondary,
                     ),
                   ),
                 ),
@@ -319,7 +319,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(20),
+              color: AppColors.of(context).accent.withAlpha(20),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -328,7 +328,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 Icon(
                   Icons.access_time,
                   size: 12,
-                  color: AppColors.textMuted,
+                  color: AppColors.of(context).textMuted,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -336,7 +336,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: AppColors.of(context).textMuted,
                   ),
                 ),
                 if (section.mood != null) ...[
@@ -384,12 +384,12 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               height: 28,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(38),
+                color: AppColors.of(context).accent.withAlpha(38),
               ),
               child: Icon(
                 Icons.auto_awesome,
                 size: 14,
-                color: AppColors.primary,
+                color: AppColors.of(context).accent,
               ),
             ),
             const SizedBox(width: 8),
@@ -403,7 +403,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isUser ? AppColors.primary : Colors.white,
+                  color: isUser ? AppColors.of(context).accent : Colors.white,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
@@ -413,7 +413,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   border: isUser
                       ? null
                       : Border.all(
-                          color: AppColors.primary.withAlpha(26),
+                          color: AppColors.of(context).accent.withAlpha(26),
                         ),
                 ),
                 child: Column(
@@ -430,7 +430,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                               size: 12,
                               color: isUser
                                   ? Colors.white.withAlpha(178)
-                                  : AppColors.textMuted,
+                                  : AppColors.of(context).textMuted,
                             ),
                             const SizedBox(width: 2),
                             Text(
@@ -439,7 +439,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                                 fontSize: 10,
                                 color: isUser
                                     ? Colors.white.withAlpha(178)
-                                    : AppColors.textMuted,
+                                    : AppColors.of(context).textMuted,
                               ),
                             ),
                           ],
@@ -450,7 +450,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 15,
                         color:
-                            isUser ? Colors.white : AppColors.textPrimary,
+                            isUser ? Colors.white : AppColors.of(context).textPrimary,
                         height: 1.4,
                       ),
                     ),
@@ -468,7 +468,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                             fontSize: 10,
                             color: isUser
                                 ? Colors.white.withAlpha(153)
-                                : AppColors.textMuted,
+                                : AppColors.of(context).textMuted,
                           ),
                         ),
                       ],
@@ -499,7 +499,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          top: BorderSide(color: AppColors.primary.withAlpha(26)),
+          top: BorderSide(color: AppColors.of(context).accent.withAlpha(26)),
         ),
       ),
       child: Column(
@@ -510,13 +510,13 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Icon(Icons.edit, size: 14, color: AppColors.primary),
+                  Icon(Icons.edit, size: 14, color: AppColors.of(context).accent),
                   const SizedBox(width: 6),
                   Text(
                     'Editing message',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: AppColors.of(context).textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -524,7 +524,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   GestureDetector(
                     onTap: _cancelEditing,
                     child: Icon(Icons.close,
-                        size: 16, color: AppColors.textMuted),
+                        size: 16, color: AppColors.of(context).textMuted),
                   ),
                 ],
               ),
@@ -538,12 +538,12 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.primary.withAlpha(26),
+                    color: AppColors.of(context).accent.withAlpha(26),
                   ),
                   child: Icon(
                     Icons.mic,
                     size: 18,
-                    color: AppColors.primary,
+                    color: AppColors.of(context).accent,
                   ),
                 ),
               ),
@@ -553,7 +553,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   controller: _textController,
                   style: GoogleFonts.manrope(
                     fontSize: 15,
-                    color: AppColors.textPrimary,
+                    color: AppColors.of(context).textPrimary,
                   ),
                   decoration: InputDecoration(
                     hintText: isEditing
@@ -561,7 +561,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         : 'Type a message...',
                     hintStyle: GoogleFonts.manrope(
                       fontSize: 15,
-                      color: AppColors.textMuted,
+                      color: AppColors.of(context).textMuted,
                     ),
                     border: InputBorder.none,
                     isDense: true,
@@ -583,8 +583,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: state.isLoading
-                        ? AppColors.primary.withAlpha(76)
-                        : AppColors.primary,
+                        ? AppColors.of(context).accent.withAlpha(76)
+                        : AppColors.of(context).accent,
                   ),
                   child: state.isLoading
                       ? const Padding(
@@ -667,7 +667,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(height: 24),
@@ -699,7 +699,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
+                          color: AppColors.of(context).textSecondary,
                         ),
                       ),
                     ],
@@ -747,7 +747,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       case 'tough':
         return AppColors.moodTough;
       default:
-        return AppColors.textSecondary;
+        return AppColors.of(context).textSecondary;
     }
   }
 }

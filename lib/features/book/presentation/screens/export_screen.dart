@@ -216,7 +216,7 @@ class _ExportScreenState extends State<ExportScreen> {
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.4,
-                          color: AppColors.textMuted,
+                          color: AppColors.of(context).textMuted,
                         ),
                       ),
                     ),
@@ -239,12 +239,12 @@ class _ExportScreenState extends State<ExportScreen> {
                                   horizontal: 16, vertical: 9),
                               decoration: BoxDecoration(
                                 color: selected
-                                    ? AppColors.primary
+                                    ? AppColors.of(context).accent
                                     : Colors.white,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: selected
-                                      ? AppColors.primary
+                                      ? AppColors.of(context).accent
                                       : Colors.grey.shade300,
                                 ),
                               ),
@@ -254,7 +254,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color:
-                                      selected ? Colors.white : AppColors.textPrimary,
+                                      selected ? Colors.white : AppColors.of(context).textPrimary,
                                 ),
                               ),
                             ),
@@ -286,7 +286,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                   shape: BoxShape.circle,
                                   border: selected
                                       ? Border.all(
-                                          color: AppColors.textPrimary, width: 2.5)
+                                          color: AppColors.of(context).textPrimary, width: 2.5)
                                       : null,
                                   boxShadow: selected
                                       ? [
@@ -308,7 +308,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                   fontWeight: selected
                                       ? FontWeight.w700
                                       : FontWeight.w500,
-                                  color: AppColors.textSecondary,
+                                  color: AppColors.of(context).textSecondary,
                                 ),
                               ),
                             ],
@@ -336,14 +336,14 @@ class _ExportScreenState extends State<ExportScreen> {
                       child: Column(
                         children: [
                           Icon(Icons.insert_drive_file_outlined,
-                              size: 32, color: AppColors.primary),
+                              size: 32, color: AppColors.of(context).accent),
                           const SizedBox(height: 10),
                           Text(
                             'Digital Edition',
                             style: GoogleFonts.manrope(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: AppColors.of(context).textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -351,7 +351,7 @@ class _ExportScreenState extends State<ExportScreen> {
                             'Perfect for sharing and tablets',
                             style: GoogleFonts.manrope(
                               fontSize: 13,
-                              color: AppColors.textMuted,
+                              color: AppColors.of(context).textMuted,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -361,10 +361,10 @@ class _ExportScreenState extends State<ExportScreen> {
                             child: ElevatedButton(
                               onPressed: _isExporting ? null : _exportPdf,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
+                                backgroundColor: AppColors.of(context).accent,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
-                                disabledBackgroundColor: AppColors.primary.withAlpha(128),
+                                disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -542,7 +542,7 @@ class _ExportScreenState extends State<ExportScreen> {
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,
-        color: AppColors.textMuted,
+        color: AppColors.of(context).textMuted,
       ),
     );
   }
@@ -575,7 +575,7 @@ class _ExportScreenState extends State<ExportScreen> {
             style: GoogleFonts.manrope(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -584,7 +584,7 @@ class _ExportScreenState extends State<ExportScreen> {
             style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+              color: AppColors.of(context).textMuted,
             ),
           ),
         ],

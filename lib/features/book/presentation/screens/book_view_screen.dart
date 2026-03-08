@@ -56,7 +56,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.primary,
+                color: AppColors.of(context).accent,
                 width: 1.5,
               ),
             ),
@@ -68,14 +68,14 @@ class _BookViewScreenState extends State<BookViewScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    color: AppColors.of(context).accent,
                   ),
                 ),
                 const SizedBox(width: 4),
                 Icon(
                   Icons.keyboard_arrow_down_rounded,
                   size: 18,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ],
             ),
@@ -99,8 +99,8 @@ class _BookViewScreenState extends State<BookViewScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primary.withAlpha(153),
-                  AppColors.primary,
+                  AppColors.of(context).accent.withAlpha(153),
+                  AppColors.of(context).accent,
                 ],
               ),
             ),
@@ -148,7 +148,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
-              color: AppColors.textPrimary,
+              color: AppColors.of(context).textPrimary,
             ),
           ),
         ),
@@ -181,10 +181,10 @@ class _BookViewScreenState extends State<BookViewScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primary.withAlpha(13) : Colors.transparent,
+        color: isActive ? AppColors.of(context).accent.withAlpha(13) : Colors.transparent,
         border: Border(
           left: BorderSide(
-            color: isActive ? AppColors.primary : Colors.transparent,
+            color: isActive ? AppColors.of(context).accent : Colors.transparent,
             width: 3,
           ),
         ),
@@ -263,7 +263,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
+            color: AppColors.of(context).textPrimary,
           ),
         ),
         const SizedBox(width: 12),
@@ -313,7 +313,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           style: GoogleFonts.manrope(
             fontSize: 64,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: AppColors.of(context).textPrimary,
             height: 0.85,
           ),
         ),
@@ -347,8 +347,8 @@ class _BookViewScreenState extends State<BookViewScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withAlpha(38),
-            AppColors.primary.withAlpha(20),
+            AppColors.of(context).accent.withAlpha(38),
+            AppColors.of(context).accent.withAlpha(20),
           ],
         ),
       ),
@@ -358,7 +358,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           Icon(
             Icons.photo_outlined,
             size: 36,
-            color: AppColors.primary.withAlpha(102),
+            color: AppColors.of(context).accent.withAlpha(102),
           ),
           const SizedBox(height: 8),
           Text(
@@ -366,7 +366,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.primary.withAlpha(102),
+              color: AppColors.of(context).accent.withAlpha(102),
             ),
           ),
         ],
@@ -421,7 +421,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.of(context).accent,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(

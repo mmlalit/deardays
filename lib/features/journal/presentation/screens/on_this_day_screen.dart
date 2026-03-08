@@ -143,9 +143,10 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
       return _buildEmptyState();
     }
 
+    final colors = AppColors.of(context);
     return RefreshIndicator(
       onRefresh: _loadEntries,
-      color: AppColors.primary,
+      color: colors.accent,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 100),
@@ -192,31 +193,33 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   }
 
   Widget _buildShimmerDivider() {
+    final colors = AppColors.of(context);
     return Row(
       children: [
-        Expanded(child: Container(height: 1, color: AppColors.primary.withAlpha(26))),
+        Expanded(child: Container(height: 1, color: colors.accent.withAlpha(26))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Container(
             width: 140,
             height: 14,
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(26),
+              color: colors.accent.withAlpha(26),
               borderRadius: BorderRadius.circular(7),
             ),
           ),
         ),
-        Expanded(child: Container(height: 1, color: AppColors.primary.withAlpha(26))),
+        Expanded(child: Container(height: 1, color: colors.accent.withAlpha(26))),
       ],
     );
   }
 
   Widget _buildShimmerCard() {
+    final colors = AppColors.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withAlpha(26)),
+        border: Border.all(color: colors.accent.withAlpha(26)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -237,7 +240,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   width: 160,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(26),
+                    color: colors.accent.withAlpha(26),
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
@@ -249,7 +252,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     height: 14,
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.border.withAlpha(128),
+                      color: colors.border.withAlpha(128),
                       borderRadius: BorderRadius.circular(7),
                     ),
                   ),
@@ -261,7 +264,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   height: 44,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primary.withAlpha(38)),
+                    border: Border.all(color: colors.accent.withAlpha(38)),
                   ),
                 ),
               ],
@@ -277,20 +280,21 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildErrorState() {
+    final colors = AppColors.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off, size: 48, color: AppColors.textMuted),
+            Icon(Icons.cloud_off, size: 48, color: colors.textMuted),
             const SizedBox(height: 16),
             Text(
               'Couldn\u2019t load memories',
               style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -298,7 +302,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               'Check your connection and try again.',
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: colors.textSecondary,
               ),
             ),
             const SizedBox(height: 24),
@@ -310,8 +314,8 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
+                foregroundColor: colors.accent,
+                side: BorderSide(color: colors.accent),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -328,9 +332,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildEmptyState() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final colors = AppColors.of(context);
 
     return Center(
       child: Padding(
@@ -341,7 +343,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             Icon(
               Icons.auto_awesome,
               size: 56,
-              color: AppColors.primary.withAlpha(153),
+              color: colors.accent.withAlpha(153),
             ),
             const SizedBox(height: 20),
             Text(
@@ -349,7 +351,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: textColor,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -360,7 +362,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 fontSize: 15,
                 fontStyle: FontStyle.italic,
                 height: 1.5,
-                color: subtextColor,
+                color: colors.textSecondary,
               ),
             ),
           ],
@@ -374,15 +376,14 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = AppColors.of(context);
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(
-          bottom: BorderSide(color: AppColors.primary.withAlpha(26)),
+          bottom: BorderSide(color: colors.accent.withAlpha(26)),
         ),
       ),
       child: SafeArea(
@@ -399,7 +400,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     child: IconButton(
                       onPressed: () => Navigator.of(context).maybePop(),
                       icon: const Icon(Icons.arrow_back, size: 24),
-                      color: textColor,
+                      color: colors.textPrimary,
                       padding: EdgeInsets.zero,
                     ),
                   ),
@@ -411,7 +412,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
-                          color: textColor,
+                          color: colors.textPrimary,
                         ),
                       ),
                     ),
@@ -424,7 +425,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                         // TODO: date picker for browsing other dates
                       },
                       icon: const Icon(Icons.calendar_month, size: 24),
-                      color: textColor,
+                      color: colors.textPrimary,
                       padding: EdgeInsets.zero,
                     ),
                   ),
@@ -437,7 +438,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   fontSize: 14,
                   fontStyle: FontStyle.italic,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
+                  color: colors.accent,
                 ),
               ),
             ],
@@ -452,6 +453,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildSectionDivider(String text) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -459,7 +461,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
           Expanded(
             child: Container(
               height: 1,
-              color: AppColors.primary.withAlpha(51),
+              color: colors.accent.withAlpha(51),
             ),
           ),
           Padding(
@@ -470,14 +472,14 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 2.0,
-                color: AppColors.primary.withAlpha(204),
+                color: colors.accent.withAlpha(204),
               ),
             ),
           ),
           Expanded(
             child: Container(
               height: 1,
-              color: AppColors.primary.withAlpha(51),
+              color: colors.accent.withAlpha(51),
             ),
           ),
         ],
@@ -490,9 +492,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildMemoryCard(BuildContext context, JournalEntry entry) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppColors.cardDark : Colors.white;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final colors = AppColors.of(context);
 
     final year = entry.entryDate.year.toString();
     final location = entry.locationName?.toUpperCase();
@@ -506,9 +506,9 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: cardColor,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withAlpha(26)),
+        border: Border.all(color: colors.accent.withAlpha(26)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(13),
@@ -544,7 +544,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    color: colors.accent,
                     borderRadius: BorderRadius.circular(9999),
                     boxShadow: [
                       BoxShadow(
@@ -577,7 +577,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 Row(
                   children: [
                     if (location != null) ...[
-                      Icon(Icons.location_on, size: 16, color: AppColors.primary),
+                      Icon(Icons.location_on, size: 16, color: colors.accent),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -586,7 +586,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.0,
-                            color: AppColors.primary,
+                            color: colors.accent,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -600,20 +600,20 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(26),
+                          color: colors.accent.withAlpha(26),
                           borderRadius: BorderRadius.circular(9999),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(moodInfo.icon, size: 14, color: AppColors.primary),
+                            Icon(moodInfo.icon, size: 14, color: colors.accent),
                             const SizedBox(width: 5),
                             Text(
                               moodInfo.label,
                               style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
-                                color: AppColors.primary,
+                                color: colors.accent,
                               ),
                             ),
                           ],
@@ -630,7 +630,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     fontSize: 17,
                     fontStyle: FontStyle.italic,
                     height: 1.6,
-                    color: textColor.withAlpha(230),
+                    color: colors.textPrimary.withAlpha(230),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -642,7 +642,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   child: OutlinedButton(
                     onPressed: () => _showFullEntry(context, entry),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: AppColors.primary.withAlpha(76)),
+                      side: BorderSide(color: colors.accent.withAlpha(76)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -652,7 +652,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                        color: colors.accent,
                       ),
                     ),
                   ),
@@ -666,13 +666,14 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   }
 
   Widget _photoPlaceholder() {
+    final colors = AppColors.of(context);
     return Container(
       color: const Color(0xFFE8E1D9),
       child: Center(
         child: Icon(
           Icons.image_outlined,
           size: 48,
-          color: AppColors.textMuted.withAlpha(128),
+          color: colors.textMuted.withAlpha(128),
         ),
       ),
     );
@@ -686,168 +687,172 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
     final year = entry.entryDate.year.toString();
     final location = entry.locationName?.toUpperCase();
     final moodInfo = _moodDisplay(entry.mood);
+    final colors = AppColors.of(context);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: colors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.95,
-        minChildSize: 0.4,
-        expand: false,
-        builder: (_, controller) => Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-          child: ListView(
-            controller: controller,
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.textMuted.withAlpha(76),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Year + location + mood row
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
+      builder: (ctx) {
+        final sheetColors = AppColors.of(ctx);
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.95,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (_, controller) => Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            child: ListView(
+              controller: controller,
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(9999),
-                    ),
-                    child: Text(
-                      year,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                      color: sheetColors.textMuted.withAlpha(76),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  if (location != null) ...[
-                    const SizedBox(width: 12),
-                    Icon(Icons.location_on, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        location,
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.8,
-                          color: AppColors.primary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ] else
-                    const Spacer(),
-                  if (entry.mood != null) ...[
-                    Icon(moodInfo.icon, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      moodInfo.label,
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Full entry text
-              Text(
-                '\u201C${entry.content}\u201D',
-                style: GoogleFonts.manrope(
-                  fontSize: 18,
-                  fontStyle: FontStyle.italic,
-                  height: 1.7,
-                  color: AppColors.textPrimary,
                 ),
-              ),
+                const SizedBox(height: 24),
 
-              // Show raw/original text if entry was AI polished
-              if (entry.isAiPolished && entry.rawContent != null) ...[
-                const SizedBox(height: 32),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgLight,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primary.withAlpha(26)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'MY ORIGINAL WORDS',
+                // Year + location + mood row
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: sheetColors.accent,
+                        borderRadius: BorderRadius.circular(9999),
+                      ),
+                      child: Text(
+                        year,
                         style: GoogleFonts.manrope(
-                          fontSize: 10,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 1.5,
-                          color: AppColors.primary,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                    ),
+                    if (location != null) ...[
+                      const SizedBox(width: 12),
+                      Icon(Icons.location_on, size: 14, color: sheetColors.accent),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          location,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
+                            color: sheetColors.accent,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ] else
+                      const Spacer(),
+                    if (entry.mood != null) ...[
+                      Icon(moodInfo.icon, size: 14, color: sheetColors.accent),
+                      const SizedBox(width: 4),
                       Text(
-                        entry.rawContent!,
+                        moodInfo.label,
                         style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          height: 1.6,
-                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: sheetColors.accent,
                         ),
                       ),
                     ],
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Full entry text
+                Text(
+                  '\u201C${entry.content}\u201D',
+                  style: GoogleFonts.manrope(
+                    fontSize: 18,
+                    fontStyle: FontStyle.italic,
+                    height: 1.7,
+                    color: sheetColors.textPrimary,
                   ),
                 ),
-              ],
 
-              // Entry metadata
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 14, color: AppColors.textMuted),
-                  const SizedBox(width: 6),
-                  Text(
-                    _formatEntryDate(entry),
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
+                // Show raw/original text if entry was AI polished
+                if (entry.isAiPolished && entry.rawContent != null) ...[
+                  const SizedBox(height: 32),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: sheetColors.accent.withAlpha(26)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'MY ORIGINAL WORDS',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                            color: sheetColors.accent,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          entry.rawContent!,
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            height: 1.6,
+                            color: sheetColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
-                  if (entry.wordCount > 0)
+                ],
+
+                // Entry metadata
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 14, color: sheetColors.textMuted),
+                    const SizedBox(width: 6),
                     Text(
-                      '${entry.wordCount} words',
+                      _formatEntryDate(entry),
                       style: GoogleFonts.manrope(
                         fontSize: 12,
-                        color: AppColors.textMuted,
+                        color: sheetColors.textMuted,
                       ),
                     ),
-                ],
-              ),
-            ],
+                    const Spacer(),
+                    if (entry.wordCount > 0)
+                      Text(
+                        '${entry.wordCount} words',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          color: sheetColors.textMuted,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -868,13 +873,14 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildBottomPrompt() {
+    final colors = AppColors.of(context);
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
         decoration: BoxDecoration(
-          color: AppColors.primary.withAlpha(13),
+          color: colors.accent.withAlpha(13),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.primary.withAlpha(102)),
+          border: Border.all(color: colors.accent.withAlpha(102)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -882,7 +888,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             Icon(
               Icons.auto_awesome,
               size: 36,
-              color: AppColors.primary,
+              color: colors.accent,
             ),
             const SizedBox(height: 10),
             Text(
@@ -892,7 +898,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
                 height: 1.5,
-                color: AppColors.textPrimary.withAlpha(153),
+                color: colors.textPrimary.withAlpha(153),
               ),
             ),
           ],

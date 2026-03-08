@@ -19,19 +19,19 @@ class LifeBookView extends ConsumerWidget {
     }
 
     if (state.chapters.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(context);
     }
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCoverSection(state),
+          _buildCoverSection(context, state),
           const SizedBox(height: 32),
-          _buildContentsSection(ref, state),
+          _buildContentsSection(context, ref, state),
           const SizedBox(height: 28),
           if (state.activeEntry != null)
-            _buildEntryDetail(ref, state),
+            _buildEntryDetail(context, ref, state),
           const SizedBox(height: 32),
           _buildDownloadButton(context),
           const SizedBox(height: 40),
@@ -40,7 +40,8 @@ class LifeBookView extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final colors = AppColors.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -50,7 +51,7 @@ class LifeBookView extends ConsumerWidget {
             Icon(
               Icons.auto_stories_outlined,
               size: 56,
-              color: AppColors.primary.withAlpha(76),
+              color: colors.accent.withAlpha(76),
             ),
             const SizedBox(height: 16),
             Text(
@@ -58,7 +59,7 @@ class LifeBookView extends ConsumerWidget {
               style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -67,7 +68,7 @@ class LifeBookView extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: colors.textSecondary,
                 height: 1.5,
               ),
             ),
@@ -77,7 +78,8 @@ class LifeBookView extends ConsumerWidget {
     );
   }
 
-  Widget _buildCoverSection(LifeBookState state) {
+  Widget _buildCoverSection(BuildContext context, LifeBookState state) {
+    final colors = AppColors.of(context);
     final totalEntries =
         state.chapters.fold<int>(0, (sum, ch) => sum + ch.entryCount);
     final dateRange = _buildDateRange(state.chapters);
@@ -110,8 +112,8 @@ class LifeBookView extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.primary.withAlpha(153),
-                    AppColors.primary,
+                    colors.accent.withAlpha(153),
+                    colors.accent,
                   ],
                 ),
               ),
@@ -147,14 +149,14 @@ class LifeBookView extends ConsumerWidget {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.primary.withAlpha(102)),
+                border: Border.all(color: colors.accent.withAlpha(102)),
               ),
               child: Text(
                 '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'}',
                 style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+                  color: colors.accent,
                 ),
               ),
             ),
@@ -164,7 +166,8 @@ class LifeBookView extends ConsumerWidget {
     );
   }
 
-  Widget _buildContentsSection(WidgetRef ref, LifeBookState state) {
+  Widget _buildContentsSection(BuildContext context, WidgetRef ref, LifeBookState state) {
+    final colors = AppColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -176,7 +179,7 @@ class LifeBookView extends ConsumerWidget {
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
-              color: AppColors.primary,
+              color: colors.accent,
             ),
           ),
         ),
@@ -186,6 +189,7 @@ class LifeBookView extends ConsumerWidget {
           final chapter = e.value;
           final isActive = state.activeChapterIndex == index;
           return _buildChapterItem(
+            context: context,
             ref: ref,
             title: chapter.title,
             subtitle:
@@ -200,12 +204,14 @@ class LifeBookView extends ConsumerWidget {
   }
 
   Widget _buildChapterItem({
+    required BuildContext context,
     required WidgetRef ref,
     required String title,
     required String subtitle,
     required bool isActive,
     required VoidCallback onTap,
   }) {
+    final colors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -213,10 +219,10 @@ class LifeBookView extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
           color:
-              isActive ? AppColors.primary.withAlpha(13) : Colors.transparent,
+              isActive ? colors.accent.withAlpha(13) : Colors.transparent,
           border: Border(
             left: BorderSide(
-              color: isActive ? AppColors.primary : Colors.transparent,
+              color: isActive ? colors.accent : Colors.transparent,
               width: 3,
             ),
           ),
@@ -254,7 +260,7 @@ class LifeBookView extends ConsumerWidget {
                   : Icons.keyboard_arrow_right,
               size: 20,
               color: isActive
-                  ? AppColors.primary
+                  ? colors.accent
                   : AppColors.readingText.withAlpha(76),
             ),
           ],
@@ -263,7 +269,8 @@ class LifeBookView extends ConsumerWidget {
     );
   }
 
-  Widget _buildEntryDetail(WidgetRef ref, LifeBookState state) {
+  Widget _buildEntryDetail(BuildContext context, WidgetRef ref, LifeBookState state) {
+    final colors = AppColors.of(context);
     final entry = state.activeEntry!;
     final chapterIdx = state.activeChapterIndex!;
     final chapter = state.chapters[chapterIdx];
@@ -298,8 +305,8 @@ class LifeBookView extends ConsumerWidget {
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.primary.withAlpha(13),
+                            ? colors.accent
+                            : colors.accent.withAlpha(13),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: Text(
@@ -309,7 +316,7 @@ class LifeBookView extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                           color: isSelected
                               ? Colors.white
-                              : AppColors.primary,
+                              : colors.accent,
                         ),
                       ),
                     ),
@@ -368,7 +375,7 @@ class LifeBookView extends ConsumerWidget {
                   child: Icon(
                     Icons.refresh,
                     size: 18,
-                    color: AppColors.textMuted,
+                    color: colors.textMuted,
                   ),
                 ),
             ],
@@ -378,7 +385,7 @@ class LifeBookView extends ConsumerWidget {
 
           // Entry body
           if (entry.isPolishing)
-            _buildPolishingIndicator()
+            _buildPolishingIndicator(context)
           else
             _buildEntryBody(entry.displayText),
         ],
@@ -386,7 +393,8 @@ class LifeBookView extends ConsumerWidget {
     );
   }
 
-  Widget _buildPolishingIndicator() {
+  Widget _buildPolishingIndicator(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Center(
@@ -397,7 +405,7 @@ class LifeBookView extends ConsumerWidget {
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
               ),
             ),
             const SizedBox(height: 12),
@@ -406,7 +414,7 @@ class LifeBookView extends ConsumerWidget {
               style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
-                color: AppColors.textSecondary,
+                color: colors.textSecondary,
               ),
             ),
           ],
@@ -424,29 +432,33 @@ class LifeBookView extends ConsumerWidget {
 
     if (paragraphs.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // First paragraph with drop cap
-        _buildDropCapParagraph(paragraphs.first),
-        // Remaining paragraphs
-        ...paragraphs.skip(1).map((p) => Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Text(
-                p,
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.readingText,
-                  height: 1.8,
+    return Builder(builder: (context) {
+      final colors = AppColors.of(context);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // First paragraph with drop cap
+          _buildDropCapParagraph(context, paragraphs.first),
+          // Remaining paragraphs
+          ...paragraphs.skip(1).map((p) => Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  p,
+                  style: GoogleFonts.manrope(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.readingText,
+                    height: 1.8,
+                  ),
                 ),
-              ),
-            )),
-      ],
-    );
+              )),
+        ],
+      );
+    });
   }
 
-  Widget _buildDropCapParagraph(String text) {
+  Widget _buildDropCapParagraph(BuildContext context, String text) {
+    final colors = AppColors.of(context);
     if (text.length < 2) {
       return Text(
         text,
@@ -469,7 +481,7 @@ class LifeBookView extends ConsumerWidget {
           style: GoogleFonts.manrope(
             fontSize: 64,
             fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+            color: colors.accent,
             height: 0.85,
           ),
         ),
@@ -490,6 +502,7 @@ class LifeBookView extends ConsumerWidget {
   }
 
   Widget _buildDownloadButton(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: SizedBox(
@@ -506,7 +519,7 @@ class LifeBookView extends ConsumerWidget {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: colors.accent,
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
@@ -562,7 +575,7 @@ class LifeBookView extends ConsumerWidget {
       case 'tough':
         return AppColors.moodTough;
       default:
-        return AppColors.textSecondary;
+        return AppColors.moodOkay;
     }
   }
 }

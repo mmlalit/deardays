@@ -71,7 +71,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      color: AppColors.of(context).textSecondary,
                     ),
                   ),
                 ),
@@ -106,8 +106,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     height: 8,
                     decoration: BoxDecoration(
                       color: isActive
-                          ? AppColors.primary
-                          : AppColors.primary.withAlpha(51),
+                          ? AppColors.of(context).accent
+                          : AppColors.of(context).accent.withAlpha(51),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
@@ -124,7 +124,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: ElevatedButton(
                   onPressed: _onNext,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: AppColors.of(context).accent,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -223,13 +223,13 @@ class _OnboardingPageState extends State<_OnboardingPage>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppColors.primary.withAlpha(51),
-                      AppColors.primary.withAlpha(26),
+                      AppColors.of(context).accent.withAlpha(51),
+                      AppColors.of(context).accent.withAlpha(26),
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withAlpha(38),
+                      color: AppColors.of(context).accent.withAlpha(38),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -238,7 +238,7 @@ class _OnboardingPageState extends State<_OnboardingPage>
                 child: Icon(
                   widget.data.icon,
                   size: 52,
-                  color: AppColors.primary,
+                  color: AppColors.of(context).accent,
                 ),
               ),
               const SizedBox(height: 48),
@@ -250,7 +250,7 @@ class _OnboardingPageState extends State<_OnboardingPage>
                 style: GoogleFonts.manrope(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: AppColors.of(context).textPrimary,
                   height: 1.3,
                 ),
               ),
@@ -263,7 +263,7 @@ class _OnboardingPageState extends State<_OnboardingPage>
                 style: GoogleFonts.manrope(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
+                  color: AppColors.of(context).textSecondary,
                   height: 1.5,
                 ),
               ),

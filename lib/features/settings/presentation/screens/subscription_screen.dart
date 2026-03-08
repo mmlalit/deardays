@@ -54,11 +54,11 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     return 'Expired';
   }
 
-  Color get _statusColor {
+  Color _statusColor(BuildContext context) {
     final sub = ref.read(subscriptionProvider);
     if (sub.isPremium) return Colors.green.shade600;
     if (_profile == null) return Colors.grey;
-    if (_profile!.isInTrial) return AppColors.primary;
+    if (_profile!.isInTrial) return AppColors.of(context).accent;
     return Colors.red.shade600;
   }
 
@@ -141,7 +141,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         content: Text(
           'To cancel, manage your subscription in your device\'s app store settings. '
           'You will keep access until the end of your current billing period.',
-          style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.of(context).textSecondary),
         ),
         actions: [
           TextButton(
@@ -157,7 +157,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.of(context).accent,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -226,9 +226,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       child: ElevatedButton(
                         onPressed: sub.isLoading ? null : _handleSubscribe,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: AppColors.of(context).accent,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: AppColors.primary.withAlpha(128),
+                          disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -262,7 +262,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                           style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.primary,
+                            color: AppColors.of(context).accent,
                           ),
                         ),
                       ),
@@ -336,10 +336,10 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(26),
+                  color: AppColors.of(context).accent.withAlpha(26),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.workspace_premium, size: 22, color: AppColors.primary),
+                child: Icon(Icons.workspace_premium, size: 22, color: AppColors.of(context).accent),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -359,7 +359,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: AppColors.of(context).textPrimary,
                       ),
                     ),
                   ],
@@ -368,7 +368,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _statusColor.withAlpha(26),
+                  color: _statusColor(context).withAlpha(26),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -376,7 +376,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: _statusColor,
+                    color: _statusColor(context),
                   ),
                 ),
               ),
@@ -401,7 +401,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: AppColors.of(context).textPrimary,
                 ),
               ),
             ],
@@ -427,7 +427,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppColors.primary : Colors.grey.shade300,
+            color: selected ? AppColors.of(context).accent : Colors.grey.shade300,
             width: selected ? 2 : 1,
           ),
         ),
@@ -439,7 +439,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: selected ? AppColors.primary : Colors.grey.shade400,
+                  color: selected ? AppColors.of(context).accent : Colors.grey.shade400,
                   width: 2,
                 ),
               ),
@@ -448,9 +448,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       child: Container(
                         width: 12,
                         height: 12,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary,
+                          color: AppColors.of(context).accent,
                         ),
                       ),
                     )
@@ -468,7 +468,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.of(context).textPrimary,
                         ),
                       ),
                       if (badge != null) ...[
@@ -476,7 +476,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(26),
+                            color: AppColors.of(context).accent.withAlpha(26),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -484,7 +484,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                             style: GoogleFonts.manrope(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
+                              color: AppColors.of(context).accent,
                             ),
                           ),
                         ),
@@ -536,10 +536,10 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(20),
+                      color: AppColors.of(context).accent.withAlpha(20),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(f['icon'] as IconData, size: 18, color: AppColors.primary),
+                    child: Icon(f['icon'] as IconData, size: 18, color: AppColors.of(context).accent),
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -547,7 +547,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
+                      color: AppColors.of(context).textPrimary,
                     ),
                   ),
                 ],

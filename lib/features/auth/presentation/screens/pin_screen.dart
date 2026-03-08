@@ -162,13 +162,13 @@ class _PinScreenState extends State<PinScreen> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(26),
+                color: AppColors.of(context).accent.withAlpha(26),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.lock_outline,
                 size: 28,
-                color: AppColors.primary,
+                color: AppColors.of(context).accent,
               ),
             ),
             const SizedBox(height: 24),
@@ -179,7 +179,7 @@ class _PinScreenState extends State<PinScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: AppColors.of(context).textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -187,7 +187,7 @@ class _PinScreenState extends State<PinScreen> {
               _subtitle,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: _hasError ? Colors.red.shade600 : AppColors.textSecondary,
+                color: _hasError ? Colors.red.shade600 : AppColors.of(context).textSecondary,
               ),
             ),
             const SizedBox(height: 36),
@@ -207,14 +207,14 @@ class _PinScreenState extends State<PinScreen> {
                     color: _hasError
                         ? Colors.red.shade400
                         : filled
-                            ? AppColors.primary
+                            ? AppColors.of(context).accent
                             : Colors.transparent,
                     border: Border.all(
                       color: _hasError
                           ? Colors.red.shade400
                           : filled
-                              ? AppColors.primary
-                              : AppColors.border,
+                              ? AppColors.of(context).accent
+                              : AppColors.of(context).border,
                       width: 2,
                     ),
                   ),
@@ -268,7 +268,7 @@ class _PinScreenState extends State<PinScreen> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: AppColors.of(context).border),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -276,7 +276,7 @@ class _PinScreenState extends State<PinScreen> {
           style: GoogleFonts.manrope(
             fontSize: 28,
             fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
+            color: AppColors.of(context).textPrimary,
           ),
         ),
       ),

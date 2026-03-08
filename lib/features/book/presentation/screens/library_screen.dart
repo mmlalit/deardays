@@ -37,9 +37,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final booksAsync = ref.watch(booksProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppColors.textPrimary;
-    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final colors = AppColors.of(context);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -47,17 +45,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(context, textColor),
+            _buildHeader(context),
             Expanded(
               child: booksAsync.when(
                 data: (books) => books.isEmpty
-                    ? _buildEmptyState(context, textColor, subtextColor)
+                    ? _buildEmptyState(context)
                     : _isGridView
-                        ? _buildBookGrid(context, books, textColor, subtextColor)
-                        : _buildBookList(context, books, textColor, subtextColor),
+                        ? _buildBookGrid(context, books)
+                        : _buildBookList(context, books),
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (_, __) => _buildEmptyState(context, textColor, subtextColor),
+                error: (_, __) => _buildEmptyState(context),
               ),
             ),
           ],
@@ -66,7 +64,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, Color textColor) {
+  Widget _buildHeader(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Row(
@@ -76,14 +75,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             style: GoogleFonts.manrope(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: textColor,
+              color: colors.textPrimary,
             ),
           ),
           const Spacer(),
           // View toggle
           Container(
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(15),
+              color: colors.accent.withAlpha(15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -93,13 +92,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _isGridView ? AppColors.primary.withAlpha(30) : Colors.transparent,
+                      color: _isGridView ? colors.accent.withAlpha(30) : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Icons.grid_view_rounded,
                       size: 18,
-                      color: _isGridView ? AppColors.primary : AppColors.textMuted,
+                      color: _isGridView ? colors.accent : colors.textMuted,
                     ),
                   ),
                 ),
@@ -108,13 +107,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: !_isGridView ? AppColors.primary.withAlpha(30) : Colors.transparent,
+                      color: !_isGridView ? colors.accent.withAlpha(30) : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Icons.view_list_rounded,
                       size: 18,
-                      color: !_isGridView ? AppColors.primary : AppColors.textMuted,
+                      color: !_isGridView ? colors.accent : colors.textMuted,
                     ),
                   ),
                 ),
@@ -126,7 +125,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildBookGrid(BuildContext context, List<Book> books, Color textColor, Color subtextColor) {
+  Widget _buildBookGrid(BuildContext context, List<Book> books) {
     return GridView.builder(
       padding: const EdgeInsets.all(20),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -136,31 +135,31 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         mainAxisSpacing: 16,
       ),
       itemCount: books.length,
-      itemBuilder: (context, index) => _buildBookCard(context, books[index], textColor, subtextColor),
+      itemBuilder: (context, index) => _buildBookCard(context, books[index]),
     );
   }
 
-  Widget _buildBookList(BuildContext context, List<Book> books, Color textColor, Color subtextColor) {
+  Widget _buildBookList(BuildContext context, List<Book> books) {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: books.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _buildBookListTile(context, books[index], textColor, subtextColor),
+      itemBuilder: (context, index) => _buildBookListTile(context, books[index]),
     );
   }
 
-  Widget _buildBookListTile(BuildContext context, Book book, Color textColor, Color subtextColor) {
+  Widget _buildBookListTile(BuildContext context, Book book) {
     final color = _parseColor(book.coverColor);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = AppColors.of(context);
 
     return GestureDetector(
       onTap: () => context.push('/book/${book.id}'),
       child: Container(
         height: 80,
         decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
+          color: colors.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.primary.withAlpha(13)),
+          border: Border.all(color: colors.accent.withAlpha(13)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(8),
@@ -202,7 +201,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: textColor,
+                        color: colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -210,14 +209,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       _formatDateRange(book),
                       style: GoogleFonts.manrope(
                         fontSize: 12,
-                        color: subtextColor,
+                        color: colors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+            Icon(Icons.chevron_right, color: colors.textMuted, size: 20),
             const SizedBox(width: 12),
           ],
         ),
@@ -225,9 +224,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildBookCard(BuildContext context, Book book, Color textColor, Color subtextColor) {
+  Widget _buildBookCard(BuildContext context, Book book) {
     final color = _parseColor(book.coverColor);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = AppColors.of(context);
 
     return GestureDetector(
       onTap: () => context.push('/book/${book.id}'),
@@ -309,7 +308,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  color: isDark ? AppColors.cardDark : Colors.white,
+                  color: colors.card,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -321,7 +320,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: textColor,
+                          color: colors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -329,7 +328,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         _formatDateRange(book),
                         style: GoogleFonts.manrope(
                           fontSize: 11,
-                          color: subtextColor,
+                          color: colors.textSecondary,
                         ),
                       ),
                     ],
@@ -343,7 +342,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, Color textColor, Color subtextColor) {
+  Widget _buildEmptyState(BuildContext context) {
+    final colors = AppColors.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -355,14 +355,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               height: 80,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primary.withAlpha(30), AppColors.primaryFaint],
+                  colors: [colors.accent.withAlpha(30), colors.accentFaint],
                 ),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Icon(
                 Icons.auto_stories_rounded,
                 size: 40,
-                color: AppColors.primary,
+                color: colors.accent,
               ),
             ),
             const SizedBox(height: 20),
@@ -371,7 +371,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: textColor,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -380,7 +380,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: subtextColor,
+                color: colors.textSecondary,
                 height: 1.5,
               ),
             ),
@@ -396,7 +396,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: colors.accent,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
@@ -432,6 +432,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (hexCode.length == 6) {
       return Color(int.parse('FF$hexCode', radix: 16));
     }
-    return AppColors.primary;
+    return AppColors.of(context).accent;
   }
 }
