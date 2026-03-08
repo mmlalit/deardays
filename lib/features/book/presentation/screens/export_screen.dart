@@ -212,7 +212,7 @@ class _ExportScreenState extends State<ExportScreen> {
                     Center(
                       child: Text(
                         'COVER PAGE',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.4,
@@ -250,7 +250,7 @@ class _ExportScreenState extends State<ExportScreen> {
                               ),
                               child: Text(
                                 range,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color:
@@ -303,7 +303,7 @@ class _ExportScreenState extends State<ExportScreen> {
                               const SizedBox(height: 6),
                               Text(
                                 cc.label,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 11,
                                   fontWeight: selected
                                       ? FontWeight.w700
@@ -340,7 +340,7 @@ class _ExportScreenState extends State<ExportScreen> {
                           const SizedBox(height: 10),
                           Text(
                             'Digital Edition',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
@@ -349,7 +349,7 @@ class _ExportScreenState extends State<ExportScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Perfect for sharing and tablets',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 13,
                               color: AppColors.textMuted,
                             ),
@@ -380,7 +380,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                     )
                                   : Text(
                                 'Download High-Quality PDF',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -436,7 +436,7 @@ class _ExportScreenState extends State<ExportScreen> {
                         ),
                         child: Text(
                           'Order Print Copy',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -499,7 +499,7 @@ class _ExportScreenState extends State<ExportScreen> {
               Text(
                 'A PERSONAL JOURNEY',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 2,
@@ -510,7 +510,7 @@ class _ExportScreenState extends State<ExportScreen> {
               Text(
                 'The Story\nof Sarah',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.manrope(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   height: 1.2,
@@ -521,7 +521,7 @@ class _ExportScreenState extends State<ExportScreen> {
               Text(
                 '2023 \u2014 2024 Edition',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
                   color: Colors.white.withAlpha(178),
@@ -538,7 +538,7 @@ class _ExportScreenState extends State<ExportScreen> {
   Widget _sectionTitle(String text) {
     return Text(
       text,
-      style: GoogleFonts.inter(
+      style: GoogleFonts.manrope(
         fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,
@@ -572,7 +572,7 @@ class _ExportScreenState extends State<ExportScreen> {
           const SizedBox(height: 10),
           Text(
             title,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 15,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
@@ -581,7 +581,7 @@ class _ExportScreenState extends State<ExportScreen> {
           const SizedBox(height: 4),
           Text(
             price,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w500,
               color: AppColors.textMuted,

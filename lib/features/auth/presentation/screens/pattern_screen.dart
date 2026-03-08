@@ -194,7 +194,7 @@ class _PatternScreenState extends State<PatternScreen> {
             // Title
             Text(
               _title,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -203,7 +203,7 @@ class _PatternScreenState extends State<PatternScreen> {
             const SizedBox(height: 8),
             Text(
               _subtitle,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: _hasError ? Colors.red.shade600 : AppColors.textSecondary,
               ),
@@ -239,7 +239,7 @@ class _PatternScreenState extends State<PatternScreen> {
                       ),
                       child: Text(
                         'Reset',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                         ),
@@ -263,7 +263,7 @@ class _PatternScreenState extends State<PatternScreen> {
                       ),
                       child: Text(
                         'Confirm',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),

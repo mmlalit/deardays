@@ -207,7 +207,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                     child: Center(
                       child: Text(
                         'New Entry',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -223,7 +223,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                       child: Text(
                         'Post',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
@@ -270,7 +270,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             // "AI SUGGESTION" label
             Text(
               'AI SUGGESTION',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5,
@@ -281,7 +281,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             // Prompt text — serif italic
             Text(
               _prompts[_promptIndex],
-              style: GoogleFonts.lora(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontStyle: FontStyle.italic,
                 fontWeight: FontWeight.w400,
@@ -311,7 +311,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                     const SizedBox(width: 8),
                     Text(
                       'New Prompt',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -341,7 +341,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           // "Dear Diary," heading
           Text(
             'Dear Diary,',
-            style: GoogleFonts.lora(
+            style: GoogleFonts.manrope(
               fontSize: 32,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
@@ -366,7 +366,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 maxLines: null,
                 minLines: 14,
                 keyboardType: TextInputType.multiline,
-                style: GoogleFonts.lora(
+                style: GoogleFonts.manrope(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
                   color: AppColors.textPrimary.withAlpha(204),
@@ -374,7 +374,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 ),
                 decoration: InputDecoration(
                   hintText: 'Start writing your thoughts...',
-                  hintStyle: GoogleFonts.lora(
+                  hintStyle: GoogleFonts.manrope(
                     fontSize: 20,
                     fontWeight: FontWeight.w400,
                     color: AppColors.textMuted,
@@ -467,7 +467,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                       const SizedBox(width: 8),
                       Text(
                         'Save to Book',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -538,7 +538,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           const SizedBox(width: 10),
           Text(
             'AI Polish',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,

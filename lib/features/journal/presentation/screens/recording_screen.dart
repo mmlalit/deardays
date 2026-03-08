@@ -221,7 +221,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           const Spacer(),
           Text(
             'DearDays Recording',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: Colors.white,
@@ -247,7 +247,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           padding: const EdgeInsets.only(left: 10, right: 10, bottom: 20),
           child: Text(
             ':',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 32,
               fontWeight: FontWeight.w700,
               color: AppColors.primary,
@@ -275,7 +275,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           alignment: Alignment.center,
           child: Text(
             value,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 32,
               fontWeight: FontWeight.w700,
               color: AppColors.primary,
@@ -285,7 +285,7 @@ class _RecordingScreenState extends State<RecordingScreen>
         const SizedBox(height: 6),
         Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 10,
             fontWeight: FontWeight.w600,
             color: AppColors.primary.withAlpha(178),
@@ -388,7 +388,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       children: [
         Text(
           _isRecording ? 'Recording your thoughts...' : 'Recording stopped',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w500,
             color: Colors.white,
@@ -397,7 +397,7 @@ class _RecordingScreenState extends State<RecordingScreen>
         const SizedBox(height: 4),
         Text(
           _isRecording ? 'Tap to stop' : 'Review your entry below',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13,
             color: AppColors.primary.withAlpha(178),
           ),
@@ -465,7 +465,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                       Expanded(
                         child: Text(
                           'JOURNAL ENTRY \u2022 $_formattedDate',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primary,
@@ -485,7 +485,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                     'You recorded $_minutes:$_seconds of audio. '
                     'Your voice entry will be transcribed and polished by AI '
                     'into a beautiful story.',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 16,
                       color: AppColors.textSecondary,
                       height: 1.6,
@@ -506,7 +506,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                       ),
                       label: Text(
                         'Save to book',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,

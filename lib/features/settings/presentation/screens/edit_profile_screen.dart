@@ -203,7 +203,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           alignment: Alignment.center,
                           child: Text(
                             _initials(),
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 32,
                               fontWeight: FontWeight.w600,
                               color: AppColors.primary,
@@ -255,7 +255,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       onPressed: _isSaving ? null : _updateEmail,
                       child: Text(
                         'Update Email',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
@@ -311,7 +311,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             )
                           : Text(
                               'Change Password',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primary,
@@ -351,7 +351,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             )
                           : Text(
                               'Save Profile',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -378,7 +378,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildSectionLabel(String label) {
     return Text(
       label,
-      style: GoogleFonts.inter(
+      style: GoogleFonts.manrope(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         color: Colors.grey.shade500,
@@ -399,10 +399,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
-      style: GoogleFonts.inter(fontSize: 15, color: AppColors.textPrimary),
+      style: GoogleFonts.manrope(fontSize: 15, color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.inter(fontSize: 15, color: Colors.grey.shade400),
+        hintStyle: GoogleFonts.manrope(fontSize: 15, color: Colors.grey.shade400),
         prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade500),
         suffixIcon: toggleObscure != null
             ? IconButton(

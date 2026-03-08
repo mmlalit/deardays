@@ -121,7 +121,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   const SizedBox(width: 4),
                   Text(
                     state.currentMood!,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: _moodColor(state.currentMood!),
@@ -147,7 +147,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             Text(
               'How are you\nfeeling today?',
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -157,7 +157,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             const SizedBox(height: 12),
             Text(
               'Tap to share your mood',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: AppColors.textSecondary,
               ),
@@ -200,7 +200,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                       const SizedBox(height: 8),
                       Text(
                         mood.label,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: mood.color,
@@ -217,7 +217,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   ref.read(checkInProvider.notifier).selectMood('skipped'),
               child: Text(
                 'Skip for now',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   color: AppColors.textMuted,
                   decoration: TextDecoration.underline,
@@ -258,7 +258,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
         children: [
           Text(
             'Not sure what to write?',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
@@ -267,7 +267,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           const SizedBox(height: 4),
           Text(
             'Try one of these prompts to get started',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               color: AppColors.textSecondary,
             ),
@@ -293,7 +293,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   ),
                   child: Text(
                     prompt,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
@@ -333,7 +333,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 const SizedBox(width: 4),
                 Text(
                   timeStr,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textMuted,
@@ -349,7 +349,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   const SizedBox(width: 2),
                   Text(
                     section.mood!,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: _moodColor(section.mood!),
@@ -435,7 +435,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                             const SizedBox(width: 2),
                             Text(
                               'Voice',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 10,
                                 color: isUser
                                     ? Colors.white.withAlpha(178)
@@ -447,7 +447,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                       ),
                     Text(
                       message.text,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         color:
                             isUser ? Colors.white : AppColors.textPrimary,
@@ -464,7 +464,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         ],
                         Text(
                           timeStr,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 10,
                             color: isUser
                                 ? Colors.white.withAlpha(153)
@@ -514,7 +514,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   const SizedBox(width: 6),
                   Text(
                     'Editing message',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: AppColors.primary,
                       fontWeight: FontWeight.w500,
@@ -551,7 +551,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               Expanded(
                 child: TextField(
                   controller: _textController,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 15,
                     color: AppColors.textPrimary,
                   ),
@@ -559,7 +559,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     hintText: isEditing
                         ? 'Edit your message...'
                         : 'Type a message...',
-                    hintStyle: GoogleFonts.inter(
+                    hintStyle: GoogleFonts.manrope(
                       fontSize: 15,
                       color: AppColors.textMuted,
                     ),
@@ -664,7 +664,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           children: [
             Text(
               'Change your mood',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -696,7 +696,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                       const SizedBox(height: 6),
                       Text(
                         mood.label,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textSecondary,

@@ -127,7 +127,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       Text(
                         dateStr,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
@@ -159,7 +159,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 8),
                   Text(
                     '$greeting, there',
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.manrope(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: textColor,
@@ -206,7 +206,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Text(
             'How are you feeling?',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w500,
               color: subtextColor,
@@ -268,7 +268,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 4),
                       Text(
                         mood.label,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight:
                               isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -326,7 +326,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 16),
             Text(
               'Record your day',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -337,7 +337,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onTap: () => context.push('/write'),
               child: Text(
                 'Write instead',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppColors.primary,
@@ -412,7 +412,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         Text(
                           "Today's Check-in",
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: textColor,
@@ -428,7 +428,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                             child: Text(
                               moodLabel,
-                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: moodColor),
+                              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: moodColor),
                             ),
                           ),
                         ],
@@ -439,7 +439,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       latestMsg.text,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 13,
                         color: textColor.withAlpha(178),
                         height: 1.4,
@@ -451,12 +451,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (timeStr.isNotEmpty) ...[
                           Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
                           const SizedBox(width: 4),
-                          Text(timeStr, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
+                          Text(timeStr, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.textMuted)),
                         ],
                         const Spacer(),
                         Text(
                           'Tap to continue',
-                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
+                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
                         ),
                         const SizedBox(width: 2),
                         Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.primary),
@@ -536,7 +536,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         Text(
                           "Today's Entry",
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: textColor,
@@ -555,7 +555,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               children: [
                                 Icon(Icons.auto_fix_high, size: 10, color: AppColors.primary),
                                 const SizedBox(width: 3),
-                                Text('AI', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                                Text('AI', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary)),
                               ],
                             ),
                           ),
@@ -570,7 +570,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                             child: Text(
                               entry.mood!,
-                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: moodColor),
+                              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: moodColor),
                             ),
                           ),
                         ],
@@ -581,7 +581,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       displayText,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 13,
                         color: textColor.withAlpha(178),
                         height: 1.4,
@@ -593,7 +593,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (timeStr.isNotEmpty) ...[
                           Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
                           const SizedBox(width: 4),
-                          Text(timeStr, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
+                          Text(timeStr, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.textMuted)),
                         ],
                         if (entry.locationName != null) ...[
                           const SizedBox(width: 10),
@@ -604,14 +604,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               entry.locationName!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                              style: GoogleFonts.manrope(fontSize: 11, color: AppColors.textMuted),
                             ),
                           ),
                         ],
                         const Spacer(),
                         Text(
                           'Saved to Book',
-                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
+                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
                         ),
                       ],
                     ),
@@ -670,7 +670,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       Text(
                         'ON THIS DAY',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
@@ -679,7 +679,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       Text(
                         matchDate != null ? '1 Year Ago' : '',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textMuted,
@@ -710,7 +710,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           matchDate != null
                               ? '"Your memories from this day last year..."'
                               : '"Start journaling to build your On This Day memories"',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             fontStyle: FontStyle.italic,
@@ -797,7 +797,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Expanded(
               child: Text(
                 dateLabel,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: textColor,
@@ -844,7 +844,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(width: 4),
                       Text(
                         state.currentMood!,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
@@ -892,7 +892,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 16),
           Text(
             'What\'s on your mind?',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 22,
               fontWeight: FontWeight.w600,
               color: textColor,
@@ -901,7 +901,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             'Type below or try a prompt to get started',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               color: subtextColor,
             ),
@@ -928,7 +928,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   child: Text(
                     prompt,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
@@ -963,7 +963,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
               timeStr,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 11,
                 color: AppColors.textMuted,
               ),
@@ -1049,7 +1049,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 const SizedBox(width: 2),
                                 Text(
                                   'Voice',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 10,
                                     color: isUser
                                         ? Colors.white.withAlpha(178)
@@ -1061,7 +1061,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         Text(
                           message.text,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 15,
                             color:
                                 isUser ? Colors.white : bubbleText,
@@ -1129,7 +1129,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(width: 6),
                   Text(
                     'Editing message',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: AppColors.primary,
                       fontWeight: FontWeight.w500,
@@ -1186,13 +1186,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Expanded(
             child: TextField(
               controller: _textController,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 15,
                 color: AppColors.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: 'Message...',
-                hintStyle: GoogleFonts.inter(
+                hintStyle: GoogleFonts.manrope(
                   fontSize: 15,
                   color: AppColors.textMuted,
                 ),
@@ -1261,7 +1261,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(width: 10),
           Text(
             _formatRecordingTime(),
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.red.shade700,
@@ -1271,7 +1271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Expanded(
             child: Text(
               'Recording...',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: Colors.red.shade400,
               ),
@@ -1328,7 +1328,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(width: 12),
           Text(
             'Transcribing...',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               color: AppColors.textSecondary,
             ),
@@ -1498,7 +1498,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             Text(
               'Change your mood',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -1528,7 +1528,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 6),
                       Text(
                         mood.label,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: AppColors.textSecondary,
@@ -1580,7 +1580,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   error: (_, __) => Center(
                     child: Text(
                       'Failed to load conversations',
-                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary),
+                      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.textSecondary),
                     ),
                   ),
                   data: (dates) {
@@ -1612,7 +1612,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(height: 16),
                           Text(
                             'Chat History',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
                               color: textColor,
@@ -1677,7 +1677,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(height: 20),
                           Text(
                             'ALL CONVERSATIONS',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.2,
@@ -1690,7 +1690,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ? Center(
                                     child: Text(
                                       'No conversations yet',
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.manrope(
                                         fontSize: 14,
                                         color: AppColors.textSecondary,
                                       ),
@@ -1732,7 +1732,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: Center(
                                             child: Text(
                                               '${date.day}',
-                                              style: GoogleFonts.inter(
+                                              style: GoogleFonts.manrope(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w700,
                                                 color: AppColors.primary,
@@ -1742,7 +1742,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ),
                                         title: Text(
                                           label,
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.manrope(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w500,
                                             color: textColor,
@@ -1750,7 +1750,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ),
                                         subtitle: Text(
                                           DateFormat('MMMM yyyy').format(date),
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.manrope(
                                             fontSize: 12,
                                             color: AppColors.textMuted,
                                           ),
@@ -1815,7 +1815,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: enabled ? AppColors.primary : AppColors.textMuted,

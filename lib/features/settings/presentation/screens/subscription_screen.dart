@@ -136,17 +136,17 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Cancel Subscription?',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
         ),
         content: Text(
           'To cancel, manage your subscription in your device\'s app store settings. '
           'You will keep access until the end of your current billing period.',
-          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('OK', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            child: Text('OK', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -198,7 +198,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                   if (!sub.isPremium) ...[
                     Text(
                       'CHOOSE A PLAN',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: Colors.grey.shade500,
@@ -245,7 +245,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                               )
                             : Text(
                                 'Subscribe Now',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -259,7 +259,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         onPressed: sub.isLoading ? null : _handleRestore,
                         child: Text(
                           'Restore Purchases',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: AppColors.primary,
@@ -279,7 +279,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         onPressed: _handleCancelSubscription,
                         child: Text(
                           'Cancel Subscription',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: Colors.red.shade500,
@@ -294,7 +294,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     child: Text(
                       'Your existing entries are always readable, free forever.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: Colors.grey.shade500,
                       ),
@@ -305,7 +305,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     child: Text(
                       'Manage subscriptions in your device\'s app store settings.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: Colors.grey.shade400,
                       ),
@@ -348,7 +348,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                   children: [
                     Text(
                       'Current Plan',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 13,
                         color: Colors.grey.shade500,
                       ),
@@ -356,7 +356,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     const SizedBox(height: 2),
                     Text(
                       _planName(sub.isPremium, sub.activePlan),
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
@@ -373,7 +373,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 ),
                 child: Text(
                   _statusLabel,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: _statusColor,
@@ -391,14 +391,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               const SizedBox(width: 8),
               Text(
                 sub.isPremium ? 'Renews: ' : 'Trial: ',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   color: Colors.grey.shade500,
                 ),
               ),
               Text(
                 _expiresLabel(sub.isPremium, sub.expiresAt),
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
@@ -465,7 +465,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     children: [
                       Text(
                         title,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
@@ -481,7 +481,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                           ),
                           child: Text(
                             badge,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
@@ -494,7 +494,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade500),
+                    style: GoogleFonts.manrope(fontSize: 13, color: Colors.grey.shade500),
                   ),
                 ],
               ),
@@ -520,7 +520,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       children: [
         Text(
           'WHAT\'S INCLUDED',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color: Colors.grey.shade500,
@@ -544,7 +544,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                   const SizedBox(width: 12),
                   Text(
                     f['text'] as String,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textPrimary,

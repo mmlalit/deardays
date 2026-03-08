@@ -56,7 +56,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         children: [
           Text(
             'My Books',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: textColor,
@@ -199,7 +199,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       book.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
+                      style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: textColor,
@@ -208,7 +208,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       _formatDateRange(book),
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: subtextColor,
                       ),
@@ -291,7 +291,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.playfairDisplay(
+                                style: GoogleFonts.manrope(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -320,7 +320,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         book.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: textColor,
@@ -329,7 +329,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       const SizedBox(height: 2),
                       Text(
                         _formatDateRange(book),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           color: subtextColor,
                         ),
@@ -360,7 +360,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             const SizedBox(height: 16),
             Text(
               'Your library is empty',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: textColor,
@@ -370,7 +370,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             Text(
               'Create your first book to start\norganizing your journal entries.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: subtextColor,
                 height: 1.5,
@@ -382,7 +382,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               icon: const Icon(Icons.add, size: 18),
               label: Text(
                 'Create Book',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -416,7 +416,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ),
         title: Text(
           'New Book',
-          style: GoogleFonts.playfairDisplay(fontWeight: FontWeight.w600),
+          style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,

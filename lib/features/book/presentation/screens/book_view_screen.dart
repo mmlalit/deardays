@@ -44,7 +44,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
         children: [
           Text(
             'DEARDAYS',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w800,
               letterSpacing: 2.5,
@@ -65,7 +65,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
               children: [
                 Text(
                   'Memoir',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.primary,
@@ -114,7 +114,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           Text(
             'The Story of Sarah',
             textAlign: TextAlign.center,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 30,
               fontWeight: FontWeight.w700,
               color: AppColors.readingText,
@@ -124,7 +124,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           const SizedBox(height: 8),
           Text(
             '2026 \u2014 Present',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w400,
               color: AppColors.readingText.withAlpha(128),
@@ -144,7 +144,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             'Contents',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
@@ -194,7 +194,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
         children: [
           Text(
             title,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 15,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
               color: AppColors.readingText,
@@ -203,7 +203,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.0,
@@ -242,7 +242,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       children: [
         Text(
           'March 7, 2026',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.readingText.withAlpha(153),
@@ -260,7 +260,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
         const SizedBox(width: 12),
         Text(
           '\u263A Grateful',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: FontWeight.w500,
             color: AppColors.primary,
@@ -290,7 +290,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
                 child: Text(
                   'Home',
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
                     color: AppColors.readingText.withAlpha(102),
@@ -310,7 +310,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       children: [
         Text(
           'T',
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.manrope(
             fontSize: 64,
             fontWeight: FontWeight.w700,
             color: AppColors.primary,
@@ -325,7 +325,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
             'with my coffee, watching the world slowly wake up. There is something '
             'profoundly beautiful about these quiet moments before the day demands '
             'anything of you.',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w400,
               color: AppColors.readingText,
@@ -363,7 +363,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           const SizedBox(height: 8),
           Text(
             'Photo',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w500,
               color: AppColors.primary.withAlpha(102),
@@ -381,7 +381,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       'survive another frost. But it wasn\u2019t about the words. It was about '
       'the sound of her voice, steady and warm, a reminder that some things '
       'remain unchanged even as everything else shifts.',
-      style: GoogleFonts.playfairDisplay(
+      style: GoogleFonts.manrope(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: AppColors.readingText,
@@ -395,7 +395,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
       'Tonight I will sleep with the window cracked open, letting the cool air '
       'carry in the scent of damp earth and early blossoms. Tomorrow will bring '
       'its own questions, but for now, this is enough. This is more than enough.',
-      style: GoogleFonts.playfairDisplay(
+      style: GoogleFonts.manrope(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: AppColors.readingText,
@@ -415,7 +415,7 @@ class _BookViewScreenState extends State<BookViewScreen> {
           icon: const Icon(Icons.download_rounded, size: 20),
           label: Text(
             'Download as PDF',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),

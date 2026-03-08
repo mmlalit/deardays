@@ -141,7 +141,7 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive ? activeColor : inactiveColor,

@@ -48,7 +48,7 @@ class AiBadge extends StatelessWidget {
           SizedBox(width: compact ? 2 : 4),
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: compact ? 9 : 10,
               fontWeight: FontWeight.w600,
               color: Colors.purple.shade700,

@@ -176,7 +176,7 @@ class _PinScreenState extends State<PinScreen> {
             // Title
             Text(
               _title,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -185,7 +185,7 @@ class _PinScreenState extends State<PinScreen> {
             const SizedBox(height: 8),
             Text(
               _subtitle,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: _hasError ? Colors.red.shade600 : AppColors.textSecondary,
               ),
@@ -273,7 +273,7 @@ class _PinScreenState extends State<PinScreen> {
         alignment: Alignment.center,
         child: Text(
           '$digit',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 28,
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,

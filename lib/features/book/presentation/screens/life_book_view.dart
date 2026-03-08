@@ -55,7 +55,7 @@ class LifeBookView extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               'Your story is waiting',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -65,7 +65,7 @@ class LifeBookView extends ConsumerWidget {
             Text(
               'Start journaling from the home screen.\nYour conversations will appear here\nas beautifully written entries.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: AppColors.textSecondary,
                 height: 1.5,
@@ -125,7 +125,7 @@ class LifeBookView extends ConsumerWidget {
             Text(
               'My Life Book',
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
                 color: AppColors.readingText,
@@ -135,7 +135,7 @@ class LifeBookView extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               dateRange,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: AppColors.readingText.withAlpha(128),
                 letterSpacing: 0.5,
@@ -151,7 +151,7 @@ class LifeBookView extends ConsumerWidget {
               ),
               child: Text(
                 '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'}',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
@@ -172,7 +172,7 @@ class LifeBookView extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             'Contents',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
@@ -229,7 +229,7 @@ class LifeBookView extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                       color: AppColors.readingText,
@@ -238,7 +238,7 @@ class LifeBookView extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.0,
@@ -304,7 +304,7 @@ class LifeBookView extends ConsumerWidget {
                       ),
                       child: Text(
                         DateFormat('MMM d').format(e.date),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: isSelected
@@ -326,7 +326,7 @@ class LifeBookView extends ConsumerWidget {
             children: [
               Text(
                 dateStr,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.readingText.withAlpha(153),
@@ -351,7 +351,7 @@ class LifeBookView extends ConsumerWidget {
                 const SizedBox(width: 4),
                 Text(
                   entry.mood!,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: _moodColor(entry.mood!),
@@ -403,7 +403,7 @@ class LifeBookView extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               'Crafting your story...',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
                 color: AppColors.textSecondary,
@@ -434,7 +434,7 @@ class LifeBookView extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 16),
               child: Text(
                 p,
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.manrope(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                   color: AppColors.readingText,
@@ -450,7 +450,7 @@ class LifeBookView extends ConsumerWidget {
     if (text.length < 2) {
       return Text(
         text,
-        style: GoogleFonts.playfairDisplay(
+        style: GoogleFonts.manrope(
           fontSize: 16,
           color: AppColors.readingText,
           height: 1.8,
@@ -466,7 +466,7 @@ class LifeBookView extends ConsumerWidget {
       children: [
         Text(
           firstChar,
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.manrope(
             fontSize: 64,
             fontWeight: FontWeight.w700,
             color: AppColors.primary,
@@ -477,7 +477,7 @@ class LifeBookView extends ConsumerWidget {
         Expanded(
           child: Text(
             restText,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w400,
               color: AppColors.readingText,
@@ -500,7 +500,7 @@ class LifeBookView extends ConsumerWidget {
           icon: const Icon(Icons.download_rounded, size: 20),
           label: Text(
             'Download as PDF',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),

@@ -138,7 +138,7 @@ class TermsScreen extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             'Last updated: March 1, 2026',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w500,
               color: AppColors.primary,
@@ -157,7 +157,7 @@ class TermsScreen extends StatelessWidget {
         children: [
           Text(
             title,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
@@ -166,7 +166,7 @@ class TermsScreen extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             body,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w400,
               color: AppColors.textSecondary,

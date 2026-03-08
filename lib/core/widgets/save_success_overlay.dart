@@ -144,7 +144,7 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
                   // "Saved to your book" text
                   Text(
                     'Saved to your book',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
@@ -178,7 +178,7 @@ class _SaveSuccessWidgetState extends State<_SaveSuccessWidget>
                           const SizedBox(width: 8),
                           Text(
                             'Returning to Today view...',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: AppColors.textSecondary,

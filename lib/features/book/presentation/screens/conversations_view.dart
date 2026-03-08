@@ -84,7 +84,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             Text(
               'Today\'s Conversations',
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: AppColors.readingText,
@@ -93,7 +93,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             const SizedBox(height: 6),
             Text(
               dateStr,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: AppColors.readingText.withAlpha(128),
               ),
@@ -110,7 +110,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               ),
               child: Text(
                 '$count session${count != 1 ? 's' : ''}',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
@@ -133,7 +133,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             'Contents',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 20,
               fontWeight: FontWeight.w600,
               fontStyle: FontStyle.italic,
@@ -202,7 +202,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight:
                           isActive ? FontWeight.w600 : FontWeight.w500,
@@ -215,7 +215,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                     children: [
                       Text(
                         timeStr.toUpperCase(),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.8,
@@ -238,7 +238,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                         const SizedBox(width: 3),
                         Text(
                           section.mood!,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                             color: _moodColor(section.mood!),
@@ -247,7 +247,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                       ],
                       Text(
                         '  \u2022  $messageCount messages',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           color: AppColors.readingText.withAlpha(102),
                         ),
@@ -290,7 +290,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             children: [
               Text(
                 DateFormat('MMMM d, yyyy').format(section.startTime),
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.readingText.withAlpha(153),
@@ -315,7 +315,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                 const SizedBox(width: 4),
                 Text(
                   section.mood!,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: _moodColor(section.mood!),
@@ -360,7 +360,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
               children: [
                 Text(
                   firstChar,
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.manrope(
                     fontSize: 56,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary,
@@ -371,7 +371,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                 Expanded(
                   child: Text(
                     restText,
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.manrope(
                       fontSize: 16,
                       color: AppColors.readingText,
                       height: 1.8,
@@ -388,7 +388,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                   const SizedBox(width: 3),
                   Text(
                     'From voice',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 10,
                       color: AppColors.textMuted,
                     ),
@@ -409,7 +409,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
         children: [
           Text(
             msg.text,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               color: AppColors.readingText,
               height: 1.8,
@@ -423,7 +423,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
                 const SizedBox(width: 3),
                 Text(
                   'From voice',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 10,
                     color: AppColors.textMuted,
                   ),
@@ -452,7 +452,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
         ),
         child: Text(
           msg.text,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 14,
             fontStyle: FontStyle.italic,
             color: AppColors.textSecondary,
@@ -480,7 +480,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             const SizedBox(height: 16),
             Text(
               'No entries yet',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -490,7 +490,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
             Text(
               'Start a conversation from the home screen\nto see your journal entries here.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: AppColors.textSecondary,
                 height: 1.5,

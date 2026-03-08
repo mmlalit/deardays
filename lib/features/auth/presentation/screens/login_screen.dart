@@ -290,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Center(
             child: Text(
               'DearDays',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 34,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -303,7 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Center(
             child: Text(
               'Your life, your story.',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontStyle: FontStyle.italic,
                 color: AppColors.textSecondary,
@@ -335,7 +335,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   size: 20, color: AppColors.textPrimary),
               label: Text(
                 'Continue with Email',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
@@ -356,7 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Text(
               'By continuing, you agree to our Terms of\nService and Privacy Policy.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 12,
                 color: AppColors.textMuted,
                 height: 1.5,
@@ -377,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     'WELCOME BACK',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textMuted,
@@ -459,7 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Heading
           Text(
             _isSignUp ? 'Create your journal' : 'Welcome back',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
@@ -470,7 +470,7 @@ class _LoginScreenState extends State<LoginScreen> {
             _isSignUp
                 ? 'Start capturing your story today.'
                 : 'Pick up where you left off.',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 15,
               color: AppColors.textSecondary,
             ),
@@ -541,7 +541,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 onTap: _isLoading ? null : _handleForgotPassword,
                 child: Text(
                   'Forgot password?',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.primary,
@@ -587,14 +587,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Text.rich(
                         TextSpan(
                           text: 'I consent to mood & health data processing ',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 13,
                             color: AppColors.textSecondary,
                           ),
                           children: [
                             TextSpan(
                               text: '(optional)',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontStyle: FontStyle.italic,
                                 color: AppColors.textMuted,
@@ -638,7 +638,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     )
                   : Text(
                       _isSignUp ? 'Create My Journal' : 'Log In',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -653,7 +653,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Text(
                 'By signing up, you agree to our Terms of Service\nand Privacy Policy. 30-day free trial, no card required.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   color: AppColors.textMuted,
                   height: 1.5,
@@ -674,14 +674,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   text: _isSignUp
                       ? 'Already have an account? '
                       : "Don't have an account? ",
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                   ),
                   children: [
                     TextSpan(
                       text: _isSignUp ? 'Log in' : 'Sign up',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -706,7 +706,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14),
+      hintStyle: GoogleFonts.manrope(color: AppColors.textMuted, fontSize: 14),
       prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.textMuted),
       filled: true,
       fillColor: Colors.white,
@@ -737,7 +737,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.inter(
+      style: GoogleFonts.manrope(
         fontSize: 13,
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
@@ -761,7 +761,7 @@ class _AppleButton extends StatelessWidget {
         icon: const Icon(Icons.apple, size: 22, color: Colors.white),
         label: Text(
           'Continue with Apple',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 15,
             fontWeight: FontWeight.w500,
             color: Colors.white,
@@ -793,7 +793,7 @@ class _GoogleButton extends StatelessWidget {
         onPressed: onPressed,
         icon: Text(
           'G',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 20,
             fontWeight: FontWeight.w700,
             color: const Color(0xFF4285F4),
@@ -801,7 +801,7 @@ class _GoogleButton extends StatelessWidget {
         ),
         label: Text(
           'Continue with Google',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 15,
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,
@@ -840,7 +840,7 @@ class _QuickUnlockButton extends StatelessWidget {
         icon: Icon(icon, size: 22, color: AppColors.primary),
         label: Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 15,
             fontWeight: FontWeight.w500,
             color: AppColors.primary,

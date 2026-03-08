@@ -78,7 +78,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               Center(
                 child: Text(
                   'Timeline',
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.manrope(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: textColor,
@@ -96,10 +96,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     child: TextField(
                       controller: _searchController,
                       onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
+                      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Search keywords, dates, or moods',
-                        hintStyle: GoogleFonts.inter(
+                        hintStyle: GoogleFonts.manrope(
                           fontSize: 14,
                           color: AppColors.textPrimary.withAlpha(102),
                         ),
@@ -145,7 +145,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           children: [
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textPrimary,
@@ -172,7 +172,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Filter by mood', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+              Text('Filter by mood', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
@@ -202,7 +202,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       child: Chip(
         label: Text(label),
         backgroundColor: isActive ? AppColors.primary : AppColors.primary.withAlpha(26),
-        labelStyle: GoogleFonts.inter(
+        labelStyle: GoogleFonts.manrope(
           fontSize: 13,
           fontWeight: FontWeight.w500,
           color: isActive ? Colors.white : AppColors.textPrimary,
@@ -234,7 +234,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             children: [
               Text(
                 'LIFE STATS',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
@@ -247,7 +247,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   totalAsync.when(
                     data: (total) => Text(
                       '$total entries',
-                      style: GoogleFonts.playfairDisplay(
+                      style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
                         color: Colors.white,
@@ -255,21 +255,21 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     ),
                     loading: () => Text(
                       '...',
-                      style: GoogleFonts.playfairDisplay(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
                     ),
                     error: (_, __) => Text(
                       '0 entries',
-                      style: GoogleFonts.playfairDisplay(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
                     ),
                   ),
                   Text(
                     ' | ',
-                    style: GoogleFonts.playfairDisplay(fontSize: 18, color: Colors.white),
+                    style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
                   ),
                   chaptersAsync.when(
                     data: (chapters) => Text(
                       '${chapters.length} chapters',
-                      style: GoogleFonts.playfairDisplay(
+                      style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
                         color: Colors.white,
@@ -277,11 +277,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     ),
                     loading: () => Text(
                       '...',
-                      style: GoogleFonts.playfairDisplay(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
                     ),
                     error: (_, __) => Text(
                       '0 chapters',
-                      style: GoogleFonts.playfairDisplay(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
                     ),
                   ),
                 ],
@@ -296,7 +296,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       final happiestMonth = _getHappiestLabel(stats);
                       return Text(
                         happiestMonth,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontStyle: FontStyle.italic,
                           color: Colors.white.withAlpha(204),
@@ -402,7 +402,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           padding: const EdgeInsets.only(top: 60),
           child: Text(
             'Could not load entries',
-            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textMuted),
+            style: GoogleFonts.manrope(fontSize: 14, color: AppColors.textMuted),
           ),
         ),
       ),
@@ -491,7 +491,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             const SizedBox(height: 24),
             Text(
               'Your story starts here',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -501,7 +501,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             Text(
               'Every entry becomes a part of your timeline.\nStart capturing your moments.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: AppColors.textSecondary,
                 height: 1.5,
@@ -513,7 +513,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               icon: const Icon(Icons.edit_outlined, size: 18),
               label: Text(
                 'Write your first entry',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -585,7 +585,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   children: [
                     Text(
                       'ON THIS DAY \u2014 ${entry.entryDate.year}',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -607,7 +607,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         children: [
                           Text(
                             title,
-                            style: GoogleFonts.playfairDisplay(
+                            style: GoogleFonts.manrope(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
@@ -618,7 +618,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                             preview,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 12,
                               color: AppColors.textPrimary.withAlpha(178),
                               height: 1.4,
@@ -685,7 +685,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     Expanded(
                       child: Text(
                         dateStr,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary.withAlpha(153),
@@ -710,7 +710,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         preview,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.playfairDisplay(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontStyle: FontStyle.italic,
                           color: AppColors.textPrimary.withAlpha(230),

@@ -140,20 +140,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Sign Out?',
-            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
         content: Text(
           'You will need to sign in again to access your journal.',
-          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            child: Text('Cancel', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Sign Out',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.error)),
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.error)),
           ),
         ],
       ),
@@ -183,13 +183,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Change Password',
-            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+            style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'We will send a password reset link to your email.',
-              style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+              style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -205,12 +205,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            child: Text('Cancel', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Send Reset Link',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.primary)),
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.primary)),
           ),
         ],
       ),
@@ -238,23 +238,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Withdraw Mood Data Consent?',
-              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+              style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
           content: Text(
             'Mood tracking will be disabled. Existing mood data in your entries '
             'will not be deleted but will no longer be processed.',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 fontSize: 14, height: 1.5, color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: Text('Cancel',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: Text('Withdraw Consent',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontWeight: FontWeight.w600,
                       color: Colors.red.shade600)),
             ),
@@ -416,7 +416,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: 16),
             Text(
               'Writing Style',
-              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             ...styles.map((s) => ListTile(
@@ -428,14 +428,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                             : Icons.movie_creation_outlined,
                     color: AppColors.primary,
                   ),
-                  title: Text(s, style: GoogleFonts.inter(fontSize: 15)),
+                  title: Text(s, style: GoogleFonts.manrope(fontSize: 15)),
                   subtitle: Text(
                     s == 'Memoir'
                         ? 'Third-person narrative, reflective tone'
                         : s == 'Diary'
                             ? 'First-person, casual daily entries'
                             : 'Cinematic storytelling, vivid scenes',
-                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                    style: GoogleFonts.manrope(fontSize: 12, color: Colors.grey.shade500),
                   ),
                   onTap: () => Navigator.pop(ctx, s.toLowerCase()),
                 )),
@@ -494,15 +494,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: 16),
             Text(
               'Organize Books By',
-              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             ...options.map((o) => ListTile(
                   leading: Icon(Icons.library_books_outlined, color: AppColors.primary),
-                  title: Text(o['label']!, style: GoogleFonts.inter(fontSize: 15)),
+                  title: Text(o['label']!, style: GoogleFonts.manrope(fontSize: 15)),
                   subtitle: Text(
                     o['desc']!,
-                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                    style: GoogleFonts.manrope(fontSize: 12, color: Colors.grey.shade500),
                   ),
                   onTap: () => Navigator.pop(ctx, o['value']),
                 )),
@@ -545,7 +545,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             Icon(Icons.shield_outlined, color: AppColors.primary, size: 24),
             const SizedBox(width: 10),
             Text('Zero-Knowledge Encryption',
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+                style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
           ],
         ),
         content: Column(
@@ -560,7 +560,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               'Your encryption key is derived from your password and never leaves '
               'your device. The server stores only encrypted blobs — we cannot '
               'read your journal entries.',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13, height: 1.5, color: AppColors.textSecondary,
               ),
             ),
@@ -569,7 +569,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Got it', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            child: Text('Got it', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -585,11 +585,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           SizedBox(
             width: 110,
             child: Text(label,
-                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600)),
+                style: GoogleFonts.manrope(fontSize: 13, color: Colors.grey.shade600)),
           ),
           Expanded(
             child: Text(value,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           ),
         ],
@@ -621,20 +621,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
             const SizedBox(height: 16),
             Text('Export Your Data',
-                style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600)),
+                style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.code, color: AppColors.primary),
-              title: Text('JSON', style: GoogleFonts.inter(fontSize: 15)),
+              title: Text('JSON', style: GoogleFonts.manrope(fontSize: 15)),
               subtitle: Text('Machine-readable, includes all fields',
-                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500)),
+                  style: GoogleFonts.manrope(fontSize: 12, color: Colors.grey.shade500)),
               onTap: () => Navigator.pop(ctx, 'json'),
             ),
             ListTile(
               leading: const Icon(Icons.picture_as_pdf, color: AppColors.primary),
-              title: Text('PDF', style: GoogleFonts.inter(fontSize: 15)),
+              title: Text('PDF', style: GoogleFonts.manrope(fontSize: 15)),
               subtitle: Text('Print-ready book format',
-                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500)),
+                  style: GoogleFonts.manrope(fontSize: 12, color: Colors.grey.shade500)),
               onTap: () => Navigator.pop(ctx, 'pdf'),
             ),
             const SizedBox(height: 16),
@@ -700,22 +700,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Delete Account?',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.red.shade700)),
+            style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: Colors.red.shade700)),
         content: Text(
           'This will permanently delete your account and all journal entries. '
           'This action cannot be undone.\n\n'
           'Your encrypted data will be erased from the server.',
-          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            child: Text('Cancel', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Delete Everything',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w600, color: Colors.red.shade700)),
           ),
         ],
@@ -732,20 +732,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Type DELETE to confirm',
-              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+              style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
           content: TextField(
             controller: controller,
             autofocus: true,
             decoration: InputDecoration(
               hintText: 'DELETE',
-              hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
+              hintStyle: GoogleFonts.manrope(color: Colors.grey.shade400),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              child: Text('Cancel', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
             ),
             TextButton(
               onPressed: () {
@@ -754,7 +754,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 }
               },
               child: Text('Confirm Delete',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontWeight: FontWeight.w600, color: Colors.red.shade700)),
             ),
           ],
@@ -817,14 +817,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       textColor: textColor,
                       trailing: Text(
                         Supabase.instance.client.auth.currentUser?.email ?? '',
-                        style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
+                        style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
                       ),
                     ),
                     _buildCardRow(
                       icon: Icons.lock_outlined,
                       label: 'Password',
                       textColor: textColor,
-                      trailing: Text('Change', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                      trailing: Text('Change', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
                       onTap: _changePassword,
                     ),
                     _buildCardRow(
@@ -840,7 +840,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ),
                         child: Text(
                           'Premium Plan',
-                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
                         ),
                       ),
                       onTap: () => Navigator.of(context).push(
@@ -878,7 +878,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                             ),
                             child: Text(
                               _reminderTime.format(context),
-                              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
+                              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: textColor),
                             ),
                           ),
                         ),
@@ -906,7 +906,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('Memoir', style: GoogleFonts.inter(fontSize: 12, color: subtextColor)),
+                          Text('Memoir', style: GoogleFonts.manrope(fontSize: 12, color: subtextColor)),
                           const SizedBox(width: 4),
                           Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
                         ],
@@ -955,12 +955,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                   color: AppColors.primary.withAlpha(20),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text('Active', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                                child: Text('Active', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
                               ),
                             )
                           : GestureDetector(
                               onTap: _setupPin,
-                              child: Text('Set up', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                              child: Text('Set up', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
                             ),
                     ),
                     _buildCardRow(
@@ -976,12 +976,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                   color: AppColors.primary.withAlpha(20),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text('Active', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                                child: Text('Active', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
                               ),
                             )
                           : GestureDetector(
                               onTap: _setupPattern,
-                              child: Text('Set up', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                              child: Text('Set up', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary)),
                             ),
                     ),
                     _buildCardRow(
@@ -1009,7 +1009,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       textColor: textColor,
                       trailing: Text(
                         'PDF / JSON',
-                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
+                        style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
                       ),
                       onTap: _exportAllData,
                     ),
@@ -1032,7 +1032,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       icon: null,
                       label: 'Version',
                       textColor: textColor,
-                      trailing: Text('1.2.0', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+                      trailing: Text('1.2.0', style: GoogleFonts.manrope(fontSize: 12, color: AppColors.textMuted)),
                     ),
                     _buildCardRow(
                       icon: null,
@@ -1066,7 +1066,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         icon: const Icon(Icons.logout, size: 18),
                         label: Text(
                           'Sign Out',
-                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+                          style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
@@ -1107,7 +1107,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           child: Center(
             child: Text(
               'Settings',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -1162,7 +1162,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     alignment: Alignment.center,
                     child: Text(
                       initials,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 32,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -1189,7 +1189,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: 16),
             Text(
               displayName,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -1198,7 +1198,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: 4),
             Text(
               email,
-              style: GoogleFonts.inter(fontSize: 13, color: subtextColor),
+              style: GoogleFonts.manrope(fontSize: 13, color: subtextColor),
             ),
             const SizedBox(height: 16),
             GestureDetector(
@@ -1213,7 +1213,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ),
                 child: Text(
                   'Edit Profile',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.primary,
@@ -1232,7 +1232,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
       child: Text(
         label.toUpperCase(),
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: AppColors.primary,
@@ -1290,7 +1290,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: labelColor ?? textColor ?? AppColors.textPrimary,
@@ -1347,7 +1347,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         children: [
           Text(
             currentLocale.label,
-            style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
+            style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
           ),
           const SizedBox(width: 4),
           Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted.withAlpha(76)),
@@ -1380,7 +1380,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: 16),
             Text(
               'App Language',
-              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             ...AppLocale.values.map((locale) => ListTile(
@@ -1390,7 +1390,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         : Icons.translate,
                     color: AppColors.primary,
                   ),
-                  title: Text(locale.label, style: GoogleFonts.inter(fontSize: 15)),
+                  title: Text(locale.label, style: GoogleFonts.manrope(fontSize: 15)),
                   trailing: locale == currentLocale
                       ? Icon(Icons.check_circle, color: AppColors.primary, size: 22)
                       : null,
@@ -1440,7 +1440,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               const SizedBox(width: 6),
               Text(
                 currentTheme.label,
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: subtextColor),
+                style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: subtextColor),
               ),
               const SizedBox(width: 4),
               Icon(Icons.keyboard_arrow_down, size: 16, color: subtextColor),
@@ -1475,7 +1475,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: 16),
             Text(
               'Appearance',
-              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600),
+              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             ...AppThemeColor.values.map((palette) => ListTile(
@@ -1491,7 +1491,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ? Icon(Icons.dark_mode, size: 16, color: AppColors.primary)
                         : null,
                   ),
-                  title: Text(palette.label, style: GoogleFonts.inter(fontSize: 15)),
+                  title: Text(palette.label, style: GoogleFonts.manrope(fontSize: 15)),
                   trailing: palette == currentTheme
                       ? Icon(Icons.check_circle, color: AppColors.primary, size: 22)
                       : null,
@@ -1517,7 +1517,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             const SizedBox(height: 8),
             Text(
               'DearDays',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: textColor,

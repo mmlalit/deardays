@@ -68,7 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   onPressed: widget.onComplete,
                   child: Text(
                     'Skip',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textSecondary,
@@ -133,7 +133,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   child: Text(
                     _isLastPage ? 'Start Free Trial' : 'Next',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -247,7 +247,7 @@ class _OnboardingPageState extends State<_OnboardingPage>
               Text(
                 widget.data.title,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.manrope(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
@@ -260,7 +260,7 @@ class _OnboardingPageState extends State<_OnboardingPage>
               Text(
                 widget.data.subtitle,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                   color: AppColors.textSecondary,

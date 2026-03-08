@@ -383,7 +383,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     child: Center(
                       child: Text(
                         'Review & Save',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -400,7 +400,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     },
                     child: Text(
                       'Drafts',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textSecondary,
@@ -436,7 +436,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   _polishProgress < 0.4
                       ? 'Cleaning up your words...'
                       : 'AI is writing your story...',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
@@ -445,7 +445,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               ),
               Text(
                 '$percent%',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textSecondary,
@@ -539,7 +539,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               const SizedBox(width: 8),
               Text(
                 'AI Polish',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
@@ -548,7 +548,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               const SizedBox(width: 6),
               Text(
                 '— Fix spelling & improve readability',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
@@ -576,7 +576,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             const SizedBox(width: 6),
             Text(
               'Revert to original',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppColors.textSecondary,
@@ -635,7 +635,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           child: Center(
             child: Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                 color: isActive ? AppColors.primary : AppColors.textSecondary,
@@ -665,7 +665,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           if (_generatedTitle != null)
             Text(
               _generatedTitle!,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -676,7 +676,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           // Body — italic Playfair
           Text(
             _polishedText!,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.manrope(
               fontSize: 18,
               fontStyle: FontStyle.italic,
               fontWeight: FontWeight.w400,
@@ -704,7 +704,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           const SizedBox(height: 24),
           Text(
             _cleanedText!,
-            style: GoogleFonts.lora(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               color: AppColors.textPrimary.withAlpha(215),
               height: 1.7,
@@ -730,7 +730,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           const SizedBox(height: 24),
           Text(
             widget.data.rawText,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 15,
               color: AppColors.textPrimary.withAlpha(204),
               height: 1.7,
@@ -762,7 +762,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             Expanded(
               child: Text(
                 _polishError!,
-                style: GoogleFonts.inter(fontSize: 13, color: Colors.orange.shade900, height: 1.4),
+                style: GoogleFonts.manrope(fontSize: 13, color: Colors.orange.shade900, height: 1.4),
               ),
             ),
             const SizedBox(width: 8),
@@ -770,7 +770,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               onTap: _polishText,
               child: Text(
                 'Retry',
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
+                style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary),
               ),
             ),
           ],
@@ -830,7 +830,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 color: isActive ? AppColors.primary : AppColors.textSecondary,
@@ -870,7 +870,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   : const Icon(Icons.auto_stories, size: 20, color: Colors.white),
               label: Text(
                 _isSaving ? 'Saving...' : 'Save to Book',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,

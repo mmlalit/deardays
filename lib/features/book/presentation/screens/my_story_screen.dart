@@ -64,7 +64,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Book not found', style: GoogleFonts.inter(color: AppColors.textSecondary)),
+                  Text('Book not found', style: GoogleFonts.manrope(color: AppColors.textSecondary)),
                   const SizedBox(height: 12),
                   TextButton(onPressed: () => context.go('/book'), child: const Text('Back to Library')),
                 ],
@@ -157,7 +157,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                 const SizedBox(width: 12),
                 Text(
                   _currentPage == 0 ? 'Cover' : 'Page $_currentPage of ${totalPages - 1}',
-                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
+                  style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.primary),
                 ),
                 const SizedBox(width: 12),
                 GestureDetector(
@@ -261,7 +261,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                     child: Center(
                       child: Text(
                         'DEARDAYS',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 3,
@@ -302,7 +302,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
           children: [
             Text(
               _writingStyle,
-              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
+              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary),
             ),
             const SizedBox(width: 2),
             Icon(Icons.expand_more, size: 16, color: AppColors.primary),
@@ -324,14 +324,14 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Writing Style', style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w600)),
+              Text('Writing Style', style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
               ..._styles.map((style) => ListTile(
                     onTap: () {
                       setState(() => _writingStyle = style);
                       Navigator.pop(ctx);
                     },
-                    title: Text(style, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500)),
+                    title: Text(style, style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w500)),
                     trailing: _writingStyle == style ? Icon(Icons.check_circle, color: AppColors.primary, size: 20) : null,
                     contentPadding: EdgeInsets.zero,
                   )),
@@ -451,12 +451,12 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                             children: [
                               Text(
                                 book.title,
-                                style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2),
+                                style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 dateRange.toUpperCase(),
-                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white.withAlpha(204), letterSpacing: 3),
+                                style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white.withAlpha(204), letterSpacing: 3),
                               ),
                             ],
                           ),
@@ -472,7 +472,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                   decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.primary.withAlpha(26)))),
                   child: Text(
                     'Contents',
-                    style: GoogleFonts.playfairDisplay(fontSize: 18, fontStyle: FontStyle.italic, color: AppColors.primary),
+                    style: GoogleFonts.manrope(fontSize: 18, fontStyle: FontStyle.italic, color: AppColors.primary),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -495,7 +495,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                             width: 28,
                             child: Text(
                               (index + 1).toString().padLeft(2, '0'),
-                              style: GoogleFonts.playfairDisplay(fontSize: 14, fontStyle: FontStyle.italic, color: AppColors.primary.withAlpha(102)),
+                              style: GoogleFonts.manrope(fontSize: 14, fontStyle: FontStyle.italic, color: AppColors.primary.withAlpha(102)),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -503,11 +503,11 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(chapter.title, style: GoogleFonts.playfairDisplay(fontSize: 16, color: AppColors.textPrimary)),
+                                Text(chapter.title, style: GoogleFonts.manrope(fontSize: 16, color: AppColors.textPrimary)),
                                 const SizedBox(height: 2),
                                 Text(
                                   'CHAPTER ${index + 1} \u2022 ${chapter.entryCount} ${chapter.entryCount == 1 ? "ENTRY" : "ENTRIES"}',
-                                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textPrimary.withAlpha(102), letterSpacing: 0.8),
+                                  style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textPrimary.withAlpha(102), letterSpacing: 0.8),
                                 ),
                               ],
                             ),
@@ -561,7 +561,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                           Expanded(
                             child: Row(
                               children: [
-                                Text(dateStr, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5, color: AppColors.primary)),
+                                Text(dateStr, style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5, color: AppColors.primary)),
                                 if (moodLabel != null) ...[
                                   Container(
                                     width: 4,
@@ -569,7 +569,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                                     margin: const EdgeInsets.symmetric(horizontal: 8),
                                     decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withAlpha(76)),
                                   ),
-                                  Text(moodLabel, style: GoogleFonts.inter(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.textPrimary.withAlpha(128))),
+                                  Text(moodLabel, style: GoogleFonts.manrope(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.textPrimary.withAlpha(128))),
                                 ],
                               ],
                             ),
@@ -586,7 +586,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                               ),
                             ),
                           ),
-                          Text('Page $pageNumber', style: GoogleFonts.playfairDisplay(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.primary.withAlpha(102))),
+                          Text('Page $pageNumber', style: GoogleFonts.manrope(fontSize: 10, fontStyle: FontStyle.italic, color: AppColors.primary.withAlpha(102))),
                         ],
                       ),
                     ),
@@ -608,7 +608,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary)),
                               ),
                               const SizedBox(height: 12),
-                              Text('Crafting your story...', style: GoogleFonts.inter(fontSize: 14, fontStyle: FontStyle.italic, color: AppColors.textSecondary)),
+                              Text('Crafting your story...', style: GoogleFonts.manrope(fontSize: 14, fontStyle: FontStyle.italic, color: AppColors.textSecondary)),
                             ],
                           ),
                         ),
@@ -650,7 +650,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
               padding: const EdgeInsets.only(top: 24),
               child: Text(
                 p,
-                style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w400, color: AppColors.textPrimary.withAlpha(230), height: 1.7),
+                style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w400, color: AppColors.textPrimary.withAlpha(230), height: 1.7),
               ),
             )),
       ],
@@ -659,7 +659,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
 
   Widget _buildDropCapParagraph(String text) {
     if (text.length < 2) {
-      return Text(text, style: GoogleFonts.playfairDisplay(fontSize: 18, color: AppColors.textPrimary.withAlpha(230), height: 1.7));
+      return Text(text, style: GoogleFonts.manrope(fontSize: 18, color: AppColors.textPrimary.withAlpha(230), height: 1.7));
     }
 
     final firstChar = text[0].toUpperCase();
@@ -672,13 +672,13 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
           padding: const EdgeInsets.only(right: 12, top: 4),
           child: Text(
             firstChar,
-            style: GoogleFonts.playfairDisplay(fontSize: 52, fontWeight: FontWeight.w700, color: AppColors.primary, height: 0.85),
+            style: GoogleFonts.manrope(fontSize: 52, fontWeight: FontWeight.w700, color: AppColors.primary, height: 0.85),
           ),
         ),
         Expanded(
           child: Text(
             restText,
-            style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w400, color: AppColors.textPrimary.withAlpha(230), height: 1.7),
+            style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w400, color: AppColors.textPrimary.withAlpha(230), height: 1.7),
           ),
         ),
       ],
@@ -721,7 +721,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 11,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
             color: isActive ? AppColors.primary : AppColors.textSecondary,
@@ -747,7 +747,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
         padding: const EdgeInsets.only(bottom: 16),
         child: Text(
           p,
-          style: GoogleFonts.lora(
+          style: GoogleFonts.manrope(
             fontSize: 16,
             color: AppColors.textPrimary.withAlpha(204),
             height: 1.7,
@@ -789,7 +789,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
               const SizedBox(width: 8),
               Text(
                 chapterName,
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
               ),
             ],
           ),

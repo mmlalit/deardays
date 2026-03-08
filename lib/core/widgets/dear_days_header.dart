@@ -104,7 +104,7 @@ class DearDaysHeader extends StatelessWidget {
           children: [
             Text(
               title,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: textColor,
@@ -113,7 +113,7 @@ class DearDaysHeader extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               subtitle!,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: subtextColor,
               ),
@@ -123,7 +123,7 @@ class DearDaysHeader extends StatelessWidget {
       }
       return Text(
         title,
-        style: GoogleFonts.playfairDisplay(
+        style: GoogleFonts.manrope(
           fontSize: 24,
           fontWeight: FontWeight.w700,
           color: textColor,
@@ -144,7 +144,7 @@ class DearDaysHeader extends StatelessWidget {
           children: [
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: textColor,
@@ -153,7 +153,7 @@ class DearDaysHeader extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               subtitle!,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: subtextColor,
               ),
@@ -163,7 +163,7 @@ class DearDaysHeader extends StatelessWidget {
       }
       return Text(
         title,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textColor,
@@ -198,7 +198,7 @@ class DearDaysHeader extends StatelessWidget {
             ),
       title: Text(
         title,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textColor,

@@ -97,7 +97,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   ),
                   Text(
                     'DearDays',
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.manrope(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
@@ -119,7 +119,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     Text(
                       'Your story has\n30 pages.\nKeep writing?',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.playfairDisplay(
+                      style: GoogleFonts.manrope(
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         height: 1.25,
@@ -178,7 +178,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                               )
                             : Text(
                                 'Continue my story \u2192',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -192,7 +192,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       onPressed: sub.isLoading ? null : _handleRestore,
                       child: Text(
                         'Restore Purchases',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: AppColors.primary,
@@ -205,7 +205,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     Text(
                       'Your existing entries are always readable, free forever.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 13,
                         color: AppColors.textMuted,
                       ),
@@ -220,7 +220,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           ),
                           child: Text(
                             'Terms',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 13,
                               color: AppColors.textSecondary,
                               decoration: TextDecoration.underline,
@@ -231,7 +231,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Text(
                             'and',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 13,
                               color: AppColors.textMuted,
                             ),
@@ -243,7 +243,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           ),
                           child: Text(
                             'Privacy Policy',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 13,
                               color: AppColors.textSecondary,
                               decoration: TextDecoration.underline,
@@ -296,7 +296,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               const Spacer(),
               Text(
                 'Chapter 3: The Golden Hour',
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
                   color: AppColors.textPrimary,
@@ -305,7 +305,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               const SizedBox(height: 6),
               Text(
                 'Page 30',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 11,
                   color: AppColors.textMuted,
                 ),
@@ -359,7 +359,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               Flexible(
                 child: Text(
                   f,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
@@ -429,7 +429,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     children: [
                       Text(
                         title,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
@@ -446,7 +446,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           ),
                           child: Text(
                             badgeText,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
@@ -459,7 +459,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       color: AppColors.textMuted,
                     ),
@@ -477,7 +477,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 ),
                 child: Text(
                   label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,

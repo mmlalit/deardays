@@ -287,7 +287,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             const SizedBox(height: 16),
             Text(
               'Couldn\u2019t load memories',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -296,7 +296,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             const SizedBox(height: 8),
             Text(
               'Check your connection and try again.',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: AppColors.textSecondary,
               ),
@@ -307,7 +307,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(
                 'Retry',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
@@ -346,7 +346,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             const SizedBox(height: 20),
             Text(
               'No memories on this day yet',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: textColor,
@@ -356,7 +356,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             Text(
               'Keep writing \u2014 future you will love\nlooking back.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.lora(
+              style: GoogleFonts.manrope(
                 fontSize: 15,
                 fontStyle: FontStyle.italic,
                 height: 1.5,
@@ -407,7 +407,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     child: Center(
                       child: Text(
                         'ON THIS DAY',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
@@ -433,7 +433,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               const SizedBox(height: 4),
               Text(
                 'Revisiting your favorite chapters',
-                style: GoogleFonts.lora(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontStyle: FontStyle.italic,
                   fontWeight: FontWeight.w500,
@@ -466,7 +466,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               text.toUpperCase(),
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 2.0,
@@ -556,7 +556,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   ),
                   child: Text(
                     year,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -582,7 +582,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                       Expanded(
                         child: Text(
                           location,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.0,
@@ -610,7 +610,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                             const SizedBox(width: 5),
                             Text(
                               moodInfo.label,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                                 color: AppColors.primary,
@@ -626,7 +626,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 // Quote text — serif italic
                 Text(
                   '\u201C$previewText\u201D',
-                  style: GoogleFonts.lora(
+                  style: GoogleFonts.manrope(
                     fontSize: 17,
                     fontStyle: FontStyle.italic,
                     height: 1.6,
@@ -649,7 +649,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     ),
                     child: Text(
                       'Read Full Entry',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
@@ -731,7 +731,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     ),
                     child: Text(
                       year,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -745,7 +745,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     Expanded(
                       child: Text(
                         location,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.8,
@@ -761,7 +761,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     const SizedBox(width: 4),
                     Text(
                       moodInfo.label,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: AppColors.primary,
@@ -775,7 +775,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               // Full entry text
               Text(
                 '\u201C${entry.content}\u201D',
-                style: GoogleFonts.lora(
+                style: GoogleFonts.manrope(
                   fontSize: 18,
                   fontStyle: FontStyle.italic,
                   height: 1.7,
@@ -799,7 +799,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     children: [
                       Text(
                         'MY ORIGINAL WORDS',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
@@ -809,7 +809,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                       const SizedBox(height: 10),
                       Text(
                         entry.rawContent!,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           height: 1.6,
                           color: AppColors.textSecondary,
@@ -828,7 +828,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   const SizedBox(width: 6),
                   Text(
                     _formatEntryDate(entry),
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: AppColors.textMuted,
                     ),
@@ -837,7 +837,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   if (entry.wordCount > 0)
                     Text(
                       '${entry.wordCount} words',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.textMuted,
                       ),
@@ -888,7 +888,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
             Text(
               'That\u2019s all the memories for today.\nMake a new one?',
               textAlign: TextAlign.center,
-              style: GoogleFonts.lora(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
                 height: 1.5,
