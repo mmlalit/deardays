@@ -1,12 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
@@ -36,6 +38,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   String _lockMethod = 'none';
   bool _healthConsent = false;
   bool _notificationsEnabled = false;
+  bool _streakMilestonesEnabled = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 30);
   final _secureStorage = SecureStorageService();
   final _localAuth = LocalAuthentication();
@@ -314,6 +317,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           }
         });
       }
+    } catch (_) {}
+
+    try {
+      final box = await Hive.openBox('settings');
+      final saved = box.get('streak_milestones_enabled') as bool?;
+      if (saved != null && mounted) {
+        setState(() => _streakMilestonesEnabled = saved);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleStreakMilestones(bool value) async {
+    setState(() => _streakMilestonesEnabled = value);
+    try {
+      final box = await Hive.openBox('settings');
+      await box.put('streak_milestones_enabled', value);
     } catch (_) {}
   }
 
@@ -823,7 +842,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       icon: Icons.lock_outlined,
                       label: 'Password',
                       textColor: textColor,
-                      trailing: Text('Change', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.of(context).accent)),
+                      trailing: Text('Change', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF111111))),
                       onTap: _changePassword,
                     ),
                     _buildCardRow(
@@ -888,8 +907,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       label: 'Streak Milestones',
                       textColor: textColor,
                       trailing: _buildCustomToggle(
-                        value: _notificationsEnabled,
-                        onChanged: null,
+                        value: _streakMilestonesEnabled,
+                        onChanged: _toggleStreakMilestones,
                       ),
                       isLast: true,
                     ),
@@ -916,7 +935,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       icon: Icons.account_tree_outlined,
                       label: 'Chapter Organization',
                       textColor: textColor,
-                      trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.of(context).textMuted.withAlpha(76)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            () {
+                              final org = ref.watch(profileProvider).valueOrNull?.bookOrganization ?? 'yearly';
+                              switch (org) {
+                                case 'monthly': return 'Monthly';
+                                case 'quarterly': return 'Quarterly';
+                                case 'manual': return 'One Book';
+                                default: return 'Yearly';
+                              }
+                            }(),
+                            style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.of(context).textMuted.withAlpha(76)),
+                        ],
+                      ),
                       onTap: _pickBookOrganization,
                       isLast: true,
                     ),
@@ -1014,10 +1051,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     ),
                     _buildCardRow(
                       icon: Icons.delete_forever,
-                      iconColor: Colors.red.shade400,
                       label: 'Delete Account',
                       textColor: textColor,
-                      labelColor: Colors.red.shade500.withAlpha(204),
                       trailing: const SizedBox.shrink(),
                       onTap: _deleteAccount,
                       isLast: true,
@@ -1068,8 +1103,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600),
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error.withAlpha(76)),
+                          foregroundColor: const Color(0xFF111111),
+                          side: const BorderSide(color: Color(0x33111111)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -1207,7 +1242,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.of(context).accent.withAlpha(20),
+                  color: const Color(0xFF111111).withAlpha(12),
+                  border: Border.all(color: const Color(0xFF111111).withAlpha(30)),
                   borderRadius: BorderRadius.circular(9999),
                 ),
                 child: Text(
@@ -1215,7 +1251,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.of(context).accent,
+                    color: const Color(0xFF111111),
                   ),
                 ),
               ),
@@ -1345,7 +1381,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            currentLocale.label,
+            currentLocale == AppLocale.system
+                ? currentLocale.languageName
+                : currentLocale.label,
             style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
           ),
           const SizedBox(width: 4),
