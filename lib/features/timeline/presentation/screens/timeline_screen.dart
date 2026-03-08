@@ -126,12 +126,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                ],
-              ),
-            ),
+            ],
           ),
         ),
-      );
+      ),
+    );
   }
 
   Widget _filterChip(String label, IconData icon, {required VoidCallback onTap}) {
