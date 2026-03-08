@@ -28,6 +28,7 @@ class SecureStorageService {
   // ---------------------------------------------------------------------------
 
   static const String _keyEncryptionSalt = 'dd_encryption_salt';
+  static const String _keyEncryptionKey = 'dd_encryption_key';
   static const String _keyBiometricEnabled = 'dd_biometric_enabled';
   static const String _keyAuthToken = 'dd_auth_token';
   static const String _keyPinHash = 'dd_pin_hash';
@@ -68,6 +69,27 @@ class SecureStorageService {
   /// first launch or after a full wipe).
   Future<String?> getEncryptionSalt() async {
     return await _storage.read(key: _keyEncryptionSalt);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Encryption key (derived key, stored in keychain for session restore)
+  // ---------------------------------------------------------------------------
+
+  /// Saves the derived encryption key to the device keychain so it can be
+  /// restored across app restarts without requiring the user to re-enter
+  /// their password.
+  Future<void> saveEncryptionKey(String keyBase64) async {
+    await _storage.write(key: _keyEncryptionKey, value: keyBase64);
+  }
+
+  /// Retrieves the stored encryption key, or `null` if not available.
+  Future<String?> getEncryptionKey() async {
+    return await _storage.read(key: _keyEncryptionKey);
+  }
+
+  /// Deletes the stored encryption key (called on logout).
+  Future<void> clearEncryptionKey() async {
+    await _storage.delete(key: _keyEncryptionKey);
   }
 
   // ---------------------------------------------------------------------------

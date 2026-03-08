@@ -176,6 +176,89 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  Future<void> _pickProfilePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.of(context).textMuted.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded),
+                title: Text('Take a photo',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w500)),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded),
+                title: Text('Choose from gallery',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w500)),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser!.id;
+      final ext = picked.path.split('.').last.toLowerCase();
+      final storagePath = 'avatars/$userId.$ext';
+      final bytes = await File(picked.path).readAsBytes();
+
+      await client.storage.from('media').uploadBinary(
+        storagePath,
+        bytes,
+        fileOptions: FileOptions(
+          contentType: 'image/$ext',
+          upsert: true,
+        ),
+      );
+
+      final publicUrl =
+          client.storage.from('media').getPublicUrl(storagePath);
+
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final profile = await ref.read(profileProvider.future);
+      if (profile != null) {
+        await profileRepo.updateProfile(profile.copyWith(avatarUrl: publicUrl));
+        ref.invalidate(profileProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackBarHelper.show(context, 'Failed to update photo: $e');
+      }
+    }
+  }
+
   Future<void> _changePassword() async {
     final emailController = TextEditingController();
     final email = Supabase.instance.client.auth.currentUser?.email ?? '';
@@ -1097,14 +1180,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       height: 48,
                       child: OutlinedButton.icon(
                         onPressed: _signOut,
-                        icon: const Icon(Icons.logout, size: 18),
+                        icon: const Icon(Icons.logout_rounded, size: 18),
                         label: Text(
                           'Sign Out',
                           style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600),
                         ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF111111),
-                          side: const BorderSide(color: Color(0x33111111)),
+                          foregroundColor: const Color(0xFFEF4444),
+                          side: const BorderSide(color: Color(0x44EF4444)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -1157,6 +1240,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // Profile — avatar ring, Playfair name, Edit Profile pill
   // ---------------------------------------------------------------------------
 
+  Widget _buildInitialsCircle(String initials) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.of(context).accent.withAlpha(38),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: GoogleFonts.manrope(
+          fontSize: 32,
+          fontWeight: FontWeight.w600,
+          color: AppColors.of(context).accent,
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileSection(Color textColor, Color subtextColor) {
     final user = Supabase.instance.client.auth.currentUser;
     final email = user?.email ?? '';
@@ -1173,52 +1274,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .join()
         : '?';
 
+    final profileAsync = ref.watch(profileProvider);
+    final avatarUrl = profileAsync.valueOrNull?.avatarUrl;
+
     return Padding(
       padding: const EdgeInsets.only(top: 28),
       child: Center(
         child: Column(
           children: [
-            Stack(
-              children: [
-                Container(
-                  width: 96,
-                  height: 96,
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.of(context).accent, width: 2),
-                  ),
-                  child: Container(
+            GestureDetector(
+              onTap: _pickProfilePhoto,
+              child: Stack(
+                children: [
+                  Container(
+                    width: 96,
+                    height: 96,
+                    padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.of(context).accent.withAlpha(38),
+                      border: Border.all(color: AppColors.of(context).accent, width: 2),
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      initials,
-                      style: GoogleFonts.manrope(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w600,
+                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              avatarUrl,
+                              width: 90,
+                              height: 90,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _buildInitialsCircle(initials),
+                            ),
+                          )
+                        : _buildInitialsCircle(initials),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
                         color: AppColors.of(context).accent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
                       ),
+                      child: const Icon(Icons.edit, color: Colors.white, size: 14),
                     ),
                   ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: AppColors.of(context).accent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
-                    ),
-                    child: const Icon(Icons.edit, color: Colors.white, size: 14),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -1268,10 +1371,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       child: Text(
         label.toUpperCase(),
         style: GoogleFonts.manrope(
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: AppColors.of(context).accent,
-          letterSpacing: 1.5,
+          color: AppColors.of(context).textMuted,
+          letterSpacing: 1.8,
         ),
       ),
     );
@@ -1547,10 +1650,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget _buildFooter(Color textColor) {
     return Center(
       child: Opacity(
-        opacity: 0.2,
+        opacity: 0.3,
         child: Column(
           children: [
-            Icon(Icons.auto_stories, size: 36, color: textColor),
+            Image.asset('assets/images/logo.png', width: 44, height: 44),
             const SizedBox(height: 8),
             Text(
               'DearDays',

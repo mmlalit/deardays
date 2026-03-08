@@ -104,6 +104,10 @@ class AuthService {
       // without hitting the network (useful for offline / biometric unlock).
       await _secureStorage.saveEncryptionSalt(salt);
 
+      // Store the derived key in the device keychain so it can be restored
+      // on app restart without requiring the user to re-enter their password.
+      await _secureStorage.saveEncryptionKey(keyBase64);
+
       // Link this user to RevenueCat for purchase tracking.
       await _revenueCat.login(response.user!.id);
     }
@@ -284,6 +288,9 @@ class AuthService {
 
     // Cache the salt locally for offline / biometric unlock scenarios.
     await _secureStorage.saveEncryptionSalt(salt);
+
+    // Store the derived key in the device keychain for session restore.
+    await _secureStorage.saveEncryptionKey(keyBase64);
   }
 }
 

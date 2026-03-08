@@ -179,7 +179,7 @@ enum AppThemeColor {
         );
       case AppThemeColor.classicWhite:
         return const AppPalette(
-          bg: Color(0xFFFFFFFF),
+          bg: Color(0xFFFAF8F5),
           card: Color(0xFFFFFFFF),
           navBg: Color(0xFFFFFFFF),
           textPrimary: Color(0xFF111111),

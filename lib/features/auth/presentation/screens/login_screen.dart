@@ -261,27 +261,12 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           const SizedBox(height: 60),
 
-          // Warm gradient circle with icon
+          // App logo
           Center(
-            child: Container(
+            child: Image.asset(
+              'assets/images/logo.png',
               width: 88,
               height: 88,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.of(context).accentLight.withAlpha(100),
-                    AppColors.of(context).accent.withAlpha(60),
-                  ],
-                ),
-              ),
-              child: Icon(
-                Icons.auto_stories_rounded,
-                size: 36,
-                color: AppColors.of(context).accent,
-              ),
             ),
           ),
           const SizedBox(height: 24),

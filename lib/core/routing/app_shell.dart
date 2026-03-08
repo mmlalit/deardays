@@ -22,8 +22,15 @@ class AppShell extends StatelessWidget {
     final index = _currentIndex(context);
     final colors = AppColors.of(context);
 
+    // Show FAB on all tabs except Home (home already has a large mic button)
+    final showFab = index != 0;
+
     return Scaffold(
       body: child,
+      floatingActionButton: showFab
+          ? _MicFab()
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: colors.navBg,
@@ -51,7 +58,7 @@ class AppShell extends StatelessWidget {
                 _NavItem(
                   icon: Icons.menu_book_outlined,
                   activeIcon: Icons.menu_book_rounded,
-                  label: 'Book',
+                  label: 'Library',
                   isActive: index == 1,
                   onTap: () => context.go('/book'),
                 ),
@@ -73,6 +80,35 @@ class AppShell extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MicFab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        context.push('/record');
+      },
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: colors.accent,
+          boxShadow: [
+            BoxShadow(
+              color: colors.accent.withAlpha(100),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.mic_rounded, color: Colors.white, size: 26),
       ),
     );
   }

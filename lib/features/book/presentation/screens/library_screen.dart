@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -15,8 +16,6 @@ class LibraryScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
-  bool _isGridView = true;
-
   @override
   void initState() {
     super.initState();
@@ -50,11 +49,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               child: booksAsync.when(
                 data: (books) => books.isEmpty
                     ? _buildEmptyState(context)
-                    : _isGridView
-                        ? _buildBookGrid(context, books)
-                        : _buildBookList(context, books),
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                    : _buildBookList(context, books),
+                loading: () => _buildSkeletonList(),
                 error: (_, __) => _buildEmptyState(context),
               ),
             ),
@@ -68,74 +64,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      child: Row(
-        children: [
-          Text(
-            'My Books',
-            style: GoogleFonts.manrope(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-            ),
+      child: Center(
+        child: Text(
+          'My Books',
+          style: GoogleFonts.manrope(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
           ),
-          const Spacer(),
-          // View toggle
-          Container(
-            decoration: BoxDecoration(
-              color: colors.accent.withAlpha(15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => setState(() => _isGridView = true),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _isGridView ? colors.accent.withAlpha(30) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.grid_view_rounded,
-                      size: 18,
-                      color: _isGridView ? colors.accent : colors.textMuted,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => _isGridView = false),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: !_isGridView ? colors.accent.withAlpha(30) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.view_list_rounded,
-                      size: 18,
-                      color: !_isGridView ? colors.accent : colors.textMuted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildBookGrid(BuildContext context, List<Book> books) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: books.length,
-      itemBuilder: (context, index) => _buildBookCard(context, books[index]),
     );
   }
 
@@ -224,120 +162,51 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildBookCard(BuildContext context, Book book) {
-    final color = _parseColor(book.coverColor);
-    final colors = AppColors.of(context);
+  Widget _buildSkeletonList() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: 3,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, __) => _buildSkeletonTile(),
+    );
+  }
 
-    return GestureDetector(
-      onTap: () => context.push('/book/${book.id}'),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: color.withAlpha(40),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+  Widget _buildSkeletonTile() {
+    final colors = AppColors.of(context);
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.accent.withAlpha(13)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            decoration: BoxDecoration(
+              color: colors.border,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(14),
+                bottomLeft: Radius.circular(14),
+              ),
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Column(
-            children: [
-              Expanded(
-                flex: 5,
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [color, color.withAlpha(180)],
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        left: 0, top: 0, bottom: 0, width: 12,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.black.withAlpha(50),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.auto_stories_rounded,
-                                size: 32,
-                                color: Colors.white.withAlpha(200),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                book.title,
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  color: colors.card,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        book.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatDateRange(book),
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
           ),
-        ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SkeletonBox(width: 140, height: 14),
+                  const SizedBox(height: 8),
+                  SkeletonBox(width: 90, height: 11),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

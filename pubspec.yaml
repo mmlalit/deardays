@@ -91,5 +91,7 @@ flutter:
   generate: true
   uses-material-design: true
 
-  # Assets will be added as the app grows
+  assets:
+    - assets/images/logo.png
+
   # Fonts loaded via google_fonts package at runtime

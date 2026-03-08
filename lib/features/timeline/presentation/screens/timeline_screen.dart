@@ -6,8 +6,13 @@ import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/services/media/media_service.dart';
+
+extension _StringExt on String {
+  String capitalize() => isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
+}
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -109,16 +114,29 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Row 3: Filter chips
+                  // Row 3: Active filter chips
                   Row(
                     children: [
-                      _filterChip('Keyword', Icons.keyboard_arrow_down, onTap: () {}),
-                      const SizedBox(width: 8),
-                      _filterChip('Date', Icons.calendar_month, onTap: () {}),
-                      const SizedBox(width: 8),
-                      _filterChip('Mood', Icons.mood, onTap: () {
-                        _showMoodFilterSheet();
-                      }),
+                      _filterChip(
+                        _moodFilter != null ? _moodFilter!.capitalize() : 'Mood',
+                        Icons.mood,
+                        isActive: _moodFilter != null,
+                        onTap: _showMoodFilterSheet,
+                      ),
+                      if (_moodFilter != null) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => setState(() => _moodFilter = null),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.of(context).accent.withAlpha(20),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.close, size: 14, color: AppColors.of(context).accent),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -129,15 +147,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     );
   }
 
-  Widget _filterChip(String label, IconData icon, {required VoidCallback onTap}) {
+  Widget _filterChip(String label, IconData icon, {required VoidCallback onTap, bool isActive = false}) {
+    final colors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.of(context).accent.withAlpha(26),
+          color: isActive ? colors.accent : colors.accent.withAlpha(26),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.of(context).accent.withAlpha(51)),
+          border: Border.all(color: isActive ? colors.accent : colors.accent.withAlpha(51)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -147,11 +166,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: AppColors.of(context).textPrimary,
+                color: isActive ? Colors.white : colors.textPrimary,
               ),
             ),
             const SizedBox(width: 4),
-            Icon(icon, size: 14, color: AppColors.of(context).textPrimary),
+            Icon(icon, size: 14, color: isActive ? Colors.white : colors.textPrimary),
           ],
         ),
       ),
@@ -218,12 +237,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final totalAsync = ref.watch(totalEntriesProvider);
     final chaptersAsync = ref.watch(chaptersProvider);
     final moodStatsAsync = ref.watch(moodStatsProvider);
+    final colors = AppColors.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2A3A),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [colors.card, colors.card.withAlpha(230)]
+              : [colors.accent.withAlpha(220), colors.accent],
+        ),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Stack(
@@ -236,7 +263,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 style: GoogleFonts.manrope(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.of(context).accent,
+                  color: isDark ? colors.accent : Colors.white.withAlpha(200),
                   letterSpacing: 1.5,
                 ),
               ),
@@ -248,39 +275,39 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       '$total entries',
                       style: GoogleFonts.manrope(
                         fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? colors.textPrimary : Colors.white,
                       ),
                     ),
                     loading: () => Text(
                       '...',
-                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: isDark ? colors.textPrimary : Colors.white),
                     ),
                     error: (_, __) => Text(
                       '0 entries',
-                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: isDark ? colors.textPrimary : Colors.white),
                     ),
                   ),
                   Text(
-                    ' | ',
-                    style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
+                    ' · ',
+                    style: GoogleFonts.manrope(fontSize: 18, color: isDark ? colors.textMuted : Colors.white.withAlpha(180)),
                   ),
                   chaptersAsync.when(
                     data: (chapters) => Text(
                       '${chapters.length} chapters',
                       style: GoogleFonts.manrope(
                         fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? colors.textPrimary : Colors.white,
                       ),
                     ),
                     loading: () => Text(
                       '...',
-                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: isDark ? colors.textPrimary : Colors.white),
                     ),
                     error: (_, __) => Text(
                       '0 chapters',
-                      style: GoogleFonts.manrope(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.manrope(fontSize: 18, color: isDark ? colors.textPrimary : Colors.white),
                     ),
                   ),
                 ],
@@ -288,7 +315,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.favorite, size: 14, color: AppColors.of(context).accent),
+                  Icon(Icons.favorite, size: 14, color: isDark ? colors.accent : Colors.white.withAlpha(200)),
                   const SizedBox(width: 6),
                   moodStatsAsync.when(
                     data: (stats) {
@@ -297,8 +324,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         happiestMonth,
                         style: GoogleFonts.manrope(
                           fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.white.withAlpha(204),
+                          color: isDark ? colors.textSecondary : Colors.white.withAlpha(220),
                         ),
                       );
                     },
@@ -316,7 +342,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             child: Icon(
               Icons.insights,
               size: 80,
-              color: Colors.white.withAlpha(26),
+              color: isDark ? colors.accent.withAlpha(30) : Colors.white.withAlpha(40),
             ),
           ),
         ],
@@ -387,23 +413,113 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ],
         );
       },
-      loading: () => Center(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 60),
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.of(context).accent),
-          ),
-        ),
-      ),
+      loading: () => _buildTimelineSkeleton(),
       error: (e, _) => Center(
         child: Padding(
           padding: const EdgeInsets.only(top: 60),
-          child: Text(
-            'Could not load entries',
-            style: GoogleFonts.manrope(fontSize: 14, color: AppColors.of(context).textMuted),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.of(context).textMuted),
+              const SizedBox(height: 12),
+              Text(
+                'Could not load entries',
+                style: GoogleFonts.manrope(fontSize: 14, color: AppColors.of(context).textMuted),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => ref.invalidate(timelineEntriesProvider),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.of(context).accent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Retry',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTimelineSkeleton() {
+    final colors = AppColors.of(context);
+    return Stack(
+      children: [
+        Positioned(
+          left: 4,
+          top: 0,
+          bottom: 0,
+          child: Container(width: 1, color: colors.accent.withAlpha(51)),
+        ),
+        Column(
+          children: List.generate(4, (i) => _buildSkeletonEntry(i)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonEntry(int index) {
+    final colors = AppColors.of(context);
+    // Vary widths slightly to look natural
+    final lineWidths = [
+      [160.0, 120.0],
+      [140.0, 100.0],
+      [180.0, 90.0],
+      [150.0, 110.0],
+    ];
+    final w = lineWidths[index % lineWidths.length];
+    return Padding(
+      padding: const EdgeInsets.only(left: 20, bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Date chip skeleton
+          SkeletonBox(width: 80, height: 11, borderRadius: 6),
+          const SizedBox(height: 10),
+          // Card skeleton
+          Container(
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.border),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SkeletonBox(width: w[0], height: 13),
+                      const SizedBox(height: 8),
+                      SkeletonBox(width: w[1], height: 11),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -656,77 +772,193 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 40, left: 20),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Dot on timeline
-          Positioned(
-            left: -18,
-            top: 6,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.of(context).accent.withAlpha(102),
+      child: GestureDetector(
+        onTap: () => _showEntryBottomSheet(entry),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Dot on timeline
+            Positioned(
+              left: -18,
+              top: 6,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.of(context).accent.withAlpha(102),
+                ),
               ),
             ),
-          ),
-          // Entry content
-          Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Date + mood icon row
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        dateStr,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.of(context).textPrimary.withAlpha(153),
+            // Entry content
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date + mood icon row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          dateStr,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.of(context).textPrimary.withAlpha(153),
+                          ),
                         ),
                       ),
-                    ),
-                    if (moodIcon != null)
-                      Icon(
-                        moodIcon,
-                        size: 20,
-                        color: AppColors.of(context).accent.withAlpha(moodOpacity),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Preview text + photo
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        preview,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                          color: AppColors.of(context).textPrimary.withAlpha(230),
-                          height: 1.6,
+                      if (moodIcon != null)
+                        Icon(
+                          moodIcon,
+                          size: 20,
+                          color: AppColors.of(context).accent.withAlpha(moodOpacity),
                         ),
-                      ),
-                    ),
-                    if (photoMedia.isNotEmpty) ...[
-                      const SizedBox(width: 16),
-                      _buildThumbnail(photoMedia.first.storagePath, size: 56, grayscale: true),
                     ],
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Preview text + photo
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          preview,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            color: AppColors.of(context).textPrimary.withAlpha(210),
+                            height: 1.6,
+                          ),
+                        ),
+                      ),
+                      if (photoMedia.isNotEmpty) ...[
+                        const SizedBox(width: 16),
+                        _buildThumbnail(photoMedia.first.storagePath, size: 56, grayscale: true),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEntryBottomSheet(JournalEntry entry) {
+    final colors = AppColors.of(context);
+    final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(entry.entryDate);
+    final displayText = entry.polishedContent ?? entry.content;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        maxChildSize: 0.92,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (_, scrollController) => Column(
+          children: [
+            // Handle
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateStr,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accent,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        if (entry.mood != null) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: colors.accentFaint,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              entry.mood!.capitalize(),
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: colors.accent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (entry.isAiPolished)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: colors.accentFaint,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.auto_fix_high, size: 10, color: colors.accent),
+                          const SizedBox(width: 3),
+                          Text('AI', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: colors.accent)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: colors.border, height: 1),
+            const SizedBox(height: 16),
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                child: Text(
+                  displayText,
+                  style: GoogleFonts.merriweather(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w300,
+                    color: colors.textPrimary,
+                    height: 1.85,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

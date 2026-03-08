@@ -1,11 +1,12 @@
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/services/location/location_service.dart';
@@ -19,12 +20,15 @@ class TextEntryScreen extends StatefulWidget {
 
 class _TextEntryScreenState extends State<TextEntryScreen> {
   final TextEditingController _textController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   final _imagePicker = ImagePicker();
   final _locationService = LocationService();
   bool _polishWithAI = false;
   String? _attachedPhotoPath;
   String? _locationName;
   int _promptIndex = 0;
+  bool _promptVisible = true;
+  String _salutation = 'Dear Diary,';
 
   static const _prompts = [
     'What made you smile today?',
@@ -48,11 +52,65 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   void initState() {
     super.initState();
     _promptIndex = Random().nextInt(_prompts.length);
+    _textController.addListener(() => setState(() {}));
+    _loadSalutation();
+  }
+
+  Future<void> _loadSalutation() async {
+    final box = await Hive.openBox('settings');
+    final saved = box.get('salutation') as String?;
+    if (saved != null && mounted) {
+      setState(() => _salutation = saved);
+    }
+  }
+
+  Future<void> _editSalutation() async {
+    final colors = AppColors.of(context);
+    final controller = TextEditingController(text: _salutation.replaceAll(',', '').trim());
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Customize greeting',
+          style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: GoogleFonts.merriweather(fontSize: 16, color: colors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Dear Diary',
+            hintStyle: GoogleFonts.merriweather(color: colors.textMuted),
+            border: UnderlineInputBorder(borderSide: BorderSide(color: colors.accent)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: colors.accent, width: 2)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text('Save', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: colors.accent)),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      final newSalutation = result.endsWith(',') ? result : '$result,';
+      setState(() => _salutation = newSalutation);
+      final box = await Hive.openBox('settings');
+      await box.put('salutation', newSalutation);
+    }
   }
 
   @override
   void dispose() {
     _textController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -71,14 +129,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     );
     if (picked != null && mounted) {
       setState(() => _attachedPhotoPath = picked.path);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Photo attached'),
-          backgroundColor: const Color(0xFF111111),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
     }
   }
 
@@ -87,7 +137,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       setState(() => _locationName = null);
       return;
     }
-
     final position = await _locationService.getCurrentPosition();
     if (position == null) {
       if (mounted) {
@@ -102,7 +151,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       }
       return;
     }
-
     final name = await _locationService.getLocationName(
       position.latitude,
       position.longitude,
@@ -121,7 +169,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       );
       return;
     }
-
     context.push('/review', extra: ReviewData(
       rawText: text,
       locationName: _locationName,
@@ -130,191 +177,356 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     ));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          // Scrollable content
-          Column(
-            children: [
-              _buildTopBar(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 160),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      _buildAISuggestionCard(),
-                      _buildWritingArea(),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Floating bottom bar with gradient
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildFloatingBottom(),
-          ),
-        ],
-      ),
-    );
+  int get _wordCount {
+    final text = _textController.text.trim();
+    if (text.isEmpty) return 0;
+    return text.split(RegExp(r'\s+')).length;
   }
 
-  // ──────────────────────────────────────────────
-  // Top bar — X close, "New Entry" center, "Post" right
-  // ──────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final isKeyboardUp = MediaQuery.of(context).viewInsets.bottom > 100;
 
-  Widget _buildTopBar() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor.withAlpha(204),
-            border: Border(
-              bottom: BorderSide(
-                color: AppColors.of(context).accent.withAlpha(26),
-              ),
-            ),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      resizeToAvoidBottomInset: true,
+      body: Column(
+        children: [
+          // ── Top bar ────────────────────────────────────────────────────
+          _buildTopBar(colors),
+
+          // ── Scrollable writing area ────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Close button
-                  SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.close, size: 24),
-                      color: AppColors.of(context).textPrimary,
-                      padding: EdgeInsets.zero,
+                  const SizedBox(height: 16),
+
+                  // Date header — small, muted, editorial
+                  Text(
+                    DateFormat('EEEE, MMMM d · yyyy').format(DateTime.now()),
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: colors.textMuted,
+                      letterSpacing: 0.8,
                     ),
                   ),
-                  // Title
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'New Entry',
-                        style: GoogleFonts.manrope(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.of(context).textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Post button
+
+                  const SizedBox(height: 12),
+
+                  // Salutation — tap to customize
                   GestureDetector(
-                    onTap: _goToReview,
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                      child: Text(
-                        'Post',
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.of(context).accent,
+                    onTap: _editSalutation,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          _salutation,
+                          style: GoogleFonts.merriweather(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textPrimary,
+                            height: 1.3,
+                          ),
                         ),
+                        const SizedBox(width: 6),
+                        Icon(Icons.edit_outlined, size: 14, color: colors.textMuted.withAlpha(150)),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // AI prompt chip (inline, collapsible)
+                  if (_promptVisible) _buildInlinePrompt(colors),
+
+                  const SizedBox(height: 16),
+
+                  // Text field — distraction-free, iA Writer inspired
+                  TextField(
+                    controller: _textController,
+                    focusNode: _focusNode,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
+                    cursorColor: colors.accent,
+                    cursorWidth: 2,
+                    scrollPadding: const EdgeInsets.only(bottom: 120),
+                    style: GoogleFonts.merriweather(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w300,
+                      color: colors.textPrimary,
+                      height: 1.85,
+                      letterSpacing: 0.1,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Start writing...',
+                      hintStyle: GoogleFonts.merriweather(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w300,
+                        color: colors.textMuted,
+                        height: 1.85,
                       ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
                     ),
                   ),
                 ],
               ),
             ),
           ),
+
+          // ── Bottom toolbar — moves up with keyboard automatically ───────
+          _buildBottomBar(colors, isKeyboardUp),
+        ],
+      ),
+    );
+  }
+
+  // ── Top bar ────────────────────────────────────────────────────────────────
+
+  Widget _buildTopBar(AppPalette colors) {
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border(
+            bottom: BorderSide(color: colors.accent.withAlpha(20)),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.of(context).maybePop(),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.accent.withAlpha(15),
+                ),
+                child: Icon(Icons.close, size: 18, color: colors.textPrimary),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Text(
+                  'New Entry',
+                  style: GoogleFonts.manrope(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+            // Word count — subtle, right-aligned
+            AnimatedOpacity(
+              opacity: _wordCount > 0 ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300),
+              child: Text(
+                '$_wordCount w',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  color: colors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ──────────────────────────────────────────────
-  // AI Suggestion Card — white, border, serif italic
-  // ──────────────────────────────────────────────
+  // ── Inline prompt chip ─────────────────────────────────────────────────────
 
-  Widget _buildAISuggestionCard() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.of(context).accent.withAlpha(51),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(8),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // "AI SUGGESTION" label
-            Text(
-              'AI SUGGESTION',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-                color: AppColors.of(context).textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Prompt text — serif italic
-            Text(
+  Widget _buildInlinePrompt(AppPalette colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.accent.withAlpha(12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.accent.withAlpha(30)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lightbulb_outline_rounded, size: 16, color: colors.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
               _prompts[_promptIndex],
               style: GoogleFonts.manrope(
-                fontSize: 18,
+                fontSize: 13,
                 fontStyle: FontStyle.italic,
-                fontWeight: FontWeight.w400,
-                color: AppColors.of(context).textPrimary,
+                color: colors.textSecondary,
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 16),
-            // "New Prompt" pill button
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _nextPrompt,
+            child: Icon(Icons.refresh_rounded, size: 16, color: colors.accent),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => setState(() => _promptVisible = false),
+            child: Icon(Icons.close, size: 14, color: colors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom toolbar ─────────────────────────────────────────────────────────
+
+  Widget _buildBottomBar(AppPalette colors, bool isKeyboardUp) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border(
+            top: BorderSide(color: colors.accent.withAlpha(20)),
+          ),
+        ),
+        padding: EdgeInsets.fromLTRB(16, 10, 16, isKeyboardUp ? 8 : 16),
+        child: isKeyboardUp
+            ? _buildCompactToolbar(colors)
+            : _buildFullToolbar(colors),
+      ),
+    );
+  }
+
+  /// Compact toolbar shown when keyboard is visible — just the tool icons
+  Widget _buildCompactToolbar(AppPalette colors) {
+    return Row(
+      children: [
+        _toolButton(
+          icon: _attachedPhotoPath != null ? Icons.image : Icons.image_outlined,
+          label: 'Photo',
+          isActive: _attachedPhotoPath != null,
+          onTap: _attachPhoto,
+          colors: colors,
+        ),
+        const SizedBox(width: 8),
+        _toolButton(
+          icon: _locationName != null ? Icons.location_on : Icons.location_on_outlined,
+          label: _locationName ?? 'Location',
+          isActive: _locationName != null,
+          onTap: _addLocation,
+          colors: colors,
+        ),
+        const Spacer(),
+        // AI Polish toggle (compact)
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() => _polishWithAI = !_polishWithAI);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _polishWithAI ? colors.accent : colors.accent.withAlpha(15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: colors.accent.withAlpha(40)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_fix_high, size: 14,
+                    color: _polishWithAI ? Colors.white : colors.accent),
+                const SizedBox(width: 5),
+                Text(
+                  'AI Polish',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _polishWithAI ? Colors.white : colors.accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Send / continue button
+        GestureDetector(
+          onTap: _goToReview,
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF111111),
+            ),
+            child: const Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Full toolbar shown when keyboard is hidden — includes Save to Book button
+  Widget _buildFullToolbar(AppPalette colors) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Tools row
+        Row(
+          children: [
+            _toolButton(
+              icon: _attachedPhotoPath != null ? Icons.image : Icons.image_outlined,
+              label: 'Photo',
+              isActive: _attachedPhotoPath != null,
+              onTap: _attachPhoto,
+              colors: colors,
+            ),
+            const SizedBox(width: 8),
+            _toolButton(
+              icon: _locationName != null ? Icons.location_on : Icons.location_on_outlined,
+              label: _locationName ?? 'Location',
+              isActive: _locationName != null,
+              onTap: _addLocation,
+              colors: colors,
+            ),
+            const Spacer(),
+            // AI Polish toggle
             GestureDetector(
-              onTap: _nextPrompt,
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _polishWithAI = !_polishWithAI);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.of(context).accent.withAlpha(26),
-                  borderRadius: BorderRadius.circular(9999),
+                  color: _polishWithAI ? colors.accent : colors.accent.withAlpha(15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colors.accent.withAlpha(40)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.refresh,
-                      size: 16,
-                      color: AppColors.of(context).accent,
-                    ),
-                    const SizedBox(width: 8),
+                    Icon(Icons.auto_fix_high, size: 16,
+                        color: _polishWithAI ? Colors.white : colors.accent),
+                    const SizedBox(width: 6),
                     Text(
-                      'New Prompt',
+                      'AI Polish',
                       style: GoogleFonts.manrope(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.of(context).accent,
+                        color: _polishWithAI ? Colors.white : colors.accent,
                       ),
                     ),
                   ],
@@ -323,302 +535,73 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────
-  // Writing area — "Dear Diary," + paper-lined text
-  // ──────────────────────────────────────────────
-
-  Widget _buildWritingArea() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          // "Dear Diary," heading
-          Text(
-            'Dear Diary,',
-            style: GoogleFonts.manrope(
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              color: AppColors.of(context).textPrimary,
+        const SizedBox(height: 12),
+        // Save to Book button
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _goToReview,
+            icon: const Icon(Icons.auto_stories, size: 18, color: Colors.white),
+            label: Text(
+              'Save to Book',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF111111),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          // Text field with paper lines
-          Stack(
-            children: [
-              // Paper lines background
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _PaperLinesPainter(
-                    lineColor: const Color(0xFFE8E1D9),
-                    lineHeight: 40.0,
-                  ),
-                ),
-              ),
-              // Actual text field
-              TextField(
-                controller: _textController,
-                maxLines: null,
-                minLines: 14,
-                keyboardType: TextInputType.multiline,
-                style: GoogleFonts.manrope(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.of(context).textPrimary.withAlpha(204),
-                  height: 2.0, // matches 40px line height at 20px font
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Start writing your thoughts...',
-                  hintStyle: GoogleFonts.manrope(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.of(context).textMuted,
-                    height: 2.0,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  // ──────────────────────────────────────────────
-  // Floating bottom — gradient fade, tools, save
-  // ──────────────────────────────────────────────
-
-  Widget _buildFloatingBottom() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Theme.of(context).scaffoldBackgroundColor.withAlpha(0),
-            Theme.of(context).scaffoldBackgroundColor,
-            Theme.of(context).scaffoldBackgroundColor,
-          ],
-          stops: const [0.0, 0.3, 1.0],
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 40, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Quick tools row
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    // Image button
-                    _toolCircleButton(
-                      icon: Icons.image,
-                      isActive: _attachedPhotoPath != null,
-                      onTap: _attachPhoto,
-                    ),
-                    const SizedBox(width: 8),
-                    // Location button
-                    _toolCircleButton(
-                      icon: Icons.location_on,
-                      isActive: _locationName != null,
-                      onTap: _addLocation,
-                    ),
-                    const Spacer(),
-                    // Polish with AI pill
-                    _buildPolishToggle(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Save to Book button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _goToReview,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF111111),
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shadowColor: AppColors.of(context).accent.withAlpha(76),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.auto_stories,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Save to Book',
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _toolCircleButton({
+  Widget _toolButton({
     required IconData icon,
+    required String label,
     required bool isActive,
     required VoidCallback onTap,
+    required AppPalette colors,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
+          color: isActive ? colors.accent.withAlpha(20) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: AppColors.of(context).accent.withAlpha(51),
+            color: isActive ? colors.accent.withAlpha(60) : colors.accent.withAlpha(30),
           ),
         ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: isActive ? AppColors.of(context).accent : AppColors.of(context).textPrimary,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15,
+                color: isActive ? colors.accent : colors.textMuted),
+            const SizedBox(width: 5),
+            Text(
+              isActive && label != 'Photo' && label != 'Location'
+                  ? label.length > 12 ? '${label.substring(0, 12)}…' : label
+                  : label,
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isActive ? colors.accent : colors.textMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-
-  Widget _buildPolishToggle() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(9999),
-        border: Border.all(
-          color: AppColors.of(context).accent.withAlpha(51),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.auto_fix_high,
-            size: 20,
-            color: AppColors.of(context).accent,
-          ),
-          const SizedBox(width: 10),
-          Text(
-            'AI Polish',
-            style: GoogleFonts.manrope(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.of(context).textPrimary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Custom toggle
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              setState(() => _polishWithAI = !_polishWithAI);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 44,
-              height: 24,
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: _polishWithAI
-                    ? AppColors.of(context).accent
-                    : const Color(0xFFCBD5E1),
-              ),
-              child: AnimatedAlign(
-                duration: const Duration(milliseconds: 200),
-                alignment: _polishWithAI
-                    ? Alignment.centerRight
-                    : Alignment.centerLeft,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(38),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────
-// Paper lines painter
-// ──────────────────────────────────────────────
-
-class _PaperLinesPainter extends CustomPainter {
-  final Color lineColor;
-  final double lineHeight;
-
-  _PaperLinesPainter({
-    required this.lineColor,
-    required this.lineHeight,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = lineColor
-      ..strokeWidth = 1;
-
-    double y = lineHeight;
-    while (y < size.height) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-      y += lineHeight;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PaperLinesPainter oldDelegate) =>
-      oldDelegate.lineColor != lineColor ||
-      oldDelegate.lineHeight != lineHeight;
 }
