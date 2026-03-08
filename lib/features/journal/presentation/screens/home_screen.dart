@@ -623,114 +623,150 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // -- On This Day ----------------------------------------------------------
 
   Widget _buildOnThisDay() {
-    // Check if there's a conversation from ~1 year ago
     final datesAsync = ref.watch(availableDatesProvider);
     final dates = datesAsync.valueOrNull ?? [];
     final now = DateTime.now();
-    final oneYearAgo = DateTime(now.year - 1, now.month, now.day);
+    final colors = AppColors.of(context);
 
-    final subtextColor = AppColors.of(context).textSecondary;
-
-    DateTime? matchDate;
+    // Find matching dates from previous years
+    final matchingYears = <int>[];
     for (final d in dates) {
-      if (d.year == oneYearAgo.year &&
-          d.month == oneYearAgo.month &&
-          d.day == oneYearAgo.day) {
-        matchDate = d;
-        break;
+      if (d.month == now.month && d.day == now.day && d.year < now.year) {
+        matchingYears.add(now.year - d.year);
       }
     }
+    matchingYears.sort();
 
-    // Always show the section (with placeholder if no data)
+    final hasMemories = matchingYears.isNotEmpty;
+    final yearsAgoLabel = hasMemories
+        ? (matchingYears.length == 1
+            ? '${matchingYears.first} ${matchingYears.first == 1 ? 'year' : 'years'} ago'
+            : '${matchingYears.length} memories')
+        : '';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: GestureDetector(
         onTap: () => context.push('/on-this-day'),
         child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: AppColors.of(context).accent.withAlpha(13),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.of(context).accent.withAlpha(51)),
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'ON THIS DAY',
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.of(context).accent,
-                          letterSpacing: 1.5,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.accent.withAlpha(18),
+                colors.accentFaint,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.accent.withAlpha(30)),
+          ),
+          child: Stack(
+            children: [
+              // Decorative elements
+              Positioned(
+                right: -20,
+                top: -20,
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 80,
+                  color: colors.accent.withAlpha(15),
+                ),
+              ),
+              Positioned(
+                left: -10,
+                bottom: -10,
+                child: Icon(
+                  Icons.history_rounded,
+                  size: 60,
+                  color: colors.accent.withAlpha(12),
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Row(
+                  children: [
+                    // Icon circle
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.accent.withAlpha(25),
+                        border: Border.all(
+                          color: colors.accent.withAlpha(40),
+                          width: 1.5,
                         ),
                       ),
-                      Text(
-                        matchDate != null ? '1 Year Ago' : '',
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.of(context).textMuted,
-                        ),
+                      child: Icon(
+                        hasMemories ? Icons.auto_awesome_rounded : Icons.history_rounded,
+                        size: 22,
+                        color: colors.accent,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      // Placeholder image
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.of(context).accent.withAlpha(51),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.auto_stories,
-                          size: 24,
-                          color: AppColors.of(context).accent.withAlpha(178),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          matchDate != null
-                              ? '"Your memories from this day last year..."'
-                              : '"Start journaling to build your On This Day memories"',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            fontStyle: FontStyle.italic,
-                            color: subtextColor,
+                    ),
+                    const SizedBox(width: 14),
+                    // Text content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'On This Day',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary,
+                                ),
+                              ),
+                              if (yearsAgoLabel.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: colors.accent.withAlpha(25),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    yearsAgoLabel,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.accent,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasMemories
+                                ? 'Revisit your memories from this day'
+                                : 'Start journaling to unlock memories',
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: colors.accent.withAlpha(150),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // Decorative history icon
-            Positioned(
-              right: -16,
-              bottom: -16,
-              child: Icon(
-                Icons.history,
-                size: 96,
-                color: AppColors.of(context).accent.withAlpha(26),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
