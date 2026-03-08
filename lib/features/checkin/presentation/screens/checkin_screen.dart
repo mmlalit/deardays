@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -98,7 +99,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       context: context,
       title: 'Check-in',
       actions: [
-        if (state.currentMood != null)
+        if (state.currentMood != null && state.currentMood != 'skipped')
           GestureDetector(
             onTap: () => _showMoodPicker(),
             child: Container(
@@ -166,9 +167,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: _moods.map((mood) {
                 return GestureDetector(
-                  onTap: () => ref
-                      .read(checkInProvider.notifier)
-                      .selectMood(mood.label),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    ref.read(checkInProvider.notifier).selectMood(mood.label);
+                  },
                   child: Column(
                     children: [
                       Container(
@@ -197,7 +199,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             const SizedBox(height: 32),
             GestureDetector(
               onTap: () =>
-                  ref.read(checkInProvider.notifier).selectMood('Okay'),
+                  ref.read(checkInProvider.notifier).selectMood('skipped'),
               child: Text(
                 'Skip for now',
                 style: GoogleFonts.inter(
@@ -597,6 +599,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   void _handleSend() {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
+    HapticFeedback.lightImpact();
 
     if (_editingMessageId != null && _editingSectionId != null) {
       ref.read(checkInProvider.notifier).editMessage(

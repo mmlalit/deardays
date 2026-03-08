@@ -372,6 +372,8 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
         return "I'm sorry you're feeling low. What happened?";
       case 'tough':
         return "That sounds hard. I'm here for you. Want to share what's going on?";
+      case 'skipped':
+        return "No worries! Just tell me about your day whenever you're ready.";
       default:
         return "Thanks for sharing. Tell me more about your day.";
     }
@@ -388,6 +390,8 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
         "The user is feeling low today. Be empathetic and caring. Ask what happened in a gentle way. Keep it short and supportive.",
     'tough':
         "The user is having a tough day. Be deeply empathetic. Let them know you're there for them and gently ask if they want to share. Keep it brief and caring.",
+    'skipped':
+        "The user skipped mood selection. Be casual and open. Simply ask them what's on their mind or how their day is going. Keep it brief and friendly.",
   };
 }
 

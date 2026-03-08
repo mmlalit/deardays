@@ -163,7 +163,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: AppColors.primary.withAlpha(128),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
                         ),
@@ -389,7 +389,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected ? AppColors.primary : Colors.grey.shade300,
             width: selected ? 2 : 1,

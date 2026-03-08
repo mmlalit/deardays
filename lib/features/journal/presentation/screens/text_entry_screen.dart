@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
@@ -75,7 +76,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           content: const Text('Photo attached'),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -95,7 +96,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
             content: const Text('Could not get location. Check permissions.'),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -112,6 +113,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   }
 
   void _goToReview() {
+    HapticFeedback.lightImpact();
     final text = _textController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -213,13 +215,13 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                     ),
                   ),
                   // Post button
-                  SizedBox(
-                    width: 40,
-                    child: GestureDetector(
-                      onTap: _goToReview,
+                  GestureDetector(
+                    onTap: _goToReview,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                       child: Text(
                         'Post',
-                        textAlign: TextAlign.end,
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -446,7 +448,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                   onPressed: _goToReview,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textPrimary,
+                    foregroundColor: Colors.white,
                     elevation: 4,
                     shadowColor: AppColors.primary.withAlpha(76),
                     shape: RoundedRectangleBorder(
@@ -456,10 +458,10 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.auto_stories,
                         size: 20,
-                        color: AppColors.textPrimary,
+                        color: Colors.white,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -467,7 +469,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -544,7 +546,10 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
           const SizedBox(width: 12),
           // Custom toggle
           GestureDetector(
-            onTap: () => setState(() => _polishWithAI = !_polishWithAI),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _polishWithAI = !_polishWithAI);
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 44,

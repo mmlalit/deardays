@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -425,17 +426,121 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   Widget _buildEmptyState() {
     return Padding(
-      padding: const EdgeInsets.only(top: 60),
+      padding: const EdgeInsets.only(top: 48),
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.auto_stories, size: 48, color: AppColors.primary.withAlpha(76)),
-            const SizedBox(height: 16),
+            // Stacked cards illustration
+            SizedBox(
+              height: 120,
+              width: 180,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned(
+                    top: 16,
+                    child: Transform.rotate(
+                      angle: -0.06,
+                      child: Container(
+                        width: 140,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(13),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withAlpha(26)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    child: Transform.rotate(
+                      angle: 0.04,
+                      child: Container(
+                        width: 140,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withAlpha(38)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 140,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withAlpha(51)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.auto_stories, size: 28, color: AppColors.primary.withAlpha(128)),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 60,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(38),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 80,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(26),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
-              'Start journaling to build your timeline',
+              'Your story starts here',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Every entry becomes a part of your timeline.\nStart capturing your moments.',
+              textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                fontSize: 15,
-                color: AppColors.textMuted,
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/home'),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: Text(
+                'Write your first entry',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],

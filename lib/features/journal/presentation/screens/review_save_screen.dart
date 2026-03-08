@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -180,6 +181,7 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
   }
 
   Future<void> _saveEntry() async {
+    HapticFeedback.mediumImpact();
     setState(() => _isSaving = true);
 
     try {
@@ -307,12 +309,14 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
                       _buildErrorState(),
                       const SizedBox(height: 24),
                     ],
-                    if (_activeTab == 0 && _polishedText != null)
-                      _buildPolishedView()
-                    else if (_activeTab == 1 && _cleanedText != null)
-                      _buildCleanedView()
-                    else
-                      _buildOriginalView(),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _activeTab == 0 && _polishedText != null
+                          ? _buildPolishedView()
+                          : _activeTab == 1 && _cleanedText != null
+                              ? _buildCleanedView()
+                              : _buildOriginalView(),
+                    ),
                   ],
                   const SizedBox(height: 24),
                   // Add photo / location pills
@@ -527,7 +531,7 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isActive ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: isActive
                 ? [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 4, offset: const Offset(0, 1))]
                 : null,
@@ -553,6 +557,7 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
 
   Widget _buildPolishedView() {
     return Padding(
+      key: const ValueKey('polished'),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,6 +599,7 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
 
   Widget _buildCleanedView() {
     return Padding(
+      key: const ValueKey('cleaned'),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -619,6 +625,7 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
 
   Widget _buildOriginalView() {
     return Padding(
+      key: const ValueKey('original'),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -759,18 +766,18 @@ class _ReviewSaveScreenState extends State<ReviewSaveScreen>
             child: ElevatedButton.icon(
               onPressed: _isSaving || _isPolishing ? null : _saveEntry,
               icon: _isSaving
-                  ? SizedBox(
+                  ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bgDark),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : Icon(Icons.auto_stories, size: 20, color: AppColors.bgDark),
+                  : const Icon(Icons.auto_stories, size: 20, color: Colors.white),
               label: Text(
                 _isSaving ? 'Saving...' : 'Save to Book',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.bgDark,
+                  color: Colors.white,
                 ),
               ),
               style: ElevatedButton.styleFrom(

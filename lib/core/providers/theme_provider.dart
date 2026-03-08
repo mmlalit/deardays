@@ -5,8 +5,12 @@ import 'package:deardays/core/theme/app_theme.dart';
 
 class ThemeState {
   final AppThemeColor themeColor;
+  final ThemeMode themeMode;
 
-  const ThemeState({this.themeColor = AppThemeColor.warmCream});
+  const ThemeState({
+    this.themeColor = AppThemeColor.warmCream,
+    this.themeMode = ThemeMode.light,
+  });
 
   ThemeData get lightTheme => AppTheme.lightFrom(themeColor);
   ThemeData get darkTheme => AppTheme.darkFrom(themeColor);
@@ -16,7 +20,11 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   ThemeNotifier() : super(const ThemeState());
 
   void setThemeColor(AppThemeColor color) {
-    state = ThemeState(themeColor: color);
+    state = ThemeState(themeColor: color, themeMode: state.themeMode);
+  }
+
+  void setThemeMode(ThemeMode mode) {
+    state = ThemeState(themeColor: state.themeColor, themeMode: mode);
   }
 }
 

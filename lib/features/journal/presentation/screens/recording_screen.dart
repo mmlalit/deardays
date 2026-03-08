@@ -267,7 +267,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           height: 72,
           decoration: BoxDecoration(
             color: Colors.white.withAlpha(26),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: Colors.white.withAlpha(26),
             ),
@@ -423,7 +423,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           decoration: BoxDecoration(
             color: AppColors.bgLight,
             borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(40),
+              top: Radius.circular(24),
             ),
             border: Border(
               top: BorderSide(
@@ -480,18 +480,15 @@ class _RecordingScreenState extends State<RecordingScreen>
                   ),
                   const SizedBox(height: 16),
 
-                  // Narrative text
+                  // Recording summary
                   Text(
-                    'The autumn light filtered through the kitchen window as '
-                    'I made my morning coffee. There\'s something about this '
-                    'time of year that makes ordinary moments feel like small '
-                    'gifts \u2014 the way the steam curls upward, the warmth of '
-                    'the cup in my hands...',
+                    'You recorded $_minutes:$_seconds of audio. '
+                    'Your voice entry will be transcribed and polished by AI '
+                    'into a beautiful story.',
                     style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontStyle: FontStyle.italic,
-                      color: AppColors.textPrimary,
-                      height: 1.7,
+                      fontSize: 16,
+                      color: AppColors.textSecondary,
+                      height: 1.6,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -502,25 +499,25 @@ class _RecordingScreenState extends State<RecordingScreen>
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: _goToReview,
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.auto_stories,
                         size: 20,
-                        color: AppColors.bgDark,
+                        color: Colors.white,
                       ),
                       label: Text(
                         'Save to book',
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.bgDark,
+                          color: Colors.white,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.bgDark,
+                        foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
@@ -539,7 +536,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         color: AppColors.primary.withAlpha(26),
       ),
       child: Icon(

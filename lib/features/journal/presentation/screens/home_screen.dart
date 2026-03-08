@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -152,16 +153,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const SizedBox(height: 8),
                   Text(
                     '$greeting, there',
-                    style: GoogleFonts.inter(
-                      fontSize: 30,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 28,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'What\'s your story today?',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 8),
 
             // -- Mood Selector ------------------------------------------------
             _buildMoodSection(state),
@@ -218,6 +228,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     state.currentMood?.toLowerCase() == mood.label.toLowerCase();
                 return GestureDetector(
                   onTap: () {
+                    HapticFeedback.lightImpact();
                     if (state.currentMood == null) {
                       ref.read(checkInProvider.notifier).selectMood(mood.label);
                     } else {
@@ -1542,7 +1553,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   height: 40,
                                   decoration: BoxDecoration(
                                     color: AppColors.primary.withAlpha(20),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
                                     child: Text(

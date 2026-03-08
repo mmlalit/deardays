@@ -586,7 +586,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             decoration: InputDecoration(
               hintText: 'DELETE',
               hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
           actions: [
@@ -747,6 +747,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     child: _buildThemeSelector(),
                   ),
+                  const SizedBox(height: 12),
+                  _buildCardGroup([
+                    _buildCardRow(
+                      icon: Icons.dark_mode_outlined,
+                      label: 'Dark Mode',
+                      trailing: _buildDarkModeToggle(),
+                      isLast: true,
+                    ),
+                  ]),
                   const SizedBox(height: 24),
                   // PRIVACY & SECURITY
                   _buildSectionLabel('Privacy & Security'),
@@ -1118,6 +1127,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dark mode toggle
+  // ---------------------------------------------------------------------------
+
+  Widget _buildDarkModeToggle() {
+    final themeMode = ref.watch(themeProvider).themeMode;
+    final isDark = themeMode == ThemeMode.dark;
+
+    return _buildCustomToggle(
+      value: isDark,
+      onChanged: (value) {
+        ref.read(themeProvider.notifier).setThemeMode(
+              value ? ThemeMode.dark : ThemeMode.light,
+            );
+      },
     );
   }
 

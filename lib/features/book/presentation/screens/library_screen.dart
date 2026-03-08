@@ -58,7 +58,7 @@ class LibraryScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: AppColors.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 Icons.add,
@@ -123,18 +123,37 @@ class LibraryScreen extends ConsumerWidget {
                   ),
                   child: Stack(
                     children: [
-                      // Spine effect
+                      // Spine effect — left edge shadow
                       Positioned(
                         left: 0,
                         top: 0,
                         bottom: 0,
-                        width: 12,
+                        width: 16,
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.black.withAlpha(30),
+                                Colors.black.withAlpha(64),
+                                Colors.black.withAlpha(15),
                                 Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.4, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Right edge highlight
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 8,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Colors.white.withAlpha(26),
                               ],
                             ),
                           ),
@@ -288,7 +307,7 @@ class LibraryScreen extends ConsumerWidget {
                 labelText: 'Title',
                 hintText: 'e.g. 2026, My Summer, ...',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -324,7 +343,7 @@ class LibraryScreen extends ConsumerWidget {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
             child: const Text('Create'),
