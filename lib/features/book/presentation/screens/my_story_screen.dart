@@ -102,6 +102,11 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
       allEntries.addAll(ch.entries);
     }
 
+    // Empty book — show mic/write CTA
+    if (allEntries.isEmpty) {
+      return _buildEmptyBookState(context, book);
+    }
+
     final totalPages = 1 + allEntries.length; // cover + entries
 
     // Fullscreen mode — just the page view + tap to exit
@@ -232,6 +237,178 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
         count++;
       }
     }
+  }
+
+  // ──────────────────────────────────────────────
+  // Empty book state — mic/write CTA
+  // ──────────────────────────────────────────────
+
+  Widget _buildEmptyBookState(BuildContext context, Book book) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final subtextColor = isDark ? Colors.white70 : AppColors.textSecondary;
+    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header with back button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: textColor),
+                    onPressed: () => context.pop(),
+                  ),
+                  Expanded(
+                    child: Text(
+                      book.title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.manrope(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 40),
+                ],
+              ),
+            ),
+            // Empty state
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.primary.withAlpha(25),
+                              AppColors.primaryFaint,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: Icon(
+                          Icons.auto_stories_rounded,
+                          size: 48,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'This book is empty',
+                        style: GoogleFonts.manrope(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add your first entry by recording\nyour voice or writing it down.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          color: subtextColor,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      // Mic + Write buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Record button
+                          GestureDetector(
+                            onTap: () => context.push('/record'),
+                            child: Container(
+                              width: 140,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withAlpha(60),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.mic_rounded, color: Colors.white, size: 28),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Record',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Write button
+                          GestureDetector(
+                            onTap: () => context.push('/write'),
+                            child: Container(
+                              width: 140,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.primary.withAlpha(40)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(8),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 28),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Write',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ──────────────────────────────────────────────

@@ -468,10 +468,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   Future<void> _pickBookOrganization() async {
     final options = [
-      {'value': 'yearly', 'label': 'Yearly', 'desc': 'One book per year (default)'},
-      {'value': 'monthly', 'label': 'Monthly', 'desc': 'One book per month'},
-      {'value': 'quarterly', 'label': 'Quarterly', 'desc': 'One book per quarter'},
-      {'value': 'manual', 'label': 'Manual Only', 'desc': 'Create books manually'},
+      {'value': 'yearly', 'label': 'Yearly', 'desc': 'A new book is created each year'},
+      {'value': 'monthly', 'label': 'Monthly', 'desc': 'A new book is created each month'},
+      {'value': 'quarterly', 'label': 'Quarterly', 'desc': 'A new book is created each quarter'},
+      {'value': 'manual', 'label': 'One Book', 'desc': 'All entries go into a single book'},
     ];
 
     final picked = await showModalBottomSheet<String>(

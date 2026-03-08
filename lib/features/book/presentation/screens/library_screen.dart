@@ -18,6 +18,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   bool _isGridView = true;
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-create default book based on user's organization preference
+    _ensureDefaultBook();
+  }
+
+  Future<void> _ensureDefaultBook() async {
+    try {
+      final profile = await ref.read(profileProvider.future);
+      final organization = profile?.bookOrganization ?? 'yearly';
+      final repo = ref.read(bookRepositoryProvider);
+      await repo.ensureDefaultBook(organization);
+      ref.invalidate(booksProvider);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     final booksAsync = ref.watch(booksProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -30,17 +47,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(context, ref, textColor),
+            _buildHeader(context, textColor),
             Expanded(
               child: booksAsync.when(
                 data: (books) => books.isEmpty
-                    ? _buildEmptyState(context, ref, textColor, subtextColor)
+                    ? _buildEmptyState(context, textColor, subtextColor)
                     : _isGridView
                         ? _buildBookGrid(context, books, textColor, subtextColor)
                         : _buildBookList(context, books, textColor, subtextColor),
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (_, __) => _buildEmptyState(context, ref, textColor, subtextColor),
+                error: (_, __) => _buildEmptyState(context, textColor, subtextColor),
               ),
             ),
           ],
@@ -49,7 +66,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, Color textColor) {
+  Widget _buildHeader(BuildContext context, Color textColor) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Row(
@@ -104,22 +121,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => _showCreateBookDialog(context, ref),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.add,
-                size: 20,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -170,7 +171,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ),
         child: Row(
           children: [
-            // Mini book spine
             Container(
               width: 56,
               decoration: BoxDecoration(
@@ -259,7 +259,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                   child: Stack(
                     children: [
-                      // Spine shadow
                       Positioned(
                         left: 0, top: 0, bottom: 0, width: 12,
                         child: Container(
@@ -273,7 +272,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           ),
                         ),
                       ),
-                      // Book icon + title
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.all(12),
@@ -345,30 +343,40 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, WidgetRef ref, Color textColor, Color subtextColor) {
+  Widget _buildEmptyState(BuildContext context, Color textColor, Color subtextColor) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.library_books_outlined,
-              size: 56,
-              color: AppColors.primary.withAlpha(76),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary.withAlpha(30), AppColors.primaryFaint],
+                ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                Icons.auto_stories_rounded,
+                size: 40,
+                color: AppColors.primary,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
-              'Your library is empty',
+              'Your books will appear here',
               style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
                 color: textColor,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Create your first book to start\norganizing your journal entries.',
+              'Start journaling and your entries will\nautomatically be organized into books.',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
@@ -378,97 +386,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => _showCreateBookDialog(context, ref),
-              icon: const Icon(Icons.add, size: 18),
+              onPressed: () => context.go('/'),
+              icon: const Icon(Icons.edit_note_rounded, size: 20),
               label: Text(
-                'Create Book',
+                'Start Writing',
                 style: GoogleFonts.manrope(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showCreateBookDialog(BuildContext context, WidgetRef ref) {
-    final titleController = TextEditingController();
-    final now = DateTime.now();
-    titleController.text = '${now.year}';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'New Book',
-          style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(
-                labelText: 'Title',
-                hintText: 'e.g. 2026, My Summer, ...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final title = titleController.text.trim();
-              if (title.isEmpty) return;
-              Navigator.pop(ctx);
-
-              final repo = ref.read(bookRepositoryProvider);
-              await repo.createBook(Book(
-                id: '',
-                userId: '',
-                title: title,
-                startDate: DateTime(now.year, 1, 1),
-                endDate: DateTime(now.year, 12, 31),
-                createdAt: now,
-                updatedAt: now,
-              ));
-              ref.invalidate(booksProvider);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Create'),
-          ),
-        ],
       ),
     );
   }

@@ -223,6 +223,14 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
       final saved = await _repository.createEntry(entry);
 
+      // Auto-create book if none exists
+      try {
+        final profile = await ref.read(profileProvider.future);
+        final organization = profile?.bookOrganization ?? 'yearly';
+        final bookRepo = ref.read(bookRepositoryProvider);
+        await bookRepo.ensureDefaultBook(organization);
+      } catch (_) {}
+
       // Upload photo if attached
       if (_attachedPhotoPath != null) {
         try {
