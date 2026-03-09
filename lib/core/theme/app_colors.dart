@@ -129,6 +129,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
 /// Theme color palettes the user can choose from in Settings.
 enum AppThemeColor {
+  sereneDuskBlue('Serene Dusk Blue'),
   warmCream('Warm Cream'),
   sageGreen('Sage Green'),
   classicWhite('Classic White'),
@@ -143,6 +144,23 @@ enum AppThemeColor {
   /// Light mode palette.
   AppPalette get light {
     switch (this) {
+      case AppThemeColor.sereneDuskBlue:
+        return const AppPalette(
+          bg:             Color(0xFFFFFFFF), // Pure White
+          card:           Color(0xFFF8FAFF), // Off-white blue-tinted card
+          navBg:          Color(0xFFFFFFFF),
+          textPrimary:    Color(0xFF0F172A), // Midnight Navy
+          textSecondary:  Color(0xFF64748B), // Secondary Slate
+          textMuted:      Color(0xFF94A3B8), // Light Slate
+          accent:         Color(0xFF195DE6), // Primary Blue
+          accentLight:    Color(0xFF4B7CF3), // Lighter Blue
+          accentFaint:    Color(0xFFF1F5F9), // Soft Indigo
+          iconActive:     Color(0xFF195DE6),
+          iconInactive:   Color(0xFF94A3B8),
+          border:         Color(0xFFE2E8F0), // Cool Gray
+          highlight:      Color(0xFF195DE6),
+          highlightFaint: Color(0xFFF1F5F9),
+        );
       case AppThemeColor.warmCream:
         return const AppPalette(
           bg: Color(0xFFF8F4EF),
@@ -202,6 +220,23 @@ enum AppThemeColor {
   /// Dark mode palette.
   AppPalette get dark {
     switch (this) {
+      case AppThemeColor.sereneDuskBlue:
+        return const AppPalette(
+          bg:             Color(0xFF0B1426), // Deep Navy
+          card:           Color(0xFF111D35), // Navy card
+          navBg:          Color(0xFF0D1830),
+          textPrimary:    Color(0xFFF1F5F9), // Soft Indigo inverted
+          textSecondary:  Color(0xFF94A3B8),
+          textMuted:      Color(0xFF475569),
+          accent:         Color(0xFF4B7CF3), // Lighter Blue (readable on dark)
+          accentLight:    Color(0xFF195DE6),
+          accentFaint:    Color(0xFF1E2D4F), // Dark blue tint
+          iconActive:     Color(0xFF4B7CF3),
+          iconInactive:   Color(0xFF475569),
+          border:         Color(0xFF1E2D4F),
+          highlight:      Color(0xFF4B7CF3),
+          highlightFaint: Color(0xFF1E2D4F),
+        );
       case AppThemeColor.warmCream:
         return const AppPalette(
           bg: Color(0xFF1A1412),

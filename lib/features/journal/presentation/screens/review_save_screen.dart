@@ -20,12 +20,13 @@ import 'package:deardays/services/media/media_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 
-/// Data passed from TextEntryScreen or RecordingScreen.
+/// Data passed between RecordingScreen → ProcessingScreen → ReviewSaveScreen.
 class ReviewData {
   final String rawText;
   final String? mood;
   final String? locationName;
   final String? attachedPhotoPath;
+  final String? audioPath;
   final bool isVoice;
   final bool polishWithAI;
 
@@ -34,6 +35,7 @@ class ReviewData {
     this.mood,
     this.locationName,
     this.attachedPhotoPath,
+    this.audioPath,
     this.isVoice = false,
     this.polishWithAI = false,
   });
@@ -304,8 +306,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.bg,
       body: Column(
         children: [
           _buildHeader(),
@@ -315,6 +318,29 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Photo or gradient banner
+                  _buildPhotoOrGradientBanner(),
+
+                  // Title
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Text(
+                      _generatedTitle ?? (_isPolishing ? 'Writing your story...' : 'Your Memory'),
+                      style: GoogleFonts.manrope(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textPrimary,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Tab bar: Story | Transcript | Audio
+                  _buildTabBar(colors),
+                  Divider(height: 1, color: colors.border),
+
                   // AI progress indicator
                   if (_isPolishing) ...[
                     _buildPolishProgress(),
@@ -325,19 +351,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   if (!_isPolishing) ...[
                     if (_polishedText != null || _cleanedText != null) ...[
                       const SizedBox(height: 8),
-                      _buildViewToggle(),
-                      const SizedBox(height: 8),
-                      // Revert button when viewing polished/cleaned text
                       if (_activeTab == 0 || _activeTab == 1)
                         _buildRevertButton(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                     ] else if (!widget.data.isVoice) ...[
-                      // AI Polish only for text entries (voice is polished on recording screen)
                       const SizedBox(height: 8),
                       _buildAIPolishButton(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                     ] else ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                     ],
                     if (_polishError != null) ...[
                       _buildErrorState(),
@@ -353,13 +375,13 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     ),
                   ],
                   const SizedBox(height: 24),
-                  // Add photo / location pills
+                  // Add photo pill
                   _buildActionPills(),
                 ],
               ),
             ),
           ),
-          // Bottom save bar
+          // Bottom dual button bar
           _buildBottomBar(),
         ],
       ),
@@ -371,57 +393,106 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildHeader() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor.withAlpha(204),
-            border: Border(bottom: BorderSide(color: AppColors.of(context).accent.withAlpha(26))),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Icon(Icons.close, size: 22, color: AppColors.of(context).textPrimary),
+    final colors = AppColors.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.bg,
+        border: Border(bottom: BorderSide(color: colors.border)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.accentFaint,
+                    border: Border.all(color: colors.border),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'Review & Save',
-                        style: GoogleFonts.manrope(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.of(context).textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      // TODO: Drafts functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Drafts coming soon')),
-                      );
-                    },
-                    child: Text(
-                      'Drafts',
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.of(context).textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
+                  child: Icon(Icons.arrow_back_rounded, size: 18, color: colors.textPrimary),
+                ),
               ),
-            ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    'Your Memory',
+                    style: GoogleFonts.manrope(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Share coming soon')),
+                  );
+                },
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.accentFaint,
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Icon(Icons.ios_share_outlined, size: 18, color: colors.textSecondary),
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoOrGradientBanner() {
+    final colors = AppColors.of(context);
+    if (_attachedPhotoPath != null) {
+      return Container(
+        height: 220,
+        width: double.infinity,
+        color: colors.border,
+        child: Image.asset(
+          _attachedPhotoPath!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
+        ),
+      );
+    }
+    return _buildGradientBanner(colors);
+  }
+
+  Widget _buildGradientBanner(AppPalette colors) {
+    return Container(
+      height: 140,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.accent, colors.accentLight],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(Icons.menu_book_rounded, size: 120, color: Colors.white.withAlpha(20)),
+          ),
+          Center(
+            child: Icon(Icons.auto_stories_rounded, size: 48, color: Colors.white.withAlpha(200)),
+          ),
+        ],
       ),
     );
   }
@@ -599,101 +670,103 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // View Toggle — "My Words" | "AI Story"
+  // Tab Bar — Story | Transcript | Audio
   // ---------------------------------------------------------------------------
 
-  Widget _buildViewToggle() {
-    // Build available tabs based on what content exists
+  Widget _buildTabBar(AppPalette colors) {
     final tabs = <({String label, int index})>[];
-    if (_polishedText != null) tabs.add((label: 'AI Story', index: 0));
-    if (_cleanedText != null) tabs.add((label: 'Original', index: 1));
-    tabs.add((label: 'Raw Words', index: 2));
+    tabs.add((label: 'Story', index: 0));
+    if (_cleanedText != null) tabs.add((label: 'Transcript', index: 1));
+    tabs.add((label: 'Raw', index: 2));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: AppColors.of(context).accent.withAlpha(13),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: tabs.map((tab) => _toggleTab(
-            tab.label,
-            _activeTab == tab.index,
-            () => setState(() => _activeTab = tab.index),
-          )).toList(),
-        ),
+      child: Row(
+        children: tabs.map((tab) {
+          final isActive = _activeTab == tab.index;
+          return GestureDetector(
+            onTap: () => setState(() => _activeTab = tab.index),
+            child: Container(
+              margin: const EdgeInsets.only(right: 24),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isActive ? colors.accent : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Text(
+                tab.label,
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? colors.accent : colors.textMuted,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _toggleTab(String label, bool isActive, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isActive
-                ? [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 4, offset: const Offset(0, 1))]
-                : null,
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                color: isActive ? AppColors.of(context).accent : AppColors.of(context).textSecondary,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // Keep legacy method for any callers
+  Widget _buildViewToggle() => _buildTabBar(AppColors.of(context));
 
   // ---------------------------------------------------------------------------
   // Polished Story View
   // ---------------------------------------------------------------------------
 
   Widget _buildPolishedView() {
+    final colors = AppColors.of(context);
+    final paragraphs = _polishedText!
+        .split('\n')
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
     return Padding(
       key: const ValueKey('polished'),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Divider
-          Divider(color: AppColors.of(context).accent.withAlpha(26), height: 1),
-          const SizedBox(height: 28),
-          // Title
-          if (_generatedTitle != null)
-            Text(
-              _generatedTitle!,
-              style: GoogleFonts.manrope(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: AppColors.of(context).textPrimary,
-                height: 1.3,
+          // First paragraph as blockquote
+          if (paragraphs.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.only(left: 16),
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: colors.accent, width: 3),
+                ),
+              ),
+              child: Text(
+                '"${paragraphs.first}"',
+                style: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
+                  color: colors.textPrimary,
+                  height: 1.8,
+                ),
               ),
             ),
-          const SizedBox(height: 20),
-          // Body — italic Playfair
-          Text(
-            _polishedText!,
-            style: GoogleFonts.manrope(
-              fontSize: 18,
-              fontStyle: FontStyle.italic,
-              fontWeight: FontWeight.w400,
-              color: AppColors.of(context).textPrimary.withAlpha(204),
-              height: 1.7,
-            ),
-          ),
+          // Remaining paragraphs
+          if (paragraphs.length > 1) ...[
+            const SizedBox(height: 20),
+            ...paragraphs.skip(1).map((p) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                p,
+                style: GoogleFonts.manrope(
+                  fontSize: 15,
+                  color: colors.textPrimary,
+                  height: 1.8,
+                ),
+              ),
+            )),
+          ],
         ],
       ),
     );
@@ -866,44 +939,96 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildBottomBar() {
+    final colors = AppColors.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(top: BorderSide(color: AppColors.of(context).accent.withAlpha(13))),
+        color: colors.bg,
+        border: Border(top: BorderSide(color: colors.border)),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton.icon(
-              onPressed: _isSaving || _isPolishing ? null : _saveEntry,
-              icon: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.auto_stories, size: 20, color: Colors.white),
-              label: Text(
-                _isSaving ? 'Saving...' : 'Save to Book',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+          child: Row(
+            children: [
+              // Edit Memory button
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    final displayText = _polishedText ?? _cleanedText ?? widget.data.rawText;
+                    context.push('/edit-memory', extra: ReviewData(
+                      rawText: displayText,
+                      isVoice: widget.data.isVoice,
+                      audioPath: widget.data.audioPath,
+                      attachedPhotoPath: _attachedPhotoPath,
+                      mood: widget.data.mood,
+                      locationName: _locationName,
+                    ));
+                  },
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: colors.accentFaint,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit_rounded, size: 18, color: colors.textPrimary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Edit Memory',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF111111),
-                disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+              const SizedBox(width: 12),
+              // Save Memory button
+              Expanded(
+                flex: 2,
+                child: GestureDetector(
+                  onTap: (_isSaving || _isPolishing) ? null : _saveEntry,
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: (_isSaving || _isPolishing)
+                          ? colors.accent.withAlpha(120)
+                          : colors.accent,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.check_circle_outline_rounded, size: 20, color: Colors.white),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isSaving ? 'Saving...' : 'Save Memory',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),

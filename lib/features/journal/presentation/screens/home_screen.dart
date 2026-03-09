@@ -181,47 +181,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '$greeting${firstName.isNotEmpty ? ', $firstName' : ''}',
-                          style: GoogleFonts.manrope(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: textColor,
-                          ),
-                        ),
-                        if (streak != null && streak.currentStreak > 0) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Text('🔥', style: TextStyle(fontSize: 13)),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${streak.currentStreak} day streak',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.of(context).accent,
+                        // "Good evening, Rahul" — subtle greeting
+                        Row(
+                          children: [
+                            Text(
+                              '$greeting${firstName.isNotEmpty ? ', $firstName' : ''}',
+                              style: GoogleFonts.manrope(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.of(context).textSecondary,
+                              ),
+                            ),
+                            if (streak != null && streak.currentStreak > 0) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.of(context).accentFaint,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('🔥', style: TextStyle(fontSize: 10)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${streak.currentStreak}',
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.of(context).accent,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                  // Chat history button
-                  GestureDetector(
-                    onTap: _showChatHistory,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.of(context).accent.withAlpha(20),
-                        border: Border.all(color: AppColors.of(context).accent.withAlpha(40)),
+                  // Top-right icons: notification bell + settings gear
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _TopIconButton(
+                        icon: Icons.notifications_outlined,
+                        onTap: () {},
                       ),
-                      child: Icon(Icons.access_time_rounded, size: 20, color: AppColors.of(context).accent),
-                    ),
+                      const SizedBox(width: 8),
+                      _TopIconButton(
+                        icon: Icons.settings_outlined,
+                        onTap: () => context.push('/settings'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -229,8 +243,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             const SizedBox(height: 8),
 
-            // -- Mood Selector ------------------------------------------------
-            _buildMoodSection(state),
+            // -- Hero Headline ------------------------------------------------
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
+              child: Text(
+                'What happened\ntoday?',
+                style: GoogleFonts.manrope(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  color: textColor,
+                  height: 1.1,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // -- Daily Spark --------------------------------------------------
+            _buildDailySparkCard(),
 
             // -- Today's Journal Entry (from Supabase) ------------------------
             if (todayEntryAsync.isLoading)
@@ -244,105 +275,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // -- Record CTA (always visible) ----------------------------------
             _buildRecordCTA(),
 
-            // -- On This Day --------------------------------------------------
-            _buildOnThisDay(),
+            // -- Recent Memories ----------------------------------------------
+            _buildRecentMemories(),
           ],
         ),
       ),
     );
   }
 
-  // -- Mood Section (inline card) -------------------------------------------
+  // -- Daily Spark Card -------------------------------------------------------
 
-  Widget _buildMoodSection(CheckInState state) {
-    final subtextColor = AppColors.of(context).textSecondary;
-    final cardColor = AppColors.of(context).card;
+  static const List<String> _sparkPrompts = [
+    '"What made you smile today?"',
+    '"What\'s one thing you\'re proud of?"',
+    '"Who made your day better?"',
+    '"What surprised you today?"',
+    '"What will you remember about today?"',
+  ];
+
+  Widget _buildDailySparkCard() {
+    final colors = AppColors.of(context);
+    final today = DateTime.now();
+    final promptIndex = today.day % _sparkPrompts.length;
+    final prompt = _sparkPrompts[promptIndex];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'How are you feeling?',
-            style: GoogleFonts.manrope(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: subtextColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.of(context).accent.withAlpha(26)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(8),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: _moods.map((mood) {
-                final isSelected =
-                    state.currentMood?.toLowerCase() == mood.label.toLowerCase();
-                final moodColor = _moodColorForLabel(mood.label);
-                return GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    if (state.currentMood == null) {
-                      ref.read(checkInProvider.notifier).selectMood(mood.label);
-                    } else {
-                      ref.read(checkInProvider.notifier).redoMood(mood.label);
-                    }
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isSelected
-                              ? moodColor.withAlpha(40)
-                              : moodColor.withAlpha(20),
-                          border: isSelected
-                              ? Border.all(color: moodColor, width: 2)
-                              : null,
-                        ),
-                        child: Icon(
-                          mood.icon,
-                          size: 20,
-                          color: isSelected
-                              ? moodColor
-                              : moodColor.withAlpha(180),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        mood.label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected
-                              ? moodColor
-                              : AppColors.of(context).textMuted,
-                        ),
-                      ),
-                    ],
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: colors.accentFaint,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'DAILY SPARK',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: colors.accent,
+                      letterSpacing: 1.5,
+                    ),
                   ),
-                );
-              }).toList(),
+                  const SizedBox(height: 6),
+                  Text(
+                    prompt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: colors.textPrimary,
+                      fontStyle: FontStyle.italic,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Icon(
+              Icons.auto_awesome_rounded,
+              size: 32,
+              color: colors.accent.withAlpha(50),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -357,64 +359,79 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Center(
         child: Column(
           children: [
-            // Mic button
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                context.push('/record');
-              },
-              child: Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.accent,
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.accent.withAlpha(102),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+            // Outer glow ring
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withAlpha(15),
+              ),
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    context.push('/record');
+                  },
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.accent,
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.accent.withAlpha(80),
+                          blurRadius: 28,
+                          offset: const Offset(0, 8),
+                          spreadRadius: 0,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.mic_rounded,
-                  size: 40,
-                  color: Colors.white,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.mic_rounded, size: 34, color: Colors.white),
+                        const SizedBox(height: 2),
+                        Text(
+                          'RECORD',
+                          style: GoogleFonts.manrope(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Record your day',
+              'Tap to start your evening reflection',
               style: GoogleFonts.manrope(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: colors.textMuted,
               ),
             ),
-            const SizedBox(height: 12),
-            // "Write instead" — styled as a visible pill button
+            const SizedBox(height: 14),
+            // Write instead pill
             GestureDetector(
               onTap: () => context.push('/write'),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
                 decoration: BoxDecoration(
-                  color: colors.card,
+                  color: colors.accentFaint,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: colors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(6),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.edit_note_rounded, size: 16, color: colors.textSecondary),
+                    Icon(Icons.edit_note_rounded, size: 15, color: colors.textSecondary),
                     const SizedBox(width: 6),
                     Text(
                       'Write instead',
@@ -753,197 +770,399 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // -- On This Day ----------------------------------------------------------
+  // -- Recent Memories -------------------------------------------------------
 
-  Widget _buildOnThisDay() {
-    final datesAsync = ref.watch(availableDatesProvider);
-
-    // Show skeleton while loading
-    if (datesAsync.isLoading) {
-      return _buildOnThisDaySkeleton();
-    }
-
-    final dates = datesAsync.valueOrNull ?? [];
-    final now = DateTime.now();
+  Widget _buildRecentMemories() {
     final colors = AppColors.of(context);
+    final entriesAsync = ref.watch(timelineEntriesProvider);
 
-    // Collect matching dates from previous years (sorted oldest → newest)
-    final matchingDates = <DateTime>[];
-    for (final d in dates) {
-      if (d.month == now.month && d.day == now.day && d.year < now.year) {
-        matchingDates.add(d);
-      }
-    }
-    matchingDates.sort((a, b) => a.year.compareTo(b.year));
-
-    // No memories yet — show a single placeholder card
-    if (matchingDates.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-        child: _buildOnThisDayCard(
-          colors: colors,
-          yearsAgo: null,
-          year: null,
-        ),
-      );
-    }
-
-    // One card per matching year
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
       child: Column(
-        children: matchingDates.map((d) {
-          final yearsAgo = now.year - d.year;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _buildOnThisDayCard(
-              colors: colors,
-              yearsAgo: yearsAgo,
-              year: d.year,
-            ),
-          );
-        }).toList(),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recent Memories',
+                style: GoogleFonts.manrope(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => context.go('/timeline'),
+                child: Text(
+                  'View All',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Entries list
+          if (entriesAsync.isLoading)
+            _buildMemorySkeleton()
+          else if (entriesAsync.valueOrNull == null || entriesAsync.valueOrNull!.isEmpty)
+            _buildNoMemoriesYet(colors)
+          else ...[
+            for (int i = 0; i < entriesAsync.value!.take(5).length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: i == 0
+                    ? _buildMemoryHeroCard(entriesAsync.value![i], colors)
+                    : _buildMemoryRowCard(entriesAsync.value![i], colors),
+              ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildOnThisDayCard({
-    required AppPalette colors,
-    required int? yearsAgo,
-    required int? year,
-  }) {
-    final hasMemory = yearsAgo != null;
-    final yearsAgoLabel = hasMemory
-        ? '${yearsAgo} ${yearsAgo == 1 ? 'year' : 'years'} ago'
-        : '';
-
-    // Gold accent for On This Day memories
-    const accentBar = Color(0xFFC49A3C);
+  Widget _buildMemoryHeroCard(JournalEntry entry, AppPalette colors) {
+    final title = _extractTitle(entry);
+    final excerpt = _extractExcerpt(entry);
+    final dateLabel = _dateLabel(entry.entryDate);
 
     return _PressableCard(
-      onTap: () => context.push('/on-this-day'),
+      onTap: () => setState(() => _showChat = true),
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(8),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Positioned(
-              right: -20,
-              top: -20,
-              child: Icon(
-                Icons.auto_awesome,
-                size: 80,
-                color: accentBar.withAlpha(20),
+            // Image banner / gradient banner
+            Container(
+              height: 160,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colors.accent,
+                    colors.accentLight,
+                  ],
+                ),
               ),
-            ),
-            Positioned(
-              left: -10,
-              bottom: -10,
-              child: Icon(
-                Icons.history_rounded,
-                size: 60,
-                color: accentBar.withAlpha(15),
-              ),
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Left accent bar — gold for memories
-                Container(width: 4, color: accentBar),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: accentBar.withAlpha(25),
-                            border: Border.all(color: accentBar.withAlpha(60), width: 1.5),
-                          ),
-                          child: Icon(
-                            hasMemory ? Icons.auto_awesome_rounded : Icons.history_rounded,
-                            size: 20,
-                            color: accentBar,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                          children: [
-                            Text(
-                              'On This Day',
-                              style: GoogleFonts.manrope(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: colors.textPrimary,
-                              ),
-                            ),
-                            if (yearsAgoLabel.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: accentBar.withAlpha(30),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  yearsAgoLabel,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: accentBar,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          hasMemory
-                              ? 'Revisit your memory from ${year}'
-                              : 'Start journaling to unlock memories',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ],
+              child: Stack(
+                children: [
+                  // Decorative icon overlay
+                  Positioned(
+                    right: -16,
+                    bottom: -16,
+                    child: Icon(
+                      Icons.menu_book_rounded,
+                      size: 100,
+                      color: Colors.white.withAlpha(20),
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 22,
-                    color: accentBar.withAlpha(150),
+                  // Date chip
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(100),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        dateLabel.toUpperCase(),
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
                   ),
+                  // Voice/AI badge
+                  if (entry.hasVoice || entry.isAiPolished)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(220),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              entry.hasVoice ? Icons.mic_rounded : Icons.auto_fix_high,
+                              size: 11,
+                              color: colors.accent,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              entry.hasVoice ? 'Voice' : 'AI',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: colors.accent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-                ),
-              ],
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    excerpt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: colors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                      height: 1.5,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (entry.mood != null) ...[
+                    const SizedBox(height: 10),
+                    _pill(
+                      child: Text(
+                        entry.mood!,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _moodColorForLabel(entry.mood!),
+                        ),
+                      ),
+                      color: _moodColorForLabel(entry.mood!).withAlpha(26),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildMemoryRowCard(JournalEntry entry, AppPalette colors) {
+    final title = _extractTitle(entry);
+    final excerpt = _extractExcerpt(entry);
+    final dateLabel = _dateLabel(entry.entryDate);
+
+    return _PressableCard(
+      onTap: () => setState(() => _showChat = true),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            // Left thumbnail
+            Container(
+              width: 72,
+              height: 72,
+              margin: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colors.accent.withAlpha(40),
+                    colors.accentLight.withAlpha(60),
+                  ],
+                ),
+              ),
+              child: Icon(
+                entry.hasVoice ? Icons.mic_rounded : Icons.edit_note_rounded,
+                size: 28,
+                color: colors.accent,
+              ),
+            ),
+
+            // Content
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          dateLabel,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      excerpt,
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (entry.mood != null) ...[
+                      const SizedBox(height: 6),
+                      _pill(
+                        child: Text(
+                          entry.mood!,
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _moodColorForLabel(entry.mood!),
+                          ),
+                        ),
+                        color: _moodColorForLabel(entry.mood!).withAlpha(26),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoMemoriesYet(AppPalette colors) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colors.accentFaint,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.auto_stories_outlined, size: 40, color: colors.accent.withAlpha(100)),
+          const SizedBox(height: 12),
+          Text(
+            'Your memories will appear here',
+            style: GoogleFonts.manrope(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Tap Record to capture your first moment.',
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              color: colors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemorySkeleton() {
+    final colors = AppColors.of(context);
+    return Column(
+      children: [
+        Container(
+          height: 220,
+          decoration: BoxDecoration(
+            color: colors.border,
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 96,
+          decoration: BoxDecoration(
+            color: colors.border,
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _extractTitle(JournalEntry entry) {
+    if (entry.polishedContent != null && entry.polishedContent!.isNotEmpty) {
+      final lines = entry.polishedContent!.split('\n').where((l) => l.trim().isNotEmpty).toList();
+      if (lines.isNotEmpty && lines.first.length < 80) return lines.first.trim();
+    }
+    final words = entry.content.split(' ');
+    return words.take(6).join(' ') + (words.length > 6 ? '...' : '');
+  }
+
+  String _extractExcerpt(JournalEntry entry) {
+    final text = entry.polishedContent ?? entry.content;
+    final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final body = lines.length > 1 ? lines.skip(1).join(' ') : text;
+    return body.length > 100 ? '${body.substring(0, 100)}...' : body;
+  }
+
+  String _dateLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final entryDay = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(entryDay).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    if (diff < 7) return DateFormat('EEEE').format(date);
+    return DateFormat('MMM d').format(date);
   }
 
   // =========================================================================
@@ -2114,6 +2333,32 @@ class _MoodOption {
   final IconData icon;
 
   const _MoodOption(this.label, this.icon);
+}
+
+/// Small icon button for the home screen top bar.
+class _TopIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _TopIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: colors.accentFaint,
+          border: Border.all(color: colors.border),
+        ),
+        child: Icon(icon, size: 20, color: colors.textSecondary),
+      ),
+    );
+  }
 }
 
 /// A card that scales down slightly on press for tactile feedback.

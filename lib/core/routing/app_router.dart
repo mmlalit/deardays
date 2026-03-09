@@ -5,14 +5,19 @@ import 'package:deardays/features/onboarding/presentation/screens/onboarding_scr
 import 'package:deardays/features/auth/presentation/screens/login_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/recording_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/processing_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/edit_memory_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/paywall_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/on_this_day_screen.dart';
 import 'package:deardays/features/book/presentation/screens/library_screen.dart';
 import 'package:deardays/features/book/presentation/screens/my_story_screen.dart';
 import 'package:deardays/features/book/presentation/screens/export_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
+import 'package:deardays/features/timeline/presentation/screens/memory_detail_screen.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/explore/presentation/screens/explore_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
 import 'package:deardays/core/routing/app_shell.dart';
@@ -74,12 +79,17 @@ class AppRouter {
             ),
           ),
           GoRoute(
-            path: '/settings',
+            path: '/explore',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: SettingsScreen(),
+              child: ExploreScreen(),
             ),
           ),
         ],
+      ),
+      // Settings is outside the shell — accessed via home top-right icon
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
         path: '/book/:id',
@@ -96,12 +106,24 @@ class AppRouter {
         builder: (context, state) => const RecordingScreen(),
       ),
       GoRoute(
+        path: '/processing',
+        builder: (context, state) => ProcessingScreen(
+          data: state.extra as ReviewData,
+        ),
+      ),
+      GoRoute(
         path: '/write',
         builder: (context, state) => const TextEntryScreen(),
       ),
       GoRoute(
         path: '/review',
         builder: (context, state) => ReviewSaveScreen(
+          data: state.extra as ReviewData,
+        ),
+      ),
+      GoRoute(
+        path: '/edit-memory',
+        builder: (context, state) => EditMemoryScreen(
           data: state.extra as ReviewData,
         ),
       ),
@@ -116,6 +138,12 @@ class AppRouter {
       GoRoute(
         path: '/export',
         builder: (context, state) => const ExportScreen(),
+      ),
+      GoRoute(
+        path: '/memory',
+        builder: (context, state) => MemoryDetailScreen(
+          entry: state.extra as JournalEntry,
+        ),
       ),
     ],
   );

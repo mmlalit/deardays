@@ -64,12 +64,12 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF111111),
+          backgroundColor: p.accent,
           foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size(double.infinity, 56),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           textStyle: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.5),
         ),
       ),
@@ -77,7 +77,7 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: p.textPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           side: BorderSide(color: p.border),
           textStyle: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700),
         ),
@@ -85,9 +85,9 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: p.card,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: p.border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: p.border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: p.accent, width: 2)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.accent, width: 2)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         hintStyle: GoogleFonts.manrope(color: p.textMuted, fontWeight: FontWeight.w500),
       ),
