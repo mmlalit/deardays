@@ -322,25 +322,11 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   // Photo or gradient banner
                   _buildPhotoOrGradientBanner(),
 
-                  // Title
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Text(
-                      _generatedTitle ?? (_isPolishing ? 'Writing your story...' : 'Your Memory'),
-                      style: GoogleFonts.manrope(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: colors.textPrimary,
-                        height: 1.2,
-                      ),
-                    ),
-                  ),
+                  // Title + date section
+                  _buildTitleSection(colors),
 
-                  const SizedBox(height: 16),
-
-                  // Tab bar: Story | Transcript | Audio
+                  // Tab bar: Audio | Transcript | Story
                   _buildTabBar(colors),
-                  Divider(height: 1, color: colors.border),
 
                   // AI progress indicator
                   if (_isPolishing) ...[
@@ -403,31 +389,25 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
               GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accentFaint,
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Icon(Icons.arrow_back_rounded, size: 18, color: colors.textPrimary),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.arrow_back_rounded, size: 22, color: colors.textPrimary),
                 ),
               ),
               Expanded(
-                child: Center(
-                  child: Text(
-                    'Your Memory',
-                    style: GoogleFonts.manrope(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                    ),
+                child: Text(
+                  'Memory Preview',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.merriweather(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -437,15 +417,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     const SnackBar(content: Text('Share coming soon')),
                   );
                 },
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accentFaint,
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Icon(Icons.ios_share_outlined, size: 18, color: colors.textSecondary),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.ios_share_rounded, size: 22, color: colors.textPrimary),
                 ),
               ),
             ],
@@ -457,24 +432,73 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   Widget _buildPhotoOrGradientBanner() {
     final colors = AppColors.of(context);
+    final title = _generatedTitle;
+
+    Widget imageChild;
     if (_attachedPhotoPath != null) {
-      return Container(
-        height: 220,
+      imageChild = Image.asset(
+        _attachedPhotoPath!,
+        fit: BoxFit.cover,
         width: double.infinity,
-        color: colors.border,
-        child: Image.asset(
-          _attachedPhotoPath!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
-        ),
+        height: 300,
+        errorBuilder: (_, __, ___) => _fallbackBannerBg(colors),
       );
+    } else {
+      imageChild = _fallbackBannerBg(colors);
     }
-    return _buildGradientBanner(colors);
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(0),
+        bottomRight: Radius.circular(0),
+      ),
+      child: Stack(
+        children: [
+          SizedBox(height: 300, width: double.infinity, child: imageChild),
+          // Dark gradient overlay (bottom → transparent)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withAlpha(180),
+                  ],
+                  stops: const [0.4, 1.0],
+                ),
+              ),
+            ),
+          ),
+          // Italic serif title overlaid at bottom-left
+          if (title != null)
+            Positioned(
+              bottom: 20,
+              left: 20,
+              right: 60,
+              child: Text(
+                title,
+                style: GoogleFonts.merriweather(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.white,
+                  height: 1.3,
+                  shadows: [
+                    Shadow(color: Colors.black.withAlpha(120), blurRadius: 8),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildGradientBanner(AppPalette colors) {
+  Widget _fallbackBannerBg(AppPalette colors) {
     return Container(
-      height: 140,
+      height: 300,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -488,10 +512,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           Positioned(
             right: -20,
             bottom: -20,
-            child: Icon(Icons.menu_book_rounded, size: 120, color: Colors.white.withAlpha(20)),
+            child: Icon(Icons.menu_book_rounded, size: 160, color: Colors.white.withAlpha(15)),
           ),
-          Center(
-            child: Icon(Icons.auto_stories_rounded, size: 48, color: Colors.white.withAlpha(200)),
+          const Center(
+            child: Icon(Icons.auto_stories_rounded, size: 56, color: Colors.white70),
           ),
         ],
       ),
@@ -675,35 +699,52 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildTabBar(AppPalette colors) {
-    final tabs = <({String label, int index})>[];
-    tabs.add((label: 'Story', index: 0));
-    if (_cleanedText != null) tabs.add((label: 'Transcript', index: 1));
-    tabs.add((label: 'Raw', index: 2));
+    final tabs = [
+      (icon: Icons.graphic_eq_rounded, label: 'AUDIO', index: 2),
+      (icon: Icons.description_rounded, label: 'TRANSCRIPT', index: 1),
+      (icon: Icons.auto_stories_rounded, label: 'STORY', index: 0),
+    ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.border)),
+      ),
       child: Row(
         children: tabs.map((tab) {
           final isActive = _activeTab == tab.index;
-          return GestureDetector(
-            onTap: () => setState(() => _activeTab = tab.index),
-            child: Container(
-              margin: const EdgeInsets.only(right: 24),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isActive ? colors.accent : Colors.transparent,
-                    width: 2,
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _activeTab = tab.index),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isActive ? colors.accent : Colors.transparent,
+                      width: 2,
+                    ),
                   ),
                 ),
-              ),
-              child: Text(
-                tab.label,
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? colors.accent : colors.textMuted,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      tab.icon,
+                      size: 22,
+                      color: isActive ? colors.accent : colors.textMuted,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tab.label,
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: isActive ? colors.accent : colors.textMuted,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -717,6 +758,48 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   Widget _buildViewToggle() => _buildTabBar(AppColors.of(context));
 
   // ---------------------------------------------------------------------------
+  // Title + Date Section
+  // ---------------------------------------------------------------------------
+
+  Widget _buildTitleSection(AppPalette colors) {
+    final now = DateTime.now();
+    final months = ['January','February','March','April','May','June',
+        'July','August','September','October','November','December'];
+    final hour = now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
+    final ampm = now.hour >= 12 ? 'PM' : 'AM';
+    final dateStr =
+        '${months[now.month - 1].toUpperCase()} ${now.day}, ${now.year} • ${hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} $ampm';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
+      child: Column(
+        children: [
+          Text(
+            _generatedTitle ?? (_isPolishing ? 'Writing your story...' : 'Your Memory'),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.merriweather(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            dateStr,
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: colors.textMuted,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Polished Story View
   // ---------------------------------------------------------------------------
 
@@ -727,48 +810,23 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         .where((p) => p.trim().isNotEmpty)
         .toList();
 
-    return Padding(
+    return _buildContentCard(
       key: const ValueKey('polished'),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      colors: colors,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // First paragraph as blockquote
-          if (paragraphs.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.only(left: 16),
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: colors.accent, width: 3),
-                ),
-              ),
-              child: Text(
-                '"${paragraphs.first}"',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textPrimary,
-                  height: 1.8,
-                ),
-              ),
+        children: paragraphs.map((p) => Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Text(
+            p,
+            style: GoogleFonts.merriweather(
+              fontSize: 18,
+              fontWeight: FontWeight.w300,
+              color: colors.textPrimary,
+              height: 1.75,
             ),
-          // Remaining paragraphs
-          if (paragraphs.length > 1) ...[
-            const SizedBox(height: 20),
-            ...paragraphs.skip(1).map((p) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
-                p,
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  color: colors.textPrimary,
-                  height: 1.8,
-                ),
-              ),
-            )),
-          ],
-        ],
+          ),
+        )).toList(),
       ),
     );
   }
@@ -778,23 +836,29 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildCleanedView() {
-    return Padding(
+    final colors = AppColors.of(context);
+    final paragraphs = _cleanedText!
+        .split('\n')
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    return _buildContentCard(
       key: const ValueKey('cleaned'),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      colors: colors,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Divider(color: AppColors.of(context).accent.withAlpha(26), height: 1),
-          const SizedBox(height: 24),
-          Text(
-            _cleanedText!,
-            style: GoogleFonts.manrope(
-              fontSize: 16,
-              color: AppColors.of(context).textPrimary.withAlpha(215),
-              height: 1.7,
+        children: paragraphs.map((p) => Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Text(
+            p,
+            style: GoogleFonts.merriweather(
+              fontSize: 18,
+              fontWeight: FontWeight.w300,
+              color: colors.textPrimary,
+              height: 1.75,
             ),
           ),
-        ],
+        )).toList(),
       ),
     );
   }
@@ -804,24 +868,51 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildOriginalView() {
-    return Padding(
+    final colors = AppColors.of(context);
+    final paragraphs = widget.data.rawText
+        .split('\n')
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    return _buildContentCard(
       key: const ValueKey('original'),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      colors: colors,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Divider(color: AppColors.of(context).accent.withAlpha(26), height: 1),
-          const SizedBox(height: 24),
-          Text(
-            widget.data.rawText,
-            style: GoogleFonts.manrope(
-              fontSize: 15,
-              color: AppColors.of(context).textPrimary.withAlpha(204),
-              height: 1.7,
+        children: paragraphs.map((p) => Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Text(
+            p,
+            style: GoogleFonts.merriweather(
+              fontSize: 18,
+              fontWeight: FontWeight.w300,
+              color: colors.textPrimary.withAlpha(210),
+              height: 1.75,
             ),
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildContentCard({required AppPalette colors, required Widget child, Key? key}) {
+    return Container(
+      key: key,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: child,
     );
   }
 
@@ -943,16 +1034,16 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     final colors = AppColors.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: colors.bg,
+        color: colors.bg.withAlpha(230),
         border: Border(top: BorderSide(color: colors.border)),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Row(
             children: [
-              // Edit Memory button
+              // Edit Story button
               Expanded(
                 child: GestureDetector(
                   onTap: () {
@@ -967,22 +1058,22 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     ));
                   },
                   child: Container(
-                    height: 52,
+                    height: 56,
                     decoration: BoxDecoration(
-                      color: colors.accentFaint,
-                      borderRadius: BorderRadius.circular(28),
+                      color: colors.cardBg,
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: colors.border),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.edit_rounded, size: 18, color: colors.textPrimary),
+                        Icon(Icons.edit_note_rounded, size: 20, color: colors.textPrimary),
                         const SizedBox(width: 6),
                         Text(
-                          'Edit Memory',
+                          'Edit Story',
                           style: GoogleFonts.manrope(
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: colors.textPrimary,
                           ),
                         ),
@@ -992,18 +1083,27 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              // Save Memory button
+              // Save to Vault button
               Expanded(
                 flex: 2,
                 child: GestureDetector(
                   onTap: (_isSaving || _isPolishing) ? null : _saveEntry,
                   child: Container(
-                    height: 52,
+                    height: 56,
                     decoration: BoxDecoration(
                       color: (_isSaving || _isPolishing)
                           ? colors.accent.withAlpha(120)
                           : colors.accent,
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: (_isSaving || _isPolishing)
+                          ? []
+                          : [
+                              BoxShadow(
+                                color: colors.accent.withAlpha(70),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1014,10 +1114,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                                 height: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
-                            : const Icon(Icons.check_circle_outline_rounded, size: 20, color: Colors.white),
+                            : const Icon(Icons.bookmark_added_rounded, size: 20, color: Colors.white),
                         const SizedBox(width: 6),
                         Text(
-                          _isSaving ? 'Saving...' : 'Save Memory',
+                          _isSaving ? 'Saving...' : 'Save to Vault',
                           style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
