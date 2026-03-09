@@ -62,6 +62,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color highlight;
   final Color highlightFaint;
 
+  /// Alias for [card] — used across screens for card backgrounds.
+  Color get cardBg => card;
+
   const AppPalette({
     required this.bg,
     required this.card,

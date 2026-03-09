@@ -89,8 +89,8 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      // Switch should be somewhere in the tree
-      expect(find.byType(Switch), findsWidgets);
+      // Settings uses a custom AnimatedContainer toggle (not Flutter's Switch)
+      expect(find.text('Biometric Lock'), findsOneWidget);
     });
   });
 }
