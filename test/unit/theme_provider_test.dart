@@ -6,16 +6,16 @@ import 'package:deardays/core/theme/app_colors.dart';
 
 void main() {
   group('ThemeState', () {
-    test('defaults to Warm Cream', () {
+    test('defaults to Classic White', () {
       const state = ThemeState();
-      expect(state.themeColor, equals(AppThemeColor.warmCream));
+      expect(state.themeColor, equals(AppThemeColor.classicWhite));
     });
 
     test('lightTheme uses correct scaffold background', () {
       const state = ThemeState(themeColor: AppThemeColor.warmCream);
       expect(
         state.lightTheme.scaffoldBackgroundColor,
-        equals(AppThemeColor.warmCream.bg),
+        equals(AppThemeColor.warmCream.light.bg),
       );
     });
 
@@ -23,7 +23,7 @@ void main() {
       const state = ThemeState(themeColor: AppThemeColor.sageGreen);
       expect(
         state.darkTheme.scaffoldBackgroundColor,
-        equals(AppThemeColor.sageGreen.bgDark),
+        equals(AppThemeColor.sageGreen.dark.bg),
       );
     });
 
@@ -36,9 +36,9 @@ void main() {
   });
 
   group('ThemeNotifier', () {
-    test('initial state is Warm Cream', () {
+    test('initial state is Classic White', () {
       final notifier = ThemeNotifier();
-      expect(notifier.debugState.themeColor, equals(AppThemeColor.warmCream));
+      expect(notifier.debugState.themeColor, equals(AppThemeColor.classicWhite));
     });
 
     test('setThemeColor changes state', () {
@@ -47,10 +47,10 @@ void main() {
       expect(notifier.debugState.themeColor, equals(AppThemeColor.sageGreen));
     });
 
-    test('setThemeColor updates to Classic White', () {
+    test('setThemeColor updates to Warm Cream', () {
       final notifier = ThemeNotifier();
-      notifier.setThemeColor(AppThemeColor.classicWhite);
-      expect(notifier.debugState.themeColor, equals(AppThemeColor.classicWhite));
+      notifier.setThemeColor(AppThemeColor.warmCream);
+      expect(notifier.debugState.themeColor, equals(AppThemeColor.warmCream));
     });
   });
 
@@ -60,7 +60,7 @@ void main() {
       addTearDown(container.dispose);
 
       final state = container.read(themeProvider);
-      expect(state.themeColor, equals(AppThemeColor.warmCream));
+      expect(state.themeColor, equals(AppThemeColor.classicWhite));
     });
 
     test('switching theme updates provider state', () {
@@ -74,8 +74,8 @@ void main() {
   });
 
   group('AppThemeColor enum', () {
-    test('has exactly 3 options', () {
-      expect(AppThemeColor.values.length, equals(3));
+    test('has exactly 4 options', () {
+      expect(AppThemeColor.values.length, equals(4));
     });
 
     test('all have non-empty labels', () {
@@ -84,38 +84,41 @@ void main() {
       }
     });
 
-    test('Warm Cream bg is #FCF9F5', () {
-      expect(AppThemeColor.warmCream.bg, equals(const Color(0xFFFCF9F5)));
+    test('Warm Cream light bg is correct', () {
+      expect(AppThemeColor.warmCream.light.bg, equals(const Color(0xFFF8F4EF)));
     });
 
-    test('Sage Green bg is #F7FAF8', () {
-      expect(AppThemeColor.sageGreen.bg, equals(const Color(0xFFF7FAF8)));
+    test('Sage Green light bg is correct', () {
+      expect(AppThemeColor.sageGreen.light.bg, equals(const Color(0xFFF4F7F4)));
     });
 
-    test('Classic White bg is #FFFFFF', () {
-      expect(AppThemeColor.classicWhite.bg, equals(const Color(0xFFFFFFFF)));
+    test('Classic White light bg is correct', () {
+      expect(AppThemeColor.classicWhite.light.bg, equals(const Color(0xFFFAF8F5)));
     });
 
-    test('all nav backgrounds are white', () {
-      for (final color in AppThemeColor.values) {
-        expect(color.navBg, equals(const Color(0xFFFFFFFF)));
+    test('all light nav backgrounds are white', () {
+      final lightPalettes = [
+        AppThemeColor.warmCream,
+        AppThemeColor.sageGreen,
+        AppThemeColor.classicWhite,
+      ];
+      for (final color in lightPalettes) {
+        expect(color.light.navBg, equals(const Color(0xFFFFFFFF)));
       }
+    });
+
+    test('warmDark isDark is true', () {
+      expect(AppThemeColor.warmDark.isDark, isTrue);
+    });
+
+    test('other palettes isDark is false', () {
+      expect(AppThemeColor.warmCream.isDark, isFalse);
+      expect(AppThemeColor.sageGreen.isDark, isFalse);
+      expect(AppThemeColor.classicWhite.isDark, isFalse);
     });
   });
 
-  group('AppColors', () {
-    test('primary is sage green #7C9A82', () {
-      expect(AppColors.primary, equals(const Color(0xFF7C9A82)));
-    });
-
-    test('bgLight is warm cream #FCF9F5', () {
-      expect(AppColors.bgLight, equals(const Color(0xFFFCF9F5)));
-    });
-
-    test('navBg is white', () {
-      expect(AppColors.navBg, equals(const Color(0xFFFFFFFF)));
-    });
-
+  group('AppColors static constants', () {
     test('mood colors are all distinct', () {
       final moods = {
         AppColors.moodGreat,
@@ -125,6 +128,14 @@ void main() {
         AppColors.moodTough,
       };
       expect(moods.length, equals(5));
+    });
+
+    test('error color is red', () {
+      expect(AppColors.error, equals(const Color(0xFFEF4444)));
+    });
+
+    test('success color is green', () {
+      expect(AppColors.success, equals(const Color(0xFF10B981)));
     });
   });
 }

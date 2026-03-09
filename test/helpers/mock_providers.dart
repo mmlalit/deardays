@@ -49,6 +49,8 @@ final mockEntry = JournalEntry(
   mood: 'great',
   entryDate: _now,
   wordCount: 6,
+  createdAt: _now,
+  updatedAt: _now,
 );
 
 final mockBook = Book(
@@ -59,6 +61,8 @@ final mockBook = Book(
   writingStyle: 'memoir',
   startDate: DateTime(2026, 1, 1),
   sortOrder: 0,
+  createdAt: _now,
+  updatedAt: _now,
 );
 
 // ---------------------------------------------------------------------------
