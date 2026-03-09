@@ -22,52 +22,46 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     with TickerProviderStateMixin {
   final _aiService = AiService();
 
-  // 0 = transcribing, 1 = understanding, 2 = writing
-  int _currentStep = 0;
-
-  // Step progress bars (0.0 → 1.0)
-  final List<double> _stepProgress = [0.0, 0.0, 0.0];
-
   // Step states: 'waiting' | 'active' | 'done'
   final List<String> _stepStates = ['active', 'waiting', 'waiting'];
 
-  bool _failed = false;
-  String? _errorMessage;
+  // Step progress 0.0 → 1.0 (used for overall % calculation)
+  final List<double> _stepProgress = [0.0, 0.0, 0.0];
 
-  // Ring rotation animation
-  late AnimationController _ringController;
+  // Pulse animation for the concentric rings
+  late AnimationController _pulseController;
 
-  // Step progress animation controllers
-  late AnimationController _progressController;
+  // Spin animation for the active step icon
+  late AnimationController _spinController;
 
   @override
   void initState() {
     super.initState();
 
-    _ringController = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
 
-    _progressController = AnimationController(
+    _spinController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
 
     _runProcessing();
   }
 
   @override
   void dispose() {
-    _ringController.dispose();
-    _progressController.dispose();
+    _pulseController.dispose();
+    _spinController.dispose();
     super.dispose();
   }
 
   Future<void> _runProcessing() async {
     // ── Step 1: Transcribe voice ──────────────────────────────────────────
     _setStep(0, 'active');
-    await _animateStepProgress(0, 0.0, 1.0, duration: const Duration(milliseconds: 500));
+    await _animateProgress(0, 0.0, 1.0, duration: const Duration(milliseconds: 500));
 
     String transcript = '';
     try {
@@ -76,7 +70,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       } else if (widget.data.rawText.isNotEmpty) {
         transcript = widget.data.rawText;
       }
-    } catch (e) {
+    } catch (_) {
       transcript = widget.data.rawText;
     }
 
@@ -85,7 +79,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
 
     // ── Step 2: Understand story ──────────────────────────────────────────
     _setStep(1, 'active');
-    await _animateStepProgress(1, 0.0, 0.7, duration: const Duration(milliseconds: 400));
+    await _animateProgress(1, 0.0, 0.7, duration: const Duration(milliseconds: 400));
 
     String cleanedText = transcript;
     try {
@@ -95,22 +89,19 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     }
 
     if (!mounted) return;
-    await _animateStepProgress(1, 0.7, 1.0, duration: const Duration(milliseconds: 200));
+    await _animateProgress(1, 0.7, 1.0, duration: const Duration(milliseconds: 200));
     _setStep(1, 'done');
 
     // ── Step 3: Write memory ──────────────────────────────────────────────
     _setStep(2, 'active');
-    await _animateStepProgress(2, 0.0, 1.0, duration: const Duration(milliseconds: 600));
+    await _animateProgress(2, 0.0, 1.0, duration: const Duration(milliseconds: 600));
 
     if (!mounted) return;
     _setStep(2, 'done');
 
-    // Small pause so user can see completion
     await Future.delayed(const Duration(milliseconds: 600));
-
     if (!mounted) return;
 
-    // Navigate to review screen with transcribed + cleaned text
     context.pushReplacement('/review', extra: ReviewData(
       rawText: cleanedText,
       isVoice: widget.data.isVoice,
@@ -121,107 +112,366 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   }
 
   void _setStep(int index, String state) {
-    if (mounted) {
-      setState(() => _stepStates[index] = state);
-    }
+    if (mounted) setState(() => _stepStates[index] = state);
   }
 
-  Future<void> _animateStepProgress(int index, double from, double to, {required Duration duration}) async {
+  Future<void> _animateProgress(int index, double from, double to, {required Duration duration}) async {
     const steps = 10;
     final increment = (to - from) / steps;
     final stepDuration = Duration(milliseconds: duration.inMilliseconds ~/ steps);
     for (int i = 1; i <= steps; i++) {
       await Future.delayed(stepDuration);
-      if (mounted) {
-        setState(() => _stepProgress[index] = from + increment * i);
-      }
+      if (mounted) setState(() => _stepProgress[index] = from + increment * i);
     }
+  }
+
+  double get _overallProgress {
+    final total = _stepProgress[0] + _stepProgress[1] + _stepProgress[2];
+    return (total / 3).clamp(0.0, 1.0);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final overall = _overallProgress;
+    final pct = (overall * 100).round();
 
     return Scaffold(
       backgroundColor: colors.bg,
       body: SafeArea(
         child: Column(
           children: [
-            // Top spacer + cancel link
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 20),
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: Text(
-                    'Cancel',
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      color: colors.textMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+            _buildHeader(colors),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildIllustration(colors),
+                    const SizedBox(height: 32),
+                    _buildTitle(colors),
+                    const SizedBox(height: 40),
+                    _buildProgressBar(colors, overall, pct),
+                    const SizedBox(height: 32),
+                    _buildStepsTimeline(colors),
+                  ],
                 ),
               ),
             ),
+            _buildFooter(colors),
+          ],
+        ),
+      ),
+    );
+  }
 
-            const Spacer(flex: 2),
+  // ── Header ──────────────────────────────────────────────────────────────
 
-            // ── Animated center illustration ──
-            _buildCenterIllustration(colors),
-
-            const SizedBox(height: 32),
-
-            // ── Title ──
-            Text(
-              'Writing your memory',
+  Widget _buildHeader(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.cardBg,
+              ),
+              child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'Aura',
+              textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
                 color: colors.textPrimary,
-                letterSpacing: -0.5,
-                fontStyle: FontStyle.italic,
               ),
             ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
-              child: Text(
-                'Polishing the details of your special moment.',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  color: colors.textSecondary,
-                  height: 1.5,
+          ),
+          const SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+
+  // ── Concentric Rings Illustration ──────────────────────────────────────
+
+  Widget _buildIllustration(AppPalette colors) {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (_, __) {
+        final outerAlpha = (15 + (_pulseController.value * 10).round()).clamp(15, 25);
+        return SizedBox(
+          width: 192,
+          height: 192,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer pulse ring
+              Container(
+                width: 192,
+                height: 192,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.accent.withAlpha(outerAlpha),
                 ),
-                textAlign: TextAlign.center,
+              ),
+              // Middle ring
+              Container(
+                width: 152,
+                height: 152,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.accent.withAlpha(35),
+                ),
+              ),
+              // Inner ring
+              Container(
+                width: 112,
+                height: 112,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.accent.withAlpha(55),
+                ),
+              ),
+              // Center circle with icon
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.accent,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.accent.withAlpha(100),
+                      blurRadius: 24,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  size: 38,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Title + Subtitle ─────────────────────────────────────────────────────
+
+  Widget _buildTitle(AppPalette colors) {
+    return Column(
+      children: [
+        Text(
+          'Processing your memory',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.manrope(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: colors.textPrimary,
+            letterSpacing: -0.5,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Aura is weaving your story together...',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.manrope(
+            fontSize: 15,
+            color: colors.textSecondary,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Overall Progress Bar ──────────────────────────────────────────────────
+
+  Widget _buildProgressBar(AppPalette colors, double progress, int pct) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Overall Progress',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
               ),
             ),
+            Text(
+              '$pct%',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: colors.accent,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: colors.accent.withAlpha(25),
+            valueColor: AlwaysStoppedAnimation(colors.accent),
+            minHeight: 12,
+          ),
+        ),
+      ],
+    );
+  }
 
-            const SizedBox(height: 44),
+  // ── Steps Timeline ────────────────────────────────────────────────────────
 
-            // ── Steps ──
-            _buildStepsList(colors),
+  Widget _buildStepsTimeline(AppPalette colors) {
+    final steps = [
+      'Transcribing voice',
+      'Understanding story',
+      'Writing your memory',
+    ];
 
-            const Spacer(flex: 3),
+    return Column(
+      children: List.generate(steps.length, (i) {
+        final state = _stepStates[i];
+        final isDone = state == 'done';
+        final isActive = state == 'active';
+        final isWaiting = state == 'waiting';
+        final isLast = i == steps.length - 1;
 
-            // ── Info row ──
-            Padding(
-              padding: const EdgeInsets.only(bottom: 28),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.timer_outlined, size: 14, color: colors.textMuted),
-                  const SizedBox(width: 6),
-                  Text(
-                    'This usually takes about 10 seconds',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: colors.textMuted,
-                    ),
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left column: step circle + connector line
+              SizedBox(
+                width: 40,
+                child: Column(
+                  children: [
+                    _buildStepCircle(colors, isDone: isDone, isActive: isActive),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          color: isDone ? colors.accent : colors.border,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Right column: title + status
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 36, top: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        steps[i],
+                        style: GoogleFonts.manrope(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isWaiting ? colors.textMuted : colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        isDone ? 'Done' : isActive ? 'In progress...' : 'Waiting',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isWaiting ? colors.textMuted : colors.accent,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildStepCircle(AppPalette colors, {required bool isDone, required bool isActive}) {
+    if (isDone) {
+      return Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent),
+        child: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+      );
+    }
+    if (isActive) {
+      return RotationTransition(
+        turns: _spinController,
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.transparent,
+            border: Border.all(color: colors.accent, width: 2),
+          ),
+          child: Icon(Icons.refresh_rounded, size: 16, color: colors.accent),
+        ),
+      );
+    }
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.transparent,
+        border: Border.all(color: colors.border, width: 2),
+      ),
+      child: Icon(Icons.more_horiz_rounded, size: 16, color: colors.textMuted),
+    );
+  }
+
+  // ── Footer Info Card ──────────────────────────────────────────────────────
+
+  Widget _buildFooter(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: colors.accent.withAlpha(13),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.accent.withAlpha(30)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.info_rounded, size: 20, color: colors.accent),
+            const SizedBox(width: 8),
+            Text(
+              'This usually takes about 10 seconds.',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                color: colors.textSecondary,
               ),
             ),
           ],
@@ -229,203 +479,4 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Center Illustration
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildCenterIllustration(AppPalette colors) {
-    return SizedBox(
-      width: 140,
-      height: 140,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Rotating outer ring
-          AnimatedBuilder(
-            animation: _ringController,
-            builder: (_, __) => Transform.rotate(
-              angle: _ringController.value * 2 * 3.14159,
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: colors.accent,
-                    width: 2,
-                  ),
-                ),
-                child: CustomPaint(
-                  painter: _DashedCirclePainter(color: colors.border),
-                ),
-              ),
-            ),
-          ),
-          // Inner circle
-          Container(
-            width: 104,
-            height: 104,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accentFaint,
-            ),
-          ),
-          // Icon
-          Icon(Icons.menu_book_rounded, size: 44, color: colors.accent),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Steps List
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildStepsList(AppPalette colors) {
-    final steps = [
-      (Icons.volume_up_rounded, 'Transcribing voice'),
-      (Icons.psychology_rounded, 'Understanding your story'),
-      (Icons.auto_stories_rounded, 'Writing your memory'),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
-      child: Column(
-        children: List.generate(steps.length, (i) {
-          final state = _stepStates[i];
-          final isDone = state == 'done';
-          final isActive = state == 'active';
-          final isWaiting = state == 'waiting';
-
-          return Column(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Status icon
-                  _buildStepIcon(colors, isDone: isDone, isActive: isActive, icon: steps[i].$1),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          steps[i].$2,
-                          style: GoogleFonts.manrope(
-                            fontSize: 15,
-                            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                            color: isWaiting ? colors.textMuted : colors.textPrimary,
-                            decoration: isDone ? TextDecoration.lineThrough : null,
-                            decorationColor: colors.textMuted,
-                          ),
-                        ),
-                        if (isActive) ...[
-                          const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(3),
-                            child: LinearProgressIndicator(
-                              value: _stepProgress[i],
-                              backgroundColor: colors.border,
-                              valueColor: AlwaysStoppedAnimation(colors.accent),
-                              minHeight: 3,
-                            ),
-                          ),
-                        ],
-                        if (isDone)
-                          Text(
-                            'Done',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
-                              color: colors.accent,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        if (isWaiting)
-                          Text(
-                            'Waiting',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
-                              color: colors.textMuted,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              // Connector line
-              if (i < steps.length - 1)
-                Padding(
-                  padding: const EdgeInsets.only(left: 18, top: 4, bottom: 4),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      width: 2,
-                      height: 20,
-                      color: colors.border,
-                    ),
-                  ),
-                ),
-            ],
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildStepIcon(AppPalette colors, {required bool isDone, required bool isActive, required IconData icon}) {
-    if (isDone) {
-      return Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent),
-        child: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
-      );
-    }
-    if (isActive) {
-      return AnimatedBuilder(
-        animation: _ringController,
-        builder: (_, __) => Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors.accentFaint,
-            border: Border.all(color: colors.accent, width: 2),
-          ),
-          child: Icon(icon, size: 18, color: colors.accent),
-        ),
-      );
-    }
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.transparent,
-        border: Border.all(color: colors.border, width: 2),
-      ),
-      child: Icon(icon, size: 18, color: colors.textMuted),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Custom Painter: Dashed Circle (outer ring decoration)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _DashedCirclePainter extends CustomPainter {
-  final Color color;
-  const _DashedCirclePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // The rotating border is handled by the Container border above.
-    // This painter draws nothing extra — kept for extensibility.
-  }
-
-  @override
-  bool shouldRepaint(_DashedCirclePainter old) => false;
 }
