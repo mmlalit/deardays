@@ -1,12 +1,8 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/services/location/location_service.dart';
@@ -19,105 +15,35 @@ class TextEntryScreen extends StatefulWidget {
 }
 
 class _TextEntryScreenState extends State<TextEntryScreen> {
+  final TextEditingController _titleController = TextEditingController();
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final _imagePicker = ImagePicker();
   final _locationService = LocationService();
-  bool _polishWithAI = false;
   String? _attachedPhotoPath;
   String? _locationName;
-  int _promptIndex = 0;
-  bool _promptVisible = true;
-  String _salutation = 'Dear Diary,';
 
   static const _prompts = [
-    'What made you smile today?',
-    'What are you grateful for right now?',
-    'Describe a moment that surprised you today.',
-    'What\'s something you learned recently?',
-    'How are you feeling in this very moment?',
-    'What would you tell your future self?',
-    'Describe the best part of your week so far.',
-    'What\'s a small win you had today?',
-    'Write about someone who made your day better.',
-    'What\'s on your mind that you haven\'t said out loud?',
-    'If today had a soundtrack, what song would it be?',
-    'What does your ideal tomorrow look like?',
-    'Write about a place that feels like home.',
-    'What\'s a memory that always makes you happy?',
-    'What challenged you today, and how did you handle it?',
+    'What made you smile?',
+    'Who did you meet?',
+    'A challenge faced',
+    'Something new learned',
+    'Best part of today',
+    'Grateful for...',
   ];
 
   @override
   void initState() {
     super.initState();
-    _promptIndex = Random().nextInt(_prompts.length);
     _textController.addListener(() => setState(() {}));
-    _loadSalutation();
-  }
-
-  Future<void> _loadSalutation() async {
-    final box = await Hive.openBox('settings');
-    final saved = box.get('salutation') as String?;
-    if (saved != null && mounted) {
-      setState(() => _salutation = saved);
-    }
-  }
-
-  Future<void> _editSalutation() async {
-    final colors = AppColors.of(context);
-    final controller = TextEditingController(text: _salutation.replaceAll(',', '').trim());
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: colors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Customize greeting',
-          style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: GoogleFonts.merriweather(fontSize: 16, color: colors.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Dear Diary',
-            hintStyle: GoogleFonts.merriweather(color: colors.textMuted),
-            border: UnderlineInputBorder(borderSide: BorderSide(color: colors.accent)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: colors.accent, width: 2)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textMuted)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: Text('Save', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: colors.accent)),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      final newSalutation = result.endsWith(',') ? result : '$result,';
-      setState(() => _salutation = newSalutation);
-      final box = await Hive.openBox('settings');
-      await box.put('salutation', newSalutation);
-    }
   }
 
   @override
   void dispose() {
+    _titleController.dispose();
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  void _nextPrompt() {
-    setState(() {
-      _promptIndex = (_promptIndex + 1) % _prompts.length;
-    });
   }
 
   Future<void> _attachPhoto() async {
@@ -156,7 +82,8 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       position.longitude,
     );
     if (mounted) {
-      setState(() => _locationName = name ?? '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}');
+      setState(() => _locationName = name ??
+          '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}');
     }
   }
 
@@ -173,7 +100,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       rawText: text,
       locationName: _locationName,
       attachedPhotoPath: _attachedPhotoPath,
-      polishWithAI: _polishWithAI,
     ));
   }
 
@@ -186,159 +112,84 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final isKeyboardUp = MediaQuery.of(context).viewInsets.bottom > 100;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.bg,
       resizeToAvoidBottomInset: true,
       body: Column(
         children: [
-          // ── Top bar ────────────────────────────────────────────────────
           _buildTopBar(colors),
-
-          // ── Scrollable writing area ────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
-
-                  // Date header — small, muted, editorial
-                  Text(
-                    DateFormat('EEEE, MMMM d · yyyy').format(DateTime.now()),
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: colors.textMuted,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Salutation — tap to customize
-                  GestureDetector(
-                    onTap: _editSalutation,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          _salutation,
-                          style: GoogleFonts.merriweather(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                            height: 1.3,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(Icons.edit_outlined, size: 14, color: colors.textMuted.withAlpha(150)),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // AI prompt chip (inline, collapsible)
-                  if (_promptVisible) _buildInlinePrompt(colors),
-
-                  const SizedBox(height: 16),
-
-                  // Text field — distraction-free, iA Writer inspired
-                  TextField(
-                    controller: _textController,
-                    focusNode: _focusNode,
-                    maxLines: null,
-                    keyboardType: TextInputType.multiline,
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.sentences,
-                    cursorColor: colors.accent,
-                    cursorWidth: 2,
-                    scrollPadding: const EdgeInsets.only(bottom: 120),
-                    style: GoogleFonts.merriweather(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w300,
-                      color: colors.textPrimary,
-                      height: 1.85,
-                      letterSpacing: 0.1,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Start writing...',
-                      hintStyle: GoogleFonts.merriweather(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w300,
-                        color: colors.textMuted,
-                        height: 1.85,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
+                  const SizedBox(height: 20),
+                  _buildTitleInput(colors),
+                  const SizedBox(height: 24),
+                  _buildPromptsSection(colors),
+                  const SizedBox(height: 20),
+                  _buildWritingArea(colors),
+                  const SizedBox(height: 32),
+                  _buildMetaSection(colors),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
           ),
-
-          // ── Bottom toolbar — moves up with keyboard automatically ───────
-          _buildBottomBar(colors, isKeyboardUp),
+          _buildSaveButton(colors),
         ],
       ),
     );
   }
 
-  // ── Top bar ────────────────────────────────────────────────────────────────
+  // ── Top Bar ───────────────────────────────────────────────────────────────
 
   Widget _buildTopBar(AppPalette colors) {
     return SafeArea(
       bottom: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(
-            bottom: BorderSide(color: colors.accent.withAlpha(20)),
-          ),
-        ),
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
             GestureDetector(
               onTap: () => Navigator.of(context).maybePop(),
               child: Container(
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.accent.withAlpha(15),
+                  color: colors.cardBg,
                 ),
-                child: Icon(Icons.close, size: 18, color: colors.textPrimary),
+                child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
               ),
             ),
             Expanded(
-              child: Center(
-                child: Text(
-                  'New Entry',
-                  style: GoogleFonts.manrope(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
+              child: Text(
+                'Write Memory',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
                 ),
               ),
             ),
-            // Word count — subtle, right-aligned
-            AnimatedOpacity(
-              opacity: _wordCount > 0 ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: Text(
-                '$_wordCount w',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  color: colors.textMuted,
-                  fontWeight: FontWeight.w500,
+            SizedBox(
+              width: 40,
+              child: AnimatedOpacity(
+                opacity: _wordCount > 0 ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  '$_wordCount w',
+                  textAlign: TextAlign.end,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    color: colors.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
@@ -348,258 +199,301 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     );
   }
 
-  // ── Inline prompt chip ─────────────────────────────────────────────────────
+  // ── Title Input ───────────────────────────────────────────────────────────
 
-  Widget _buildInlinePrompt(AppPalette colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: colors.accent.withAlpha(12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.accent.withAlpha(30)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.lightbulb_outline_rounded, size: 16, color: colors.accent),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _prompts[_promptIndex],
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                color: colors.textSecondary,
-                height: 1.4,
-              ),
+  Widget _buildTitleInput(AppPalette colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _titleController,
+          textCapitalization: TextCapitalization.sentences,
+          cursorColor: colors.accent,
+          style: GoogleFonts.merriweather(
+            fontSize: 32,
+            fontWeight: FontWeight.w600,
+            color: colors.textPrimary,
+            height: 1.2,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Untitled Moment',
+            hintStyle: GoogleFonts.merriweather(
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
+              color: colors.textMuted.withAlpha(120),
+              height: 1.2,
             ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _nextPrompt,
-            child: Icon(Icons.refresh_rounded, size: 16, color: colors.accent),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => setState(() => _promptVisible = false),
-            child: Icon(Icons.close, size: 14, color: colors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Bottom toolbar ─────────────────────────────────────────────────────────
-
-  Widget _buildBottomBar(AppPalette colors, bool isKeyboardUp) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(
-            top: BorderSide(color: colors.accent.withAlpha(20)),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
           ),
         ),
-        padding: EdgeInsets.fromLTRB(16, 10, 16, isKeyboardUp ? 8 : 16),
-        child: isKeyboardUp
-            ? _buildCompactToolbar(colors)
-            : _buildFullToolbar(colors),
+        const SizedBox(height: 12),
+        Container(
+          width: 48,
+          height: 1,
+          color: colors.accent.withAlpha(80),
+        ),
+      ],
+    );
+  }
+
+  // ── Prompts Section ───────────────────────────────────────────────────────
+
+  Widget _buildPromptsSection(AppPalette colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.lightbulb_rounded, size: 16, color: colors.accent),
+            const SizedBox(width: 6),
+            Text(
+              'NEED A PROMPT?',
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: colors.textMuted,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _prompts.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              return GestureDetector(
+                onTap: () {
+                  final current = _textController.text;
+                  final prompt = _prompts[i];
+                  _textController.text = current.isEmpty
+                      ? prompt
+                      : '$current\n$prompt';
+                  _textController.selection = TextSelection.collapsed(
+                    offset: _textController.text.length,
+                  );
+                  _focusNode.requestFocus();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: colors.cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: colors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(8),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      _prompts[i],
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Writing Area ──────────────────────────────────────────────────────────
+
+  Widget _buildWritingArea(AppPalette colors) {
+    return TextField(
+      controller: _textController,
+      focusNode: _focusNode,
+      maxLines: null,
+      minLines: 12,
+      keyboardType: TextInputType.multiline,
+      textCapitalization: TextCapitalization.sentences,
+      cursorColor: colors.accent,
+      cursorWidth: 2,
+      scrollPadding: const EdgeInsets.only(bottom: 120),
+      style: GoogleFonts.manrope(
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        color: colors.textPrimary,
+        height: 1.75,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Write about your day...',
+        hintStyle: GoogleFonts.manrope(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: colors.textMuted,
+          height: 1.75,
+        ),
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
       ),
     );
   }
 
-  /// Compact toolbar shown when keyboard is visible — just the tool icons
-  Widget _buildCompactToolbar(AppPalette colors) {
-    return Row(
+  // ── Meta Section ──────────────────────────────────────────────────────────
+
+  Widget _buildMetaSection(AppPalette colors) {
+    return Column(
       children: [
-        _toolButton(
-          icon: _attachedPhotoPath != null ? Icons.image : Icons.image_outlined,
-          label: 'Photo',
+        Divider(color: colors.border, height: 1),
+        const SizedBox(height: 4),
+        _buildMetaRow(
+          icon: Icons.sell_rounded,
+          title: 'Tags',
+          subtitle: 'Categorize your memory',
+          isActive: false,
+          onTap: () {},
+          colors: colors,
+        ),
+        _buildMetaRow(
+          icon: Icons.image_rounded,
+          title: 'Photo',
+          subtitle: _attachedPhotoPath != null ? 'Photo attached' : 'Add a photo to this memory',
           isActive: _attachedPhotoPath != null,
           onTap: _attachPhoto,
           colors: colors,
         ),
-        const SizedBox(width: 8),
-        _toolButton(
-          icon: _locationName != null ? Icons.location_on : Icons.location_on_outlined,
-          label: _locationName ?? 'Location',
+        _buildMetaRow(
+          icon: Icons.location_on_rounded,
+          title: 'Location',
+          subtitle: _locationName ?? 'Where did this happen?',
           isActive: _locationName != null,
           onTap: _addLocation,
           colors: colors,
         ),
-        const Spacer(),
-        // AI Polish toggle (compact)
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            setState(() => _polishWithAI = !_polishWithAI);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: _polishWithAI ? colors.accent : colors.accent.withAlpha(15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: colors.accent.withAlpha(40)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.auto_fix_high, size: 14,
-                    color: _polishWithAI ? Colors.white : colors.accent),
-                const SizedBox(width: 5),
-                Text(
-                  'AI Polish',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _polishWithAI ? Colors.white : colors.accent,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Send / continue button
-        GestureDetector(
-          onTap: _goToReview,
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF111111),
-            ),
-            child: const Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
-          ),
-        ),
       ],
     );
   }
 
-  /// Full toolbar shown when keyboard is hidden — includes Save to Book button
-  Widget _buildFullToolbar(AppPalette colors) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Tools row
-        Row(
-          children: [
-            _toolButton(
-              icon: _attachedPhotoPath != null ? Icons.image : Icons.image_outlined,
-              label: 'Photo',
-              isActive: _attachedPhotoPath != null,
-              onTap: _attachPhoto,
-              colors: colors,
-            ),
-            const SizedBox(width: 8),
-            _toolButton(
-              icon: _locationName != null ? Icons.location_on : Icons.location_on_outlined,
-              label: _locationName ?? 'Location',
-              isActive: _locationName != null,
-              onTap: _addLocation,
-              colors: colors,
-            ),
-            const Spacer(),
-            // AI Polish toggle
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                setState(() => _polishWithAI = !_polishWithAI);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _polishWithAI ? colors.accent : colors.accent.withAlpha(15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colors.accent.withAlpha(40)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.auto_fix_high, size: 16,
-                        color: _polishWithAI ? Colors.white : colors.accent),
-                    const SizedBox(width: 6),
-                    Text(
-                      'AI Polish',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _polishWithAI ? Colors.white : colors.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Save to Book button
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: _goToReview,
-            icon: const Icon(Icons.auto_stories, size: 18, color: Colors.white),
-            label: Text(
-              'Save to Book',
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF111111),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _toolButton({
+  Widget _buildMetaRow({
     required IconData icon,
-    required String label,
+    required String title,
+    required String subtitle,
     required bool isActive,
     required VoidCallback onTap,
     required AppPalette colors,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: isActive ? colors.accent.withAlpha(20) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isActive ? colors.accent.withAlpha(60) : colors.accent.withAlpha(30),
-          ),
-        ),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15,
-                color: isActive ? colors.accent : colors.textMuted),
-            const SizedBox(width: 5),
-            Text(
-              isActive && label != 'Photo' && label != 'Location'
-                  ? label.length > 12 ? '${label.substring(0, 12)}…' : label
-                  : label,
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isActive ? colors.accent : colors.textMuted,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 20, color: colors.accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: isActive ? colors.accent : colors.textMuted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colors.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isActive ? Icons.check_rounded : Icons.add_rounded,
+                    size: 13,
+                    color: isActive ? colors.accent : colors.textMuted,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    isActive ? 'ADDED' : 'ADD',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: isActive ? colors.accent : colors.textMuted,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ── Save Button ───────────────────────────────────────────────────────────
+
+  Widget _buildSaveButton(AppPalette colors) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: _goToReview,
+            icon: const Icon(Icons.auto_awesome_rounded, size: 20, color: Colors.white),
+            label: Text(
+              'Save Memory',
+              style: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.accent,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: colors.accent.withAlpha(60),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
         ),
       ),
     );
