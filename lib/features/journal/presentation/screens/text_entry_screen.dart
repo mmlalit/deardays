@@ -22,6 +22,13 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
   final _locationService = LocationService();
   String? _attachedPhotoPath;
   String? _locationName;
+  final List<String> _tags = [];
+  final _tagController = TextEditingController();
+
+  static const _suggestedTags = [
+    'Family', 'Travel', 'Work', 'Friends', 'Nature',
+    'Food', 'Health', 'Gratitude', 'Achievement', 'Funny',
+  ];
 
   static const _prompts = [
     'What made you smile?',
@@ -43,6 +50,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     _titleController.dispose();
     _textController.dispose();
     _focusNode.dispose();
+    _tagController.dispose();
     super.dispose();
   }
 
@@ -85,6 +93,108 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
       setState(() => _locationName = name ??
           '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}');
     }
+  }
+
+  void _showTagsSheet() {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.bg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add Tags', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _tagController,
+                autofocus: false,
+                decoration: InputDecoration(
+                  hintText: 'Type a tag...',
+                  hintStyle: GoogleFonts.manrope(color: colors.textMuted),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.check_rounded, color: colors.accent),
+                    onPressed: () {
+                      final tag = _tagController.text.trim();
+                      if (tag.isNotEmpty && !_tags.contains(tag)) {
+                        setState(() => _tags.add(tag));
+                        setSheet(() {});
+                      }
+                      _tagController.clear();
+                    },
+                  ),
+                ),
+                onSubmitted: (v) {
+                  final tag = v.trim();
+                  if (tag.isNotEmpty && !_tags.contains(tag)) {
+                    setState(() => _tags.add(tag));
+                    setSheet(() {});
+                  }
+                  _tagController.clear();
+                },
+              ),
+              const SizedBox(height: 16),
+              if (_tags.isNotEmpty) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _tags.map((tag) => GestureDetector(
+                    onTap: () {
+                      setState(() => _tags.remove(tag));
+                      setSheet(() {});
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(tag, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                          const SizedBox(width: 4),
+                          Icon(Icons.close_rounded, size: 14, color: Colors.white.withAlpha(200)),
+                        ],
+                      ),
+                    ),
+                  )).toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Text('Suggestions', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textMuted, letterSpacing: 0.5)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _suggestedTags.where((t) => !_tags.contains(t)).map((t) => GestureDetector(
+                  onTap: () {
+                    setState(() => _tags.add(t));
+                    setSheet(() {});
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: colors.accentFaint,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Text(t, style: GoogleFonts.manrope(fontSize: 13, color: colors.textPrimary)),
+                  ),
+                )).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _goToReview() {
@@ -355,9 +465,9 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
         _buildMetaRow(
           icon: Icons.sell_rounded,
           title: 'Tags',
-          subtitle: 'Categorize your memory',
-          isActive: false,
-          onTap: () {},
+          subtitle: _tags.isEmpty ? 'Categorize your memory' : _tags.join(', '),
+          isActive: _tags.isNotEmpty,
+          onTap: _showTagsSheet,
           colors: colors,
         ),
         _buildMetaRow(

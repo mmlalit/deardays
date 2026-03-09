@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/theme/app_theme.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
@@ -86,6 +88,22 @@ final mockBook = Book(
   createdAt: _now,
   updatedAt: _now,
 );
+
+// ---------------------------------------------------------------------------
+// App builder with correct AppPalette theme extension
+// ---------------------------------------------------------------------------
+
+/// Wraps [child] in ProviderScope + MaterialApp using AppTheme.light so that
+/// AppColors.of(context) can resolve the AppPalette ThemeExtension.
+Widget buildTestApp(Widget child, {List<Override> overrides = const []}) {
+  return ProviderScope(
+    overrides: overrides,
+    child: MaterialApp(
+      theme: AppTheme.light,
+      home: child,
+    ),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Provider overrides for authenticated screens

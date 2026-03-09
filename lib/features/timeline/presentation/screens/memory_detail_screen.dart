@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -69,6 +70,14 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
     _playerStateSub?.cancel();
     _player.dispose();
     super.dispose();
+  }
+
+  void _shareEntry() {
+    final entry = widget.entry;
+    final title = _extractTitle(entry);
+    final body = entry.polishedContent ?? entry.content;
+    final dateStr = '${entry.entryDate.day}/${entry.entryDate.month}/${entry.entryDate.year}';
+    Share.share('$title\n\n$body\n\n— $dateStr', subject: title);
   }
 
   Future<void> _togglePlay() async {
@@ -224,7 +233,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
             const Spacer(),
             // Share button — accent/10 circle
             GestureDetector(
-              onTap: () {},
+              onTap: _shareEntry,
               child: Container(
                 width: 40,
                 height: 40,
@@ -621,7 +630,10 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   'Share Memory',
                   style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary),
                 ),
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareEntry();
+                },
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               ListTile(

@@ -23,6 +23,7 @@ import 'package:deardays/features/settings/presentation/screens/privacy_screen.d
 import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:deardays/core/widgets/snack_bar_helper.dart';
+import 'package:go_router/go_router.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -749,7 +750,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     if (format == 'pdf') {
       // Navigate to existing export screen
-      Navigator.of(context).pushNamed('/export');
+      context.push('/export');
       return;
     }
 

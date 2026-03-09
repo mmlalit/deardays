@@ -12,7 +12,8 @@ class AppShell extends StatelessWidget {
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/timeline')) return 1;
-    if (location.startsWith('/explore')) return 2;
+    if (location.startsWith('/book')) return 2;
+    if (location.startsWith('/explore')) return 3;
     return 0;
   }
 
@@ -129,13 +130,24 @@ class _BottomNav extends StatelessWidget {
                   colors: colors,
                 ),
               ),
+              // Chapters
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.menu_book_outlined,
+                  activeIcon: Icons.menu_book_rounded,
+                  label: 'Chapters',
+                  isActive: currentIndex == 2,
+                  onTap: () => context.go('/book'),
+                  colors: colors,
+                ),
+              ),
               // Explore
               Expanded(
                 child: _NavItem(
                   icon: Icons.explore_outlined,
                   activeIcon: Icons.explore_rounded,
                   label: 'Explore',
-                  isActive: currentIndex == 2,
+                  isActive: currentIndex == 3,
                   onTap: () => context.go('/explore'),
                   colors: colors,
                 ),

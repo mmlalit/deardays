@@ -7,11 +7,10 @@ import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Category definition
+// Category definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Category {
@@ -75,15 +74,6 @@ const _categories = [
   ),
 ];
 
-const _emotionFilters = [
-  (null, 'All', '✨'),
-  ('great', 'Joy', '😊'),
-  ('good', 'Happy', '🙂'),
-  ('okay', 'Calm', '😌'),
-  ('low', 'Sad', '😔'),
-  ('tough', 'Tough', '💙'),
-];
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Explore Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,18 +88,8 @@ class ExploreScreen extends ConsumerStatefulWidget {
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  String? _selectedMood;
   String? _selectedCategoryId;
-  bool _isSearchFocused = false;
   final _searchFocus = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _searchFocus.addListener(() {
-      setState(() => _isSearchFocused = _searchFocus.hasFocus);
-    });
-  }
 
   @override
   void dispose() {
@@ -118,7 +98,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     super.dispose();
   }
 
-  bool get _hasFilter => _selectedMood != null || _selectedCategoryId != null || _searchQuery.isNotEmpty;
+  bool get _hasFilter => _selectedCategoryId != null || _searchQuery.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +108,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       body: Column(
         children: [
           _buildHeader(colors),
+          _buildSearchBar(colors),
           Expanded(child: _buildBody(colors)),
         ],
       ),
@@ -135,7 +116,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Header
+  // Header — "Aura" branding row
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(AppPalette colors) {
@@ -143,79 +124,111 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       color: colors.bg,
       child: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            // Title row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 16, 0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colors.accentFaint,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.explore_rounded, size: 22, color: colors.accent),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Explore',
-                          style: GoogleFonts.manrope(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                height: 46,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+          child: Row(
+            children: [
+              // Aura icon
+              Container(
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: colors.accentFaint,
-                  borderRadius: BorderRadius.circular(14),
+                  color: colors.accent.withAlpha(25),
+                  shape: BoxShape.circle,
                 ),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-                  style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Search memories...',
-                    hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
-                    prefixIcon: Icon(Icons.search_rounded, color: colors.textMuted, size: 20),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                            child: Icon(Icons.close_rounded, size: 18, color: colors.textMuted),
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                child: Icon(Icons.bubble_chart_rounded, color: colors.accent, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Aura',
+                style: GoogleFonts.merriweather(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              // Notifications bell
+              GestureDetector(
+                onTap: () => HapticFeedback.selectionClick(),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: colors.cardBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Icon(Icons.notifications_outlined, size: 20, color: colors.textPrimary),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Avatar circle
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [colors.accent, colors.accentLight],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    'A',
+                    style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Divider(color: colors.border, height: 1),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Search bar
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildSearchBar(AppPalette colors) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      color: colors.bg,
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: isDark ? colors.cardBg : const Color(0xFFEEF0F5),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: TextField(
+          controller: _searchController,
+          focusNode: _searchFocus,
+          onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+          style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Search memories...',
+            hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
+            prefixIcon: Icon(Icons.search_rounded, color: colors.textMuted, size: 20),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                    child: Icon(Icons.close_rounded, size: 18, color: colors.textMuted),
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          ),
         ),
       ),
     );
@@ -240,172 +253,230 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Overview (no filter)
+  // Overview (no filter active)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildOverview(List<JournalEntry> entries, AppPalette colors) {
+    final happiest = entries.where((e) => e.mood == 'great' || e.mood == 'good').take(8).toList();
+    final familyEntries = entries.where((e) => _detectCategory(e) == 'family').take(3).toList();
+    final travelEntries = entries.where((e) => _detectCategory(e) == 'travel').take(4).toList();
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+      padding: const EdgeInsets.only(bottom: 120),
       children: [
         // AI Insights
-        _buildAiInsightsCard(entries, colors),
-        const SizedBox(height: 28),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          child: _buildAiInsightsCard(entries, colors),
+        ),
 
-        // Emotions section
-        _buildSectionTitle('Explore by Emotion', Icons.favorite_rounded, colors),
-        const SizedBox(height: 12),
-        _buildEmotionRow(entries, colors),
-        const SizedBox(height: 28),
+        // Happiest Memories
+        if (happiest.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _buildSectionHeader('Happiest Memories', colors),
+          ),
+          SizedBox(
+            height: 220,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: happiest.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) => _buildHappyCard(happiest[i], colors),
+            ),
+          ),
+          const SizedBox(height: 28),
+        ],
 
-        // Themes section
-        _buildSectionTitle('Explore by Theme', Icons.category_outlined, colors),
-        const SizedBox(height: 12),
-        _buildCategoryGrid(entries, colors),
-        const SizedBox(height: 28),
+        // Family Moments
+        if (familyEntries.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _buildSectionHeader('Family Moments', colors),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildFamilyGrid(familyEntries, colors),
+          ),
+          const SizedBox(height: 28),
+        ],
 
-        // Recent highlights
-        if (entries.isNotEmpty) ...[
-          _buildSectionTitle('Recent Highlights', Icons.star_rounded, colors),
-          const SizedBox(height: 12),
-          ...entries.take(3).map((e) => _buildMemoryCard(e, colors)),
+        // Travel Stories
+        if (travelEntries.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _buildSectionHeader('Travel Stories', colors),
+          ),
+          ...travelEntries.map((e) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _buildTravelRow(e, colors),
+          )),
+          const SizedBox(height: 8),
+        ],
+
+        // Fallback: category grid when no curated sections
+        if (happiest.isEmpty && familyEntries.isEmpty && travelEntries.isEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _buildSectionHeader('Explore by Theme', colors),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildCategoryGrid(entries, colors),
+          ),
         ],
       ],
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // AI Insights Card
+  // Section header row (title + "See all" link)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildSectionHeader(String title, AppPalette colors, {VoidCallback? onSeeAll}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.manrope(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: onSeeAll,
+          child: Text(
+            'See all',
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colors.accent,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // AI Insights card — white card, mood label, gradient square
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildAiInsightsCard(List<JournalEntry> entries, AppPalette colors) {
-    final happiest = entries.where((e) => e.mood == 'great').toList();
-    final happiestEntry = happiest.isNotEmpty ? happiest.first : null;
-    final happiestTitle = happiestEntry != null ? _extractTitle(happiestEntry) : null;
-
-    // Find most frequent category
-    final categoryCounts = <String, int>{};
-    for (final entry in entries) {
-      final cat = _detectCategory(entry);
-      if (cat != null) categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1;
+    // Determine dominant mood
+    final moodCounts = <String, int>{};
+    for (final e in entries) {
+      if (e.mood != null && e.mood!.isNotEmpty) {
+        moodCounts[e.mood!] = (moodCounts[e.mood!] ?? 0) + 1;
+      }
     }
-    String? topCategory;
+    String topMood = 'okay';
     int topCount = 0;
-    categoryCounts.forEach((k, v) {
-      if (v > topCount) { topCount = v; topCategory = k; }
+    moodCounts.forEach((k, v) {
+      if (v > topCount) { topCount = v; topMood = k; }
     });
-    final topCategoryDef = topCategory != null
-        ? _categories.where((c) => c.id == topCategory).firstOrNull
-        : null;
+
+    final moodData = {
+      'great': ('Joyful', 'Your recent entries radiate happiness and positive energy. You\'re in a great place!'),
+      'good':  ('Content', 'Things are going well. Your entries reflect a steady, positive mindset.'),
+      'okay':  ('Reflective', 'Your recent entries show a thoughtful and introspective mood.'),
+      'low':   ('Introspective', 'You\'ve been reflecting deeply. Remember, every feeling is valid and worth recording.'),
+      'tough': ('Resilient', 'You\'re working through challenges. Your courage in recording these moments is admirable.'),
+    };
+    final (moodLabel, moodDesc) = moodData[topMood] ?? ('Reflective', 'Your recent entries show a thoughtful and introspective mood.');
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [colors.accent, colors.accentLight],
-        ),
+        color: colors.cardBg,
         borderRadius: BorderRadius.circular(20),
-      ),
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(40),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_awesome_rounded, size: 12, color: Colors.white),
-                        const SizedBox(width: 4),
-                        Text(
-                          'AI INSIGHTS',
-                          style: GoogleFonts.manrope(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Insight 1: Happiest moment
-              if (happiestTitle != null) ...[
-                Text(
-                  '😊 Happiest Moment',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withAlpha(200),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  happiestTitle,
-                  style: GoogleFonts.manrope(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 14),
-              ],
-
-              // Insight 2: Top theme
-              if (topCategoryDef != null) ...[
-                Text(
-                  '${topCategoryDef.emoji} Most Recorded Theme',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withAlpha(200),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${topCategoryDef.label} — $topCount ${topCount == 1 ? 'memory' : 'memories'}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 14),
-              ],
-
-              // Total memories
-              Text(
-                '📖 ${entries.length} memories recorded',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: Colors.white.withAlpha(220),
-                ),
-              ),
-            ],
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          // Watermark
-          Positioned(
-            right: -10,
-            bottom: -10,
-            child: Icon(
-              Icons.insights_rounded,
-              size: 80,
-              color: Colors.white.withAlpha(30),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Text content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // "AI INSIGHTS" badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withAlpha(25),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome_rounded, size: 12, color: colors.accent),
+                      const SizedBox(width: 4),
+                      Text(
+                        'AI INSIGHTS',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: colors.accent,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '$moodLabel Mood',
+                  style: GoogleFonts.manrope(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  moodDesc,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    color: colors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(width: 16),
+          // Gradient square
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [colors.accent, colors.accentLight],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.accent.withAlpha(60),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.insights_rounded, color: Colors.white, size: 32),
           ),
         ],
       ),
@@ -413,91 +484,410 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Section title
+  // Happiest Memories — horizontal scroll card (220px tall)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildSectionTitle(String title, IconData icon, AppPalette colors) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: colors.accent),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: GoogleFonts.manrope(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: colors.textPrimary,
-          ),
+  Widget _buildHappyCard(JournalEntry entry, AppPalette colors) {
+    final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
+    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate);
+    final title = _extractTitle(entry);
+    final mediaService = ref.read(mediaServiceProvider);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.push('/memory', extra: entry);
+      },
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: colors.accent,
         ),
-      ],
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Emotion row
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildEmotionRow(List<JournalEntry> entries, AppPalette colors) {
-    return SizedBox(
-      height: 80,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _emotionFilters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final (mood, label, emoji) = _emotionFilters[i];
-          final count = mood == null
-              ? entries.length
-              : entries.where((e) => e.mood == mood).length;
-          final isActive = _selectedMood == mood && mood != null;
-
-          return GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() {
-                _selectedMood = mood;
-                _selectedCategoryId = null;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 70,
-              decoration: BoxDecoration(
-                color: isActive ? colors.accent : colors.accentFaint,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isActive ? colors.accent : colors.border),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 22)),
-                  const SizedBox(height: 4),
-                  Text(
-                    label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isActive ? Colors.white : colors.textSecondary,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background: photo or gradient
+            if (photoMedia.isNotEmpty)
+              Image.network(
+                mediaService.getPublicUrl(photoMedia.first.storagePath),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [colors.accent, colors.accentLight],
                     ),
                   ),
+                ),
+              )
+            else
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colors.accent,
+                      colors.accentLight,
+                    ],
+                  ),
+                ),
+                child: Icon(
+                  Icons.auto_stories_rounded,
+                  size: 48,
+                  color: Colors.white.withAlpha(60),
+                ),
+              ),
+
+            // Dark gradient overlay at bottom
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 100,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Color(0xCC000000), Colors.transparent],
+                  ),
+                ),
+              ),
+            ),
+
+            // Bottom-left: date + title
+            Positioned(
+              bottom: 14,
+              left: 14,
+              right: 14,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    '$count',
+                    dateStr,
                     style: GoogleFonts.manrope(
                       fontSize: 10,
-                      color: isActive ? Colors.white.withAlpha(200) : colors.textMuted,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withAlpha(180),
                     ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    title,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Category grid
+  // Family Moments — 1 large featured + 2 small cards
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFamilyGrid(List<JournalEntry> entries, AppPalette colors) {
+    return Column(
+      children: [
+        // Featured large card
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            context.push('/memory', extra: entries[0]);
+          },
+          child: _buildPhotoCard(
+            entry: entries[0],
+            height: 160,
+            colors: colors,
+            showFeaturedBadge: true,
+          ),
+        ),
+        if (entries.length > 1) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.push('/memory', extra: entries[1]);
+                  },
+                  child: _buildPhotoCard(
+                    entry: entries[1],
+                    height: 110,
+                    colors: colors,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.push('/memory', extra: entries.length > 2 ? entries[2] : entries[1]);
+                  },
+                  child: _buildPhotoCard(
+                    entry: entries.length > 2 ? entries[2] : entries[1],
+                    height: 110,
+                    colors: colors,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPhotoCard({
+    required JournalEntry entry,
+    required double height,
+    required AppPalette colors,
+    bool showFeaturedBadge = false,
+  }) {
+    final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
+    final title = _extractTitle(entry);
+    final mediaService = ref.read(mediaServiceProvider);
+    final cat = _detectCategory(entry);
+    final catDef = cat != null ? _categories.where((c) => c.id == cat).firstOrNull : null;
+    final cardColor = catDef?.color ?? colors.accent;
+
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: cardColor,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background
+          if (photoMedia.isNotEmpty)
+            Image.network(
+              mediaService.getPublicUrl(photoMedia.first.storagePath),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildCardGradient(cardColor),
+            )
+          else
+            _buildCardGradient(cardColor),
+
+          // Gradient overlay
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [Color(0xB3000000), Colors.transparent],
+              ),
+            ),
+          ),
+
+          // Title at bottom
+          Positioned(
+            bottom: 12,
+            left: 12,
+            right: 12,
+            child: Text(
+              title,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
+          // Featured badge
+          if (showFeaturedBadge)
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(230),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Featured',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: cardColor,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardGradient(Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color, color.withAlpha(180)],
+        ),
+      ),
+      child: Icon(
+        Icons.auto_stories_rounded,
+        size: 36,
+        color: Colors.white.withAlpha(50),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Travel Stories — list row with 80x80 thumbnail
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildTravelRow(JournalEntry entry, AppPalette colors) {
+    final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
+    final title = _extractTitle(entry);
+    final excerpt = _extractExcerpt(entry);
+    final location = entry.locationName;
+    final photoCount = photoMedia.length;
+    final mediaService = ref.read(mediaServiceProvider);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.push('/memory', extra: entry);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(6),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: photoMedia.isNotEmpty
+                  ? Image.network(
+                      mediaService.getPublicUrl(photoMedia.first.storagePath),
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _buildTravelPlaceholder(colors),
+                    )
+                  : _buildTravelPlaceholder(colors),
+            ),
+            const SizedBox(width: 14),
+
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Meta row: location + photo count
+                  Row(
+                    children: [
+                      if (location != null && location.isNotEmpty) ...[
+                        Icon(Icons.place_outlined, size: 12, color: colors.textMuted),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            location,
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              color: colors.textMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      if (photoCount > 0) ...[
+                        Icon(Icons.photo_outlined, size: 12, color: colors.textMuted),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$photoCount photo${photoCount != 1 ? 's' : ''}',
+                          style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    title,
+                    style: GoogleFonts.merriweather(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                      height: 1.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    excerpt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: colors.textSecondary,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, size: 20, color: colors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTravelPlaceholder(AppPalette colors) {
+    return Container(
+      width: 80,
+      height: 80,
+      color: const Color(0xFFF59E0B).withAlpha(25),
+      child: const Icon(Icons.flight_rounded, size: 28, color: Color(0xFFF59E0B)),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Category grid (fallback)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildCategoryGrid(List<JournalEntry> entries, AppPalette colors) {
@@ -519,10 +909,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         return GestureDetector(
           onTap: () {
             HapticFeedback.selectionClick();
-            setState(() {
-              _selectedCategoryId = cat.id;
-              _selectedMood = null;
-            });
+            setState(() => _selectedCategoryId = cat.id);
           },
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -547,11 +934,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       ),
                       child: Text(
                         '$count',
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: cat.color,
-                        ),
+                        style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: cat.color),
                       ),
                     ),
                   ],
@@ -559,21 +942,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      cat.label,
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      '$count ${count == 1 ? 'memory' : 'memories'}',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        color: colors.textSecondary,
-                      ),
-                    ),
+                    Text(cat.label, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                    Text('$count ${count == 1 ? 'memory' : 'memories'}', style: GoogleFonts.manrope(fontSize: 11, color: colors.textSecondary)),
                   ],
                 ),
               ],
@@ -589,7 +959,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildFilteredView(List<JournalEntry> all, AppPalette colors) {
-    // Determine active filter label
     String filterLabel;
     List<JournalEntry> filtered;
 
@@ -599,14 +968,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         e.content.toLowerCase().contains(_searchQuery) ||
         (e.locationName?.toLowerCase().contains(_searchQuery) ?? false),
       ).toList();
-    } else if (_selectedCategoryId != null) {
+    } else {
       final cat = _categories.where((c) => c.id == _selectedCategoryId).firstOrNull;
       filterLabel = cat != null ? '${cat.emoji} ${cat.label} Memories' : 'Filtered';
       filtered = all.where((e) => _detectCategory(e) == _selectedCategoryId).toList();
-    } else {
-      final (mood, label, emoji) = _emotionFilters.where((f) => f.$1 == _selectedMood).first;
-      filterLabel = '$emoji $label Memories';
-      filtered = mood == null ? all : all.where((e) => e.mood == mood).toList();
     }
 
     return Column(
@@ -620,11 +985,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               Expanded(
                 child: Text(
                   filterLabel,
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
+                  style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary),
                 ),
               ),
               GestureDetector(
@@ -632,7 +993,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   _searchController.clear();
                   setState(() {
                     _searchQuery = '';
-                    _selectedMood = null;
                     _selectedCategoryId = null;
                   });
                 },
@@ -650,11 +1010,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       const SizedBox(width: 4),
                       Text(
                         'Clear',
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: colors.textSecondary,
-                        ),
+                        style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textSecondary),
                       ),
                     ],
                   ),
@@ -672,7 +1028,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
                   itemCount: filtered.length,
-                  itemBuilder: (_, i) => _buildMemoryCard(filtered[i], colors),
+                  itemBuilder: (_, i) => _buildMemoryRow(filtered[i], colors),
                 ),
         ),
       ],
@@ -689,26 +1045,13 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             Container(
               width: 64,
               height: 64,
-              decoration: BoxDecoration(
-                color: colors.accentFaint,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: colors.accentFaint, shape: BoxShape.circle),
               child: Icon(Icons.search_off_rounded, size: 32, color: colors.accent),
             ),
             const SizedBox(height: 16),
-            Text(
-              'No memories found',
-              style: GoogleFonts.manrope(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
+            Text('No memories found', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w700, color: colors.textPrimary)),
             const SizedBox(height: 8),
-            Text(
-              'Try a different search or filter.',
-              style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary),
-            ),
+            Text('Try a different search or filter.', style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary)),
           ],
         ),
       ),
@@ -716,31 +1059,31 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Memory card (compact)
+  // Compact memory row (filtered results)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildMemoryCard(JournalEntry entry, AppPalette colors) {
+  Widget _buildMemoryRow(JournalEntry entry, AppPalette colors) {
     final title = _extractTitle(entry);
     final excerpt = _extractExcerpt(entry);
     final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate);
     final (tagLabel, tagColor) = _tagInfo(entry);
     final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
+    final mediaService = ref.read(mediaServiceProvider);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
-        onTap: () => context.push('/memory', extra: entry),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          context.push('/memory', extra: entry);
+        },
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colors.cardBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: colors.border),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(8),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
+              BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10, offset: const Offset(0, 3)),
             ],
           ),
           child: Row(
@@ -752,8 +1095,23 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   bottomLeft: Radius.circular(16),
                 ),
                 child: photoMedia.isNotEmpty
-                    ? _buildThumbnail(photoMedia.first.storagePath, colors)
-                    : _buildColorStrip(entry, colors),
+                    ? Image.network(
+                        mediaService.getPublicUrl(photoMedia.first.storagePath),
+                        width: 80,
+                        height: 90,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 80,
+                          height: 90,
+                          color: colors.accentFaint,
+                          child: Icon(Icons.image_outlined, size: 24, color: colors.textMuted),
+                        ),
+                      )
+                    : Container(
+                        width: 6,
+                        height: 90,
+                        color: tagColor == Colors.transparent ? colors.accent : tagColor,
+                      ),
               ),
 
               // Text content
@@ -768,11 +1126,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           Expanded(
                             child: Text(
                               dateStr,
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                color: colors.textMuted,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted, fontWeight: FontWeight.w500),
                             ),
                           ),
                           if (tagLabel != null)
@@ -784,11 +1138,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                               ),
                               child: Text(
                                 tagLabel,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: tagColor,
-                                ),
+                                style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: tagColor),
                               ),
                             ),
                         ],
@@ -796,22 +1146,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       const SizedBox(height: 6),
                       Text(
                         title,
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
-                        ),
+                        style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textPrimary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         excerpt,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          color: colors.textSecondary,
-                          height: 1.4,
-                        ),
+                        style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary, height: 1.4),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -831,70 +1173,40 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     );
   }
 
-  Widget _buildThumbnail(String storagePath, AppPalette colors) {
-    final mediaService = ref.read(mediaServiceProvider);
-    final url = mediaService.getPublicUrl(storagePath);
-    return Image.network(
-      url,
-      width: 80,
-      height: 90,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        width: 80,
-        height: 90,
-        color: colors.accentFaint,
-        child: Icon(Icons.image_outlined, size: 24, color: colors.textMuted),
-      ),
-    );
-  }
-
-  Widget _buildColorStrip(JournalEntry entry, AppPalette colors) {
-    final (_, tagColor) = _tagInfo(entry);
-    return Container(
-      width: 6,
-      height: 90,
-      decoration: BoxDecoration(
-        color: tagColor == Colors.transparent ? colors.accent : tagColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          bottomLeft: Radius.circular(16),
-        ),
-      ),
-    );
-  }
-
   // ─────────────────────────────────────────────────────────────────────────
-  // Skeleton
+  // Skeleton loading
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildSkeleton(AppPalette colors) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
       children: [
-        // Insights card skeleton
-        Container(
-          height: 160,
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(20),
+        // AI Insights skeleton
+        Container(height: 110, decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(20))),
+        const SizedBox(height: 28),
+        // Horizontal scroll skeleton
+        SizedBox(
+          height: 220,
+          child: Row(
+            children: List.generate(4, (_) => Container(
+              width: 160,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(16)),
+            )),
           ),
         ),
         const SizedBox(height: 28),
-        // Category grid skeleton
-        GridView.count(
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.55,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: List.generate(6, (_) => Container(
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border),
-            ),
-          )),
+        // Grid skeleton
+        Column(
+          children: [
+            Container(height: 160, decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(16))),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: Container(height: 110, decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(16)))),
+              const SizedBox(width: 12),
+              Expanded(child: Container(height: 110, decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(16)))),
+            ]),
+          ],
         ),
       ],
     );

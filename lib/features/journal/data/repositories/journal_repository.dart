@@ -109,10 +109,10 @@ class JournalRepository {
   }
 
   /// Returns entries from the same calendar date in previous years.
-  Future<List<JournalEntry>> getOnThisDay() async {
-    final now = DateTime.now();
+  Future<List<JournalEntry>> getOnThisDay({DateTime? date}) async {
+    final target = date ?? DateTime.now();
     final monthDay =
-        '${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        '${target.month.toString().padLeft(2, '0')}-${target.day.toString().padLeft(2, '0')}';
 
     // Supabase doesn't support date-part extraction in filters natively,
     // so we use an RPC function for "on this day" queries.

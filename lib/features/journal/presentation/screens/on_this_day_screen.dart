@@ -28,6 +28,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
   List<JournalEntry>? _entries;
   bool _isLoading = true;
   String? _error;
+  DateTime _selectedDate = DateTime.now();
 
   // Cache signed photo URLs by entry ID
   final Map<String, String> _photoUrls = {};
@@ -38,6 +39,22 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
     _loadEntries();
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDate = picked;
+        _photoUrls.clear();
+      });
+      _loadEntries();
+    }
+  }
+
   Future<void> _loadEntries() async {
     setState(() {
       _isLoading = true;
@@ -45,7 +62,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
     });
 
     try {
-      final entries = await _repository.getOnThisDay();
+      final entries = await _repository.getOnThisDay(date: _selectedDate);
       if (!mounted) return;
 
       // Pre-fetch photo URLs for entries that have photos.
@@ -89,6 +106,11 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
         });
       }
     }
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
   /// Calculates "X years ago" label from an entry date.
@@ -421,9 +443,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     width: 40,
                     height: 40,
                     child: IconButton(
-                      onPressed: () {
-                        // TODO: date picker for browsing other dates
-                      },
+                      onPressed: _pickDate,
                       icon: const Icon(Icons.calendar_month, size: 24),
                       color: colors.textPrimary,
                       padding: EdgeInsets.zero,
@@ -433,7 +453,9 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Revisiting your favorite chapters',
+                _isToday(_selectedDate)
+                    ? 'Revisiting your favorite chapters'
+                    : '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
                 style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontStyle: FontStyle.italic,
