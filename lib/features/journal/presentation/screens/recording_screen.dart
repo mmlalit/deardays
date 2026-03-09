@@ -225,16 +225,23 @@ class _RecordingScreenState extends State<RecordingScreen>
         child: Column(
           children: [
             _buildTopBar(colors),
-            _buildPromptCard(colors),
-            const Spacer(flex: 2),
-            _buildTimer(colors),
-            const SizedBox(height: 32),
-            _buildWaveform(colors),
-            const SizedBox(height: 40),
-            _buildMicButton(colors),
-            const SizedBox(height: 32),
+            Expanded(
+              child: Column(
+                children: [
+                  const SizedBox(height: 32),
+                  _buildPromptSection(colors),
+                  const Spacer(),
+                  _buildWaveform(colors),
+                  const Spacer(),
+                  _buildMicButton(colors),
+                  const SizedBox(height: 24),
+                  _buildTimer(colors),
+                  const Spacer(),
+                ],
+              ),
+            ),
             _buildActionButtons(colors),
-            const Spacer(flex: 3),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -257,59 +264,58 @@ class _RecordingScreenState extends State<RecordingScreen>
               height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.accentFaint,
-                border: Border.all(color: colors.border),
+                color: colors.cardBg,
               ),
-              child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
+              child: Icon(Icons.close_rounded, size: 22, color: colors.textPrimary),
             ),
           ),
-          const Spacer(),
-          Text(
-            'Recording Memory',
-            style: GoogleFonts.manrope(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
+          Expanded(
+            child: Text(
+              'Recording Memory',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+              ),
             ),
           ),
-          const Spacer(),
-          const SizedBox(width: 40), // Balance
+          const SizedBox(width: 40),
         ],
       ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Daily Prompt Card
+  // Prompt Section
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildPromptCard(AppPalette colors) {
+  Widget _buildPromptSection(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        decoration: BoxDecoration(
-          color: colors.accentFaint,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.auto_awesome_rounded, size: 18, color: colors.accent),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                _currentPrompt,
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textPrimary,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        children: [
+          Text(
+            'CURRENT PROMPT',
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: colors.accent,
+              letterSpacing: 2.5,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _currentPrompt,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: colors.textPrimary,
+              height: 1.25,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -324,37 +330,20 @@ class _RecordingScreenState extends State<RecordingScreen>
         Text(
           _formattedTime,
           style: GoogleFonts.manrope(
-            fontSize: 52,
-            fontWeight: FontWeight.w700,
-            color: colors.accent,
+            fontSize: 44,
+            fontWeight: FontWeight.w800,
+            color: colors.textPrimary,
             letterSpacing: -1,
           ),
         ),
         const SizedBox(height: 4),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_isRecording && !_isPaused) ...[
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.accent,
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              _isPaused ? 'PAUSED' : (_isRecording ? 'RECORDING' : 'READY'),
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: _isPaused ? colors.textMuted : colors.accent,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
+        Text(
+          _isPaused ? 'Paused' : (_isRecording ? 'Recording in progress' : 'Ready'),
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: colors.textMuted,
+          ),
         ),
       ],
     );
@@ -366,20 +355,20 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   Widget _buildWaveform(AppPalette colors) {
     return SizedBox(
-      height: 72,
+      height: 160,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: List.generate(_barHeights.length, (i) {
           final isActive = _isRecording && !_isPaused;
-          final height = isActive ? 12.0 + _barHeights[i] * 60.0 : 8.0;
-          final opacity = isActive ? (0.4 + _barHeights[i] * 0.6) : 0.2;
+          final height = isActive ? 20.0 + _barHeights[i] * 140.0 : 16.0;
+          final opacity = isActive ? (0.5 + _barHeights[i] * 0.5) : 0.15;
 
           return AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             width: 4,
             height: height,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
+            margin: const EdgeInsets.symmetric(horizontal: 3.5),
             decoration: BoxDecoration(
               color: colors.accent.withAlpha((opacity * 255).round()),
               borderRadius: BorderRadius.circular(3),
@@ -448,7 +437,7 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   Widget _buildActionButtons(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
       child: Row(
         children: [
           // Pause button
@@ -456,11 +445,13 @@ class _RecordingScreenState extends State<RecordingScreen>
             child: GestureDetector(
               onTap: _togglePause,
               child: Container(
-                height: 52,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: colors.accentFaint,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: colors.border),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: colors.accent.withAlpha(80),
+                    width: 2,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -474,8 +465,8 @@ class _RecordingScreenState extends State<RecordingScreen>
                     Text(
                       _isPaused ? 'Resume' : 'Pause',
                       style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: colors.textPrimary,
                       ),
                     ),
@@ -491,20 +482,29 @@ class _RecordingScreenState extends State<RecordingScreen>
             child: GestureDetector(
               onTap: _elapsedSeconds >= 2 ? _finishRecording : null,
               child: Container(
-                height: 52,
+                height: 56,
                 decoration: BoxDecoration(
                   color: _elapsedSeconds >= 2 ? colors.accent : colors.accent.withAlpha(80),
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: _elapsedSeconds >= 2
+                      ? [
+                          BoxShadow(
+                            color: colors.accent.withAlpha(70),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.check_rounded, size: 20, color: Colors.white),
+                    const Icon(Icons.check_circle_rounded, size: 20, color: Colors.white),
                     const SizedBox(width: 6),
                     Text(
                       'Finish Recording',
                       style: GoogleFonts.manrope(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
