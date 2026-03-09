@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -111,12 +109,11 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                       // Title
                       Text(
                         _extractTitle(entry),
-                        style: GoogleFonts.manrope(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
+                        style: GoogleFonts.merriweather(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w700,
                           color: colors.textPrimary,
-                          letterSpacing: -0.5,
-                          height: 1.25,
+                          height: 1.2,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -171,7 +168,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       final url = mediaService.getPublicUrl(photoMedia.first.storagePath);
       return Image.network(
         url,
-        height: 280,
+        height: 320,
         width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
@@ -182,7 +179,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
 
   Widget _buildGradientBanner(AppPalette colors) {
     return Container(
-      height: 280,
+      height: 320,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -208,28 +205,51 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   Widget _buildTopBar(bool hasPhoto, AppPalette colors) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(
           children: [
-            _TopBarButton(
-              icon: Icons.arrow_back_rounded,
+            // Back — plain icon (no circle bg)
+            GestureDetector(
               onTap: () => context.pop(),
-              translucent: hasPhoto,
-              colors: colors,
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Icon(
+                  Icons.arrow_back_rounded,
+                  size: 24,
+                  color: hasPhoto ? Colors.white : colors.textPrimary,
+                ),
+              ),
             ),
             const Spacer(),
-            _TopBarButton(
-              icon: Icons.ios_share_rounded,
+            // Share button — accent/10 circle
+            GestureDetector(
               onTap: () {},
-              translucent: hasPhoto,
-              colors: colors,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: hasPhoto ? Colors.white.withAlpha(230) : colors.accent.withAlpha(25),
+                ),
+                child: Icon(Icons.ios_share_rounded, size: 20,
+                    color: hasPhoto ? colors.accent : colors.accent),
+              ),
             ),
             const SizedBox(width: 8),
-            _TopBarButton(
-              icon: Icons.more_horiz_rounded,
+            // More button — accent/10 circle
+            GestureDetector(
               onTap: () => _showMoreSheet(colors),
-              translucent: hasPhoto,
-              colors: colors,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: hasPhoto ? Colors.white.withAlpha(230) : colors.accent.withAlpha(25),
+                ),
+                child: Icon(Icons.more_horiz_rounded, size: 20,
+                    color: colors.accent),
+              ),
             ),
           ],
         ),
@@ -290,31 +310,45 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.accentFaint,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border),
+        color: colors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.accent.withAlpha(25)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          // Play / Pause button
+          // Play / Pause button — 48px circle
           GestureDetector(
             onTap: _playerReady ? _togglePlay : null,
             child: Container(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: colors.accent,
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.accent.withAlpha(70),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Icon(
                 _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 color: Colors.white,
-                size: 26,
+                size: 28,
               ),
             ),
           ),
           const SizedBox(width: 14),
-          // Waveform + progress
+          // Label + progress
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,52 +358,35 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                     Text(
                       'Voice Recording',
                       style: GoogleFonts.manrope(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
+                        color: colors.textMuted,
                       ),
                     ),
                     const Spacer(),
                     Text(
                       displayTime,
-                      style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+                      style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                // Decorative waveform bars
-                Row(
-                  children: List.generate(24, (i) {
-                    final h = (4.0 + sin(i * 0.9) * 6.0 + (i % 4 == 0 ? 4.0 : 0.0)).abs().clamp(3.0, 16.0);
-                    final filled = progress > 0 && (i / 24) < progress;
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 1),
-                        child: Container(
-                          height: h,
-                          decoration: BoxDecoration(
-                            color: filled ? colors.accent : colors.accent.withAlpha(55),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 6),
-                // Progress bar
+                // Progress bar — 6px height
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
                     value: progress,
                     backgroundColor: colors.border,
                     valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
-                    minHeight: 2,
+                    minHeight: 6,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          // Equalizer icon on right
+          Icon(Icons.equalizer_rounded, size: 22, color: colors.textMuted),
         ],
       ),
     );
@@ -394,14 +411,14 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
         // Remaining paragraphs
         ...paragraphs.skip(1).take(paragraphs.length > 3 ? paragraphs.length - 2 : paragraphs.length - 1).map((p) =>
           Padding(
-            padding: const EdgeInsets.only(top: 18),
+            padding: const EdgeInsets.only(top: 20),
             child: Text(
               p,
               style: GoogleFonts.merriweather(
-                fontSize: 16,
+                fontSize: 18,
                 color: colors.textPrimary,
-                height: 1.85,
-                fontWeight: FontWeight.w300,
+                height: 1.8,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
@@ -427,21 +444,21 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
         Text(
           dropChar,
           style: GoogleFonts.merriweather(
-            fontSize: 62,
+            fontSize: 68,
             fontWeight: FontWeight.w700,
             color: colors.accent,
             height: 0.82,
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 6),
         Expanded(
           child: Text(
             rest,
             style: GoogleFonts.merriweather(
-              fontSize: 16,
+              fontSize: 18,
               color: colors.textPrimary,
-              height: 1.85,
-              fontWeight: FontWeight.w300,
+              height: 1.8,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ),
@@ -451,19 +468,17 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
 
   Widget _buildBlockquote(String text, AppPalette colors) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: colors.accent, width: 3)),
-        color: colors.accentFaint,
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(8),
-          bottomRight: Radius.circular(8),
+        // Only left border, lighter accent — matches HTML border-l-4 border-primary/20
+        border: Border(
+          left: BorderSide(color: colors.accent.withAlpha(50), width: 4),
         ),
       ),
       child: Text(
         '"$text"',
         style: GoogleFonts.merriweather(
-          fontSize: 15,
+          fontSize: 17,
           fontStyle: FontStyle.italic,
           color: colors.textSecondary,
           height: 1.7,
@@ -492,23 +507,22 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       children: tags.map((tag) {
         final (label, icon) = tag;
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: colors.accentFaint,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.border),
+            color: colors.accent.withAlpha(25),
+            borderRadius: BorderRadius.circular(100),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 13, color: colors.accent),
-              const SizedBox(width: 5),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.accent,
                 ),
               ),
             ],
@@ -525,46 +539,59 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   Widget _buildActions(AppPalette colors) {
     return Column(
       children: [
+        // Edit Memory — full-width accent, rounded-xl
         SizedBox(
           width: double.infinity,
-          height: 52,
+          height: 56,
           child: ElevatedButton.icon(
             onPressed: () => HapticFeedback.mediumImpact(),
-            icon: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
+            icon: const Icon(Icons.edit_rounded, size: 20, color: Colors.white),
             label: Text(
               'Edit Memory',
               style: GoogleFonts.manrope(
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: colors.accent,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: colors.accent.withAlpha(70),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(14),
               ),
-              elevation: 0,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        // Back to Timeline — full-width cardBg button (not just a text link)
         GestureDetector(
           onTap: () => context.pop(),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.arrow_back_rounded, size: 14, color: colors.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                'Back to Timeline',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
+          child: Container(
+            width: double.infinity,
+            height: 56,
+            decoration: BoxDecoration(
+              color: colors.cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.arrow_back_rounded, size: 18, color: colors.textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  'Back to Timeline',
+                  style: GoogleFonts.manrope(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -679,43 +706,3 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Transparent top bar button
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TopBarButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool translucent;
-  final AppPalette colors;
-
-  const _TopBarButton({
-    required this.icon,
-    required this.onTap,
-    required this.translucent,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: translucent ? Colors.white.withAlpha(210) : colors.accentFaint,
-          border: Border.all(
-            color: translucent ? Colors.transparent : colors.border,
-          ),
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: translucent ? Colors.black87 : colors.textPrimary,
-        ),
-      ),
-    );
-  }
-}

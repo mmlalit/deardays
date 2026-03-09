@@ -24,7 +24,7 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       body: child,
       floatingActionButton: _MicFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: _BottomNav(currentIndex: index, colors: colors),
     );
   }
@@ -44,20 +44,33 @@ class _MicFab extends StatelessWidget {
         context.push('/record');
       },
       child: Container(
-        width: 60,
-        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
           color: colors.accent,
+          borderRadius: BorderRadius.circular(100),
           boxShadow: [
             BoxShadow(
-              color: colors.accent.withAlpha(90),
+              color: colors.accent.withAlpha(100),
               blurRadius: 20,
               offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: const Icon(Icons.mic_rounded, color: Colors.white, size: 28),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Record Memory',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -116,8 +129,6 @@ class _BottomNav extends StatelessWidget {
                   colors: colors,
                 ),
               ),
-              // Center gap for FAB
-              const SizedBox(width: 72),
               // Explore
               Expanded(
                 child: _NavItem(

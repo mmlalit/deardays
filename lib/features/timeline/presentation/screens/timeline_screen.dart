@@ -17,151 +17,106 @@ class TimelineScreen extends ConsumerStatefulWidget {
 }
 
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  String? _moodFilter;
-  String _searchQuery = '';
+  String? _categoryFilter; // null = All
 
-  static const _filterChips = [
-    (null, 'All'),
-    ('great', 'Joy'),
-    ('good', 'Happy'),
-    ('okay', 'Calm'),
-    ('low', 'Sad'),
-    ('tough', 'Tough'),
+  static const _categories = [
+    (null, 'All Memories'),
+    ('Family', 'Family'),
+    ('Travel', 'Travel'),
+    ('Career', 'Career'),
+    ('Personal Growth', 'Personal Growth'),
   ];
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
+    final entriesAsync = ref.watch(timelineEntriesProvider);
+
     return Scaffold(
       backgroundColor: colors.bg,
-      body: Column(
-        children: [
-          _buildHeader(colors),
-          Expanded(child: _buildBody(colors)),
-        ],
+      body: entriesAsync.when(
+        data: (entries) => _buildContent(entries, colors),
+        loading: () => _buildSkeleton(colors),
+        error: (_, __) => _buildError(colors),
       ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Header
+  // Content
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(AppPalette colors) {
-    return Container(
-      color: colors.bg,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildContent(List<JournalEntry> entries, AppPalette colors) {
+    var filtered = entries;
+    if (_categoryFilter != null) {
+      filtered = filtered.where((e) => _primaryCategory(e) == _categoryFilter).toList();
+    }
+
+    final totalMemories = entries.length;
+    final chapters = entries.map((e) => '${e.entryDate.year}-${e.entryDate.month}').toSet().length;
+    final years = entries.map((e) => e.entryDate.year).toSet().length;
+
+    return CustomScrollView(
+      slivers: [
+        // Top bar + hero + stats + filters
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              _buildTopBar(colors),
+              _buildHeroSection(colors),
+              _buildStatsGrid(totalMemories, chapters, years, colors),
+              const SizedBox(height: 24),
+              _buildFilterChips(colors),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+
+        if (filtered.isEmpty)
+          SliverFillRemaining(child: _buildEmptyState(colors))
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+            sliver: _buildTimelineSliver(filtered, colors),
+          ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Top Bar — "Aura" branding
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildTopBar(AppPalette colors) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
           children: [
-            // Top row: icon + title + filter
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 16, 0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colors.accentFaint,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.auto_stories_rounded, size: 22, color: colors.accent),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Timeline',
-                    style: GoogleFonts.manrope(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colors.accentFaint,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Icon(Icons.tune_rounded, size: 20, color: colors.textSecondary),
-                  ),
-                ],
+            Icon(Icons.menu_rounded, size: 24, color: colors.accent),
+            const SizedBox(width: 10),
+            Text(
+              'Aura',
+              style: GoogleFonts.merriweather(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: colors.accent,
               ),
             ),
-            const SizedBox(height: 14),
-
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                height: 46,
-                decoration: BoxDecoration(
-                  color: colors.accentFaint,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-                  style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Search your life memories...',
-                    hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
-                    prefixIcon: Icon(Icons.search_rounded, color: colors.textMuted, size: 20),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
+            const Spacer(),
+            Icon(Icons.search_rounded, size: 24, color: colors.textSecondary),
+            const SizedBox(width: 16),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withAlpha(25),
+                border: Border.all(color: colors.accent.withAlpha(50)),
               ),
+              child: Icon(Icons.person_rounded, size: 18, color: colors.accent),
             ),
-            const SizedBox(height: 12),
-
-            // Category filter chips
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _filterChips.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) {
-                  final (mood, label) = _filterChips[i];
-                  final isActive = _moodFilter == mood;
-                  return GestureDetector(
-                    onTap: () => setState(() => _moodFilter = mood),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isActive ? colors.accent : colors.accentFaint,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: isActive ? colors.accent : colors.border),
-                      ),
-                      child: Text(
-                        label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isActive ? Colors.white : colors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            Divider(color: colors.border, height: 1),
           ],
         ),
       ),
@@ -169,225 +124,435 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Body
+  // Hero Section
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildBody(AppPalette colors) {
-    final entriesAsync = ref.watch(timelineEntriesProvider);
-    return entriesAsync.when(
-      data: (entries) {
-        var filtered = entries;
-        if (_moodFilter != null) {
-          filtered = filtered.where((e) => e.mood == _moodFilter).toList();
-        }
-        if (_searchQuery.isNotEmpty) {
-          filtered = filtered.where((e) =>
-            e.content.toLowerCase().contains(_searchQuery) ||
-            (e.locationName?.toLowerCase().contains(_searchQuery) ?? false),
-          ).toList();
-        }
-
-        if (filtered.isEmpty) return _buildEmptyState(colors);
-
-        // Group by year
-        final grouped = <int, List<JournalEntry>>{};
-        for (final e in filtered) {
-          grouped.putIfAbsent(e.entryDate.year, () => []).add(e);
-        }
-        final years = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
-
-        // Build flat list
-        final items = <_TimelineItem>[];
-        for (final year in years) {
-          items.add(_TimelineItem.year(year, grouped[year]!.length));
-          for (final entry in grouped[year]!) {
-            items.add(_TimelineItem.entry(entry));
-          }
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-          itemCount: items.length,
-          itemBuilder: (_, i) {
-            final item = items[i];
-            if (item.isYearHeader) {
-              return _buildYearHeader(item.year!, item.count!, colors);
-            }
-            return _buildTimelineCard(item.entry!, colors);
-          },
-        );
-      },
-      loading: () => _buildSkeleton(colors),
-      error: (_, __) => _buildError(colors),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Year Header
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildYearHeader(int year, int count, AppPalette colors) {
+  Widget _buildHeroSection(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      child: Column(
         children: [
           Text(
-            '$year',
-            style: GoogleFonts.manrope(
-              fontSize: 42,
-              fontWeight: FontWeight.w900,
-              color: colors.accent,
-              letterSpacing: -1,
+            'Your Life Timeline',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.merriweather(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.25,
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(child: Container(height: 1, color: colors.border)),
+          const SizedBox(height: 6),
+          Text(
+            'A journey through your memories',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              fontSize: 14,
+              color: colors.textMuted,
+            ),
+          ),
         ],
       ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Timeline Card
+  // Stats Grid
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildTimelineCard(JournalEntry entry, AppPalette colors) {
-    final title = _extractTitle(entry);
-    final excerpt = _extractExcerpt(entry);
-    final dateStr = DateFormat('MMMM d').format(entry.entryDate).toUpperCase();
-    final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
-    final (tagLabel, tagColor) = _tagInfo(entry);
-
+  Widget _buildStatsGrid(int memories, int chapters, int years, AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Timeline dot
-          _buildTimelineDot(colors),
-          const SizedBox(width: 16),
-          // Card
-          Expanded(
-            child: GestureDetector(
-              onTap: () => context.push('/memory', extra: entry),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: colors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(10),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+          Expanded(child: _statCard('Memories', '$memories', colors)),
+          const SizedBox(width: 10),
+          Expanded(child: _statCard('Chapters', '$chapters', colors)),
+          const SizedBox(width: 10),
+          Expanded(child: _statCard('Years', '$years', colors)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCard(String label, String value, AppPalette colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: colors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: colors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.manrope(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: colors.accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Filter Chips
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFilterChips(AppPalette colors) {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final (category, label) = _categories[i];
+          final isActive = _categoryFilter == category;
+          return GestureDetector(
+            onTap: () => setState(() => _categoryFilter = category),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+              decoration: BoxDecoration(
+                color: isActive ? colors.accent : colors.cardBg,
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: isActive ? colors.accent : colors.border,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Text content
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Date + tag row
-                          Row(
-                            children: [
-                              Text(
-                                dateStr,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.textMuted,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (tagLabel != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: tagColor.withAlpha(24),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    tagLabel,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: tagColor,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          // Title
-                          Text(
-                            title,
-                            style: GoogleFonts.manrope(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: colors.textPrimary,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          // Excerpt
-                          Text(
-                            excerpt,
-                            style: GoogleFonts.manrope(
-                              fontSize: 13,
-                              color: colors.textSecondary,
-                              height: 1.5,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Photo or footer
-                    if (photoMedia.isNotEmpty)
-                      ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(16),
-                          bottomRight: Radius.circular(16),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: colors.accent.withAlpha(50),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                        child: _buildCardPhoto(photoMedia.first.storagePath, colors),
-                      )
-                    else
-                      _buildCardFooter(entry, colors),
-                  ],
+                      ]
+                    : [],
+              ),
+              child: Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.white : colors.textSecondary,
                 ),
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Timeline Sliver
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildTimelineSliver(List<JournalEntry> entries, AppPalette colors) {
+    // Group by year
+    final grouped = <int, List<JournalEntry>>{};
+    for (final e in entries) {
+      grouped.putIfAbsent(e.entryDate.year, () => []).add(e);
+    }
+    final years = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    final mostRecentYear = years.isNotEmpty ? years.first : DateTime.now().year;
+
+    // Build flat list of items
+    final items = <_TimelineItem>[];
+    for (final year in years) {
+      final yearEntries = grouped[year]!;
+      items.add(_TimelineItem.year(year));
+      for (int i = 0; i < yearEntries.length; i++) {
+        final isLast = (year == years.last) && (i == yearEntries.length - 1);
+        items.add(_TimelineItem.entry(yearEntries[i], isLast: isLast));
+      }
+    }
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (_, i) {
+          final item = items[i];
+          if (item.isYearHeader) {
+            return _buildYearHeaderRow(
+              item.year!,
+              isCurrentYear: item.year == mostRecentYear,
+              colors: colors,
+            );
+          }
+          return _buildCardRow(
+            item.entry!,
+            isCurrentYear: item.entry!.entryDate.year == mostRecentYear,
+            isLast: item.isLast,
+            colors: colors,
+          );
+        },
+        childCount: items.length,
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Year Header Row (circle badge + horizontal line)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildYearHeaderRow(int year, {required bool isCurrentYear, required AppPalette colors}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 20),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Left: year circle badge (sits on top of vertical line)
+            SizedBox(
+              width: 40,
+              height: 48,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Vertical line through center
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    left: 19,
+                    child: Container(width: 2, color: colors.border),
+                  ),
+                  // Year badge on top
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isCurrentYear ? colors.accent : colors.border,
+                      boxShadow: isCurrentYear
+                          ? [
+                              BoxShadow(
+                                color: colors.accent.withAlpha(60),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$year',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Horizontal divider
+            Expanded(child: Container(height: 1, color: colors.border)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Card Row (dot + vertical line + card)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildCardRow(
+    JournalEntry entry, {
+    required bool isCurrentYear,
+    required bool isLast,
+    required AppPalette colors,
+  }) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Left column: vertical line + dot
+          SizedBox(
+            width: 40,
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                // Continuous vertical line
+                if (!isLast)
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    left: 19,
+                    child: Container(width: 2, color: colors.border),
+                  )
+                else
+                  Positioned(
+                    top: 0,
+                    bottom: 24, // stop before padding
+                    left: 19,
+                    child: Container(width: 2, color: colors.border),
+                  ),
+                // Dot at top of card (offset 22px down)
+                Positioned(
+                  top: 22,
+                  left: 14,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isCurrentYear ? colors.accent : colors.border,
+                      // White ring effect (covers the line behind the dot)
+                      border: Border.all(color: colors.bg, width: 3),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Card
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: _buildCard(entry, isCurrentYear: isCurrentYear, colors: colors),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTimelineDot(AppPalette colors) {
-    return SizedBox(
-      width: 16,
-      child: Column(
-        children: [
-          const SizedBox(height: 18),
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent,
-              border: Border.all(color: colors.accent.withAlpha(40), width: 4),
+  // ─────────────────────────────────────────────────────────────────────────
+  // Memory Card
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildCard(JournalEntry entry, {required bool isCurrentYear, required AppPalette colors}) {
+    final title = _extractTitle(entry);
+    final excerpt = _extractExcerpt(entry);
+    final dateStr = DateFormat('MMM dd').format(entry.entryDate).toUpperCase();
+    final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
+    final tags = _entryTags(entry);
+
+    return GestureDetector(
+      onTap: () => context.push('/memory', extra: entry),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date + tag chips row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  dateStr,
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textMuted,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const Spacer(),
+                // Up to 2 tag chips
+                ...tags.take(2).map((t) => Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: _buildTagChip(t.$1, t.$2),
+                    )),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Title
+            Text(
+              title,
+              style: GoogleFonts.merriweather(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Excerpt
+            Text(
+              excerpt,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                color: colors.textSecondary,
+                height: 1.6,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            // Photo (full-width inside card, rounded corners)
+            if (photoMedia.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildCardPhoto(photoMedia.first.storagePath, colors),
+            ],
+
+            // Voice indicator
+            if (entry.hasVoice) ...[
+              const SizedBox(height: 12),
+              _buildVoiceIndicator(colors),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withAlpha(25),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: GoogleFonts.manrope(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -395,56 +560,62 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget _buildCardPhoto(String storagePath, AppPalette colors) {
     final mediaService = ref.read(mediaServiceProvider);
     final url = mediaService.getPublicUrl(storagePath);
-    return Image.network(
-      url,
-      height: 180,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        height: 100,
-        color: colors.accentFaint,
-        child: Icon(Icons.image_outlined, size: 36, color: colors.textMuted),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(
+        url,
+        height: 128,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: colors.accentFaint,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
+        ),
       ),
     );
   }
 
-  Widget _buildCardFooter(JournalEntry entry, AppPalette colors) {
-    final moodLabel = _moodLabel(entry.mood);
-    final moodEmoji = _moodEmoji(entry.mood);
-    final moodColor = _moodColor(entry.mood, colors);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+  Widget _buildVoiceIndicator(AppPalette colors) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: colors.accentFaint,
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
         children: [
-          if (entry.locationName != null) ...[
-            Icon(Icons.location_on_outlined, size: 13, color: colors.textMuted),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                entry.locationName!,
-                style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-          const Spacer(),
-          if (moodLabel != null)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(moodEmoji ?? '', style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 4),
-                Text(
-                  moodLabel,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: moodColor,
-                  ),
+          Icon(Icons.graphic_eq_rounded, size: 16, color: colors.accent),
+          const SizedBox(width: 8),
+          // Mini waveform bars
+          ...List.generate(7, (i) {
+            const heights = [4.0, 8.0, 12.0, 8.0, 4.0, 8.0, 12.0];
+            const alphas = [100, 160, 255, 160, 100, 160, 255];
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Container(
+                width: 2.5,
+                height: heights[i],
+                decoration: BoxDecoration(
+                  color: colors.accent.withAlpha(alphas[i]),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              ],
+              ),
+            );
+          }),
+          const Spacer(),
+          Text(
+            'Voice',
+            style: GoogleFonts.manrope(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: colors.textMuted,
             ),
+          ),
         ],
       ),
     );
@@ -473,7 +644,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             const SizedBox(height: 24),
             Text(
               'Your story starts here',
-              style: GoogleFonts.manrope(
+              style: GoogleFonts.merriweather(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: colors.textPrimary,
@@ -496,7 +667,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                 decoration: BoxDecoration(
                   color: colors.accent,
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(100),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -522,55 +693,78 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   Widget _buildSkeleton(AppPalette colors) {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      itemCount: 5,
-      itemBuilder: (_, i) => Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 16,
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 60, 16, 32),
               child: Column(
                 children: [
-                  const SizedBox(height: 18),
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.border,
-                    ),
-                  ),
+                  SkeletonBox(width: 200, height: 28, borderRadius: 8),
+                  const SizedBox(height: 8),
+                  SkeletonBox(width: 160, height: 14, borderRadius: 6),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: colors.border),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SkeletonBox(width: 80, height: 10, borderRadius: 5),
-                    const SizedBox(height: 10),
-                    SkeletonBox(width: 200, height: 14, borderRadius: 7),
-                    const SizedBox(height: 8),
-                    SkeletonBox(width: 160, height: 11, borderRadius: 5),
+                    SizedBox(
+                      width: 40,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 22),
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: colors.border,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: 130,
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: colors.border),
+                        ),
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SkeletonBox(width: 80, height: 10, borderRadius: 5),
+                            const SizedBox(height: 10),
+                            SkeletonBox(width: 220, height: 16, borderRadius: 7),
+                            const SizedBox(height: 8),
+                            SkeletonBox(width: 180, height: 11, borderRadius: 5),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
+              childCount: 5,
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -627,63 +821,53 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final first = lines.first.trim();
     final isTitle = first.length < 80 && lines.length > 1;
     final body = isTitle ? lines.skip(1).join(' ') : entry.content;
-    return body.length > 100 ? '${body.substring(0, 100)}...' : body;
+    return body.length > 120 ? '${body.substring(0, 120)}...' : body;
   }
 
-  (String?, Color) _tagInfo(JournalEntry entry) {
+  String? _primaryCategory(JournalEntry entry) {
     final text = entry.content.toLowerCase();
     if (text.contains('travel') || text.contains('trip') || text.contains('vacation') || text.contains('flight')) {
-      return ('Travel', const Color(0xFFF59E0B));
+      return 'Travel';
     }
-    if (text.contains('work') || text.contains('job') || text.contains('career') || text.contains('promotion') || text.contains('office')) {
-      return ('Career', const Color(0xFF195DE6));
+    if (text.contains('work') || text.contains('job') || text.contains('career') || text.contains('promotion')) {
+      return 'Career';
     }
-    if (text.contains('family') || text.contains('mom') || text.contains('dad') || text.contains('daughter') || text.contains('son') || text.contains('child')) {
-      return ('Family', const Color(0xFFEC4899));
+    if (text.contains('family') || text.contains('mom') || text.contains('dad') ||
+        text.contains('daughter') || text.contains('son') || text.contains('child')) {
+      return 'Family';
     }
-    if (text.contains('friend') || text.contains('reunion')) {
-      return ('Friends', const Color(0xFF8B5CF6));
-    }
+    if (entry.mood == 'great' || entry.mood == 'good') return 'Personal Growth';
+    return null;
+  }
+
+  List<(String, Color)> _entryTags(JournalEntry entry) {
+    final tags = <(String, Color)>[];
+
+    // Mood tag
     switch (entry.mood) {
-      case 'great': return ('Joy', const Color(0xFF10B981));
-      case 'good': return ('Life', const Color(0xFF3B82F6));
-      case 'low': return ('Personal', const Color(0xFF94A3B8));
-      case 'tough': return ('Growth', const Color(0xFFF97316));
-      default: return (null, Colors.transparent);
+      case 'great':
+        tags.add(('Joy', const Color(0xFFF59E0B)));
+      case 'good':
+        tags.add(('Happy', const Color(0xFF10B981)));
+      case 'okay':
+        tags.add(('Serene', const Color(0xFF10B981)));
+      case 'low':
+        tags.add(('Sad', const Color(0xFF6366F1)));
+      case 'tough':
+        tags.add(('Growth', const Color(0xFFF97316)));
     }
-  }
 
-  String? _moodLabel(String? mood) {
-    switch (mood) {
-      case 'great': return 'Ecstatic';
-      case 'good': return 'Grateful';
-      case 'okay': return 'Calm';
-      case 'low': return 'Reflective';
-      case 'tough': return 'Proud';
-      default: return null;
+    // Category tag
+    final text = entry.content.toLowerCase();
+    if (text.contains('travel') || text.contains('trip') || text.contains('vacation')) {
+      tags.add(('Travel', const Color(0xFF195DE6)));
+    } else if (text.contains('work') || text.contains('job') || text.contains('career') || text.contains('promotion')) {
+      tags.add(('Career', const Color(0xFF195DE6)));
+    } else if (text.contains('family') || text.contains('mom') || text.contains('dad')) {
+      tags.add(('Family', const Color(0xFF195DE6)));
     }
-  }
 
-  String? _moodEmoji(String? mood) {
-    switch (mood) {
-      case 'great': return '😊';
-      case 'good': return '🙂';
-      case 'okay': return '😌';
-      case 'low': return '😔';
-      case 'tough': return '💙';
-      default: return null;
-    }
-  }
-
-  Color _moodColor(String? mood, AppPalette colors) {
-    switch (mood) {
-      case 'great': return const Color(0xFF10B981);
-      case 'good': return const Color(0xFF3B82F6);
-      case 'okay': return const Color(0xFF94A3B8);
-      case 'low': return const Color(0xFF6366F1);
-      case 'tough': return const Color(0xFFEC4899);
-      default: return colors.textMuted;
-    }
+    return tags.take(2).toList();
   }
 }
 
@@ -693,20 +877,22 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
 class _TimelineItem {
   final bool isYearHeader;
+  final bool isLast;
   final int? year;
-  final int? count;
   final JournalEntry? entry;
 
   const _TimelineItem._({
     required this.isYearHeader,
+    this.isLast = false,
     this.year,
-    this.count,
     this.entry,
   });
 
-  factory _TimelineItem.year(int year, int count) =>
-      _TimelineItem._(isYearHeader: true, year: year, count: count);
+  factory _TimelineItem.year(int year) =>
+      _TimelineItem._(isYearHeader: true, year: year);
 
-  factory _TimelineItem.entry(JournalEntry entry) =>
-      _TimelineItem._(isYearHeader: false, entry: entry);
+  factory _TimelineItem.entry(JournalEntry entry, {bool isLast = false}) =>
+      _TimelineItem._(isYearHeader: false, entry: entry, isLast: isLast);
+
+  bool get isCurrentYear => !isYearHeader && entry != null;
 }
