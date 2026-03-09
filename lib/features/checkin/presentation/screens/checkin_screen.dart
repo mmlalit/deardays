@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
-import 'package:deardays/core/widgets/ai_badge.dart';
-import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
+import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 
 class CheckInScreen extends ConsumerStatefulWidget {
   const CheckInScreen({super.key});
@@ -30,16 +28,15 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     _MoodOption('Good', Icons.sentiment_satisfied, AppColors.moodGood),
     _MoodOption('Okay', Icons.sentiment_neutral, AppColors.moodOkay),
     _MoodOption('Low', Icons.sentiment_dissatisfied, AppColors.moodLow),
-    _MoodOption(
-        'Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
+    _MoodOption('Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
   ];
 
-  static const _promptSuggestions = [
-    'What made me smile today',
-    'Something I learned',
-    'A challenge I faced',
-    'I\'m grateful for...',
-    'How I\'m really feeling',
+  static const _promptChips = [
+    (Icons.sentiment_satisfied_rounded, 'Something that made you smile'),
+    (Icons.group_rounded, 'Someone you met today'),
+    (Icons.psychology_rounded, 'Something I learned'),
+    (Icons.emoji_events_rounded, 'A challenge I faced'),
+    (Icons.favorite_rounded, "I'm grateful for..."),
   ];
 
   @override
@@ -64,6 +61,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(checkInProvider);
+    final colors = AppColors.of(context);
 
     ref.listen(checkInProvider, (prev, next) {
       if (prev != null &&
@@ -74,70 +72,87 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     });
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: _buildAppBar(state),
-      body: Column(
+      backgroundColor: colors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(state, colors),
+            Expanded(
+              child: state.currentMood == null && state.isFirstCheckInToday
+                  ? _buildMoodSelection(colors)
+                  : _buildChatView(state, colors),
+            ),
+            if (state.currentMood != null || !state.isFirstCheckInToday)
+              _buildInputBar(state, colors),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Header ──────────────────────────────────────────────────────────────
+
+  Widget _buildHeader(CheckInState state, AppPalette colors) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      decoration: BoxDecoration(
+        color: colors.bg,
+        border: Border(bottom: BorderSide(color: colors.border)),
+      ),
+      child: Row(
         children: [
-          Expanded(
-            child: state.currentMood == null && state.isFirstCheckInToday
-                ? _buildMoodSelection()
-                : _buildChatView(state),
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.cardBg,
+              ),
+              child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
+            ),
           ),
-          if (state.currentMood != null || !state.isFirstCheckInToday)
-            _buildInputBar(state),
+          Expanded(
+            child: Column(
+              children: [
+                Text(
+                  'Chat with AI',
+                  style: GoogleFonts.manrope(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Text(
+                  'YOUR AI MEMORY COMPANION',
+                  style: GoogleFonts.manrope(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: colors.accent,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _showMoodPicker(),
+            child: Container(
+              width: 40,
+              height: 40,
+              child: Icon(Icons.more_horiz_rounded, size: 22, color: colors.textPrimary),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // -- App Bar ----------------------------------------------------------
+  // ── Mood Selection ────────────────────────────────────────────────────────
 
-  PreferredSizeWidget _buildAppBar(CheckInState state) {
-    final sessionCount = state.sections.length;
-
-    return DearDaysHeader.appBar(
-      context: context,
-      title: 'Check-in',
-      actions: [
-        if (state.currentMood != null && state.currentMood != 'skipped')
-          GestureDetector(
-            onTap: () => _showMoodPicker(),
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: _moodColor(state.currentMood!).withAlpha(31),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _moodIcon(state.currentMood!),
-                    size: 16,
-                    color: _moodColor(state.currentMood!),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    state.currentMood!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _moodColor(state.currentMood!),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // -- Mood Selection ---------------------------------------------------
-
-  Widget _buildMoodSelection() {
+  Widget _buildMoodSelection(AppPalette colors) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -150,17 +165,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: AppColors.of(context).textPrimary,
+                color: colors.textPrimary,
                 height: 1.3,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               'Tap to share your mood',
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                color: AppColors.of(context).textSecondary,
-              ),
+              style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary),
             ),
             const SizedBox(height: 48),
             Row(
@@ -181,18 +193,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              mood.color.withAlpha(60),
-                              mood.color.withAlpha(25),
-                            ],
+                            colors: [mood.color.withAlpha(60), mood.color.withAlpha(25)],
                           ),
                           border: Border.all(color: mood.color.withAlpha(80), width: 2),
                           boxShadow: [
-                            BoxShadow(
-                              color: mood.color.withAlpha(40),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
+                            BoxShadow(color: mood.color.withAlpha(40), blurRadius: 8, offset: const Offset(0, 2)),
                           ],
                         ),
                         child: Icon(mood.icon, size: 30, color: mood.color),
@@ -213,15 +218,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             ),
             const SizedBox(height: 32),
             GestureDetector(
-              onTap: () =>
-                  ref.read(checkInProvider.notifier).selectMood('skipped'),
+              onTap: () => ref.read(checkInProvider.notifier).selectMood('skipped'),
               child: Text(
                 'Skip for now',
                 style: GoogleFonts.manrope(
                   fontSize: 13,
-                  color: AppColors.of(context).textMuted,
+                  color: colors.textMuted,
                   decoration: TextDecoration.underline,
-                  decorationColor: AppColors.of(context).textMuted.withAlpha(102),
+                  decorationColor: colors.textMuted.withAlpha(102),
                 ),
               ),
             ),
@@ -231,385 +235,329 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
   }
 
-  // -- Chat View --------------------------------------------------------
+  // ── Chat View ─────────────────────────────────────────────────────────────
 
-  Widget _buildChatView(CheckInState state) {
+  Widget _buildChatView(CheckInState state, AppPalette colors) {
     final hasMessages = state.allMessages.isNotEmpty;
 
     return hasMessages
         ? ListView.builder(
             controller: _scrollController,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             itemCount: state.sections.length,
             itemBuilder: (context, sectionIndex) {
-              final section = state.sections[sectionIndex];
-              return _buildSection(section, sectionIndex);
+              return _buildSection(state.sections[sectionIndex], sectionIndex, colors);
             },
           )
-        : _buildPromptSuggestions();
+        : _buildPromptSuggestions(colors);
   }
 
-  Widget _buildPromptSuggestions() {
+  Widget _buildPromptSuggestions(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Not sure what to write?',
-            style: GoogleFonts.manrope(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.of(context).textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Try one of these prompts to get started',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: AppColors.of(context).textSecondary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _promptSuggestions.map((prompt) {
-              return GestureDetector(
-                onTap: () {
-                  _textController.text = prompt;
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.of(context).accent.withAlpha(38),
-                    ),
-                  ),
-                  child: Text(
-                    prompt,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _promptChips.map((chip) {
+          return GestureDetector(
+            onTap: () => _textController.text = chip.$2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: colors.cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: colors.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(chip.$1, size: 14, color: colors.accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    chip.$2,
                     style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      color: AppColors.of(context).textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: colors.textSecondary,
                     ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildSection(ConversationSection section, int sectionIndex) {
-    final timeStr = DateFormat('h:mm a').format(section.startTime);
-
+  Widget _buildSection(ConversationSection section, int sectionIndex, AppPalette colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (sectionIndex > 0) const SizedBox(height: 20),
-        Center(
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.of(context).accent.withAlpha(20),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.access_time,
-                  size: 12,
-                  color: AppColors.of(context).textMuted,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  timeStr,
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.of(context).textMuted,
-                  ),
-                ),
-                if (section.mood != null) ...[
-                  const SizedBox(width: 8),
-                  Icon(
-                    _moodIcon(section.mood!),
-                    size: 12,
-                    color: _moodColor(section.mood!),
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    section.mood!,
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: _moodColor(section.mood!),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...section.messages
-            .map((msg) => _buildMessageBubble(msg, section.id)),
+        if (sectionIndex > 0) const SizedBox(height: 24),
+        ...section.messages.map((msg) => _buildMessageBubble(msg, section.id, colors)),
       ],
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message, String sectionId) {
+  // ── Message Bubble ────────────────────────────────────────────────────────
+
+  Widget _buildMessageBubble(ChatMessage message, String sectionId, AppPalette colors) {
     final isUser = message.isUser;
-    final timeStr = DateFormat('h:mm a').format(message.timestamp);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // AI avatar
           if (!isUser) ...[
             Container(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.of(context).accent.withAlpha(38),
+                color: colors.accent.withAlpha(25),
               ),
-              child: Icon(
-                Icons.auto_awesome,
-                size: 14,
-                color: AppColors.of(context).accent,
-              ),
+              child: Icon(Icons.auto_awesome_rounded, size: 15, color: colors.accent),
             ),
             const SizedBox(width: 8),
           ],
+
+          // Bubble + sender label
           Flexible(
-            child: GestureDetector(
-              onLongPress: isUser
-                  ? () => _startEditing(sectionId, message)
-                  : null,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isUser ? AppColors.of(context).accent : Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16),
-                    topRight: const Radius.circular(16),
-                    bottomLeft: Radius.circular(isUser ? 16 : 4),
-                    bottomRight: Radius.circular(isUser ? 4 : 16),
+            child: Column(
+              crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: isUser ? 0 : 4,
+                    right: isUser ? 4 : 0,
+                    bottom: 4,
                   ),
-                  border: isUser
-                      ? null
-                      : Border.all(
-                          color: AppColors.of(context).accent.withAlpha(26),
-                        ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (message.isVoice)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.mic,
-                              size: 12,
-                              color: isUser
-                                  ? Colors.white.withAlpha(178)
-                                  : AppColors.of(context).textMuted,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              'Voice',
-                              style: GoogleFonts.manrope(
-                                fontSize: 10,
-                                color: isUser
-                                    ? Colors.white.withAlpha(178)
-                                    : AppColors.of(context).textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    Text(
-                      message.text,
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        color:
-                            isUser ? Colors.white : AppColors.of(context).textPrimary,
-                        height: 1.4,
-                      ),
+                  child: Text(
+                    isUser ? 'You' : 'Aura AI',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: colors.textMuted,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!isUser) ...[
-                          const AiBadge.compact(),
-                          const SizedBox(width: 6),
-                        ],
-                        Text(
-                          timeStr,
-                          style: GoogleFonts.manrope(
-                            fontSize: 10,
-                            color: isUser
-                                ? Colors.white.withAlpha(153)
-                                : AppColors.of(context).textMuted,
-                          ),
+                  ),
+                ),
+                GestureDetector(
+                  onLongPress: isUser ? () => _startEditing(sectionId, message) : null,
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.78,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    decoration: BoxDecoration(
+                      color: isUser ? colors.accent : Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(18),
+                        topRight: const Radius.circular(18),
+                        bottomLeft: Radius.circular(isUser ? 18 : 4),
+                        bottomRight: Radius.circular(isUser ? 4 : 18),
+                      ),
+                      border: isUser
+                          ? null
+                          : Border.all(color: colors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(isUser ? 20 : 8),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                  ],
+                    child: Text(
+                      message.text,
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        color: isUser ? Colors.white : colors.textPrimary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-          if (isUser) const SizedBox(width: 8),
+
+          // User avatar
+          if (isUser) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent,
+              ),
+              child: const Icon(Icons.person_rounded, size: 16, color: Colors.white),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // -- Input Bar --------------------------------------------------------
+  // ── Input Bar ─────────────────────────────────────────────────────────────
 
-  Widget _buildInputBar(CheckInState state) {
+  Widget _buildInputBar(CheckInState state, AppPalette colors) {
     final isEditing = _editingMessageId != null;
 
     return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 8,
-        top: 10,
-        bottom: MediaQuery.of(context).padding.bottom + 10,
-      ),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom > 0 ? 8 : 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: AppColors.of(context).accent.withAlpha(26)),
-        ),
+        color: colors.bg,
+        border: Border(top: BorderSide(color: colors.border)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Editing banner
           if (isEditing)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Icon(Icons.edit, size: 14, color: AppColors.of(context).accent),
+                  Icon(Icons.edit, size: 14, color: colors.accent),
                   const SizedBox(width: 6),
                   Text(
                     'Editing message',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
-                      color: AppColors.of(context).textSecondary,
+                      color: colors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const Spacer(),
                   GestureDetector(
                     onTap: _cancelEditing,
-                    child: Icon(Icons.close,
-                        size: 16, color: AppColors.of(context).textMuted),
+                    child: Icon(Icons.close, size: 16, color: colors.textMuted),
                   ),
                 ],
               ),
             ),
+
+          // Text input + send button
           Row(
             children: [
-              GestureDetector(
-                onTap: () => _handleVoiceRecord(),
+              Expanded(
                 child: Container(
-                  width: 36,
-                  height: 36,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.of(context).accent.withAlpha(26),
+                    color: colors.cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: colors.border),
                   ),
-                  child: Icon(
-                    Icons.mic,
-                    size: 18,
-                    color: AppColors.of(context).accent,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _textController,
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            color: colors.textPrimary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: isEditing ? 'Edit your message...' : 'Type a memory...',
+                            hintStyle: GoogleFonts.manrope(
+                              fontSize: 14,
+                              color: colors.textMuted,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.fromLTRB(16, 12, 0, 12),
+                          ),
+                          textCapitalization: TextCapitalization.sentences,
+                          maxLines: 4,
+                          minLines: 1,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _handleSend(),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _handleVoiceRecord,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Icon(Icons.mic_rounded, size: 20, color: colors.textMuted),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: _textController,
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    color: AppColors.of(context).textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: isEditing
-                        ? 'Edit your message...'
-                        : 'Type a message...',
-                    hintStyle: GoogleFonts.manrope(
-                      fontSize: 15,
-                      color: AppColors.of(context).textMuted,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 8),
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  maxLines: 4,
-                  minLines: 1,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _handleSend(),
-                ),
-              ),
               GestureDetector(
                 onTap: state.isLoading ? null : _handleSend,
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
                     color: state.isLoading
-                        ? AppColors.of(context).accent.withAlpha(76)
-                        : AppColors.of(context).accent,
+                        ? colors.accent.withAlpha(80)
+                        : colors.accent,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.accent.withAlpha(60),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: state.isLoading
                       ? const Padding(
-                          padding: EdgeInsets.all(10),
+                          padding: EdgeInsets.all(12),
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Icon(
-                          Icons.send,
-                          size: 16,
-                          color: Colors.white,
-                        ),
+                      : const Icon(Icons.send_rounded, size: 20, color: Colors.white),
                 ),
               ),
             ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // Generate Memory Journal button
+          GestureDetector(
+            onTap: () => _generateMemoryJournal(state),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Generate Memory Journal',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // -- Actions ----------------------------------------------------------
+  // ── Actions ───────────────────────────────────────────────────────────────
 
   void _handleSend() {
     final text = _textController.text.trim();
@@ -634,6 +582,23 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     context.push('/record').then((_) {});
   }
 
+  void _generateMemoryJournal(CheckInState state) {
+    final allText = state.allMessages
+        .where((m) => m.isUser)
+        .map((m) => m.text)
+        .join('\n\n');
+
+    if (allText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Share some memories first!')),
+      );
+      return;
+    }
+
+    HapticFeedback.mediumImpact();
+    context.push('/review', extra: ReviewData(rawText: allText, polishWithAI: true));
+  }
+
   void _startEditing(String sectionId, ChatMessage message) {
     setState(() {
       _editingMessageId = message.id;
@@ -651,9 +616,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   void _showMoodPicker() {
+    final colors = AppColors.of(context);
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: colors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -667,7 +633,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: AppColors.of(context).textPrimary,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 24),
@@ -677,9 +643,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 return GestureDetector(
                   onTap: () {
                     Navigator.pop(context);
-                    ref
-                        .read(checkInProvider.notifier)
-                        .redoMood(mood.label);
+                    ref.read(checkInProvider.notifier).redoMood(mood.label);
                   },
                   child: Column(
                     children: [
@@ -690,8 +654,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                           shape: BoxShape.circle,
                           color: mood.color.withAlpha(31),
                         ),
-                        child:
-                            Icon(mood.icon, size: 26, color: mood.color),
+                        child: Icon(mood.icon, size: 26, color: mood.color),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -699,7 +662,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.of(context).textSecondary,
+                          color: colors.textSecondary,
                         ),
                       ),
                     ],
@@ -707,47 +670,34 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 );
               }).toList(),
             ),
-            SizedBox(
-                height: MediaQuery.of(context).padding.bottom + 12),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
           ],
         ),
       ),
     );
   }
 
-  // -- Mood helpers -----------------------------------------------------
+  // ── Mood helpers ──────────────────────────────────────────────────────────
 
   IconData _moodIcon(String mood) {
     switch (mood.toLowerCase()) {
-      case 'great':
-        return Icons.sentiment_very_satisfied;
-      case 'good':
-        return Icons.sentiment_satisfied;
-      case 'okay':
-        return Icons.sentiment_neutral;
-      case 'low':
-        return Icons.sentiment_dissatisfied;
-      case 'tough':
-        return Icons.sentiment_very_dissatisfied;
-      default:
-        return Icons.sentiment_neutral;
+      case 'great': return Icons.sentiment_very_satisfied;
+      case 'good': return Icons.sentiment_satisfied;
+      case 'okay': return Icons.sentiment_neutral;
+      case 'low': return Icons.sentiment_dissatisfied;
+      case 'tough': return Icons.sentiment_very_dissatisfied;
+      default: return Icons.sentiment_neutral;
     }
   }
 
   Color _moodColor(String mood) {
     switch (mood.toLowerCase()) {
-      case 'great':
-        return AppColors.moodGreat;
-      case 'good':
-        return AppColors.moodGood;
-      case 'okay':
-        return AppColors.moodOkay;
-      case 'low':
-        return AppColors.moodLow;
-      case 'tough':
-        return AppColors.moodTough;
-      default:
-        return AppColors.of(context).textSecondary;
+      case 'great': return AppColors.moodGreat;
+      case 'good': return AppColors.moodGood;
+      case 'okay': return AppColors.moodOkay;
+      case 'low': return AppColors.moodLow;
+      case 'tough': return AppColors.moodTough;
+      default: return AppColors.of(context).textSecondary;
     }
   }
 }
