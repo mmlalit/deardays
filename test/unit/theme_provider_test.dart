@@ -6,9 +6,9 @@ import 'package:deardays/core/theme/app_colors.dart';
 
 void main() {
   group('ThemeState', () {
-    test('defaults to Classic White', () {
+    test('defaults to Serene Dusk Blue', () {
       const state = ThemeState();
-      expect(state.themeColor, equals(AppThemeColor.classicWhite));
+      expect(state.themeColor, equals(AppThemeColor.sereneDuskBlue));
     });
 
     test('lightTheme uses correct scaffold background', () {
@@ -36,9 +36,9 @@ void main() {
   });
 
   group('ThemeNotifier', () {
-    test('initial state is Classic White', () {
+    test('initial state is Serene Dusk Blue', () {
       final notifier = ThemeNotifier();
-      expect(notifier.debugState.themeColor, equals(AppThemeColor.classicWhite));
+      expect(notifier.debugState.themeColor, equals(AppThemeColor.sereneDuskBlue));
     });
 
     test('setThemeColor changes state', () {
@@ -60,7 +60,7 @@ void main() {
       addTearDown(container.dispose);
 
       final state = container.read(themeProvider);
-      expect(state.themeColor, equals(AppThemeColor.classicWhite));
+      expect(state.themeColor, equals(AppThemeColor.sereneDuskBlue));
     });
 
     test('switching theme updates provider state', () {
@@ -74,8 +74,8 @@ void main() {
   });
 
   group('AppThemeColor enum', () {
-    test('has exactly 4 options', () {
-      expect(AppThemeColor.values.length, equals(4));
+    test('has exactly 5 options', () {
+      expect(AppThemeColor.values.length, equals(5));
     });
 
     test('all have non-empty labels', () {
@@ -101,6 +101,7 @@ void main() {
         AppThemeColor.warmCream,
         AppThemeColor.sageGreen,
         AppThemeColor.classicWhite,
+        AppThemeColor.sereneDuskBlue,
       ];
       for (final color in lightPalettes) {
         expect(color.light.navBg, equals(const Color(0xFFFFFFFF)));
@@ -115,6 +116,7 @@ void main() {
       expect(AppThemeColor.warmCream.isDark, isFalse);
       expect(AppThemeColor.sageGreen.isDark, isFalse);
       expect(AppThemeColor.classicWhite.isDark, isFalse);
+      expect(AppThemeColor.sereneDuskBlue.isDark, isFalse);
     });
   });
 
