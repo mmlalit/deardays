@@ -6,8 +6,31 @@ on:
     branches: [main]
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Run widget & unit tests first — fast feedback, no emulator needed
+  # ─────────────────────────────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run all tests
+        run: flutter test test/ --reporter expanded
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Build APK only if tests pass
+  # ─────────────────────────────────────────────────────────────────────────────
   build-apk:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - uses: actions/checkout@v4
 
