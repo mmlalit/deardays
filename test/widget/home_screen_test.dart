@@ -5,6 +5,7 @@ import 'package:deardays/features/journal/presentation/screens/home_screen.dart'
 import '../helpers/mock_providers.dart';
 
 void main() {
+  setUpTestEnv();
   Widget buildApp({List<Override> overrides = const []}) {
     return ProviderScope(
       overrides: overrides,

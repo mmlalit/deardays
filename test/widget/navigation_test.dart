@@ -42,6 +42,7 @@ Widget buildApp() {
 }
 
 void main() {
+  setUpTestEnv();
   group('AppShell - Bottom Navigation', () {
     testWidgets('shows Home tab', (tester) async {
       await tester.pumpWidget(buildApp());
