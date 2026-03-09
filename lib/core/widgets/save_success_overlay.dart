@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 
-/// Full-screen "Memory saved successfully" confirmation.
+/// Full-screen "Memory saved successfully" confirmation screen.
 ///
 /// Shown as a full-screen overlay after saving a memory.
 class SaveSuccessOverlay {
@@ -68,7 +68,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   late Animation<double> _slideUp;
-  late Animation<double> _checkScale;
+  late Animation<double> _cardScale;
 
   @override
   void initState() {
@@ -85,10 +85,10 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
       CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
 
-    _checkScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _cardScale = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.2, 0.7, curve: Curves.elasticOut),
+        curve: const Interval(0.15, 0.65, curve: Curves.elasticOut),
       ),
     );
 
@@ -118,7 +118,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
             ),
             child: Column(
               children: [
-                // Top bar
+                // ── Header ─────────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
@@ -126,14 +126,13 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                       GestureDetector(
                         onTap: widget.onFinished,
                         child: Container(
-                          width: 38,
-                          height: 38,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: colors.accentFaint,
-                            border: Border.all(color: colors.border),
+                            color: colors.cardBg,
                           ),
-                          child: Icon(Icons.close_rounded, size: 18, color: colors.textPrimary),
+                          child: Icon(Icons.close_rounded, size: 20, color: colors.textPrimary),
                         ),
                       ),
                       Expanded(
@@ -148,38 +147,34 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 38),
+                      const SizedBox(width: 40),
                     ],
                   ),
                 ),
 
                 const Spacer(flex: 2),
 
-                // Memory card with heart + sparkles overlays
+                // ── Celebration visual ──────────────────────────────────────
                 ScaleTransition(
-                  scale: _checkScale,
-                  child: _buildMemoryCard(colors),
+                  scale: _cardScale,
+                  child: _buildCelebrationCard(colors),
                 ),
 
-                const SizedBox(height: 36),
+                const SizedBox(height: 40),
 
-                // Title
-                Text(
-                  'Memory saved',
-                  style: GoogleFonts.manrope(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: colors.textPrimary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Text(
-                  'successfully.',
-                  style: GoogleFonts.manrope(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: colors.textPrimary,
-                    letterSpacing: -0.5,
+                // ── Title ───────────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Memory saved successfully.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: colors.textPrimary,
+                      letterSpacing: -0.5,
+                      height: 1.2,
+                    ),
                   ),
                 ),
 
@@ -200,20 +195,22 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
 
                 const Spacer(flex: 3),
 
-                // Action buttons
+                // ── Action buttons ──────────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: SizedBox(
                     width: double.infinity,
-                    height: 52,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: widget.onViewMemory,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.accent,
+                        foregroundColor: Colors.white,
+                        elevation: 4,
+                        shadowColor: colors.accent.withAlpha(70),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        elevation: 0,
                       ),
                       child: Text(
                         'View Memory',
@@ -228,18 +225,18 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                 ),
 
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                   child: Row(
                     children: [
                       Expanded(
                         child: GestureDetector(
                           onTap: widget.onRecordAnother,
                           child: Container(
-                            height: 52,
+                            height: 54,
                             decoration: BoxDecoration(
-                              color: colors.accentFaint,
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: colors.border),
+                              color: colors.accent.withAlpha(25),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: colors.accent.withAlpha(51)),
                             ),
                             child: Center(
                               child: Text(
@@ -247,7 +244,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                                 style: GoogleFonts.manrope(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: colors.textPrimary,
+                                  color: colors.accent,
                                 ),
                               ),
                             ),
@@ -259,11 +256,11 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                         child: GestureDetector(
                           onTap: widget.onGoToTimeline,
                           child: Container(
-                            height: 52,
+                            height: 54,
                             decoration: BoxDecoration(
-                              color: colors.accentFaint,
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: colors.border),
+                              color: colors.accent.withAlpha(25),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: colors.accent.withAlpha(51)),
                             ),
                             child: Center(
                               child: Text(
@@ -271,7 +268,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                                 style: GoogleFonts.manrope(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: colors.textPrimary,
+                                  color: colors.accent,
                                 ),
                               ),
                             ),
@@ -281,8 +278,6 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 8),
               ],
             ),
           ),
@@ -291,82 +286,117 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
     );
   }
 
-  Widget _buildMemoryCard(AppPalette colors) {
+  /// Rotated memory card with radial glow + floating heart & sparkles badges.
+  Widget _buildCelebrationCard(AppPalette colors) {
+    // 256px outer container to leave room for floating badges
     return SizedBox(
-      width: 200,
-      height: 200,
+      width: 256,
+      height: 256,
       child: Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
-          // Main card image/gradient
-          Center(
+          // Radial glow behind the card (bg-primary/20 blur-3xl)
+          Container(
+            width: 220,
+            height: 220,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  colors.accent.withAlpha(60),
+                  colors.accent.withAlpha(0),
+                ],
+              ),
+            ),
+          ),
+
+          // Rotated memory card (~3°)
+          Transform.rotate(
+            angle: 3 * pi / 180,
+            child: Container(
+              width: 190,
+              height: 190,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white, width: 4),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(45),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12),
+                  ),
+                  BoxShadow(
+                    color: colors.accent.withAlpha(50),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [colors.accent, colors.accentLight],
+                ),
+              ),
+              child: Icon(
+                Icons.auto_stories_rounded,
+                size: 70,
+                color: Colors.white.withAlpha(200),
+              ),
+            ),
+          ),
+
+          // Heart badge — top-right, outside the card (-top-4 -right-4 = ~ -16px)
+          Positioned(
+            top: 14,
+            right: 14,
             child: Transform.rotate(
-              angle: -0.05,
+              angle: 12 * pi / 180, // rotate-12
               child: Container(
-                width: 160,
-                height: 160,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white, width: 4),
+                  shape: BoxShape.circle,
+                  color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: colors.accent.withAlpha(40),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+                      color: Colors.black.withAlpha(25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [colors.accent, colors.accentLight],
-                  ),
                 ),
-                child: Icon(Icons.auto_stories_rounded, size: 60, color: Colors.white.withAlpha(200)),
+                child: Icon(Icons.favorite_rounded, size: 22, color: colors.accent),
               ),
             ),
           ),
 
-          // Heart badge (top-right)
+          // Sparkles badge — bottom-left, outside the card (-bottom-6 -left-6 = ~-24px)
           Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(20),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+            bottom: 6,
+            left: 6,
+            child: Transform.rotate(
+              angle: -12 * pi / 180, // -rotate-12
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 22,
+                  color: Color(0xFFF59E0B), // yellow-400
+                ),
               ),
-              child: Icon(Icons.favorite_rounded, size: 22, color: colors.accent),
-            ),
-          ),
-
-          // Sparkles badge (bottom-left)
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(20),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.auto_awesome_rounded, size: 22, color: Color(0xFFF59E0B)),
             ),
           ),
         ],
