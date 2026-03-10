@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/journal/presentation/screens/recording_screen.dart';
+import 'package:deardays/core/theme/app_theme.dart';
 
 void main() {
   Widget buildApp() {
-    return const MaterialApp(home: RecordingScreen());
+    return MaterialApp(theme: AppTheme.light, home: const RecordingScreen());
   }
 
   group('RecordingScreen - Structure', () {

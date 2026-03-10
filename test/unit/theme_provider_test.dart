@@ -5,6 +5,8 @@ import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('ThemeState', () {
     test('defaults to Serene Dusk Blue', () {
       const state = ThemeState();

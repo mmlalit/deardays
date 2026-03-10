@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
+import 'package:deardays/core/theme/app_theme.dart';
 
 void main() {
   Widget buildApp() {
-    return const MaterialApp(home: TextEntryScreen());
+    return MaterialApp(theme: AppTheme.light, home: const TextEntryScreen());
   }
 
   group('TextEntryScreen - Structure', () {

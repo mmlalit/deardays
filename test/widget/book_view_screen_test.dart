@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/book/presentation/screens/book_view_screen.dart';
+import 'package:deardays/core/theme/app_theme.dart';
 
 void main() {
   Widget buildApp() {
-    return const MaterialApp(
-      home: BookViewScreen(),
+    return MaterialApp(
+      theme: AppTheme.light,
+      home: const BookViewScreen(),
     );
   }
 

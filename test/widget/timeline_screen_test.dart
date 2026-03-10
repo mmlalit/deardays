@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
+import 'package:deardays/core/theme/app_theme.dart';
 import '../helpers/mock_providers.dart';
 
 void main() {
@@ -9,7 +10,7 @@ void main() {
   Widget buildApp({List<Override> overrides = const []}) {
     return ProviderScope(
       overrides: overrides,
-      child: const MaterialApp(home: TimelineScreen()),
+      child: MaterialApp(theme: AppTheme.light, home: const TimelineScreen()),
     );
   }
 

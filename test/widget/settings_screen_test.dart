@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
+import 'package:deardays/core/theme/app_theme.dart';
 import '../helpers/mock_providers.dart';
 
 void main() {
@@ -14,8 +15,9 @@ void main() {
         ...authenticatedOverrides(),
         if (notifier != null) themeProvider.overrideWith((_) => notifier),
       ],
-      child: const MaterialApp(
-        home: SettingsScreen(),
+      child: MaterialApp(
+        theme: AppTheme.light,
+        home: const SettingsScreen(),
       ),
     );
   }
