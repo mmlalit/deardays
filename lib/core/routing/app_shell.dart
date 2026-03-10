@@ -48,8 +48,8 @@ class _BottomNav extends StatelessWidget {
         border: Border(top: BorderSide(color: colors.border, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: colors.textPrimary.withAlpha(12),
-            blurRadius: 16,
+            color: colors.textPrimary.withAlpha(20),
+            blurRadius: 20,
             offset: const Offset(0, -4),
           ),
         ],
@@ -162,10 +162,11 @@ class _NavItem extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            label,
+            label.toUpperCase(),
             style: GoogleFonts.manrope(
               fontSize: 10,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+              letterSpacing: 1.2,
               color: isActive ? activeColor : inactiveColor,
             ),
           ),

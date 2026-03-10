@@ -8,6 +8,9 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/timeline/presentation/widgets/milestone_card.dart';
+import 'package:deardays/features/timeline/presentation/widgets/photo_collage_card.dart';
+import 'package:deardays/features/timeline/presentation/widgets/on_this_day_card.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -31,11 +34,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final entriesAsync = ref.watch(timelineEntriesProvider);
+    final onThisDayAsync = ref.watch(onThisDayProvider);
 
     return Scaffold(
       backgroundColor: colors.bg,
       body: entriesAsync.when(
-        data: (entries) => _buildContent(entries, colors),
+        data: (entries) {
+          final onThisDayEntries = onThisDayAsync.valueOrNull ?? [];
+          return _buildContent(entries, onThisDayEntries, colors);
+        },
         loading: () => _buildSkeleton(colors),
         error: (_, __) => _buildError(colors),
       ),
@@ -46,7 +53,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Content
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildContent(List<JournalEntry> entries, AppPalette colors) {
+  String? _getPhotoUrl(String storagePath) {
+    try {
+      return ref.read(mediaServiceProvider).getPublicUrl(storagePath);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildContent(List<JournalEntry> entries, List<JournalEntry> onThisDayEntries, AppPalette colors) {
     var filtered = entries;
     if (_categoryFilter != null) {
       filtered = filtered.where((e) => _primaryCategory(e) == _categoryFilter).toList();
@@ -65,12 +80,27 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               _buildTopBar(colors),
               _buildHeroSection(colors),
               _buildStatsGrid(totalMemories, chapters, years, colors),
+              _buildWeeklySummaryCard(colors),
               const SizedBox(height: 24),
               _buildFilterChips(colors),
               const SizedBox(height: 16),
             ],
           ),
         ),
+
+        // On This Day section
+        if (onThisDayEntries.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: OnThisDaySection(
+                entries: onThisDayEntries,
+                colors: colors,
+                onEntryTap: (entry) => context.push('/memory', extra: entry),
+                photoUrlBuilder: _getPhotoUrl,
+              ),
+            ),
+          ),
 
         if (filtered.isEmpty)
           SliverFillRemaining(child: _buildEmptyState(colors))
@@ -98,7 +128,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             const SizedBox(width: 10),
             Text(
               'Aura',
-              style: GoogleFonts.merriweather(
+              style: GoogleFonts.newsreader(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: colors.accent,
@@ -135,7 +165,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           Text(
             'Your Life Timeline',
             textAlign: TextAlign.center,
-            style: GoogleFonts.merriweather(
+            style: GoogleFonts.newsreader(
               fontSize: 28,
               fontWeight: FontWeight.w700,
               color: colors.textPrimary,
@@ -211,6 +241,64 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Weekly Summary Card (AI-generated)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildWeeklySummaryCard(AppPalette colors) {
+    final summaryAsync = ref.watch(weeklySummaryProvider);
+
+    return summaryAsync.when(
+      data: (summary) {
+        if (summary == null || summary.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(13),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colors.accent.withAlpha(26)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, size: 16, color: colors.accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      'WEEKLY SUMMARY',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: colors.accent,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  summary,
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    color: colors.textPrimary,
+                    height: 1.5,
+                  ),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -305,6 +393,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             isCurrentYear: item.entry!.entryDate.year == mostRecentYear,
             isLast: item.isLast,
             colors: colors,
+            cardWidget: _buildCardForType(item.entry!, colors),
           );
         },
         childCount: items.length,
@@ -382,11 +471,38 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Card Row (dot + vertical line + card)
   // ─────────────────────────────────────────────────────────────────────────
 
+  /// Picks the right card widget based on entry properties.
+  /// Priority: Milestone > Photo Collage > Standard.
+  Widget _buildCardForType(JournalEntry entry, AppPalette colors) {
+    final photoCount = entry.media.where((m) => m.mediaType == 'photo').length;
+
+    if (entry.isMilestone) {
+      return MilestoneCard(
+        entry: entry,
+        colors: colors,
+        onTap: () => context.push('/memory', extra: entry),
+        photoUrlBuilder: _getPhotoUrl,
+      );
+    }
+
+    if (photoCount >= 2) {
+      return PhotoCollageCard(
+        entry: entry,
+        colors: colors,
+        onTap: () => context.push('/memory', extra: entry),
+        photoUrlBuilder: _getPhotoUrl,
+      );
+    }
+
+    return _buildCard(entry, isCurrentYear: false, colors: colors);
+  }
+
   Widget _buildCardRow(
     JournalEntry entry, {
     required bool isCurrentYear,
     required bool isLast,
     required AppPalette colors,
+    Widget? cardWidget,
   }) {
     return IntrinsicHeight(
       child: Row(
@@ -436,7 +552,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: _buildCard(entry, isCurrentYear: isCurrentYear, colors: colors),
+              child: cardWidget ?? _buildCard(entry, isCurrentYear: isCurrentYear, colors: colors),
             ),
           ),
         ],
@@ -500,7 +616,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             // Title
             Text(
               title,
-              style: GoogleFonts.merriweather(
+              style: GoogleFonts.newsreader(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: colors.textPrimary,
@@ -626,68 +742,232 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildEmptyState(AppPalette colors) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: colors.accentFaint,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.auto_stories_outlined, size: 40, color: colors.accent),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Your story starts here',
-              style: GoogleFonts.merriweather(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Every entry becomes a part of your timeline.\nStart capturing your moments.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                color: colors.textSecondary,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 28),
-            GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 120),
+      child: Column(
+        children: [
+          // CTA banner
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GestureDetector(
               onTap: () => context.push('/record'),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: colors.accent,
-                  borderRadius: BorderRadius.circular(100),
+                  color: colors.accent.withAlpha(15),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.accent.withAlpha(30)),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.mic_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Record First Memory',
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Start your timeline', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                          const SizedBox(height: 2),
+                          Text('Record a memory to see it appear here.', style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary)),
+                        ],
                       ),
                     ),
+                    Icon(Icons.arrow_forward_ios, size: 14, color: colors.textMuted),
                   ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+
+          // Example label
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: colors.accent.withAlpha(20), borderRadius: BorderRadius.circular(6)),
+                  child: Text('EXAMPLES', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: colors.accent, letterSpacing: 1)),
+                ),
+                const SizedBox(width: 8),
+                Text('Your timeline will look like this', style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Sample timeline entries
+          _buildSampleTimelineEntry(
+            colors,
+            year: DateTime.now().year,
+            date: 'TODAY',
+            title: 'Sunday dinner at Mom\'s',
+            excerpt: 'The whole family gathered for the first time in months. Dad made his famous lasagna and we laughed until our sides hurt...',
+            tags: [('Family', AppColors.rose), ('Joy', AppColors.moodOkay)],
+            isFirst: true,
+          ),
+          _buildSampleTimelineEntry(
+            colors,
+            date: DateFormat('MMM dd').format(DateTime.now().subtract(const Duration(days: 2))).toUpperCase(),
+            title: 'Morning run breakthrough',
+            excerpt: 'Finally hit 5K without stopping. The sunrise over the park made it even more special. Feeling proud of the consistency.',
+            tags: [('Wellness', AppColors.emerald)],
+            gradientColors: [const Color(0xFF81C784), const Color(0xFF388E3C)],
+            icon: Icons.spa,
+          ),
+          _buildSampleTimelineEntry(
+            colors,
+            date: DateFormat('MMM dd').format(DateTime.now().subtract(const Duration(days: 5))).toUpperCase(),
+            title: 'Coffee with an old friend',
+            excerpt: 'Ran into Maya at the farmer\'s market. We talked for an hour about everything and nothing...',
+            tags: [('Friends', AppColors.purple), ('Happy', AppColors.moodGood)],
+            gradientColors: [const Color(0xFFCE93D8), const Color(0xFF8E24AA)],
+            icon: Icons.people_outline,
+            isLast: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSampleTimelineEntry(
+    AppPalette colors, {
+    int? year,
+    required String date,
+    required String title,
+    required String excerpt,
+    required List<(String, Color)> tags,
+    List<Color>? gradientColors,
+    IconData? icon,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          // Year header for first item
+          if (isFirst && year != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: SizedBox(
+                height: 48,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 40,
+                      height: 48,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned(top: 0, bottom: 0, left: 19, child: Container(width: 2, color: colors.border)),
+                          Container(
+                            width: 40, height: 40,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent,
+                              boxShadow: [BoxShadow(color: colors.accent.withAlpha(60), blurRadius: 10, spreadRadius: 2)],
+                            ),
+                            child: Center(child: Text('$year', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(child: Container(height: 1, color: colors.border)),
+                  ],
+                ),
+              ),
+            ),
+          // Card row
+          Opacity(
+            opacity: 0.8,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    child: Stack(
+                      alignment: Alignment.topCenter,
+                      children: [
+                        if (!isLast)
+                          Positioned(top: 0, bottom: 0, left: 19, child: Container(width: 2, color: colors.border))
+                        else
+                          Positioned(top: 0, bottom: 24, left: 19, child: Container(width: 2, color: colors.border)),
+                        Positioned(
+                          top: 22, left: 14,
+                          child: Container(
+                            width: 12, height: 12,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent, border: Border.all(color: colors.bg, width: 3)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: colors.cardBg,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: colors.border),
+                              boxShadow: [BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 12, offset: const Offset(0, 2))],
+                            ),
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(date, style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: colors.textMuted, letterSpacing: 1.5)),
+                                    const Spacer(),
+                                    ...tags.take(2).map((t) => Padding(
+                                      padding: const EdgeInsets.only(left: 6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(color: t.$2.withAlpha(25), borderRadius: BorderRadius.circular(6)),
+                                        child: Text(t.$1.toUpperCase(), style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: t.$2, letterSpacing: 0.5)),
+                                      ),
+                                    )),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(title, style: GoogleFonts.newsreader(fontSize: 18, fontWeight: FontWeight.w600, color: colors.textPrimary, height: 1.3)),
+                                const SizedBox(height: 8),
+                                Text(excerpt, style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary, height: 1.6), maxLines: 3, overflow: TextOverflow.ellipsis),
+                              ],
+                            ),
+                          ),
+                          Positioned(
+                            top: 8, right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: colors.textPrimary.withAlpha(120), borderRadius: BorderRadius.circular(4)),
+                              child: Text('EXAMPLE', style: GoogleFonts.manrope(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

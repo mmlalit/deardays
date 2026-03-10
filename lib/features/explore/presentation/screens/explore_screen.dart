@@ -141,7 +141,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               const SizedBox(width: 10),
               Text(
                 'Aura',
-                style: GoogleFonts.merriweather(
+                style: GoogleFonts.newsreader(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: colors.textPrimary,
@@ -241,6 +241,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final entriesAsync = ref.watch(timelineEntriesProvider);
     return entriesAsync.when(
       data: (entries) {
+        if (entries.isEmpty && !_hasFilter) return _buildSampleExplore(colors);
         if (_hasFilter) return _buildFilteredView(entries, colors);
         return _buildOverview(entries, colors);
       },
@@ -330,6 +331,259 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Sample explore (first-time user)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildSampleExplore(AppPalette colors) {
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 120),
+      children: [
+        // CTA banner
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: GestureDetector(
+            onTap: () => context.push('/record'),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.accent.withAlpha(30)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(color: colors.accent, borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.explore, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Explore your memories', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        const SizedBox(height: 2),
+                        Text('Start journaling to unlock AI insights and themes.', style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios, size: 14, color: colors.textMuted),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Example label
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: colors.accent.withAlpha(20), borderRadius: BorderRadius.circular(6)),
+                child: Text('EXAMPLES', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: colors.accent, letterSpacing: 1)),
+              ),
+              const SizedBox(width: 8),
+              Text('Discover patterns in your journal', style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted)),
+            ],
+          ),
+        ),
+
+        // Sample AI Insights card
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Opacity(
+            opacity: 0.8,
+            child: Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colors.accentFaint,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colors.accent.withAlpha(25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.psychology, size: 20, color: colors.accent),
+                          const SizedBox(width: 8),
+                          Text('AI Insights', style: GoogleFonts.newsreader(fontSize: 17, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Your week has been centered around family and personal growth. You mentioned gratitude 4 times — a pattern that correlates with your happiest days.',
+                        style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary, height: 1.5),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 8, right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: colors.textPrimary.withAlpha(120), borderRadius: BorderRadius.circular(4)),
+                    child: Text('EXAMPLE', style: GoogleFonts.manrope(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Sample "Happiest Memories" section
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Text('Happiest Memories', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+        ),
+        SizedBox(
+          height: 220,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: 3,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) => _buildSampleHappyCard(i, colors),
+          ),
+        ),
+        const SizedBox(height: 28),
+
+        // Sample category grid
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Text('Explore by Theme', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _buildSampleCategoryGrid(colors),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSampleHappyCard(int index, AppPalette colors) {
+    const samples = [
+      ('Sunday dinner at Mom\'s', 'Family', Color(0xFFFF8A65), Color(0xFFFF5722), Icons.family_restroom),
+      ('Beach day with friends', 'Travel', Color(0xFF4DD0E1), Color(0xFF00897B), Icons.flight_takeoff),
+      ('Promotion at work!', 'Career', Color(0xFF7986CB), Color(0xFF3949AB), Icons.work_outline),
+    ];
+    final (title, tag, c1, c2, icon) = samples[index];
+
+    return Opacity(
+      opacity: 0.8,
+      child: Stack(
+        children: [
+          Container(
+            width: 160,
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colors.border),
+              boxShadow: [BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 12, offset: const Offset(0, 2))],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 120,
+                  decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [c1, c2])),
+                  child: Center(child: Icon(icon, size: 36, color: Colors.white.withAlpha(160))),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: colors.textPrimary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: colors.accent.withAlpha(20), borderRadius: BorderRadius.circular(6)),
+                        child: Text(tag, style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: 6, left: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: Colors.black.withAlpha(100), borderRadius: BorderRadius.circular(4)),
+              child: Text('EXAMPLE', style: GoogleFonts.manrope(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSampleCategoryGrid(AppPalette colors) {
+    const sampleCategories = [
+      ('Family', Icons.family_restroom, Color(0xFFEC4899), 12),
+      ('Travel', Icons.flight_takeoff, Color(0xFFF59E0B), 8),
+      ('Career', Icons.work_outline, Color(0xFF195DE6), 15),
+      ('Wellness', Icons.spa, Color(0xFF10B981), 6),
+      ('Friends', Icons.people_outline, Color(0xFF8B5CF6), 9),
+      ('Creative', Icons.palette, Color(0xFFE91E63), 4),
+    ];
+
+    return Opacity(
+      opacity: 0.8,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 2.2,
+        ),
+        itemCount: sampleCategories.length,
+        itemBuilder: (_, i) {
+          final (label, icon, color, count) = sampleCategories[i];
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(color: color.withAlpha(25), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(icon, size: 18, color: color),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(label, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                      Text('$count memories', style: GoogleFonts.manrope(fontSize: 11, color: colors.textSecondary)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Section header row (title + "See all" link)
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -379,14 +633,20 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       if (v > topCount) { topCount = v; topMood = k; }
     });
 
-    final moodData = {
+    // Fallback mood descriptions
+    final fallbackMoodData = {
       'great': ('Joyful', 'Your recent entries radiate happiness and positive energy. You\'re in a great place!'),
       'good':  ('Content', 'Things are going well. Your entries reflect a steady, positive mindset.'),
       'okay':  ('Reflective', 'Your recent entries show a thoughtful and introspective mood.'),
       'low':   ('Introspective', 'You\'ve been reflecting deeply. Remember, every feeling is valid and worth recording.'),
       'tough': ('Resilient', 'You\'re working through challenges. Your courage in recording these moments is admirable.'),
     };
-    final (moodLabel, moodDesc) = moodData[topMood] ?? ('Reflective', 'Your recent entries show a thoughtful and introspective mood.');
+    final (fallbackLabel, fallbackDesc) = fallbackMoodData[topMood] ?? ('Reflective', 'Your recent entries show a thoughtful and introspective mood.');
+
+    // Use AI-generated weekly summary when available
+    final aiSummary = ref.watch(weeklySummaryProvider).valueOrNull;
+    final moodLabel = fallbackLabel;
+    final moodDesc = aiSummary ?? fallbackDesc;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -845,7 +1105,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   const SizedBox(height: 5),
                   Text(
                     title,
-                    style: GoogleFonts.merriweather(
+                    style: GoogleFonts.newsreader(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: colors.textPrimary,

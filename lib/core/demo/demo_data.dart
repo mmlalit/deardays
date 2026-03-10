@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/data/models/entry_media.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/book/data/models/book.dart';
@@ -89,10 +90,17 @@ class DemoData {
       entryTime: const TimeOfDay(hour: 7, minute: 15),
       locationName: 'Central Park, New York',
       isAiPolished: true,
-      hasPhoto: false,
+      hasPhoto: true,
+      isMilestone: true,
+      milestoneType: 'travel',
       wordCount: 78,
       createdAt: DateTime.now().subtract(const Duration(hours: 3)),
       updatedAt: DateTime.now().subtract(const Duration(hours: 3)),
+      media: [
+        EntryMedia(id: 'demo-media-001', entryId: 'demo-001', userId: _uid, mediaType: 'photo', storagePath: 'demo/photos/park_1.jpg', sortOrder: 0, createdAt: DateTime.now()),
+        EntryMedia(id: 'demo-media-002', entryId: 'demo-001', userId: _uid, mediaType: 'photo', storagePath: 'demo/photos/park_2.jpg', sortOrder: 1, createdAt: DateTime.now()),
+        EntryMedia(id: 'demo-media-003', entryId: 'demo-001', userId: _uid, mediaType: 'photo', storagePath: 'demo/photos/park_3.jpg', sortOrder: 2, createdAt: DateTime.now()),
+      ],
     ),
     JournalEntry(
       id: 'demo-002',

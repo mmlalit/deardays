@@ -228,6 +228,29 @@ final weeklyThemesProvider = FutureProvider<List<String>>((ref) async {
   }
 });
 
+/// AI-generated writing prompt (refreshes each call; UI should cache per day).
+final writingPromptProvider = FutureProvider<String?>((ref) async {
+  final ai = ref.watch(aiServiceProvider);
+  if (!ai.isConfigured) return null;
+  try {
+    return await ai.getWritingPrompt();
+  } catch (_) {
+    return null;
+  }
+});
+
+/// AI-generated cover search query for a given book title.
+final bookCoverQueryProvider =
+    FutureProvider.family<String?, String>((ref, bookTitle) async {
+  final ai = ref.watch(aiServiceProvider);
+  if (!ai.isConfigured) return null;
+  try {
+    return await ai.generateCoverQuery(bookTitle);
+  } catch (_) {
+    return null;
+  }
+});
+
 // --- Filter Model ---
 
 class EntriesFilter {

@@ -8,18 +8,22 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 
-class RecordingScreen extends StatefulWidget {
+class RecordingScreen extends ConsumerStatefulWidget {
   const RecordingScreen({super.key});
 
   @override
-  State<RecordingScreen> createState() => _RecordingScreenState();
+  ConsumerState<RecordingScreen> createState() => _RecordingScreenState();
 }
 
-class _RecordingScreenState extends State<RecordingScreen>
+class _RecordingScreenState extends ConsumerState<RecordingScreen>
     with TickerProviderStateMixin {
   bool _isRecording = false;
   bool _isPaused = false;
@@ -28,6 +32,12 @@ class _RecordingScreenState extends State<RecordingScreen>
   String? _recordingPath;
 
   final AudioRecorder _audioRecorder = AudioRecorder();
+
+  // On-device speech-to-text
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechAvailable = false;
+  String _liveTranscript = '';
+  String _currentWords = '';
 
   // Waveform animation
   late AnimationController _waveController;
@@ -41,8 +51,8 @@ class _RecordingScreenState extends State<RecordingScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // Prompt rotation
-  static const List<String> _prompts = [
+  // Fallback prompts when AI is unavailable
+  static const List<String> _fallbackPrompts = [
     'What made today special?',
     'Who did you spend time with?',
     'What are you grateful for today?',
@@ -56,7 +66,11 @@ class _RecordingScreenState extends State<RecordingScreen>
     super.initState();
 
     final today = DateTime.now();
-    _currentPrompt = _prompts[today.hour % _prompts.length];
+    _currentPrompt = _fallbackPrompts[today.hour % _fallbackPrompts.length];
+
+    // Try to fetch an AI-generated prompt
+    final aiPrompt = ref.read(writingPromptProvider).valueOrNull;
+    if (aiPrompt != null) _currentPrompt = aiPrompt;
 
     _waveController = AnimationController(
       vsync: this,
@@ -81,6 +95,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     _waveTimer?.cancel();
     _waveController.dispose();
     _pulseController.dispose();
+    _speech.stop();
     try {
       _audioRecorder.dispose();
     } catch (_) {}
@@ -108,6 +123,20 @@ class _RecordingScreenState extends State<RecordingScreen>
           path: path,
         );
 
+        // Start on-device speech recognition in parallel
+        _speechAvailable = await _speech.initialize(
+          onError: (_) {},
+          onStatus: (status) {
+            // Restart listening when it stops (speech_to_text auto-stops on silence)
+            if (status == 'notListening' && _isRecording && !_isPaused && mounted) {
+              _restartListening();
+            }
+          },
+        );
+        if (_speechAvailable) {
+          _startListening();
+        }
+
         if (mounted) {
           setState(() {
             _isRecording = true;
@@ -134,6 +163,37 @@ class _RecordingScreenState extends State<RecordingScreen>
         Navigator.of(context).maybePop();
       }
     }
+  }
+
+  void _startListening() {
+    _speech.listen(
+      onResult: (result) {
+        if (mounted) {
+          setState(() {
+            _currentWords = result.recognizedWords;
+            if (result.finalResult) {
+              if (_liveTranscript.isNotEmpty) {
+                _liveTranscript += ' ${result.recognizedWords}';
+              } else {
+                _liveTranscript = result.recognizedWords;
+              }
+              _currentWords = '';
+            }
+          });
+        }
+      },
+      listenMode: stt.ListenMode.dictation,
+      cancelOnError: false,
+      partialResults: true,
+    );
+  }
+
+  void _restartListening() {
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (_isRecording && !_isPaused && mounted && _speechAvailable) {
+        _startListening();
+      }
+    });
   }
 
   void _startTimer() {
@@ -164,15 +224,16 @@ class _RecordingScreenState extends State<RecordingScreen>
     try {
       if (_isPaused) {
         await _audioRecorder.resume();
+        if (_speechAvailable) _startListening();
         setState(() => _isPaused = false);
         _startWaveAnimation();
       } else {
         await _audioRecorder.pause();
+        if (_speechAvailable) _speech.stop();
         setState(() => _isPaused = true);
         _waveTimer?.cancel();
       }
     } catch (e) {
-      // Some platforms don't support pause — just show a snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pause not supported on this device.')),
@@ -185,6 +246,15 @@ class _RecordingScreenState extends State<RecordingScreen>
     HapticFeedback.mediumImpact();
     _timer?.cancel();
     _waveTimer?.cancel();
+
+    // Capture final transcript before stopping speech
+    if (_speechAvailable) {
+      await _speech.stop();
+    }
+    final transcript = _currentWords.isNotEmpty
+        ? '$_liveTranscript $_currentWords'.trim()
+        : _liveTranscript.trim();
+
     try {
       final path = await _audioRecorder.stop();
       if (mounted) {
@@ -192,9 +262,8 @@ class _RecordingScreenState extends State<RecordingScreen>
           _isRecording = false;
           _recordingPath = path;
         });
-        // Navigate to processing screen
         context.pushReplacement('/processing', extra: ReviewData(
-          rawText: '',
+          rawText: transcript,
           isVoice: true,
           attachedPhotoPath: null,
           audioPath: path,
@@ -232,6 +301,8 @@ class _RecordingScreenState extends State<RecordingScreen>
                   _buildPromptSection(colors),
                   const Spacer(),
                   _buildWaveform(colors),
+                  if (_liveTranscript.isNotEmpty || _currentWords.isNotEmpty)
+                    _buildLiveTranscript(colors),
                   const Spacer(),
                   _buildMicButton(colors),
                   const SizedBox(height: 24),
@@ -316,6 +387,43 @@ class _RecordingScreenState extends State<RecordingScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Live Transcript Preview
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildLiveTranscript(AppPalette colors) {
+    final display = _currentWords.isNotEmpty
+        ? '$_liveTranscript $_currentWords'.trim()
+        : _liveTranscript.trim();
+    // Show last ~120 chars to keep it compact
+    final preview = display.length > 120
+        ? '...${display.substring(display.length - 120)}'
+        : display;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.accent.withAlpha(13),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.accent.withAlpha(30)),
+        ),
+        child: Text(
+          preview,
+          textAlign: TextAlign.center,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            color: colors.textSecondary,
+            height: 1.4,
+          ),
+        ),
       ),
     );
   }

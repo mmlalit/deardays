@@ -446,7 +446,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 child: Text(
                   'Memory Preview',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.merriweather(
+                  style: GoogleFonts.newsreader(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     color: colors.textPrimary,
@@ -521,7 +521,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               right: 60,
               child: Text(
                 title,
-                style: GoogleFonts.merriweather(
+                style: GoogleFonts.newsreader(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                   fontStyle: FontStyle.italic,
@@ -824,7 +824,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               textAlign: TextAlign.center,
               textCapitalization: TextCapitalization.sentences,
               cursorColor: colors.accent,
-              style: GoogleFonts.merriweather(
+              style: GoogleFonts.newsreader(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: colors.textPrimary,
@@ -870,7 +870,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     child: Text(
                       _generatedTitle ?? (_isPolishing ? 'Writing your story...' : 'Your Memory'),
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.merriweather(
+                      style: GoogleFonts.newsreader(
                         fontSize: 28,
                         fontWeight: FontWeight.w700,
                         color: colors.textPrimary,
@@ -920,7 +920,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           padding: const EdgeInsets.only(bottom: 24),
           child: Text(
             p,
-            style: GoogleFonts.merriweather(
+            style: GoogleFonts.newsreader(
               fontSize: 18,
               fontWeight: FontWeight.w300,
               color: colors.textPrimary,
@@ -952,7 +952,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           padding: const EdgeInsets.only(bottom: 24),
           child: Text(
             p,
-            style: GoogleFonts.merriweather(
+            style: GoogleFonts.newsreader(
               fontSize: 18,
               fontWeight: FontWeight.w300,
               color: colors.textPrimary,
@@ -984,7 +984,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           padding: const EdgeInsets.only(bottom: 24),
           child: Text(
             p,
-            style: GoogleFonts.merriweather(
+            style: GoogleFonts.newsreader(
               fontSize: 18,
               fontWeight: FontWeight.w300,
               color: colors.textPrimary.withAlpha(210),

@@ -65,10 +65,12 @@ class _ProcessingScreenState extends State<ProcessingScreen>
 
     String transcript = '';
     try {
-      if (widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty) {
-        transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
-      } else if (widget.data.rawText.isNotEmpty) {
+      if (widget.data.rawText.isNotEmpty) {
+        // Use on-device live transcript when available
         transcript = widget.data.rawText;
+      } else if (widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty) {
+        // Fall back to cloud transcription (OpenAI Whisper)
+        transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
       }
     } catch (_) {
       transcript = widget.data.rawText;

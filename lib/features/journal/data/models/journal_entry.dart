@@ -17,6 +17,8 @@ class JournalEntry {
   final bool hasPhoto;
   final bool hasVoice;
   final bool isAiPolished;
+  final bool isMilestone;
+  final String? milestoneType;
   final int wordCount;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -37,6 +39,8 @@ class JournalEntry {
     this.hasPhoto = false,
     this.hasVoice = false,
     this.isAiPolished = false,
+    this.isMilestone = false,
+    this.milestoneType,
     this.wordCount = 0,
     required this.createdAt,
     required this.updatedAt,
@@ -58,6 +62,8 @@ class JournalEntry {
     bool? hasPhoto,
     bool? hasVoice,
     bool? isAiPolished,
+    bool? isMilestone,
+    String? milestoneType,
     int? wordCount,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -78,6 +84,8 @@ class JournalEntry {
       hasPhoto: hasPhoto ?? this.hasPhoto,
       hasVoice: hasVoice ?? this.hasVoice,
       isAiPolished: isAiPolished ?? this.isAiPolished,
+      isMilestone: isMilestone ?? this.isMilestone,
+      milestoneType: milestoneType ?? this.milestoneType,
       wordCount: wordCount ?? this.wordCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -104,6 +112,8 @@ class JournalEntry {
       'has_photo': hasPhoto,
       'has_voice': hasVoice,
       'is_ai_polished': isAiPolished,
+      'is_milestone': isMilestone,
+      'milestone_type': milestoneType,
       'word_count': wordCount,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -134,6 +144,8 @@ class JournalEntry {
       hasPhoto: (json['has_photo'] as bool?) ?? false,
       hasVoice: (json['has_voice'] as bool?) ?? false,
       isAiPolished: (json['is_ai_polished'] as bool?) ?? false,
+      isMilestone: (json['is_milestone'] as bool?) ?? false,
+      milestoneType: json['milestone_type'] as String?,
       wordCount: (json['word_count'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -166,6 +178,8 @@ class JournalEntry {
       'has_photo': hasPhoto,
       'has_voice': hasVoice,
       'is_ai_polished': isAiPolished,
+      'is_milestone': isMilestone,
+      'milestone_type': milestoneType,
       'word_count': wordCount,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -197,6 +211,8 @@ class JournalEntry {
       hasPhoto: (map['has_photo'] as bool?) ?? false,
       hasVoice: (map['has_voice'] as bool?) ?? false,
       isAiPolished: (map['is_ai_polished'] as bool?) ?? false,
+      isMilestone: (map['is_milestone'] as bool?) ?? false,
+      milestoneType: map['milestone_type'] as String?,
       wordCount: (map['word_count'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),

@@ -115,7 +115,7 @@ class AppTypography {
       );
 
   // --- Journal / Literary content (serif) ---
-  static TextStyle journal(AppPalette colors) => GoogleFonts.merriweather(
+  static TextStyle journal(AppPalette colors) => GoogleFonts.newsreader(
         fontSize: 15,
         fontWeight: FontWeight.w400,
         color: colors.textPrimary,

@@ -4,6 +4,7 @@ class Book {
   final String title;
   final String coverColor;
   final String writingStyle;
+  final String? coverImageUrl;
   final DateTime startDate;
   final DateTime? endDate;
   final int sortOrder;
@@ -16,6 +17,7 @@ class Book {
     required this.title,
     this.coverColor = '#6B4EFF',
     this.writingStyle = 'memoir',
+    this.coverImageUrl,
     required this.startDate,
     this.endDate,
     this.sortOrder = 0,
@@ -29,6 +31,7 @@ class Book {
     String? title,
     String? coverColor,
     String? writingStyle,
+    String? coverImageUrl,
     DateTime? startDate,
     DateTime? endDate,
     int? sortOrder,
@@ -41,6 +44,7 @@ class Book {
       title: title ?? this.title,
       coverColor: coverColor ?? this.coverColor,
       writingStyle: writingStyle ?? this.writingStyle,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -56,6 +60,7 @@ class Book {
       'title': title,
       'cover_color': coverColor,
       'writing_style': writingStyle,
+      if (coverImageUrl != null) 'cover_image_url': coverImageUrl,
       'start_date': startDate.toIso8601String().split('T').first,
       'end_date': endDate?.toIso8601String().split('T').first,
       'sort_order': sortOrder,
@@ -71,6 +76,7 @@ class Book {
       title: map['title'] as String,
       coverColor: (map['cover_color'] as String?) ?? '#6B4EFF',
       writingStyle: (map['writing_style'] as String?) ?? 'memoir',
+      coverImageUrl: map['cover_image_url'] as String?,
       startDate: DateTime.parse(map['start_date'] as String),
       endDate: map['end_date'] != null
           ? DateTime.parse(map['end_date'] as String)

@@ -35,6 +35,7 @@ dependencies:
   # Voice Recording & Audio
   record: ^5.2.1
   just_audio: ^0.9.43
+  speech_to_text: ^7.0.0
 
   # AI & Networking
   http: ^1.3.0

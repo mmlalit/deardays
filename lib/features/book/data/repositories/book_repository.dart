@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 
@@ -49,10 +51,11 @@ class BookRepository {
   }
 
   Future<Book> updateBook(Book book) async {
-    final map = {
+    final map = <String, dynamic>{
       'title': book.title,
       'cover_color': book.coverColor,
       'writing_style': book.writingStyle,
+      'cover_image_url': book.coverImageUrl,
       'start_date': book.startDate.toIso8601String().split('T').first,
       'end_date': book.endDate?.toIso8601String().split('T').first,
       'sort_order': book.sortOrder,
@@ -126,6 +129,20 @@ class BookRepository {
       createdAt: now,
       updatedAt: now,
     ));
+  }
+
+  /// Uploads a cover image to Supabase Storage and returns the public URL.
+  Future<String> uploadCoverImage(String bookId, File imageFile) async {
+    final ext = imageFile.path.split('.').last;
+    final path = '$_userId/$bookId.$ext';
+
+    await _client.storage.from('user-covers').upload(
+          path,
+          imageFile,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+    return _client.storage.from('user-covers').getPublicUrl(path);
   }
 
   String _monthName(int month) {

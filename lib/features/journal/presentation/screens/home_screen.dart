@@ -27,8 +27,15 @@ class HomeScreen extends ConsumerWidget {
         'there';
     final isDemoMode = ref.watch(demoModeProvider);
 
+    final entries = entriesAsync.valueOrNull ?? [];
+    final isFirstTimeUser = entries.isEmpty;
+
     return Scaffold(
       backgroundColor: colors.bg,
+      floatingActionButton: isFirstTimeUser
+          ? _buildFloatingMicButton(context, colors)
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -51,7 +58,7 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
 
                     // ── Daily Spark card ────────────────────────────────────
-                    _buildDailySparkCard(colors),
+                    _buildDailySparkCard(ref, colors),
                     const SizedBox(height: 28),
 
                     // ── 3-button action row ─────────────────────────────────
@@ -68,7 +75,7 @@ class HomeScreen extends ConsumerWidget {
 
             // ── Recent Memory cards ─────────────────────────────────────────
             entriesAsync.when(
-              data: (entries) => entries.isEmpty
+              data: (data) => data.isEmpty
                   ? SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -80,13 +87,13 @@ class HomeScreen extends ConsumerWidget {
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (_, i) {
-                            if (i == 0) return _buildHeroCard(context, entries.first, colors);
+                            if (i == 0) return _buildHeroCard(context, data.first, colors);
                             return Padding(
                               padding: const EdgeInsets.only(top: 12),
-                              child: _buildCompactCard(context, entries[i], colors),
+                              child: _buildCompactCard(context, data[i], colors),
                             );
                           },
-                          childCount: entries.length.clamp(0, 5),
+                          childCount: data.length.clamp(0, 5),
                         ),
                       ),
                     ),
@@ -275,12 +282,12 @@ class HomeScreen extends ConsumerWidget {
         const SizedBox(height: 4),
         Text(
           'What happened\ntoday?',
-          style: GoogleFonts.manrope(
+          style: GoogleFonts.newsreader(
             fontSize: 38,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             color: colors.textPrimary,
             height: 1.15,
-            letterSpacing: -1,
+            letterSpacing: -0.5,
           ),
         ),
       ],
@@ -291,8 +298,9 @@ class HomeScreen extends ConsumerWidget {
   // Daily Spark Card
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildDailySparkCard(AppPalette colors) {
-    final prompts = [
+  Widget _buildDailySparkCard(WidgetRef ref, AppPalette colors) {
+    // Fallback prompts when AI is unavailable
+    const fallbackPrompts = [
       '"What made you smile today?"',
       '"Who did you think about today?"',
       '"What are you grateful for?"',
@@ -301,7 +309,11 @@ class HomeScreen extends ConsumerWidget {
       '"What did you learn today?"',
       '"Who made a difference in your day?"',
     ];
-    final prompt = prompts[DateTime.now().day % prompts.length];
+
+    final aiPrompt = ref.watch(writingPromptProvider).valueOrNull;
+    final prompt = aiPrompt != null
+        ? '"$aiPrompt"'
+        : fallbackPrompts[DateTime.now().day % fallbackPrompts.length];
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -347,6 +359,36 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Floating mic button for first-time users
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFloatingMicButton(BuildContext context, AppPalette colors) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 70),
+      child: FloatingActionButton.extended(
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          context.push('/record');
+        },
+        backgroundColor: colors.accent,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        icon: const Icon(Icons.mic_rounded, size: 24),
+        label: Text(
+          'Record your first memory',
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -428,8 +470,8 @@ class HomeScreen extends ConsumerWidget {
       children: [
         Text(
           'Recent Memories',
-          style: GoogleFonts.manrope(
-            fontSize: 18,
+          style: GoogleFonts.newsreader(
+            fontSize: 20,
             fontWeight: FontWeight.w700,
             color: colors.textPrimary,
           ),
@@ -732,35 +774,357 @@ class HomeScreen extends ConsumerWidget {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildEmptyState(BuildContext context, AppPalette colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        children: [
-          Container(
-            width: 72,
-            height: 72,
+    return Column(
+      children: [
+        // Prompt banner
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            context.push('/record');
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: colors.accentFaint,
-              shape: BoxShape.circle,
+              color: colors.accent.withAlpha(15),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.accent.withAlpha(30)),
             ),
-            child: Icon(Icons.auto_stories_outlined, size: 36, color: colors.accent),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Your memories live here',
-            style: GoogleFonts.manrope(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Record your first memory',
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Just talk for 30 seconds — we\'ll do the rest.',
+                        style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 14, color: colors.textMuted),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap Speak to record your first memory.',
-            style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
+        const SizedBox(height: 20),
+
+        // "Example" label
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(20),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'EXAMPLES',
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: colors.accent,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Your memories will look like this',
+              style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Sample hero card
+        _buildSampleHeroCard(context, colors),
+        const SizedBox(height: 12),
+
+        // Sample compact cards
+        _buildSampleCompactCard(
+          context,
+          colors,
+          title: 'Coffee with an old friend',
+          excerpt: 'Ran into Maya at the farmer\'s market. We talked for an hour about everything and nothing...',
+          date: 'Yesterday',
+          mood: 'good',
+          tag: 'Friends',
+          tagColor: AppColors.purple,
+          gradientColors: [const Color(0xFFCE93D8), const Color(0xFF8E24AA)],
+          icon: Icons.people_outline,
+        ),
+        const SizedBox(height: 12),
+        _buildSampleCompactCard(
+          context,
+          colors,
+          title: 'Morning run breakthrough',
+          excerpt: 'Finally hit 5K without stopping. The sunrise over the park made it even more special...',
+          date: '2 days ago',
+          mood: 'great',
+          tag: 'Wellness',
+          tagColor: AppColors.emerald,
+          gradientColors: [const Color(0xFF81C784), const Color(0xFF388E3C)],
+          icon: Icons.spa,
+        ),
+        const SizedBox(height: 100),
+      ],
+    );
+  }
+
+  Widget _buildSampleHeroCard(BuildContext context, AppPalette colors) {
+    return Opacity(
+      opacity: 0.85,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(color: colors.textPrimary.withAlpha(12), blurRadius: 16, offset: const Offset(0, 4)),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Gradient banner
+            Stack(
+              children: [
+                SizedBox(
+                  height: 160,
+                  width: double.infinity,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFFF8A65), Color(0xFFFF5722)],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(Icons.family_restroom, size: 48, color: Colors.white.withAlpha(160)),
+                    ),
+                  ),
+                ),
+                // Date chip
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: colors.card.withAlpha(230),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'TODAY',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textPrimary,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+                // Example badge
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: colors.textPrimary.withAlpha(140),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'EXAMPLE',
+                      style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sunday dinner at Mom\'s',
+                    style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'The whole family gathered for the first time in months. Dad made his famous lasagna and we laughed until our sides hurt...',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      color: colors.textSecondary,
+                      height: 1.5,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      _Tag(label: 'Family', color: AppColors.rose, colors: colors),
+                      _Tag(label: 'Gratitude', color: colors.accent.withAlpha(180), colors: colors),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSampleCompactCard(
+    BuildContext context,
+    AppPalette colors, {
+    required String title,
+    required String excerpt,
+    required String date,
+    required String mood,
+    required String tag,
+    required Color tagColor,
+    required List<Color> gradientColors,
+    required IconData icon,
+  }) {
+    return Opacity(
+      opacity: 0.85,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(color: colors.textPrimary.withAlpha(8), blurRadius: 10, offset: const Offset(0, 2)),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 110,
+                  height: 110,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: gradientColors,
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(icon, size: 32, color: Colors.white.withAlpha(160)),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              date,
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                color: colors.textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          excerpt,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: colors.textSecondary,
+                            fontStyle: FontStyle.italic,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            _Tag(label: tag, color: tagColor, colors: colors),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Example badge
+            Positioned(
+              top: 6,
+              left: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(100),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'EXAMPLE',
+                  style: GoogleFonts.manrope(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

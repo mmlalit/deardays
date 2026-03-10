@@ -118,7 +118,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                       // Title
                       Text(
                         _extractTitle(entry),
-                        style: GoogleFonts.merriweather(
+                        style: GoogleFonts.newsreader(
                           fontSize: 34,
                           fontWeight: FontWeight.w700,
                           color: colors.textPrimary,
@@ -423,7 +423,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
             padding: const EdgeInsets.only(top: 20),
             child: Text(
               p,
-              style: GoogleFonts.merriweather(
+              style: GoogleFonts.newsreader(
                 fontSize: 18,
                 color: colors.textPrimary,
                 height: 1.8,
@@ -452,7 +452,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       children: [
         Text(
           dropChar,
-          style: GoogleFonts.merriweather(
+          style: GoogleFonts.newsreader(
             fontSize: 68,
             fontWeight: FontWeight.w700,
             color: colors.accent,
@@ -463,7 +463,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
         Expanded(
           child: Text(
             rest,
-            style: GoogleFonts.merriweather(
+            style: GoogleFonts.newsreader(
               fontSize: 18,
               color: colors.textPrimary,
               height: 1.8,
@@ -486,7 +486,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       ),
       child: Text(
         '"$text"',
-        style: GoogleFonts.merriweather(
+        style: GoogleFonts.newsreader(
           fontSize: 17,
           fontStyle: FontStyle.italic,
           color: colors.textSecondary,

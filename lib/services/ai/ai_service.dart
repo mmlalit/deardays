@@ -237,6 +237,37 @@ class AiService {
     }
   }
 
+  /// Generates a short image-search query for a book/chapter title.
+  ///
+  /// Used to fetch a relevant cover photo from Unsplash/Pexels.
+  /// Returns a concise English search phrase (3-5 words).
+  Future<String> generateCoverQuery(String bookTitle) async {
+    _ensureConfigured('generateCoverQuery');
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-chat',
+        data: {
+          'messages': [
+            {
+              'role': 'user',
+              'content':
+                  'Generate a short (3-5 word) image search query for a journal book titled "$bookTitle". '
+                  'Return ONLY the search phrase, nothing else. '
+                  'Make it evocative and suitable for finding a beautiful cover photo. '
+                  'Example: "Family Life" → "warm family dinner golden hour"',
+            },
+          ],
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+      return _extractText(response).trim();
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'generateCoverQuery');
+    }
+  }
+
   /// Detects recurring themes and patterns across the supplied entries.
   Future<List<String>> detectThemes(List<String> entries) async {
     _ensureConfigured('detectThemes');

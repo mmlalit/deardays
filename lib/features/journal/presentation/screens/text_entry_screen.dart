@@ -3,18 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/services/location/location_service.dart';
 
-class TextEntryScreen extends StatefulWidget {
+class TextEntryScreen extends ConsumerStatefulWidget {
   const TextEntryScreen({super.key});
 
   @override
-  State<TextEntryScreen> createState() => _TextEntryScreenState();
+  ConsumerState<TextEntryScreen> createState() => _TextEntryScreenState();
 }
 
-class _TextEntryScreenState extends State<TextEntryScreen> {
+class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final _imagePicker = ImagePicker();
@@ -29,7 +32,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     'Food', 'Health', 'Gratitude', 'Achievement', 'Funny',
   ];
 
-  static const _prompts = [
+  static const _fallbackPrompts = [
     'What made you smile?',
     'Who did you meet?',
     'A challenge faced',
@@ -37,6 +40,14 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     'Best part of today',
     'Grateful for...',
   ];
+
+  List<String> get _prompts {
+    final aiPrompt = ref.read(writingPromptProvider).valueOrNull;
+    if (aiPrompt != null) {
+      return [aiPrompt, ..._fallbackPrompts];
+    }
+    return _fallbackPrompts;
+  }
 
   @override
   void initState() {
