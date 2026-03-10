@@ -18,6 +18,7 @@ import 'package:deardays/features/timeline/presentation/screens/timeline_screen.
 import 'package:deardays/features/timeline/presentation/screens/memory_detail_screen.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/explore/presentation/screens/explore_screen.dart';
+import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
 import 'package:deardays/core/routing/app_shell.dart';
@@ -139,6 +140,17 @@ class AppRouter {
       GoRoute(
         path: '/export',
         builder: (context, state) => const ExportScreen(),
+      ),
+      GoRoute(
+        path: '/explore/see-all/:section',
+        builder: (context, state) {
+          final sectionStr = state.pathParameters['section']!;
+          final section = SeeAllSection.values.firstWhere(
+            (s) => s.name == sectionStr,
+            orElse: () => SeeAllSection.happiest,
+          );
+          return SeeAllTimelineScreen(section: section);
+        },
       ),
       GoRoute(
         path: '/memory',
