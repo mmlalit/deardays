@@ -53,11 +53,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Content
   // ─────────────────────────────────────────────────────────────────────────
 
-  String? _getPhotoUrl(String storagePath) {
+  String _getPhotoUrl(String storagePath) {
     try {
       return ref.read(mediaServiceProvider).getPublicUrl(storagePath);
     } catch (_) {
-      return null;
+      return '';
     }
   }
 

@@ -145,7 +145,7 @@ class MilestoneCard extends StatelessWidget {
     return Stack(
       children: [
         // Photo
-        if (url != null)
+        if (url != null && url.isNotEmpty)
           Image.network(
             url,
             height: 180,

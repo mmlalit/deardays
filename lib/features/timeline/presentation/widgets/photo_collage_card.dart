@@ -198,7 +198,7 @@ class PhotoCollageCard extends StatelessWidget {
 
   Widget _photoTile(String storagePath) {
     final url = photoUrlBuilder?.call(storagePath);
-    if (url != null) {
+    if (url != null && url.isNotEmpty) {
       return Image.network(
         url,
         fit: BoxFit.cover,

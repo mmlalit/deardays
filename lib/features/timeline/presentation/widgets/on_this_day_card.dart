@@ -212,7 +212,7 @@ class OnThisDaySection extends StatelessWidget {
 
   Widget _buildSepiaPhoto(String storagePath) {
     final url = photoUrlBuilder?.call(storagePath);
-    final child = url != null
+    final child = (url != null && url.isNotEmpty)
         ? Image.network(
             url,
             fit: BoxFit.cover,
