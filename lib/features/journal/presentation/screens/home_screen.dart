@@ -25,8 +25,6 @@ class HomeScreen extends ConsumerWidget {
         user?.userMetadata?['display_name'] as String? ??
         user?.email?.split('@').first ??
         'there';
-    final isDemoMode = ref.watch(demoModeProvider);
-
     final entries = entriesAsync.valueOrNull ?? [];
     final isFirstTimeUser = entries.isEmpty;
 
@@ -46,11 +44,7 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Header ─────────────────────────────────────────────
-                    _buildHeader(context, ref, displayName, colors),
-                    if (isDemoMode) ...[
-                      const SizedBox(height: 10),
-                      _DemoBanner(colors: colors),
-                    ],
+                    _buildHeader(context, displayName, colors),
                     const SizedBox(height: 20),
 
                     // ── Greeting ────────────────────────────────────────────
@@ -121,12 +115,10 @@ class HomeScreen extends ConsumerWidget {
   // Header
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(BuildContext context, WidgetRef ref, String displayName, AppPalette colors) {
+  Widget _buildHeader(BuildContext context, String displayName, AppPalette colors) {
     final user = Supabase.instance.client.auth.currentUser;
     final avatarUrl = user?.userMetadata?['avatar_url'] as String?;
     final initials = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A';
-    final isDemoMode = ref.watch(demoModeProvider);
-
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Row(
@@ -176,50 +168,6 @@ class HomeScreen extends ConsumerWidget {
           ),
 
           const Spacer(),
-
-          // Demo Mode toggle
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              ref.read(demoModeProvider.notifier).state = !isDemoMode;
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: isDemoMode ? colors.accent : colors.card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isDemoMode ? colors.accent : colors.border,
-                ),
-                boxShadow: isDemoMode
-                    ? [BoxShadow(color: colors.accent.withAlpha(50), blurRadius: 8, offset: const Offset(0, 2))]
-                    : [BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2))],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isDemoMode ? Icons.play_circle_rounded : Icons.play_circle_outline_rounded,
-                    size: 13,
-                    color: isDemoMode ? Colors.white : colors.textMuted,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'DEMO',
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: isDemoMode ? Colors.white : colors.textMuted,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
 
           // Notification bell
           Container(
@@ -870,8 +818,7 @@ class HomeScreen extends ConsumerWidget {
           mood: 'good',
           tag: 'Friends',
           tagColor: AppColors.purple,
-          gradientColors: [const Color(0xFFCE93D8), const Color(0xFF8E24AA)],
-          icon: Icons.people_outline,
+          imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=400&fit=crop',
         ),
         const SizedBox(height: 12),
         _buildSampleCompactCard(
@@ -883,8 +830,7 @@ class HomeScreen extends ConsumerWidget {
           mood: 'great',
           tag: 'Wellness',
           tagColor: AppColors.emerald,
-          gradientColors: [const Color(0xFF81C784), const Color(0xFF388E3C)],
-          icon: Icons.spa,
+          imageUrl: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=400&h=400&fit=crop',
         ),
         const SizedBox(height: 100),
       ],
@@ -907,22 +853,23 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Gradient banner
+            // Photo banner
             Stack(
               children: [
                 SizedBox(
                   height: 160,
                   width: double.infinity,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFFFF8A65), Color(0xFFFF5722)],
+                  child: Image.network(
+                    'https://images.unsplash.com/photo-1606791405792-1004f1718d0c?w=600&h=400&fit=crop',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFFF8A65), Color(0xFFFF5722)],
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: Icon(Icons.family_restroom, size: 48, color: Colors.white.withAlpha(160)),
                     ),
                   ),
                 ),
@@ -1016,8 +963,7 @@ class HomeScreen extends ConsumerWidget {
     required String mood,
     required String tag,
     required Color tagColor,
-    required List<Color> gradientColors,
-    required IconData icon,
+    required String imageUrl,
   }) {
     return Opacity(
       opacity: 0.85,
@@ -1039,17 +985,10 @@ class HomeScreen extends ConsumerWidget {
                 SizedBox(
                   width: 110,
                   height: 110,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: gradientColors,
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(icon, size: 32, color: Colors.white.withAlpha(160)),
-                    ),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _GradientBanner(colors: colors),
                   ),
                 ),
                 Expanded(
@@ -1192,37 +1131,6 @@ class HomeScreen extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _DemoBanner extends StatelessWidget {
-  final AppPalette colors;
-  const _DemoBanner({required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF59E0B).withAlpha(20),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFF59E0B).withAlpha(60)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFF59E0B)),
-          const SizedBox(width: 8),
-          Text(
-            'Demo mode — sample data is shown. Tap DEMO to exit.',
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFFF59E0B),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _NetworkImage extends StatelessWidget {
   final String url;

@@ -468,11 +468,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
   Widget _buildSampleHappyCard(int index, AppPalette colors) {
     const samples = [
-      ('Sunday dinner at Mom\'s', 'Family', Color(0xFFFF8A65), Color(0xFFFF5722), Icons.family_restroom),
-      ('Beach day with friends', 'Travel', Color(0xFF4DD0E1), Color(0xFF00897B), Icons.flight_takeoff),
-      ('Promotion at work!', 'Career', Color(0xFF7986CB), Color(0xFF3949AB), Icons.work_outline),
+      ('Sunday dinner at Mom\'s', 'Family', 'https://images.unsplash.com/photo-1606791405792-1004f1718d0c?w=400&h=300&fit=crop'),
+      ('Beach day with friends', 'Travel', 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=400&h=300&fit=crop'),
+      ('Promotion at work!', 'Career', 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=300&fit=crop'),
     ];
-    final (title, tag, c1, c2, icon) = samples[index];
+    final (title, tag, imageUrl) = samples[index];
 
     return Opacity(
       opacity: 0.8,
@@ -490,10 +490,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
+                SizedBox(
                   height: 120,
-                  decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [c1, c2])),
-                  child: Center(child: Icon(icon, size: 36, color: Colors.white.withAlpha(160))),
+                  width: double.infinity,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(color: colors.accentFaint),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(12),

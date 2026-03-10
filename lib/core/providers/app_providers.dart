@@ -23,7 +23,7 @@ import 'package:deardays/services/media/media_service.dart';
 
 /// When true, all data providers return static demo data instead of
 /// making real network/database calls.
-final demoModeProvider = StateProvider<bool>((ref) => false);
+final demoModeProvider = StateProvider<bool>((ref) => true);
 
 // --- Core Services ---
 
