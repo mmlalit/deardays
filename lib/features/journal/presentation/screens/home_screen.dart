@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
+import 'package:deardays/core/demo/demo_data.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -19,21 +20,15 @@ class HomeScreen extends ConsumerWidget {
     final colors = AppColors.of(context);
     final profileAsync = ref.watch(profileProvider);
     final entriesAsync = ref.watch(timelineEntriesProvider);
+    final isDemoMode = ref.watch(demoModeProvider);
 
     final user = Supabase.instance.client.auth.currentUser;
     final displayName = profileAsync.valueOrNull?.displayName ??
         user?.userMetadata?['display_name'] as String? ??
         user?.email?.split('@').first ??
         'there';
-    final entries = entriesAsync.valueOrNull ?? [];
-    final isFirstTimeUser = entries.isEmpty;
-
     return Scaffold(
       backgroundColor: colors.bg,
-      floatingActionButton: isFirstTimeUser
-          ? _buildFloatingMicButton(context, colors)
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -46,6 +41,12 @@ class HomeScreen extends ConsumerWidget {
                     // ── Header ─────────────────────────────────────────────
                     _buildHeader(context, displayName, colors),
                     const SizedBox(height: 20),
+
+                    // ── Demo mode banner ────────────────────────────────────
+                    if (isDemoMode) ...[
+                      _buildDemoBanner(context, ref, colors),
+                      const SizedBox(height: 16),
+                    ],
 
                     // ── Greeting ────────────────────────────────────────────
                     _buildGreeting(context, displayName, colors),
@@ -69,28 +70,24 @@ class HomeScreen extends ConsumerWidget {
 
             // ── Recent Memory cards ─────────────────────────────────────────
             entriesAsync.when(
-              data: (data) => data.isEmpty
-                  ? SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _buildEmptyState(context, colors),
-                      ),
-                    )
-                  : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (_, i) {
-                            if (i == 0) return _buildHeroCard(context, data.first, colors);
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: _buildCompactCard(context, data[i], colors),
-                            );
-                          },
-                          childCount: data.length.clamp(0, 5),
-                        ),
-                      ),
+              data: (data) {
+                final entries = data.isEmpty ? DemoData.entries : data;
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (_, i) {
+                        if (i == 0) return _buildHeroCard(context, entries.first, colors);
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: _buildCompactCard(context, entries[i], colors),
+                        );
+                      },
+                      childCount: entries.length.clamp(0, 5),
                     ),
+                  ),
+                );
+              },
               loading: () => SliverPadding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
                 sliver: SliverList(
@@ -112,6 +109,58 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Demo mode banner
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildDemoBanner(BuildContext context, WidgetRef ref, AppPalette colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.accent.withAlpha(20),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.accent.withAlpha(50)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.science_outlined, size: 18, color: colors.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Viewing sample data',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.accent,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              ref.read(demoModeProvider.notifier).state = false;
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: colors.accent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Use my data',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Header
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -123,7 +172,20 @@ class HomeScreen extends ConsumerWidget {
       padding: const EdgeInsets.only(top: 12),
       child: Row(
         children: [
-          // Avatar
+          // App name
+          Text(
+            'Aura',
+            style: GoogleFonts.manrope(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: colors.accent,
+              letterSpacing: -0.3,
+            ),
+          ),
+
+          const Spacer(),
+
+          // Profile avatar (top right)
           GestureDetector(
             onTap: () => context.push('/settings'),
             child: Container(
@@ -152,54 +214,6 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // App name
-          Text(
-            'Aura',
-            style: GoogleFonts.manrope(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: colors.accent,
-              letterSpacing: -0.3,
-            ),
-          ),
-
-          const Spacer(),
-
-          // Notification bell
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.card,
-              border: Border.all(color: colors.border),
-              boxShadow: [
-                BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2)),
-              ],
-            ),
-            child: Icon(Icons.notifications_outlined, size: 20, color: colors.textSecondary),
-          ),
-          const SizedBox(width: 8),
-
-          // Settings
-          GestureDetector(
-            onTap: () => context.push('/settings'),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.card,
-                border: Border.all(color: colors.border),
-                boxShadow: [
-                  BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2)),
-                ],
-              ),
-              child: Icon(Icons.settings_outlined, size: 20, color: colors.textSecondary),
             ),
           ),
         ],
@@ -290,7 +304,6 @@ class HomeScreen extends ConsumerWidget {
                 style: GoogleFonts.manrope(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
                   color: colors.textPrimary,
                   height: 1.35,
                 ),
@@ -307,36 +320,6 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Floating mic button for first-time users
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildFloatingMicButton(BuildContext context, AppPalette colors) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 70),
-      child: FloatingActionButton.extended(
-        onPressed: () {
-          HapticFeedback.mediumImpact();
-          context.push('/record');
-        },
-        backgroundColor: colors.accent,
-        foregroundColor: Colors.white,
-        elevation: 6,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-        ),
-        icon: const Icon(Icons.mic_rounded, size: 24),
-        label: Text(
-          'Record your first memory',
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ),
     );
   }
@@ -489,9 +472,9 @@ class HomeScreen extends ConsumerWidget {
                       dateLabel.toUpperCase(),
                       style: GoogleFonts.manrope(
                         fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: colors.textPrimary,
-                        letterSpacing: 0.3,
+                        letterSpacing: 1.5,
                       ),
                     ),
                   ),
@@ -527,10 +510,11 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.manrope(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
+                      height: 1.3,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -539,10 +523,9 @@ class HomeScreen extends ConsumerWidget {
                   Text(
                     excerpt,
                     style: GoogleFonts.manrope(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: colors.textSecondary,
-                      height: 1.5,
-                      fontStyle: FontStyle.italic,
+                      height: 1.6,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -602,10 +585,11 @@ class HomeScreen extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                            style: GoogleFonts.newsreader(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
                               color: colors.textPrimary,
+                              height: 1.3,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -616,7 +600,8 @@ class HomeScreen extends ConsumerWidget {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             color: colors.textMuted,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
                           ),
                         ),
                       ],
@@ -625,10 +610,9 @@ class HomeScreen extends ConsumerWidget {
                     Text(
                       excerpt,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: colors.textSecondary,
-                        fontStyle: FontStyle.italic,
-                        height: 1.4,
+                        height: 1.6,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -717,365 +701,15 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Empty state
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildEmptyState(BuildContext context, AppPalette colors) {
-    return Column(
-      children: [
-        // Prompt banner
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            context.push('/record');
-          },
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colors.accent.withAlpha(15),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.accent.withAlpha(30)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: colors.accent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Record your first memory',
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Just talk for 30 seconds — we\'ll do the rest.',
-                        style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.arrow_forward_ios, size: 14, color: colors.textMuted),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // "Example" label
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: colors.accent.withAlpha(20),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'EXAMPLES',
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: colors.accent,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Your memories will look like this',
-              style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Sample hero card
-        _buildSampleHeroCard(context, colors),
-        const SizedBox(height: 12),
-
-        // Sample compact cards
-        _buildSampleCompactCard(
-          context,
-          colors,
-          title: 'Coffee with an old friend',
-          excerpt: 'Ran into Maya at the farmer\'s market. We talked for an hour about everything and nothing...',
-          date: 'Yesterday',
-          mood: 'good',
-          tag: 'Friends',
-          tagColor: AppColors.purple,
-          imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=400&fit=crop',
-        ),
-        const SizedBox(height: 12),
-        _buildSampleCompactCard(
-          context,
-          colors,
-          title: 'Morning run breakthrough',
-          excerpt: 'Finally hit 5K without stopping. The sunrise over the park made it even more special...',
-          date: '2 days ago',
-          mood: 'great',
-          tag: 'Wellness',
-          tagColor: AppColors.emerald,
-          imageUrl: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=400&h=400&fit=crop',
-        ),
-        const SizedBox(height: 100),
-      ],
-    );
-  }
-
-  Widget _buildSampleHeroCard(BuildContext context, AppPalette colors) {
-    return Opacity(
-      opacity: 0.85,
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(color: colors.textPrimary.withAlpha(12), blurRadius: 16, offset: const Offset(0, 4)),
-          ],
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Photo banner
-            Stack(
-              children: [
-                SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: Image.network(
-                    'https://images.unsplash.com/photo-1606791405792-1004f1718d0c?w=600&h=400&fit=crop',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFFFF8A65), Color(0xFFFF5722)],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Date chip
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: colors.card.withAlpha(230),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'TODAY',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: colors.textPrimary,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                ),
-                // Example badge
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: colors.textPrimary.withAlpha(140),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'EXAMPLE',
-                      style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Sunday dinner at Mom\'s',
-                    style: GoogleFonts.manrope(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'The whole family gathered for the first time in months. Dad made his famous lasagna and we laughed until our sides hurt...',
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      color: colors.textSecondary,
-                      height: 1.5,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      _Tag(label: 'Family', color: AppColors.rose, colors: colors),
-                      _Tag(label: 'Gratitude', color: colors.accent.withAlpha(180), colors: colors),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSampleCompactCard(
-    BuildContext context,
-    AppPalette colors, {
-    required String title,
-    required String excerpt,
-    required String date,
-    required String mood,
-    required String tag,
-    required Color tagColor,
-    required String imageUrl,
-  }) {
-    return Opacity(
-      opacity: 0.85,
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(color: colors.textPrimary.withAlpha(8), blurRadius: 10, offset: const Offset(0, 2)),
-          ],
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 110,
-                  height: 110,
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _GradientBanner(colors: colors),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: colors.textPrimary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              date,
-                              style: GoogleFonts.manrope(
-                                fontSize: 10,
-                                color: colors.textMuted,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          excerpt,
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            color: colors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                            height: 1.4,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            _Tag(label: tag, color: tagColor, colors: colors),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // Example badge
-            Positioned(
-              top: 6,
-              left: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(100),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'EXAMPLE',
-                  style: GoogleFonts.manrope(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
 
   String _getPhotoUrl(BuildContext context, String storagePath) {
-    // Get from MediaService via Supabase storage public URL
-    final supabase = Supabase.instance.client;
-    return supabase.storage.from('media').getPublicUrl(storagePath);
+    // If storagePath is already a full URL (e.g. demo data), use directly
+    if (storagePath.startsWith('http')) return storagePath;
+    return Supabase.instance.client.storage.from('media').getPublicUrl(storagePath);
   }
 
   String _extractTitle(JournalEntry entry) {

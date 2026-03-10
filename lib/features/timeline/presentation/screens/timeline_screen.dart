@@ -103,7 +103,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
 
         if (filtered.isEmpty)
-          SliverFillRemaining(child: _buildEmptyState(colors))
+          SliverToBoxAdapter(child: _buildEmptyState(colors))
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
@@ -746,65 +746,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 120),
       child: Column(
         children: [
-          // CTA banner
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: GestureDetector(
-              onTap: () => context.push('/record'),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colors.accent.withAlpha(15),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: colors.accent.withAlpha(30)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colors.accent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Start your timeline', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-                          const SizedBox(height: 2),
-                          Text('Record a memory to see it appear here.', style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary)),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_ios, size: 14, color: colors.textMuted),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Example label
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: colors.accent.withAlpha(20), borderRadius: BorderRadius.circular(6)),
-                  child: Text('EXAMPLES', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: colors.accent, letterSpacing: 1)),
-                ),
-                const SizedBox(width: 8),
-                Text('Your timeline will look like this', style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
           // Sample timeline entries
           _buildSampleTimelineEntry(
             colors,

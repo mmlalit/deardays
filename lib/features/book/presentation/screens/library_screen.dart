@@ -24,33 +24,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   void initState() {
     super.initState();
-    _ensureDefaultBook();
-  }
-
-  Future<void> _ensureDefaultBook() async {
-    try {
-      final profile = await ref.read(profileProvider.future);
-      final organization = profile?.bookOrganization ?? 'yearly';
-      final repo = ref.read(bookRepositoryProvider);
-      final book = await repo.ensureDefaultBook(organization);
-      ref.invalidate(booksProvider);
-
-      // Generate an AI cover query for the new book (fire-and-forget)
-      if (book.coverImageUrl == null) {
-        _generateCoverForBook(book);
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _generateCoverForBook(Book book) async {
-    try {
-      final ai = ref.read(aiServiceProvider);
-      if (!ai.isConfigured) return;
-      // Pre-warm the cover query cache so it's ready when image search is integrated
-      await ai.generateCoverQuery(book.title);
-    } catch (_) {
-      // AI not available or failed — graceful fallback to gradient cover
-    }
   }
 
   @override
@@ -71,7 +44,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildContent(BuildContext context, List<Book> books) {
-    final colors = AppColors.of(context);
+    final isDemoMode = ref.watch(demoModeProvider);
+    final showSamples = books.isEmpty || isDemoMode;
 
     return CustomScrollView(
       slivers: [
@@ -81,7 +55,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         SliverToBoxAdapter(child: _buildAiInsightCard(context, books.length)),
         // Section Title
         SliverToBoxAdapter(child: _buildSectionTitle(context)),
-        // Book Grid — show sample chapters for first-time users, real books otherwise
+        // Book Grid — show sample chapters in demo mode or for first-time users
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverGrid(
@@ -93,12 +67,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                if (books.isEmpty) {
+                if (showSamples) {
                   return _buildSampleChapterCard(context, _sampleChapters[index]);
                 }
                 return _buildBookCard(context, books[index]);
               },
-              childCount: books.isEmpty ? _sampleChapters.length : books.length,
+              childCount: showSamples ? _sampleChapters.length : books.length,
             ),
           ),
         ),
@@ -142,113 +116,84 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildAiInsightCard(BuildContext context, int bookCount) {
-    final colors = AppColors.of(context);
-    final themesAsync = ref.watch(weeklyThemesProvider);
+    final isDemoMode = ref.watch(demoModeProvider);
+    final memoryCount = isDemoMode ? 45 : bookCount * 8;
+    final chapterCount = isDemoMode ? 6 : (bookCount > 0 ? bookCount : 6);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: colors.accentFaint,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.accent.withAlpha(25)),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF3B4FE8), Color(0xFF5B6CF9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Icon + Title
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colors.accent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.psychology, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'AI Organized Themes',
-                        style: GoogleFonts.newsreader(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        bookCount > 0
-                            ? 'Your memories are organized into $bookCount chapters. Discover the patterns of your journey.'
-                            : 'Start journaling and we\'ll organize your memories into life chapters automatically.',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: colors.textSecondary,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
+                const Text('📖', style: TextStyle(fontSize: 28)),
+                const SizedBox(width: 10),
+                Text(
+                  'My Life Book',
+                  style: GoogleFonts.newsreader(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
               ],
             ),
-            // Show AI-detected themes as chips
-            themesAsync.when(
-              data: (themes) {
-                if (themes.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: themes.map((theme) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colors.accent.withAlpha(20),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: colors.accent.withAlpha(40)),
-                      ),
-                      child: Text(
-                        theme,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: colors.accent,
-                        ),
-                      ),
-                    )).toList(),
+            const SizedBox(height: 10),
+            // Subtitle
+            Text(
+              'Read your entire life story chapter by chapter in one place.',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                color: Colors.white.withAlpha(220),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Stats
+            Text(
+              '$memoryCount MEMORIES • $chapterCount CHAPTERS',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.white.withAlpha(180),
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 18),
+            // Start Reading button
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => context.push('/my-life-book'),
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF3B4FE8),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              },
-              loading: () => Padding(
-                padding: const EdgeInsets.only(top: 14),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.accent,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Analyzing themes...',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  ],
+                ),
+                child: Text(
+                  'Start Reading',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF3B4FE8),
+                  ),
                 ),
               ),
-              error: (_, __) => const SizedBox.shrink(),
             ),
           ],
         ),
@@ -327,9 +272,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.newsreader(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                         color: colors.textPrimary,
+                        height: 1.3,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -339,8 +285,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.newsreader(
                         fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: colors.textMuted,
+                                                color: colors.textMuted,
                       ),
                     ),
                     const Spacer(),
@@ -351,9 +296,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         Text(
                           _formatDateRange(book),
                           style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textMuted,
+                            letterSpacing: 1.5,
                           ),
                         ),
                       ],
@@ -497,6 +443,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     _SampleChapter('Travel & Adventures', 'Exploring the unknown'),
     _SampleChapter('Career & Growth', 'Building a legacy'),
     _SampleChapter('Personal Wellness', 'Becoming your best self'),
+    _SampleChapter('Love & Relationships', 'Hearts that hold us'),
   ];
 
   Widget _buildSampleChapterCard(BuildContext context, _SampleChapter sample) {
@@ -573,9 +520,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.newsreader(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                         color: colors.textPrimary,
+                        height: 1.3,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -585,8 +533,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.newsreader(
                         fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: colors.textMuted,
+                                                color: colors.textMuted,
                       ),
                     ),
                     const Spacer(),

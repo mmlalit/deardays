@@ -468,11 +468,10 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
                                   // Excerpt
                                   Text(
                                     excerpt,
-                                    style: GoogleFonts.newsreader(
-                                      fontSize: 14,
-                                      fontStyle: FontStyle.italic,
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
                                       color: colors.textSecondary,
-                                      height: 1.5,
+                                      height: 1.6,
                                     ),
                                   ),
                                   // Tags

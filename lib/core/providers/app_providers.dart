@@ -23,6 +23,7 @@ import 'package:deardays/services/media/media_service.dart';
 
 /// When true, all data providers return static demo data instead of
 /// making real network/database calls.
+/// Defaults to true so the app always looks great with sample content.
 final demoModeProvider = StateProvider<bool>((ref) => true);
 
 // --- Core Services ---

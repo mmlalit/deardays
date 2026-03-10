@@ -14,7 +14,6 @@ class AppShell extends StatelessWidget {
     if (location.startsWith('/book')) return 1;
     if (location.startsWith('/timeline')) return 2;
     if (location.startsWith('/explore')) return 3;
-    if (location.startsWith('/settings')) return 4;
     return 0;
   }
 
@@ -101,17 +100,6 @@ class _BottomNav extends StatelessWidget {
                   label: 'Explore',
                   isActive: currentIndex == 3,
                   onTap: () => context.go('/explore'),
-                  colors: colors,
-                ),
-              ),
-              // Profile
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
-                  label: 'Profile',
-                  isActive: currentIndex == 4,
-                  onTap: () => context.go('/settings'),
                   colors: colors,
                 ),
               ),

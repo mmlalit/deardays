@@ -488,7 +488,6 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
         '"$text"',
         style: GoogleFonts.newsreader(
           fontSize: 17,
-          fontStyle: FontStyle.italic,
           color: colors.textSecondary,
           height: 1.7,
         ),

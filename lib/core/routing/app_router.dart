@@ -21,15 +21,26 @@ import 'package:deardays/features/explore/presentation/screens/explore_screen.da
 import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
+import 'package:deardays/features/book/presentation/screens/my_life_book_screen.dart';
 import 'package:deardays/core/routing/app_shell.dart';
+
+class _AuthChangeNotifier extends ChangeNotifier {
+  _AuthChangeNotifier() {
+    Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      notifyListeners();
+    });
+  }
+}
 
 class AppRouter {
   AppRouter._();
 
   static const _publicPaths = {'/onboarding', '/login'};
+  static final _authNotifier = _AuthChangeNotifier();
 
   static final router = GoRouter(
     initialLocation: '/onboarding',
+    refreshListenable: _authNotifier,
     redirect: (context, state) {
       final user = Supabase.instance.client.auth.currentUser;
       final isLoggedIn = user != null;
@@ -157,6 +168,10 @@ class AppRouter {
         builder: (context, state) => MemoryDetailScreen(
           entry: state.extra as JournalEntry,
         ),
+      ),
+      GoRoute(
+        path: '/my-life-book',
+        builder: (context, state) => const MyLifeBookScreen(),
       ),
     ],
   );

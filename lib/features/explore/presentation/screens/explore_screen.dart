@@ -459,9 +459,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   Text(
                     dateStr,
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                       color: colors.textMuted,
+                      letterSpacing: 1.5,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -469,8 +470,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
                       height: 1.3,
@@ -661,16 +662,22 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
+                      height: 1.3,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     dateStr,
-                    style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted),
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textMuted,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ],
               ),
@@ -742,10 +749,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: colors.textPrimary,
+                        height: 1.3,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -785,9 +793,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: colors.textSecondary,
-                        height: 1.3,
+                        height: 1.6,
                       ),
                     ),
                   ],
@@ -879,10 +887,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
+                            style: GoogleFonts.newsreader(
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: colors.textPrimary,
+                              height: 1.3,
                             ),
                           ),
                         ),
@@ -894,15 +903,20 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: colors.textSecondary,
-                        height: 1.4,
+                        height: 1.6,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       dateStr,
-                      style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted),
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textMuted,
+                        letterSpacing: 1.5,
+                      ),
                     ),
                   ],
                 ),
@@ -971,6 +985,29 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                ref.read(demoModeProvider.notifier).state = true;
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: colors.cardBg,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: colors.border),
+                ),
+                child: Text(
+                  'Browse sample data',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textSecondary,
                   ),
                 ),
               ),

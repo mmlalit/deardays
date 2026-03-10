@@ -382,8 +382,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 15,
-                fontStyle: FontStyle.italic,
-                height: 1.5,
+                                height: 1.5,
                 color: colors.textSecondary,
               ),
             ),
@@ -458,8 +457,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     : '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
                 style: GoogleFonts.manrope(
                   fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w500,
                   color: colors.accent,
                 ),
               ),
@@ -650,8 +648,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   '\u201C$previewText\u201D',
                   style: GoogleFonts.manrope(
                     fontSize: 17,
-                    fontStyle: FontStyle.italic,
-                    height: 1.6,
+                                        height: 1.6,
                     color: colors.textPrimary.withAlpha(230),
                   ),
                 ),
@@ -803,8 +800,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                   '\u201C${entry.content}\u201D',
                   style: GoogleFonts.manrope(
                     fontSize: 18,
-                    fontStyle: FontStyle.italic,
-                    height: 1.7,
+                                        height: 1.7,
                     color: sheetColors.textPrimary,
                   ),
                 ),
@@ -918,8 +914,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.5,
+                                height: 1.5,
                 color: colors.textPrimary.withAlpha(153),
               ),
             ),
