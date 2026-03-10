@@ -1034,10 +1034,12 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final photo = entry.media.where((m) => m.mediaType == 'photo').firstOrNull;
     if (photo == null) return const SizedBox.shrink();
 
-    // Build signed URL from storage path
-    final url = Supabase.instance.client.storage
-        .from('entry-media')
-        .getPublicUrl(photo.storagePath);
+    // If storagePath is already a full URL (demo data), use directly
+    final url = photo.storagePath.startsWith('http')
+        ? photo.storagePath
+        : Supabase.instance.client.storage
+            .from('entry-media')
+            .getPublicUrl(photo.storagePath);
 
     return Image.network(
       url,

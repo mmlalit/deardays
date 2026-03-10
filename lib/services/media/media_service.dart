@@ -98,7 +98,9 @@ class MediaService {
   }
 
   /// Returns the public URL if the bucket is public, otherwise use signed URL.
+  /// If storagePath is already a full URL (e.g. demo data), returns it as-is.
   String getPublicUrl(String storagePath) {
+    if (storagePath.startsWith('http')) return storagePath;
     return _client.storage.from(_bucketName).getPublicUrl(storagePath);
   }
 

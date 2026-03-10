@@ -11,9 +11,10 @@ class AppShell extends StatelessWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/timeline')) return 1;
-    if (location.startsWith('/explore')) return 2;
-    if (location.startsWith('/settings')) return 3;
+    if (location.startsWith('/book')) return 1;
+    if (location.startsWith('/timeline')) return 2;
+    if (location.startsWith('/explore')) return 3;
+    if (location.startsWith('/settings')) return 4;
     return 0;
   }
 
@@ -70,13 +71,24 @@ class _BottomNav extends StatelessWidget {
                   colors: colors,
                 ),
               ),
+              // Chapters
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.auto_stories_outlined,
+                  activeIcon: Icons.auto_stories_rounded,
+                  label: 'Chapters',
+                  isActive: currentIndex == 1,
+                  onTap: () => context.go('/book'),
+                  colors: colors,
+                ),
+              ),
               // Timeline
               Expanded(
                 child: _NavItem(
                   icon: Icons.timeline_outlined,
                   activeIcon: Icons.timeline_rounded,
                   label: 'Timeline',
-                  isActive: currentIndex == 1,
+                  isActive: currentIndex == 2,
                   onTap: () => context.go('/timeline'),
                   colors: colors,
                 ),
@@ -87,7 +99,7 @@ class _BottomNav extends StatelessWidget {
                   icon: Icons.explore_outlined,
                   activeIcon: Icons.explore_rounded,
                   label: 'Explore',
-                  isActive: currentIndex == 2,
+                  isActive: currentIndex == 3,
                   onTap: () => context.go('/explore'),
                   colors: colors,
                 ),
@@ -98,7 +110,7 @@ class _BottomNav extends StatelessWidget {
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
-                  isActive: currentIndex == 3,
+                  isActive: currentIndex == 4,
                   onTap: () => context.go('/settings'),
                   colors: colors,
                 ),
