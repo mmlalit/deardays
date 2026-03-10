@@ -156,7 +156,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade700,
+        backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -167,7 +167,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: const Color(0xFF111111),
+        backgroundColor: AppColors.of(context).textPrimary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -266,7 +266,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 16),
 
                   // Divider
-                  Divider(color: Colors.grey.shade200),
+                  Divider(color: AppColors.of(context).border),
                   const SizedBox(height: 16),
 
                   // Change Password
@@ -322,7 +322,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 24),
 
                   // Divider
-                  Divider(color: Colors.grey.shade200),
+                  Divider(color: AppColors.of(context).border),
                   const SizedBox(height: 24),
 
                   // Save button
@@ -332,7 +332,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     child: ElevatedButton(
                       onPressed: _isSaving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF111111),
+                        backgroundColor: AppColors.of(context).textPrimary,
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                         elevation: 0,
@@ -381,7 +381,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       style: GoogleFonts.manrope(
         fontSize: 11,
         fontWeight: FontWeight.w600,
-        color: Colors.grey.shade500,
+        color: AppColors.of(context).textMuted,
         letterSpacing: 1.5,
       ),
     );
@@ -402,28 +402,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       style: GoogleFonts.manrope(fontSize: 15, color: AppColors.of(context).textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.manrope(fontSize: 15, color: Colors.grey.shade400),
-        prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade500),
+        hintStyle: GoogleFonts.manrope(fontSize: 15, color: AppColors.of(context).textMuted),
+        prefixIcon: Icon(icon, size: 20, color: AppColors.of(context).textMuted),
         suffixIcon: toggleObscure != null
             ? IconButton(
                 icon: Icon(
                   obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                   size: 20,
-                  color: Colors.grey.shade500,
+                  color: AppColors.of(context).textMuted,
                 ),
                 onPressed: toggleObscure,
               )
             : null,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.of(context).card,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: AppColors.of(context).border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: AppColors.of(context).border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

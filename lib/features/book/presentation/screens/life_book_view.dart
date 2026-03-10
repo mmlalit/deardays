@@ -95,7 +95,7 @@ class LifeBookView extends ConsumerWidget {
           border: Border.all(color: AppColors.readingText.withAlpha(26)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(15),
+              color: colors.textPrimary.withAlpha(15),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -117,10 +117,10 @@ class LifeBookView extends ConsumerWidget {
                   ],
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.auto_stories,
                 size: 34,
-                color: Colors.white70,
+                color: colors.textSecondary,
               ),
             ),
             const SizedBox(height: 20),
@@ -519,8 +519,8 @@ class LifeBookView extends ConsumerWidget {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF111111),
-            foregroundColor: Colors.white,
+            backgroundColor: colors.textPrimary,
+            foregroundColor: colors.card,
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

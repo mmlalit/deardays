@@ -322,7 +322,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                 border: Border.all(color: Colors.white, width: 4),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(45),
+                    color: colors.textPrimary.withAlpha(45),
                     blurRadius: 32,
                     offset: const Offset(0, 12),
                   ),
@@ -360,7 +360,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withAlpha(25),
+                      color: colors.textPrimary.withAlpha(25),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -385,16 +385,16 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withAlpha(25),
+                      color: colors.textPrimary.withAlpha(25),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome_rounded,
                   size: 22,
-                  color: Color(0xFFF59E0B), // yellow-400
+                  color: AppColors.moodOkay,
                 ),
               ),
             ),

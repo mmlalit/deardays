@@ -12,8 +12,8 @@ class AppShell extends StatelessWidget {
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/timeline')) return 1;
-    if (location.startsWith('/book')) return 2;
-    if (location.startsWith('/explore')) return 3;
+    if (location.startsWith('/explore')) return 2;
+    if (location.startsWith('/settings')) return 3;
     return 0;
   }
 
@@ -24,61 +24,14 @@ class AppShell extends StatelessWidget {
 
     return Scaffold(
       body: child,
-      floatingActionButton: _MicFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
       bottomNavigationBar: _BottomNav(currentIndex: index, colors: colors),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Floating Mic FAB (always visible, center-docked)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MicFab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        context.push('/record');
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-        decoration: BoxDecoration(
-          color: colors.accent,
-          borderRadius: BorderRadius.circular(100),
-          boxShadow: [
-            BoxShadow(
-              color: colors.accent.withAlpha(100),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              'Record Memory',
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bottom Navigation — 3 tabs + center notch for FAB
+// Bottom Navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BottomNav extends StatelessWidget {
@@ -89,15 +42,13 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Container(
       decoration: BoxDecoration(
         color: colors.navBg,
         border: Border(top: BorderSide(color: colors.border, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(isDark ? 40 : 12),
+            color: colors.textPrimary.withAlpha(12),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -130,24 +81,13 @@ class _BottomNav extends StatelessWidget {
                   colors: colors,
                 ),
               ),
-              // Chapters
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.menu_book_outlined,
-                  activeIcon: Icons.menu_book_rounded,
-                  label: 'Chapters',
-                  isActive: currentIndex == 2,
-                  onTap: () => context.go('/book'),
-                  colors: colors,
-                ),
-              ),
               // Explore
               Expanded(
                 child: _NavItem(
                   icon: Icons.explore_outlined,
                   activeIcon: Icons.explore_rounded,
                   label: 'Explore',
-                  isActive: currentIndex == 3,
+                  isActive: currentIndex == 2,
                   onTap: () => context.go('/explore'),
                   colors: colors,
                 ),
@@ -158,8 +98,8 @@ class _BottomNav extends StatelessWidget {
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
-                  isActive: false,
-                  onTap: () => context.push('/settings'),
+                  isActive: currentIndex == 3,
+                  onTap: () => context.go('/settings'),
                   colors: colors,
                 ),
               ),
@@ -195,8 +135,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeColor = colors.accent;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inactiveColor = isDark ? Colors.white54 : colors.textMuted;
+    final inactiveColor = colors.iconInactive;
 
     return GestureDetector(
       onTap: () {

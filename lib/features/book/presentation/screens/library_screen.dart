@@ -100,7 +100,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           border: Border.all(color: colors.accent.withAlpha(13)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(8),
+              color: colors.textPrimary.withAlpha(8),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -255,7 +255,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => context.go('/'),
+              onPressed: () => context.go('/home'),
               icon: const Icon(Icons.edit_note_rounded, size: 20),
               label: Text(
                 'Start Writing',
@@ -265,8 +265,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF111111),
-                foregroundColor: Colors.white,
+                backgroundColor: colors.accent,
+                foregroundColor: colors.bg,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                 shape: RoundedRectangleBorder(

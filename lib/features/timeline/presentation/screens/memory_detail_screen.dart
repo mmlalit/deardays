@@ -324,7 +324,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
         border: Border.all(color: colors.accent.withAlpha(25)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(8),
+            color: colors.textPrimary.withAlpha(8),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -637,10 +637,10 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
                 title: Text(
                   'Delete Memory',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: Colors.red),
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.error),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -680,7 +680,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
             },
             child: Text(
               'Delete',
-              style: GoogleFonts.manrope(color: Colors.red, fontWeight: FontWeight.w700),
+              style: GoogleFonts.manrope(color: AppColors.error, fontWeight: FontWeight.w700),
             ),
           ),
         ],

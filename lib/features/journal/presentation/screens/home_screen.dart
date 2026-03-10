@@ -25,6 +25,7 @@ class HomeScreen extends ConsumerWidget {
         user?.userMetadata?['display_name'] as String? ??
         user?.email?.split('@').first ??
         'there';
+    final isDemoMode = ref.watch(demoModeProvider);
 
     return Scaffold(
       backgroundColor: colors.bg,
@@ -38,7 +39,11 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Header ─────────────────────────────────────────────
-                    _buildHeader(context, displayName, colors),
+                    _buildHeader(context, ref, displayName, colors),
+                    if (isDemoMode) ...[
+                      const SizedBox(height: 10),
+                      _DemoBanner(colors: colors),
+                    ],
                     const SizedBox(height: 20),
 
                     // ── Greeting ────────────────────────────────────────────
@@ -109,10 +114,11 @@ class HomeScreen extends ConsumerWidget {
   // Header
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(BuildContext context, String displayName, AppPalette colors) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, String displayName, AppPalette colors) {
     final user = Supabase.instance.client.auth.currentUser;
     final avatarUrl = user?.userMetadata?['avatar_url'] as String?;
     final initials = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A';
+    final isDemoMode = ref.watch(demoModeProvider);
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -164,16 +170,60 @@ class HomeScreen extends ConsumerWidget {
 
           const Spacer(),
 
+          // Demo Mode toggle
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              ref.read(demoModeProvider.notifier).state = !isDemoMode;
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDemoMode ? colors.accent : colors.card,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDemoMode ? colors.accent : colors.border,
+                ),
+                boxShadow: isDemoMode
+                    ? [BoxShadow(color: colors.accent.withAlpha(50), blurRadius: 8, offset: const Offset(0, 2))]
+                    : [BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2))],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isDemoMode ? Icons.play_circle_rounded : Icons.play_circle_outline_rounded,
+                    size: 13,
+                    color: isDemoMode ? Colors.white : colors.textMuted,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'DEMO',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isDemoMode ? Colors.white : colors.textMuted,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
           // Notification bell
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: colors.card,
               border: Border.all(color: colors.border),
               boxShadow: [
-                BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2)),
+                BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2)),
               ],
             ),
             child: Icon(Icons.notifications_outlined, size: 20, color: colors.textSecondary),
@@ -188,10 +238,10 @@ class HomeScreen extends ConsumerWidget {
               height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white,
+                color: colors.card,
                 border: Border.all(color: colors.border),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2)),
+                  BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2)),
                 ],
               ),
               child: Icon(Icons.settings_outlined, size: 20, color: colors.textSecondary),
@@ -338,12 +388,12 @@ class HomeScreen extends ConsumerWidget {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: colors.card,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: colors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(10),
+                          color: colors.textPrimary.withAlpha(10),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -414,11 +464,11 @@ class HomeScreen extends ConsumerWidget {
       onTap: () => context.push('/memory', extra: entry),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colors.border),
           boxShadow: [
-            BoxShadow(color: Colors.black.withAlpha(12), blurRadius: 16, offset: const Offset(0, 4)),
+            BoxShadow(color: colors.textPrimary.withAlpha(12), blurRadius: 16, offset: const Offset(0, 4)),
           ],
         ),
         clipBehavior: Clip.hardEdge,
@@ -442,7 +492,7 @@ class HomeScreen extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(230),
+                      color: colors.card.withAlpha(230),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -531,11 +581,11 @@ class HomeScreen extends ConsumerWidget {
       onTap: () => context.push('/memory', extra: entry),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colors.border),
           boxShadow: [
-            BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10, offset: const Offset(0, 2)),
+            BoxShadow(color: colors.textPrimary.withAlpha(8), blurRadius: 10, offset: const Offset(0, 2)),
           ],
         ),
         clipBehavior: Clip.hardEdge,
@@ -753,13 +803,13 @@ class HomeScreen extends ConsumerWidget {
   (String?, Color) _tagInfo(JournalEntry entry) {
     final text = entry.content.toLowerCase();
     if (text.contains('travel') || text.contains('trip') || text.contains('vacation'))
-      return ('Travel', const Color(0xFFF59E0B));
+      return ('Travel', AppColors.orange);
     if (text.contains('work') || text.contains('job') || text.contains('career'))
-      return ('Career', const Color(0xFF195DE6));
+      return ('Career', AppColors.blue);
     if (text.contains('family') || text.contains('mom') || text.contains('dad') || text.contains('daughter') || text.contains('son'))
-      return ('Family', const Color(0xFFEC4899));
+      return ('Family', AppColors.rose);
     if (text.contains('friend') || text.contains('reunion'))
-      return ('Friends', const Color(0xFF8B5CF6));
+      return ('Friends', AppColors.purple);
     return (null, Colors.transparent);
   }
 
@@ -778,6 +828,37 @@ class HomeScreen extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _DemoBanner extends StatelessWidget {
+  final AppPalette colors;
+  const _DemoBanner({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withAlpha(20),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF59E0B).withAlpha(60)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFF59E0B)),
+          const SizedBox(width: 8),
+          Text(
+            'Demo mode — sample data is shown. Tap DEMO to exit.',
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFFF59E0B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _NetworkImage extends StatelessWidget {
   final String url;

@@ -155,6 +155,7 @@ class _PatternScreenState extends State<PatternScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -167,7 +168,7 @@ class _PatternScreenState extends State<PatternScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(false),
-                    child: const Icon(Icons.close, size: 24, color: Colors.black54),
+                    child: Icon(Icons.close, size: 24, color: colors.textMuted),
                   ),
                   const Spacer(),
                 ],
@@ -205,7 +206,7 @@ class _PatternScreenState extends State<PatternScreen> {
               _subtitle,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: _hasError ? Colors.red.shade600 : AppColors.of(context).textSecondary,
+                color: _hasError ? AppColors.error : colors.textSecondary,
               ),
             ),
             const Spacer(flex: 1),
@@ -251,10 +252,10 @@ class _PatternScreenState extends State<PatternScreen> {
                     child: ElevatedButton(
                       onPressed: _selectedDots.length >= 4 ? _onPatternComplete : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF111111),
+                        backgroundColor: colors.textPrimary,
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: AppColors.of(context).accent.withAlpha(80),
-                        disabledForegroundColor: Colors.white54,
+                        disabledForegroundColor: colors.textSecondary,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -318,6 +319,8 @@ class _PatternScreenState extends State<PatternScreen> {
             dotRadius: _dotRadius,
             hasError: _hasError,
             primaryColor: AppColors.of(context).accent,
+            errorColor: AppColors.error,
+            borderColor: AppColors.of(context).border,
           ),
           child: Container(),
         ),
@@ -333,6 +336,8 @@ class _PatternPainter extends CustomPainter {
   final double dotRadius;
   final bool hasError;
   final Color primaryColor;
+  final Color errorColor;
+  final Color borderColor;
 
   _PatternPainter({
     required this.selectedDots,
@@ -341,6 +346,8 @@ class _PatternPainter extends CustomPainter {
     required this.dotRadius,
     required this.hasError,
     required this.primaryColor,
+    required this.errorColor,
+    required this.borderColor,
   });
 
   Offset _dotCenter(int index, Size size) {
@@ -357,8 +364,8 @@ class _PatternPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final lineColor = hasError ? Colors.red.shade400 : primaryColor;
-    final dotColor = hasError ? Colors.red.shade400 : primaryColor;
+    final lineColor = hasError ? errorColor : primaryColor;
+    final dotColor = hasError ? errorColor : primaryColor;
 
     // Draw connecting lines
     if (selectedDots.length > 1) {
@@ -383,14 +390,14 @@ class _PatternPainter extends CustomPainter {
 
       // Outer ring
       final outerPaint = Paint()
-        ..color = isSelected ? dotColor : const Color(0xFFD0D0D0)
+        ..color = isSelected ? dotColor : borderColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2;
       canvas.drawCircle(center, dotRadius / 2 + 6, outerPaint);
 
       // Inner dot
       final innerPaint = Paint()
-        ..color = isSelected ? dotColor : const Color(0xFFD0D0D0);
+        ..color = isSelected ? dotColor : borderColor;
       canvas.drawCircle(center, isSelected ? 8 : 5, innerPaint);
     }
   }

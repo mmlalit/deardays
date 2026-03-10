@@ -15,7 +15,6 @@ class TextEntryScreen extends StatefulWidget {
 }
 
 class _TextEntryScreenState extends State<TextEntryScreen> {
-  final TextEditingController _titleController = TextEditingController();
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final _imagePicker = ImagePicker();
@@ -47,7 +46,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
 
   @override
   void dispose() {
-    _titleController.dispose();
     _textController.dispose();
     _focusNode.dispose();
     _tagController.dispose();
@@ -77,7 +75,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Could not get location. Check permissions.'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -237,8 +235,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
-                  _buildTitleInput(colors),
-                  const SizedBox(height: 24),
                   _buildPromptsSection(colors),
                   const SizedBox(height: 20),
                   _buildWritingArea(colors),
@@ -309,45 +305,6 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
     );
   }
 
-  // ── Title Input ───────────────────────────────────────────────────────────
-
-  Widget _buildTitleInput(AppPalette colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _titleController,
-          textCapitalization: TextCapitalization.sentences,
-          cursorColor: colors.accent,
-          style: GoogleFonts.merriweather(
-            fontSize: 32,
-            fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
-            height: 1.2,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Untitled Moment',
-            hintStyle: GoogleFonts.merriweather(
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
-              color: colors.textMuted.withAlpha(120),
-              height: 1.2,
-            ),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          width: 48,
-          height: 1,
-          color: colors.accent.withAlpha(80),
-        ),
-      ],
-    );
-  }
-
   // ── Prompts Section ───────────────────────────────────────────────────────
 
   Widget _buildPromptsSection(AppPalette colors) {
@@ -397,7 +354,7 @@ class _TextEntryScreenState extends State<TextEntryScreen> {
                     border: Border.all(color: colors.border),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withAlpha(8),
+                        color: colors.textPrimary.withAlpha(8),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),

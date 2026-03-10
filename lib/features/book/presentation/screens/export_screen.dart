@@ -73,7 +73,7 @@ class _ExportScreenState extends State<ExportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: ${e.toString().length > 80 ? e.toString().substring(0, 80) : e}'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -245,7 +245,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                 border: Border.all(
                                   color: selected
                                       ? AppColors.of(context).accent
-                                      : Colors.grey.shade300,
+                                      : AppColors.of(context).border,
                                 ),
                               ),
                               child: Text(
@@ -327,7 +327,7 @@ class _ExportScreenState extends State<ExportScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha(10),
+                            color: AppColors.of(context).textPrimary.withAlpha(10),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -361,7 +361,7 @@ class _ExportScreenState extends State<ExportScreen> {
                             child: ElevatedButton(
                               onPressed: _isExporting ? null : _exportPdf,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF111111),
+                                backgroundColor: AppColors.of(context).textPrimary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
@@ -471,7 +471,7 @@ class _ExportScreenState extends State<ExportScreen> {
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(38),
+                color: AppColors.of(context).textPrimary.withAlpha(38),
                 blurRadius: 24,
                 offset: const Offset(6, 10),
               ),
@@ -560,7 +560,7 @@ class _ExportScreenState extends State<ExportScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(10),
+            color: AppColors.of(context).textPrimary.withAlpha(10),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

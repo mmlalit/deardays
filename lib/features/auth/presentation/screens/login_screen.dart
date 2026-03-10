@@ -203,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Password reset email sent.'),
-            backgroundColor: const Color(0xFF111111),
+            backgroundColor: AppColors.of(context).textPrimary,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -219,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade700,
+        backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -604,7 +604,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleEmailAuth,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF111111),
+                backgroundColor: AppColors.of(context).textPrimary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
@@ -694,7 +694,7 @@ class _LoginScreenState extends State<LoginScreen> {
       hintStyle: GoogleFonts.manrope(color: AppColors.of(context).textMuted, fontSize: 14),
       prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.of(context).textMuted),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.of(context).card,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -753,7 +753,7 @@ class _AppleButton extends StatelessWidget {
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
+          backgroundColor: AppColors.of(context).textPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

@@ -374,7 +374,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                                 border: Border.all(color: colors.accent.withAlpha(40)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withAlpha(8),
+                                    color: colors.textPrimary.withAlpha(8),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),
@@ -421,7 +421,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFDFBF7).withAlpha(204),
+            color: colors.bg.withAlpha(204),
             border: Border(bottom: BorderSide(color: colors.accent.withAlpha(26))),
           ),
           child: SafeArea(
@@ -539,10 +539,10 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
             bottom: 0,
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F0E8),
+                color: AppColors.of(context).highlightFaint,
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withAlpha(6), blurRadius: 4, offset: const Offset(0, 2)),
+                  BoxShadow(color: AppColors.of(context).textPrimary.withAlpha(6), blurRadius: 4, offset: const Offset(0, 2)),
                 ],
               ),
             ),
@@ -555,10 +555,10 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
             bottom: 0,
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFFAF6EF),
+                color: AppColors.of(context).highlight,
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 6, offset: const Offset(0, 3)),
+                  BoxShadow(color: AppColors.of(context).textPrimary.withAlpha(8), blurRadius: 6, offset: const Offset(0, 3)),
                 ],
               ),
             ),
@@ -586,11 +586,11 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
       child: SingleChildScrollView(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colors.card,
             borderRadius: BorderRadius.circular(8),
-            border: const Border(left: BorderSide(color: Color(0x33D4A373), width: 4)),
+            border: Border(left: BorderSide(color: colors.accent.withAlpha(51), width: 4)),
             boxShadow: [
-              BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 16, offset: const Offset(0, 6)),
+              BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 16, offset: const Offset(0, 6)),
             ],
           ),
           child: Padding(
@@ -603,7 +603,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                   aspectRatio: 3 / 4,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFDFBF7),
+                      color: colors.bg,
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: colors.accent.withAlpha(13)),
                     ),
@@ -617,7 +617,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, const Color(0xFF1A2A3A).withAlpha(153)],
+                              colors: [Colors.transparent, colors.textPrimary.withAlpha(153)],
                               stops: const [0.5, 1.0],
                             ),
                           ),
@@ -720,10 +720,10 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
       child: SingleChildScrollView(
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colors.card,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
-              BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 16, offset: const Offset(0, 6)),
+              BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 16, offset: const Offset(0, 6)),
             ],
           ),
           child: Stack(
@@ -900,10 +900,10 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
+          color: isActive ? colors.card : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           boxShadow: isActive
-              ? [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 4, offset: const Offset(0, 1))]
+              ? [BoxShadow(color: colors.textPrimary.withAlpha(8), blurRadius: 4, offset: const Offset(0, 1))]
               : null,
         ),
         child: Text(

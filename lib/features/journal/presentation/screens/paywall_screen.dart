@@ -33,7 +33,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Welcome to DearDays Premium!'),
-          backgroundColor: const Color(0xFF111111),
+          backgroundColor: AppColors.of(context).textPrimary,
         ),
       );
       Navigator.of(context).pop(true);
@@ -44,7 +44,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),
-          backgroundColor: Colors.red.shade700,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -59,7 +59,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Purchases restored!'),
-            backgroundColor: const Color(0xFF111111),
+            backgroundColor: AppColors.of(context).textPrimary,
           ),
         );
         Navigator.of(context).pop(true);
@@ -159,7 +159,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       child: ElevatedButton(
                         onPressed: sub.isLoading ? null : _handleSubscribe,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF111111),
+                          backgroundColor: AppColors.of(context).textPrimary,
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
                           shape: RoundedRectangleBorder(
@@ -272,11 +272,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           width: 200,
           height: 260,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.of(context).card,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(26),
+                color: AppColors.of(context).textPrimary.withAlpha(26),
                 blurRadius: 20,
                 offset: const Offset(4, 8),
               ),
@@ -323,7 +323,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       child: Container(
         height: 6,
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: AppColors.of(context).border,
           borderRadius: BorderRadius.circular(3),
         ),
       ),
@@ -350,7 +350,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 width: 22,
                 height: 22,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF4CAF50),
+                  color: AppColors.success,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check, size: 14, color: Colors.white),
@@ -388,10 +388,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.of(context).card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? AppColors.of(context).accent : Colors.grey.shade300,
+            color: selected ? AppColors.of(context).accent : AppColors.of(context).border,
             width: selected ? 2 : 1,
           ),
         ),
@@ -403,7 +403,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: selected ? AppColors.of(context).accent : Colors.grey.shade400,
+                  color: selected ? AppColors.of(context).accent : AppColors.of(context).textMuted,
                   width: 2,
                 ),
               ),

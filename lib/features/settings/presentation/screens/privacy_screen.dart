@@ -207,13 +207,13 @@ class PrivacyScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color: AppColors.successLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade200),
+        border: Border.all(color: AppColors.success.withAlpha(80)),
       ),
       child: Row(
         children: [
-          Icon(Icons.shield_outlined, size: 28, color: Colors.green.shade700),
+          Icon(Icons.shield_outlined, size: 28, color: AppColors.success),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -224,7 +224,7 @@ class PrivacyScreen extends StatelessWidget {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Colors.green.shade800,
+                    color: AppColors.success,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -232,7 +232,7 @@ class PrivacyScreen extends StatelessWidget {
                   'We cannot read your journal. Your entries are encrypted on your device before reaching our servers.',
                   style: GoogleFonts.manrope(
                     fontSize: 13,
-                    color: Colors.green.shade700,
+                    color: AppColors.success,
                     height: 1.4,
                   ),
                 ),

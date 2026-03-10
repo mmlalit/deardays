@@ -149,8 +149,8 @@ enum AppThemeColor {
     switch (this) {
       case AppThemeColor.sereneDuskBlue:
         return const AppPalette(
-          bg:             Color(0xFFFFFFFF), // Pure White
-          card:           Color(0xFFF8FAFF), // Off-white blue-tinted card
+          bg:             Color(0xFFF8FAFC),
+          card:           Color(0xFFFFFFFF),
           navBg:          Color(0xFFFFFFFF),
           textPrimary:    Color(0xFF0F172A), // Midnight Navy
           textSecondary:  Color(0xFF64748B), // Secondary Slate
@@ -166,7 +166,7 @@ enum AppThemeColor {
         );
       case AppThemeColor.warmCream:
         return const AppPalette(
-          bg: Color(0xFFF8F4EF),
+          bg: Color(0xFFF8FAFC),
           card: Color(0xFFFFFFFF),
           navBg: Color(0xFFFFFFFF),
           textPrimary: Color(0xFF2C1810),
@@ -183,7 +183,7 @@ enum AppThemeColor {
         );
       case AppThemeColor.sageGreen:
         return const AppPalette(
-          bg: Color(0xFFF4F7F4),
+          bg: Color(0xFFF8FAFC),
           card: Color(0xFFFFFFFF),
           navBg: Color(0xFFFFFFFF),
           textPrimary: Color(0xFF1A2E1A),
@@ -200,7 +200,7 @@ enum AppThemeColor {
         );
       case AppThemeColor.classicWhite:
         return const AppPalette(
-          bg: Color(0xFFFAF8F5),
+          bg: Color(0xFFF8FAFC),
           card: Color(0xFFFFFFFF),
           navBg: Color(0xFFFFFFFF),
           textPrimary: Color(0xFF111111),

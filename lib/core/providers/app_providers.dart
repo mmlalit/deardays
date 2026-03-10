@@ -8,6 +8,7 @@ import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
+import 'package:deardays/core/demo/demo_data.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
@@ -17,6 +18,12 @@ import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/repositories/book_repository.dart';
 import 'package:deardays/services/media/media_service.dart';
+
+// --- Demo Mode ---
+
+/// When true, all data providers return static demo data instead of
+/// making real network/database calls.
+final demoModeProvider = StateProvider<bool>((ref) => false);
 
 // --- Core Services ---
 
@@ -82,11 +89,13 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 // --- Profile & Streak ---
 
 final profileProvider = FutureProvider<UserProfile?>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.profile;
   ref.watch(authStateProvider);
   return ref.watch(profileRepositoryProvider).getProfile();
 });
 
 final streakProvider = FutureProvider<Streak?>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.streak;
   ref.watch(authStateProvider);
   return ref.watch(profileRepositoryProvider).getStreak();
 });
@@ -103,6 +112,7 @@ final bookRepositoryProvider = Provider<BookRepository>((ref) {
 });
 
 final booksProvider = FutureProvider<List<Book>>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.books;
   ref.watch(authStateProvider);
   return ref.watch(bookRepositoryProvider).getBooks();
 });
@@ -121,6 +131,7 @@ final entriesProvider =
 });
 
 final todayEntryProvider = FutureProvider<JournalEntry?>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.entries.first;
   final now = DateTime.now().toUtc();
   final startOfDay = DateTime.utc(now.year, now.month, now.day);
   final entries = await ref.watch(journalRepositoryProvider).getEntries(
@@ -132,20 +143,24 @@ final todayEntryProvider = FutureProvider<JournalEntry?>((ref) async {
 });
 
 final onThisDayProvider = FutureProvider<List<JournalEntry>>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.entries.take(2).toList();
   return ref.watch(journalRepositoryProvider).getOnThisDay();
 });
 
 final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.moodStats;
   return ref.watch(journalRepositoryProvider).getMoodStats();
 });
 
 final totalEntriesProvider = FutureProvider<int>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.streak.totalEntries;
   return ref.watch(journalRepositoryProvider).getTotalEntries();
 });
 
 /// All entries for the timeline screen (most recent, paginated).
 final timelineEntriesProvider =
     FutureProvider<List<JournalEntry>>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.entries;
   return ref.watch(journalRepositoryProvider).getEntries(limit: 50);
 });
 
@@ -154,12 +169,14 @@ final timelineEntriesProvider =
 /// Mood values for the last 7 days (for the weekly bar chart).
 final weeklyMoodsProvider =
     FutureProvider<List<Map<String, String>>>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.weeklyMoods;
   return ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: 7);
 });
 
 /// Mood breakdown for the last 30 days.
 final monthlyMoodStatsProvider =
     FutureProvider<Map<String, int>>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.moodStats;
   final now = DateTime.now();
   final start = DateTime(now.year, now.month - 1, now.day);
   return ref
@@ -170,6 +187,7 @@ final monthlyMoodStatsProvider =
 /// Weekly entries for AI summary generation.
 final weeklyEntriesProvider =
     FutureProvider<List<JournalEntry>>((ref) async {
+  if (ref.watch(demoModeProvider)) return DemoData.entries;
   final now = DateTime.now();
   final weekStart = now.subtract(const Duration(days: 6));
   return ref.watch(journalRepositoryProvider).getEntries(

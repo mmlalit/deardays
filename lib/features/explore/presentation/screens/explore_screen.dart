@@ -198,14 +198,13 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildSearchBar(AppPalette colors) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       color: colors.bg,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
       child: Container(
         height: 48,
         decoration: BoxDecoration(
-          color: isDark ? colors.cardBg : const Color(0xFFEEF0F5),
+          color: colors.highlightFaint,
           borderRadius: BorderRadius.circular(14),
         ),
         child: TextField(
@@ -397,7 +396,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         border: Border.all(color: colors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(8),
+            color: colors.textPrimary.withAlpha(8),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -785,7 +784,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           border: Border.all(color: colors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(6),
+              color: colors.textPrimary.withAlpha(8),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1083,7 +1082,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: colors.border),
             boxShadow: [
-              BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10, offset: const Offset(0, 3)),
+              BoxShadow(color: colors.textPrimary.withAlpha(8), blurRadius: 10, offset: const Offset(0, 3)),
             ],
           ),
           child: Row(

@@ -184,7 +184,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         border: Border.all(color: colors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(8),
+            color: colors.textPrimary.withAlpha(8),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -464,7 +464,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           border: Border.all(color: colors.border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(10),
+              color: colors.textPrimary.withAlpha(10),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -846,25 +846,25 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     // Mood tag
     switch (entry.mood) {
       case 'great':
-        tags.add(('Joy', const Color(0xFFF59E0B)));
+        tags.add(('Joy', AppColors.moodOkay));
       case 'good':
-        tags.add(('Happy', const Color(0xFF10B981)));
+        tags.add(('Happy', AppColors.moodGood));
       case 'okay':
-        tags.add(('Serene', const Color(0xFF10B981)));
+        tags.add(('Serene', AppColors.moodGood));
       case 'low':
-        tags.add(('Sad', const Color(0xFF6366F1)));
+        tags.add(('Sad', AppColors.indigo));
       case 'tough':
-        tags.add(('Growth', const Color(0xFFF97316)));
+        tags.add(('Growth', AppColors.orange));
     }
 
     // Category tag
     final text = entry.content.toLowerCase();
     if (text.contains('travel') || text.contains('trip') || text.contains('vacation')) {
-      tags.add(('Travel', const Color(0xFF195DE6)));
+      tags.add(('Travel', AppColors.blue));
     } else if (text.contains('work') || text.contains('job') || text.contains('career') || text.contains('promotion')) {
-      tags.add(('Career', const Color(0xFF195DE6)));
+      tags.add(('Career', AppColors.blue));
     } else if (text.contains('family') || text.contains('mom') || text.contains('dad')) {
-      tags.add(('Family', const Color(0xFF195DE6)));
+      tags.add(('Family', AppColors.blue));
     }
 
     return tags.take(2).toList();

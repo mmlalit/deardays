@@ -104,10 +104,10 @@ class _BookViewScreenState extends State<BookViewScreen> {
                 ],
               ),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.person,
               size: 40,
-              color: Colors.white70,
+              color: AppColors.of(context).textSecondary,
             ),
           ),
           const SizedBox(height: 20),
@@ -421,8 +421,8 @@ class _BookViewScreenState extends State<BookViewScreen> {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF111111),
-            foregroundColor: Colors.white,
+            backgroundColor: AppColors.of(context).textPrimary,
+            foregroundColor: AppColors.of(context).card,
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

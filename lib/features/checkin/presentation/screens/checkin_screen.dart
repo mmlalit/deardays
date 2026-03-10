@@ -353,7 +353,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                     decoration: BoxDecoration(
-                      color: isUser ? colors.accent : Colors.white,
+                      color: isUser ? colors.accent : colors.card,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(18),
                         topRight: const Radius.circular(18),
@@ -365,7 +365,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                           : Border.all(color: colors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(isUser ? 20 : 8),
+                          color: colors.textPrimary.withAlpha(isUser ? 20 : 8),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -531,7 +531,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: colors.textPrimary,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(

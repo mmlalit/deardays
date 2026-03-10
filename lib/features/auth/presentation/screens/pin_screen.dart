@@ -137,6 +137,7 @@ class _PinScreenState extends State<PinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -149,7 +150,7 @@ class _PinScreenState extends State<PinScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(false),
-                    child: const Icon(Icons.close, size: 24, color: Colors.black54),
+                    child: Icon(Icons.close, size: 24, color: colors.textMuted),
                   ),
                   const Spacer(),
                 ],
@@ -187,7 +188,7 @@ class _PinScreenState extends State<PinScreen> {
               _subtitle,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: _hasError ? Colors.red.shade600 : AppColors.of(context).textSecondary,
+                color: _hasError ? AppColors.error : colors.textSecondary,
               ),
             ),
             const SizedBox(height: 36),
@@ -205,13 +206,13 @@ class _PinScreenState extends State<PinScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _hasError
-                        ? Colors.red.shade400
+                        ? AppColors.error
                         : filled
                             ? AppColors.of(context).accent
                             : Colors.transparent,
                     border: Border.all(
                       color: _hasError
-                          ? Colors.red.shade400
+                          ? AppColors.error
                           : filled
                               ? AppColors.of(context).accent
                               : AppColors.of(context).border,
@@ -267,7 +268,7 @@ class _PinScreenState extends State<PinScreen> {
         height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white,
+          color: AppColors.of(context).card,
           border: Border.all(color: AppColors.of(context).border),
         ),
         alignment: Alignment.center,
@@ -286,13 +287,13 @@ class _PinScreenState extends State<PinScreen> {
   Widget _buildBackspaceButton() {
     return GestureDetector(
       onTap: _onBackspace,
-      child: const SizedBox(
+      child: SizedBox(
         width: 72,
         height: 72,
         child: Icon(
           Icons.backspace_outlined,
           size: 24,
-          color: Colors.black54,
+          color: AppColors.of(context).textMuted,
         ),
       ),
     );

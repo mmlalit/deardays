@@ -533,7 +533,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
         border: Border.all(color: colors.accent.withAlpha(26)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(13),
+            color: colors.textPrimary.withAlpha(13),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -570,7 +570,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                     borderRadius: BorderRadius.circular(9999),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withAlpha(51),
+                        color: colors.textPrimary.withAlpha(51),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),

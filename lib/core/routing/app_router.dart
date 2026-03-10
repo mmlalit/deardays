@@ -84,12 +84,13 @@ class AppRouter {
               child: ExploreScreen(),
             ),
           ),
+          GoRoute(
+            path: '/settings',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SettingsScreen(),
+            ),
+          ),
         ],
-      ),
-      // Settings is outside the shell — accessed via home top-right icon
-      GoRoute(
-        path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
         path: '/book/:id',

@@ -11,7 +11,8 @@ create table if not exists public.check_in_conversations (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
 
-  unique(user_id, date_key)
+  unique(user_id, date_key
+  )
 );
 
 -- Only the owner can read/write their own conversations

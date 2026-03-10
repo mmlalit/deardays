@@ -71,6 +71,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   String? _generatedTitle;
   String? _polishError;
 
+  // Title editing
+  late final TextEditingController _titleEditController;
+  bool _isEditingTitle = false;
+
   // View toggle: 0 = AI Story, 1 = Clean Original, 2 = Raw Words
   int _activeTab = 0;
 
@@ -87,24 +91,61 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     super.initState();
     _attachedPhotoPath = widget.data.attachedPhotoPath;
     _locationName = widget.data.locationName;
+    _titleEditController = TextEditingController();
 
     _shimmerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat();
 
-    // Only auto-polish if the user turned on AI Polish
     if (widget.data.polishWithAI) {
       _polishText();
     } else {
       _activeTab = 2; // Show original/raw text by default
+      _generateTitleOnly(); // Still auto-generate title from content
     }
   }
 
   @override
   void dispose() {
+    _titleEditController.dispose();
     _shimmerController.dispose();
     super.dispose();
+  }
+
+  /// Lightweight title generation used when full AI polish is not requested.
+  Future<void> _generateTitleOnly() async {
+    try {
+      final cleaned = await _aiService.lightPolish(widget.data.rawText);
+      if (!mounted) return;
+      final title = _extractTitle(cleaned ?? widget.data.rawText);
+      setState(() {
+        _cleanedText = cleaned;
+        _generatedTitle = title;
+        _titleEditController.text = title;
+      });
+    } catch (_) {
+      final title = _generateFallbackTitle();
+      if (mounted) {
+        setState(() {
+          _generatedTitle = title;
+          _titleEditController.text = title;
+        });
+      }
+    }
+  }
+
+  String _extractTitle(String text) {
+    final trimmed = text.trim();
+    // First sentence up to 60 chars
+    final match = RegExp(r'^(.{10,60}[.!?])').firstMatch(trimmed);
+    if (match != null) {
+      return match.group(1)!.replaceAll(RegExp(r'[.!?]$'), '').trim();
+    }
+    // Fallback: first 7 words
+    final words = trimmed.split(RegExp(r'\s+'));
+    if (words.length <= 7) return words.join(' ');
+    return '${words.take(7).join(' ')}...';
   }
 
   Future<void> _polishText() async {
@@ -142,6 +183,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       }
 
       if (mounted) {
+        _titleEditController.text = title;
         setState(() {
           _generatedTitle = title;
           _polishedText = body;
@@ -296,7 +338,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -432,7 +474,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   Widget _buildPhotoOrGradientBanner() {
     final colors = AppColors.of(context);
-    final title = _generatedTitle;
+    final title = _isEditingTitle ? _titleEditController.text.trim() : _generatedTitle;
 
     Widget imageChild;
     if (_attachedPhotoPath != null) {
@@ -486,7 +528,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   color: Colors.white,
                   height: 1.3,
                   shadows: [
-                    Shadow(color: Colors.black.withAlpha(120), blurRadius: 8),
+                    Shadow(color: Colors.black.withAlpha(8), blurRadius: 8),
                   ],
                 ),
               ),
@@ -512,10 +554,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           Positioned(
             right: -20,
             bottom: -20,
-            child: Icon(Icons.menu_book_rounded, size: 160, color: Colors.white.withAlpha(15)),
+            child: Icon(Icons.menu_book_rounded, size: 160, color: colors.textSecondary.withAlpha(15)),
           ),
-          const Center(
-            child: Icon(Icons.auto_stories_rounded, size: 56, color: Colors.white70),
+          Center(
+            child: Icon(Icons.auto_stories_rounded, size: 56, color: colors.textSecondary),
           ),
         ],
       ),
@@ -603,6 +645,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   Widget _shimmerBar({required double width, required double height}) {
+    final colors = AppColors.of(context);
     final shimmerValue = _shimmerController.value;
     return Container(
       width: width,
@@ -613,9 +656,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           begin: Alignment(-1.0 + 2.0 * shimmerValue, 0),
           end: Alignment(-1.0 + 2.0 * shimmerValue + 1.0, 0),
           colors: [
-            const Color(0xFFE8E4DF),
-            const Color(0xFFF5F0EA),
-            const Color(0xFFE8E4DF),
+            colors.border,
+            colors.card,
+            colors.border,
           ],
         ),
       ),
@@ -774,16 +817,74 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
       child: Column(
         children: [
-          Text(
-            _generatedTitle ?? (_isPolishing ? 'Writing your story...' : 'Your Memory'),
-            textAlign: TextAlign.center,
-            style: GoogleFonts.merriweather(
-              fontSize: 30,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              height: 1.25,
+          if (_isEditingTitle)
+            TextField(
+              controller: _titleEditController,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              textCapitalization: TextCapitalization.sentences,
+              cursorColor: colors.accent,
+              style: GoogleFonts.merriweather(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+                height: 1.25,
+              ),
+              decoration: InputDecoration(
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(color: colors.accent, width: 1.5),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: colors.accent, width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                isDense: true,
+              ),
+              onSubmitted: (v) {
+                setState(() {
+                  if (v.trim().isNotEmpty) _generatedTitle = v.trim();
+                  _isEditingTitle = false;
+                });
+              },
+              onTapOutside: (_) {
+                setState(() {
+                  final v = _titleEditController.text.trim();
+                  if (v.isNotEmpty) _generatedTitle = v;
+                  _isEditingTitle = false;
+                });
+              },
+            )
+          else
+            GestureDetector(
+              onTap: _isPolishing
+                  ? null
+                  : () {
+                      _titleEditController.text = _generatedTitle ?? '';
+                      setState(() => _isEditingTitle = true);
+                    },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      _generatedTitle ?? (_isPolishing ? 'Writing your story...' : 'Your Memory'),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.merriweather(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                  if (!_isPolishing) ...[
+                    const SizedBox(width: 8),
+                    Icon(Icons.edit_rounded, size: 16, color: colors.textMuted),
+                  ],
+                ],
+              ),
             ),
-          ),
           const SizedBox(height: 10),
           Text(
             dateStr,
@@ -901,12 +1002,12 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(8),
+            color: colors.textPrimary.withAlpha(8),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -921,23 +1022,24 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildErrorState() {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.shade50,
+          color: AppColors.moodOkay.withAlpha(26),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.shade200),
+          border: Border.all(color: AppColors.moodOkay.withAlpha(80)),
         ),
         child: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, size: 20, color: Colors.orange.shade700),
+            Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.moodOkay),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 _polishError!,
-                style: GoogleFonts.manrope(fontSize: 13, color: Colors.orange.shade900, height: 1.4),
+                style: GoogleFonts.manrope(fontSize: 13, color: colors.textPrimary, height: 1.4),
               ),
             ),
             const SizedBox(width: 8),

@@ -67,7 +67,7 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(10),
+              color: AppColors.of(context).textPrimary.withAlpha(10),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

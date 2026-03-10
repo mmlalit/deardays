@@ -33,9 +33,9 @@ class AiBadge extends StatelessWidget {
         vertical: compact ? 2 : 3,
       ),
       decoration: BoxDecoration(
-        color: Colors.purple.shade50,
+        color: AppColors.purpleBg,
         borderRadius: BorderRadius.circular(compact ? 4 : 6),
-        border: Border.all(color: Colors.purple.shade200, width: 0.5),
+        border: Border.all(color: AppColors.purple.withAlpha(60), width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -43,7 +43,7 @@ class AiBadge extends StatelessWidget {
           Icon(
             Icons.auto_awesome,
             size: compact ? 10 : 12,
-            color: Colors.purple.shade600,
+            color: AppColors.purple,
           ),
           SizedBox(width: compact ? 2 : 4),
           Text(
@@ -51,7 +51,7 @@ class AiBadge extends StatelessWidget {
             style: GoogleFonts.manrope(
               fontSize: compact ? 9 : 10,
               fontWeight: FontWeight.w600,
-              color: Colors.purple.shade700,
+              color: AppColors.purple,
               letterSpacing: 0.3,
             ),
           ),
