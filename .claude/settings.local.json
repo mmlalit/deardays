@@ -10,7 +10,12 @@
       "Bash(flutter test:*)",
       "Bash(flutter clean:*)",
       "Bash(flutter create:*)",
-      "Bash(flutter build:*)"
+      "Bash(flutter build:*)",
+      "Bash(supabase --version)",
+      "Bash(npm install:*)",
+      "Bash(cmd.exe /c \"where npm\")",
+      "Bash(cmd.exe /c \"where winget\")",
+      "Bash(flutter analyze:*)"
     ]
   }
 }

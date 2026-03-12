@@ -1,4 +1,4 @@
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, shortCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { geminiGenerate } from "../_shared/ai-providers.ts";
@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ text: text.trim() }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: shortCacheHeaders },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal error";

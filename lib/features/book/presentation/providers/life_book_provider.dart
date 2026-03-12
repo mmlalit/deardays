@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -108,10 +109,20 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
   static const _conversationsBox = 'checkin_conversations';
   static const _polishCacheBox = 'life_book_polish_cache';
 
+  /// Opens a Hive box with encryption when available.
+  static Future<Box> _openBox(String name) async {
+    try {
+      final cipher = LocalStorageService.instance.cipher;
+      return await Hive.openBox(name, encryptionCipher: cipher);
+    } catch (_) {
+      return await Hive.openBox(name);
+    }
+  }
+
   /// Load all conversation dates from Hive and group by month.
   Future<void> _loadAllEntries() async {
-    final box = await Hive.openBox(_conversationsBox);
-    final cacheBox = await Hive.openBox(_polishCacheBox);
+    final box = await _openBox(_conversationsBox);
+    final cacheBox = await _openBox(_polishCacheBox);
     final keys = box.keys.cast<String>().toList();
 
     // Parse dates and sort newest first
@@ -253,7 +264,7 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
       );
 
       // Cache the result
-      final cacheBox = await Hive.openBox(_polishCacheBox);
+      final cacheBox = await _openBox(_polishCacheBox);
       final cacheKey = CheckInNotifier.dateKey(entry.date);
       await cacheBox.put(cacheKey, polished);
 
@@ -305,7 +316,7 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
     if (entryIdx >= entries.length) return;
 
     // Clear cache
-    final cacheBox = await Hive.openBox(_polishCacheBox);
+    final cacheBox = await _openBox(_polishCacheBox);
     final cacheKey = CheckInNotifier.dateKey(entries[entryIdx].date);
     await cacheBox.delete(cacheKey);
 

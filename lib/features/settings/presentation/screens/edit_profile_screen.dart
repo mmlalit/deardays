@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/widgets/dear_days_header.dart';
+import 'package:deardays/core/utils/password_validator.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 
@@ -120,8 +121,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final newPassword = _newPasswordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (newPassword.length < 6) {
-      _showError('New password must be at least 6 characters.');
+    final pwError = PasswordValidator.validate(newPassword);
+    if (pwError != null) {
+      _showError(pwError);
       return;
     }
 
@@ -141,7 +143,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _newPasswordController.clear();
         _confirmPasswordController.clear();
         _currentPasswordController.clear();
-        _showSuccess('Password updated successfully.');
+        _showSuccess('Password updated.');
       }
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
@@ -284,7 +286,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: 12),
                   _buildTextField(
                     controller: _newPasswordController,
-                    hint: 'New password (min 6 characters)',
+                    hint: 'New password (${PasswordValidator.hint})',
                     icon: Icons.lock_reset,
                     obscure: _obscureNewPassword,
                     toggleObscure: () {

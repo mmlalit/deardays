@@ -21,8 +21,6 @@ import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/routing/app_shell.dart';
 import 'package:deardays/core/mock/mock_data.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
-import 'package:deardays/services/storage/secure_storage_service.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
@@ -61,15 +59,6 @@ void main() async {
 
   await LocalStorageService().init();
 
-  // Restore encryption key if a session exists (so encrypted services work).
-  if (SupabaseConfig.supabaseUrl.isNotEmpty) {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      final storedKey = await SecureStorageService().getEncryptionKey();
-      if (storedKey != null) EncryptionService().setKey(storedKey);
-    }
-  }
-
   await RevenueCatService().init();
   await NotificationService().init();
 
@@ -107,7 +96,7 @@ List<Override> _mockOverrides() {
 
   return [
     // Journal entries (timeline, explore)
-    timelineEntriesProvider.overrideWith((_) async => mockEntries),
+    timelineEntriesProvider.overrideWith((_) => Stream.value(mockEntries)),
 
     // Home screen stats
     moodStatsProvider.overrideWith((_) async => mockMoodStats),
@@ -115,7 +104,7 @@ List<Override> _mockOverrides() {
     weeklyMoodsProvider.overrideWith((_) async => mockWeeklyMoods),
 
     // Today's entry — use the most recent mock
-    todayEntryProvider.overrideWith((_) async => mockEntries.first),
+    todayEntryProvider.overrideWith((_) => Stream.value(mockEntries.first)),
 
     // On this day — pick 2 older entries
     onThisDayProvider.overrideWith((_) async => [mockEntries[12], mockEntries[13]]),

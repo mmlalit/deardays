@@ -4,10 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
 void main() {
-  // Identity encrypt/decrypt functions — no-op so we can test serialisation
-  // without bringing in EncryptionService dependencies.
-  String identity(String s) => s;
-
   // ignore: prefer_function_declarations_over_variables
   final makeEntry = () => JournalEntry(
         id: 'entry-1',
@@ -97,8 +93,8 @@ void main() {
   group('JournalEntry — toJson / fromJson round-trip', () {
     test('round-trip preserves all fields', () {
       final original = makeEntry();
-      final json = original.toJson(identity);
-      final restored = JournalEntry.fromJson(json, identity);
+      final json = original.toJson();
+      final restored = JournalEntry.fromJson(json);
 
       expect(restored.id, original.id);
       expect(restored.userId, original.userId);
@@ -114,7 +110,7 @@ void main() {
     });
 
     test('toJson includes correct keys', () {
-      final json = makeEntry().toJson(identity);
+      final json = makeEntry().toJson();
       expect(json.containsKey('id'), isTrue);
       expect(json.containsKey('user_id'), isTrue);
       expect(json.containsKey('encrypted_content'), isTrue);
@@ -126,45 +122,37 @@ void main() {
 
     test('fromJson handles null optional fields', () {
       final base = makeEntry();
-      final json = base.toJson(identity);
+      final json = base.toJson();
       json['encrypted_raw_content'] = null;
       json['polished_content'] = null;
       json['entry_time'] = null;
       json['location_name'] = null;
 
-      final entry = JournalEntry.fromJson(json, identity);
+      final entry = JournalEntry.fromJson(json);
       expect(entry.rawContent, isNull);
       expect(entry.polishedContent, isNull);
       expect(entry.entryTime, isNull);
       expect(entry.locationName, isNull);
     });
 
-    test('fromJson encodes entry_time as HH:mm', () {
-      final json = makeEntry().toJson(identity);
+    test('toJson encodes entry_time as HH:mm', () {
+      final json = makeEntry().toJson();
       expect(json['entry_time'], '09:30');
     });
 
-    test('encrypt function is applied to content fields', () {
-      String addPrefix(String s) => 'ENC:$s';
-      final json = makeEntry().toJson(addPrefix);
-      expect((json['encrypted_content'] as String).startsWith('ENC:'), isTrue);
-      expect((json['encrypted_raw_content'] as String).startsWith('ENC:'), isTrue);
-    });
-
-    test('decrypt function is applied during fromJson', () {
-      String enc(String s) => 'ENC:$s';
-      String dec(String s) => s.replaceFirst('ENC:', '');
-      final json = makeEntry().toJson(enc);
-      final entry = JournalEntry.fromJson(json, dec);
-      expect(entry.content, 'Hello world');
+    test('content fields stored as plaintext in JSON', () {
+      final json = makeEntry().toJson();
+      expect(json['encrypted_content'], 'Hello world');
+      expect(json['encrypted_raw_content'], 'Raw hello world');
+      expect(json['polished_content'], 'Polished hello world');
     });
   });
 
   group('JournalEntry — toSupabaseMap / fromSupabaseMap round-trip', () {
     test('round-trip preserves all fields', () {
       final original = makeEntry();
-      final map = original.toSupabaseMap(identity);
-      final restored = JournalEntry.fromSupabaseMap(map, identity);
+      final map = original.toSupabaseMap();
+      final restored = JournalEntry.fromSupabaseMap(map);
       expect(restored.id, original.id);
       expect(restored.content, original.content);
       expect(restored.mood, original.mood);

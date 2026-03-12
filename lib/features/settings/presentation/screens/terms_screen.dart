@@ -37,11 +37,8 @@ class TermsScreen extends StatelessWidget {
             _buildSection(context,
               'Your Content',
               'You retain full ownership of all content you create within DearDays, including journal entries, voice recordings, and photos ("Your Content"). We do not claim any ownership rights over Your Content.\n\n'
-              'Your Content is encrypted using zero-knowledge encryption. This means:\n\n'
-              '\u2022 Only you can read your journal entries\n'
-              '\u2022 We cannot access, read, or decrypt Your Content\n'
-              '\u2022 If you lose your encryption key or password, we cannot recover Your Content\n\n'
-              'You are solely responsible for maintaining backups of Your Content.',
+              'Your Content is encrypted at rest on our servers. Row Level Security ensures only you can access your data through the app. If you forget your password, you can reset it via email without losing any content.\n\n'
+              'We recommend using the app\'s export feature to maintain personal backups of Your Content.',
             ),
             _buildSection(context,
               'Acceptable Use',
@@ -64,9 +61,9 @@ class TermsScreen extends StatelessWidget {
             _buildSection(context,
               'Subscriptions & Payments',
               'DearDays offers a free trial period and paid subscription plans:\n\n'
-              '\u2022 Free Trial: 30 days of full access, no credit card required\n'
-              '\u2022 Monthly Plan: \$3.99/month, billed monthly\n'
-              '\u2022 Annual Plan: \$29.99/year, billed annually\n\n'
+              '\u2022 Free Trial: 7 days of full access, no credit card required\n'
+              '\u2022 Monthly Plan: \$4.99/month, billed monthly\n'
+              '\u2022 Annual Plan: \$34.99/year, billed annually\n\n'
               'Subscriptions auto-renew unless cancelled at least 24 hours before the end of the current billing period. You can manage and cancel subscriptions through your device\'s app store settings.\n\n'
               'Existing entries remain readable even after your subscription expires. You will not lose access to content you have already created.',
             ),

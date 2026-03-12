@@ -10,6 +10,7 @@ import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/data/repositories/checkin_repository.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -100,6 +101,17 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   static const _uuid = Uuid();
   static const _boxName = 'checkin_conversations';
 
+  /// Opens the checkin conversations Hive box with encryption.
+  static Future<Box> _openBox() async {
+    try {
+      final cipher = LocalStorageService.instance.cipher;
+      return await Hive.openBox(_boxName, encryptionCipher: cipher);
+    } catch (_) {
+      // Fallback for tests where LocalStorageService isn't initialized.
+      return await _openBox();
+    }
+  }
+
   static String dateKey(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
@@ -109,7 +121,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   // ── Persistence ──────────────────────────────────────────────────────
 
   Future<void> _loadTodayData() async {
-    final box = await Hive.openBox(_boxName);
+    final box = await _openBox();
     final raw = box.get(_todayKey);
 
     if (raw != null) {
@@ -149,7 +161,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   Future<void> _persist() async {
-    final box = await Hive.openBox(_boxName);
+    final box = await _openBox();
     final data = {
       'mood': state.currentMood,
       'sections': state.sections.map((s) => s.toJson()).toList(),
@@ -164,7 +176,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
 
   Future<void> loadDataForDate(DateTime date) async {
     final key = dateKey(date);
-    final box = await Hive.openBox(_boxName);
+    final box = await _openBox();
     final raw = box.get(key);
 
     if (raw != null) {
@@ -214,7 +226,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   static Future<List<DateTime>> getAvailableDates() async {
-    final box = await Hive.openBox(_boxName);
+    final box = await _openBox();
     final keys = box.keys.cast<String>().toList();
     final dates = <DateTime>[];
     for (final key in keys) {

@@ -129,8 +129,8 @@ List<Override> _e2eOverrides() {
     // All data providers → mock data, no DB calls
     profileProvider.overrideWith((_) async => profile),
     streakProvider.overrideWith((_) async => streak),
-    timelineEntriesProvider.overrideWith((_) async => mockEntries),
-    todayEntryProvider.overrideWith((_) async => mockEntries.first),
+    timelineEntriesProvider.overrideWith((_) => Stream.value(mockEntries)),
+    todayEntryProvider.overrideWith((_) => Stream.value(mockEntries.first)),
     onThisDayProvider.overrideWith((_) async => mockEntries.take(2).toList()),
     moodStatsProvider.overrideWith((_) async => mockMoodStats),
     totalEntriesProvider.overrideWith((_) async => mockEntries.length),

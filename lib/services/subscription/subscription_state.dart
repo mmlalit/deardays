@@ -40,11 +40,11 @@ class SubscriptionState {
     );
   }
 
-  /// Price string for the monthly package (e.g., "\$3.99").
+  /// Price string for the monthly package (e.g., "\$4.99").
   String get monthlyPrice =>
-      monthlyPackage?.storeProduct.priceString ?? '\$3.99';
+      monthlyPackage?.storeProduct.priceString ?? '\$4.99';
 
-  /// Price string for the yearly package (e.g., "\$29.99").
+  /// Price string for the yearly package (e.g., "\$34.99").
   String get yearlyPrice =>
-      yearlyPackage?.storeProduct.priceString ?? '\$29.99';
+      yearlyPackage?.storeProduct.priceString ?? '\$34.99';
 }

@@ -1,7 +1,7 @@
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
 /// Reading mode for the auto-generated "My Life Story" book.
-enum BookViewMode { byYear, byChapter }
+enum BookViewMode { byYear, byChapter, byAi }
 
 /// A year section within the By Year view.
 class YearSection {
@@ -95,6 +95,9 @@ class GeneratedBook {
   final List<BookPage> yearPages;
   final List<BookPage> chapterPages;
 
+  /// AI story mode: entries woven into a seamless narrative
+  final List<BookPage> aiStoryPages;
+
   const GeneratedBook({
     required this.id,
     required this.title,
@@ -108,6 +111,7 @@ class GeneratedBook {
     this.themeChapters = const [],
     this.yearPages = const [],
     this.chapterPages = const [],
+    this.aiStoryPages = const [],
   });
 
   int get pageCount => allPages.length;

@@ -93,14 +93,14 @@ class JournalEntry {
     );
   }
 
-  /// Serializes to JSON, encrypting content fields with the provided function.
-  Map<String, dynamic> toJson(String Function(String plaintext) encryptFn) {
+  /// Serializes to JSON for storage/transport.
+  Map<String, dynamic> toJson() {
     return {
       'id': id,
       'user_id': userId,
-      'encrypted_content': encryptFn(content),
-      'encrypted_raw_content': rawContent != null ? encryptFn(rawContent!) : null,
-      'polished_content': polishedContent != null ? encryptFn(polishedContent!) : null,
+      'encrypted_content': content,
+      'encrypted_raw_content': rawContent,
+      'polished_content': polishedContent,
       'mood': mood,
       'entry_date': entryDate.toIso8601String(),
       'entry_time': entryTime != null
@@ -120,21 +120,14 @@ class JournalEntry {
     };
   }
 
-  /// Deserializes from JSON, decrypting content fields with the provided function.
-  factory JournalEntry.fromJson(
-    Map<String, dynamic> json,
-    String Function(String ciphertext) decryptFn,
-  ) {
+  /// Deserializes from JSON.
+  factory JournalEntry.fromJson(Map<String, dynamic> json) {
     return JournalEntry(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      content: decryptFn(json['encrypted_content'] as String),
-      rawContent: json['encrypted_raw_content'] != null
-          ? decryptFn(json['encrypted_raw_content'] as String)
-          : null,
-      polishedContent: json['polished_content'] != null
-          ? decryptFn(json['polished_content'] as String)
-          : null,
+      content: json['encrypted_content'] as String,
+      rawContent: json['encrypted_raw_content'] as String?,
+      polishedContent: json['polished_content'] as String?,
       mood: json['mood'] as String?,
       entryDate: DateTime.parse(json['entry_date'] as String),
       entryTime: _parseTimeOfDay(json['entry_time'] as String?),
@@ -157,16 +150,14 @@ class JournalEntry {
   }
 
   /// Converts to a map suitable for Supabase insert/update.
-  /// Encrypts content and rawContent before returning.
-  Map<String, dynamic> toSupabaseMap(
-    String Function(String plaintext) encryptFn,
-  ) {
+  /// Content is sent as plaintext; the DB trigger encrypts it server-side.
+  Map<String, dynamic> toSupabaseMap() {
     return {
       'id': id,
       'user_id': userId,
-      'encrypted_content': encryptFn(content),
-      'encrypted_raw_content': rawContent != null ? encryptFn(rawContent!) : null,
-      'polished_content': polishedContent != null ? encryptFn(polishedContent!) : null,
+      'encrypted_content': content,
+      'encrypted_raw_content': rawContent,
+      'polished_content': polishedContent,
       'mood': mood,
       'entry_date': entryDate.toIso8601String(),
       'entry_time': entryTime != null
@@ -187,21 +178,14 @@ class JournalEntry {
   }
 
   /// Creates a JournalEntry from a Supabase row map.
-  /// Decrypts content and rawContent after reading.
-  factory JournalEntry.fromSupabaseMap(
-    Map<String, dynamic> map,
-    String Function(String ciphertext) decryptFn,
-  ) {
+  /// Reads from the decrypted view — content arrives as plaintext.
+  factory JournalEntry.fromSupabaseMap(Map<String, dynamic> map) {
     return JournalEntry(
       id: map['id'] as String,
       userId: map['user_id'] as String,
-      content: decryptFn(map['encrypted_content'] as String),
-      rawContent: map['encrypted_raw_content'] != null
-          ? decryptFn(map['encrypted_raw_content'] as String)
-          : null,
-      polishedContent: map['polished_content'] != null
-          ? decryptFn(map['polished_content'] as String)
-          : null,
+      content: map['encrypted_content'] as String,
+      rawContent: map['encrypted_raw_content'] as String?,
+      polishedContent: map['polished_content'] as String?,
       mood: map['mood'] as String?,
       entryDate: DateTime.parse(map['entry_date'] as String),
       entryTime: _parseTimeOfDay(map['entry_time'] as String?),

@@ -42,6 +42,11 @@ class ShareCardRenderer {
     );
     await file.writeAsBytes(pngBytes);
     await Share.shareXFiles([XFile(file.path)], subject: subject);
+
+    // Clean up temporary share image after sharing.
+    try {
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
   }
 
   /// Saves the PNG to the user's downloads directory (or temp as fallback).

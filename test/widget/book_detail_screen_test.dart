@@ -71,54 +71,47 @@ void main() {
       expect(find.byType(BookDetailScreen), findsOneWidget);
     });
 
-    testWidgets('shows book cover with title', (tester) async {
+    testWidgets('shows DEARDAYS header', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('My Life Story'), findsOneWidget);
+      expect(find.text('DEARDAYS'), findsOneWidget);
     });
 
-    testWidgets('shows author name on cover', (tester) async {
+    testWidgets('shows book title', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Test Author'), findsOneWidget);
+      expect(find.text('My Life Story'), findsWidgets);
     });
 
-    testWidgets('shows date range on cover', (tester) async {
+    testWidgets('shows date range', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Jan 2026 - Mar 2026'), findsOneWidget);
+      // Date range is uppercased in the cover section
+      expect(find.text('JAN 2026 - MAR 2026'), findsOneWidget);
     });
   });
 
   group('BookDetailScreen - Actions', () {
-    testWidgets('shows Read button', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(find.text('Read'), findsOneWidget);
-    });
-
-    testWidgets('shows search icon', (tester) async {
+    testWidgets('shows back button', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(
         find.byWidgetPredicate(
-          (w) => w is Icon && w.icon == Icons.search,
+          (w) => w is Icon && w.icon == Icons.arrow_back_ios,
         ),
         findsOneWidget,
       );
     });
 
-    testWidgets('shows page and chapter count', (tester) async {
+    testWidgets('shows Memoir mode selector', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('3 pages'), findsOneWidget);
-      expect(find.text('1 chapters'), findsOneWidget);
+      expect(find.text('Memoir'), findsOneWidget);
     });
   });
 }

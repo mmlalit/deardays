@@ -1,4 +1,4 @@
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import {
@@ -15,21 +15,21 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     const { isPremium, userId } = await getUserTier(authHeader);
 
-    // Rate limit check
-    const limit = await checkRateLimit(userId, "polish", isPremium);
-    if (!limit.allowed) {
-      return new Response(
-        JSON.stringify({ error: limit.reason }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const { text: rawText, style, language } = await req.json();
 
     if (!rawText || typeof rawText !== "string") {
       return new Response(
         JSON.stringify({ error: "text field required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Rate limit check (with token estimation)
+    const limit = await checkRateLimit(userId, "polish", isPremium, rawText);
+    if (!limit.allowed) {
+      return new Response(
+        JSON.stringify({ error: limit.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ text }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: noCacheHeaders },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal error";

@@ -26,7 +26,7 @@ class PrivacyScreen extends StatelessWidget {
             _buildSection(
               context,
               'Our Privacy Commitment',
-              'DearDays is built on the principle that your journal is deeply personal and private. We use zero-knowledge encryption, which means your entries are encrypted on your device before they ever reach our servers. We cannot read, access, or share your journal content — ever.',
+              'DearDays is built on the principle that your journal is deeply personal and private. We encrypt all journal content server-side so that raw database access never exposes your entries. Data is also encrypted in transit via HTTPS.',
             ),
             _buildSection(
               context,
@@ -50,14 +50,14 @@ class PrivacyScreen extends StatelessWidget {
             ),
             _buildSection(
               context,
-              'Zero-Knowledge Encryption',
-              'All journal content is encrypted using AES-256-GCM encryption with keys derived from your password via PBKDF2 (100,000 iterations). Your encryption key never leaves your device in an unencrypted form.\n\n'
+              'Server-Side Encryption',
+              'All journal content is encrypted at rest using PGP symmetric encryption (AES-256) with a key stored in Supabase Vault. This key is managed server-side and is separate from your login credentials.\n\n'
               'This means:\n\n'
-              '\u2022 Your entries are encrypted before upload\n'
-              '\u2022 Our servers only store encrypted, unreadable data\n'
-              '\u2022 We cannot decrypt your data, even if legally compelled\n'
-              '\u2022 If you forget your password, we cannot recover your content\n\n'
-              'We strongly recommend using the app\'s export feature to maintain personal backups.',
+              '\u2022 If the database is compromised, content columns contain only ciphertext\n'
+              '\u2022 Data is encrypted in transit via HTTPS\n'
+              '\u2022 Row Level Security ensures only you can access your data\n'
+              '\u2022 You can safely reset your password without losing any data\n\n'
+              'We also recommend using the app\'s export feature to maintain personal backups.',
             ),
             _buildSection(
               context,
@@ -220,7 +220,7 @@ class PrivacyScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Zero-Knowledge Encryption',
+                  'Server-Side Encryption',
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

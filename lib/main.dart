@@ -7,12 +7,11 @@ import 'package:deardays/core/config/supabase_config.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
-import 'package:deardays/services/storage/secure_storage_service.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
 import 'package:deardays/services/sync/sync_service.dart';
+import 'package:deardays/services/sync/sync_queue.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,20 +25,11 @@ void main() async {
   }
 
   // Initialize local encrypted storage
-  await LocalStorageService().init();
+  final localStorage = LocalStorageService();
+  await localStorage.init();
 
-  // Restore encryption key from keychain if user has an active session.
-  // This covers cold restarts where the Supabase session persists but the
-  // in-memory encryption key has been cleared.
-  if (SupabaseConfig.supabaseUrl.isNotEmpty) {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      final storedKey = await SecureStorageService().getEncryptionKey();
-      if (storedKey != null) {
-        EncryptionService().setKey(storedKey);
-      }
-    }
-  }
+  // Initialize sync queue with Hive encryption cipher, then enable processing
+  await SyncQueue().init(localStorage.cipher);
 
   // Initialize RevenueCat for in-app purchases
   await RevenueCatService().init();
@@ -50,6 +40,7 @@ void main() async {
   // Initialize connectivity monitoring and background sync
   await ConnectivityService().init();
   await SyncService().init();
+  SyncService().enableQueue();
 
   runApp(const ProviderScope(child: DearDaysApp()));
 }

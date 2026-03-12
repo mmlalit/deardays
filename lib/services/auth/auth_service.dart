@@ -1,26 +1,17 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
 
-/// Authentication service wrapping Supabase Auth with zero-knowledge
-/// encryption key management.
+/// Authentication service wrapping Supabase Auth.
 ///
-/// On sign-up, a unique encryption salt is generated and stored in the user's
-/// Supabase profile. On every login, the encryption key is re-derived from the
-/// user's password + salt and held in [EncryptionService] memory only.
-///
-/// Social logins (Apple, Google) are supported but require a separate
-/// encryption passphrase flow since we do not have access to a password. That
-/// flow should prompt the user to set an encryption passphrase on first social
-/// login.
+/// Encryption is handled server-side (pgcrypto + Supabase Vault) so the
+/// client no longer derives or manages encryption keys.
 class AuthService {
   // ---------------------------------------------------------------------------
   // Dependencies
   // ---------------------------------------------------------------------------
 
-  final EncryptionService _encryption = EncryptionService();
   final SecureStorageService _secureStorage = SecureStorageService();
   final RevenueCatService _revenueCat = RevenueCatService();
 
@@ -49,13 +40,6 @@ class AuthService {
   // ---------------------------------------------------------------------------
 
   /// Creates a new account with [email] and [password].
-  ///
-  /// After successful sign-up:
-  /// 1. Generates a unique encryption salt.
-  /// 2. Stores the salt in the user's Supabase profile row.
-  /// 3. Derives the encryption key from password + salt.
-  /// 4. Stores the key in [EncryptionService] memory (never on disk).
-  /// 5. Persists the salt locally in secure storage for offline access.
   Future<AuthResponse> signUpWithEmail(
     String email,
     String password, {
@@ -69,15 +53,9 @@ class AuthService {
     );
 
     if (response.user != null) {
-      // Generate a unique salt for this user's encryption key derivation.
-      final salt = _encryption.generateSalt();
-
-      // Store the salt in the user's profile on Supabase.
-      // The salt is NOT secret — it just ensures each user has a unique key
-      // even if they choose the same password.
       final profileData = <String, dynamic>{
         'id': response.user!.id,
-        'encryption_salt': salt,
+        'encryption_salt': 'server-side', // Legacy column — no longer used
         'trial_started_at': DateTime.now().toUtc().toIso8601String(),
       };
 
@@ -96,18 +74,6 @@ class AuthService {
 
       await _client.from('profiles').upsert(profileData);
 
-      // Derive the encryption key and hold it in memory.
-      final keyBase64 = await _encryption.deriveKey(password, salt);
-      _encryption.setKey(keyBase64);
-
-      // Cache the salt locally so we can re-derive the key on next login
-      // without hitting the network (useful for offline / biometric unlock).
-      await _secureStorage.saveEncryptionSalt(salt);
-
-      // Store the derived key in the device keychain so it can be restored
-      // on app restart without requiring the user to re-enter their password.
-      await _secureStorage.saveEncryptionKey(keyBase64);
-
       // Link this user to RevenueCat for purchase tracking.
       await _revenueCat.login(response.user!.id);
     }
@@ -116,9 +82,6 @@ class AuthService {
   }
 
   /// Signs in with [email] and [password].
-  ///
-  /// After successful sign-in, derives the encryption key from the password
-  /// and the salt stored in the user's profile, then stores the key in memory.
   Future<AuthResponse> signInWithEmail(String email, String password) async {
     final response = await _client.auth.signInWithPassword(
       email: email,
@@ -126,8 +89,6 @@ class AuthService {
     );
 
     if (response.user != null) {
-      await _deriveAndStoreKey(response.user!.id, password);
-
       // Link this user to RevenueCat for purchase tracking.
       await _revenueCat.login(response.user!.id);
     }
@@ -139,25 +100,19 @@ class AuthService {
   // Social auth
   // ---------------------------------------------------------------------------
 
-  /// Signs in with Apple. Note: social logins do not provide a password, so
-  /// the encryption key cannot be derived automatically. The app should prompt
-  /// the user to set an encryption passphrase on first social login.
+  /// Signs in with Apple.
   Future<AuthResponse> signInWithApple() async {
-    final response = await _client.auth.signInWithOAuth(
+    await _client.auth.signInWithOAuth(
       OAuthProvider.apple,
       redirectTo: 'io.deardays://callback',
     );
 
-    // signInWithOAuth returns a bool for web, but on mobile the auth state
-    // change stream will fire when the user completes the OAuth flow.
-    // We return a minimal AuthResponse here; the actual session is delivered
-    // via [authStateChanges].
     return AuthResponse(session: _client.auth.currentSession, user: currentUser);
   }
 
-  /// Signs in with Google. Same encryption passphrase caveat as Apple.
+  /// Signs in with Google.
   Future<AuthResponse> signInWithGoogle() async {
-    final response = await _client.auth.signInWithOAuth(
+    await _client.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: 'io.deardays://callback',
     );
@@ -166,18 +121,22 @@ class AuthService {
   }
 
   // ---------------------------------------------------------------------------
+  // Password reset
+  // ---------------------------------------------------------------------------
+
+  /// Sends a password-reset email. Safe to use because encryption is handled
+  /// server-side — changing the password does not affect data decryption.
+  Future<void> resetPassword(String email) async {
+    await _client.auth.resetPasswordForEmail(email);
+  }
+
+  // ---------------------------------------------------------------------------
   // Sign out
   // ---------------------------------------------------------------------------
 
-  /// Signs the user out and wipes all sensitive data from memory and secure
-  /// storage. After this call, the encryption key is gone — it can only be
-  /// re-derived by logging in again with the correct password.
+  /// Signs the user out and wipes all locally stored sensitive data.
   Future<void> signOut() async {
-    // Wipe the encryption key from memory FIRST, before any async work, to
-    // minimize the window where the key is available after logout intent.
-    _encryption.clearKey();
-
-    // Clear all locally stored sensitive data (salt cache, tokens, etc.).
+    // Clear all locally stored sensitive data (tokens, etc.).
     await _secureStorage.clearAll();
 
     // Reset RevenueCat to anonymous user.
@@ -185,17 +144,6 @@ class AuthService {
 
     // Sign out from Supabase (revokes refresh token on server).
     await _client.auth.signOut();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Password reset
-  // ---------------------------------------------------------------------------
-
-  /// Sends a password reset email. WARNING: changing the password will
-  /// invalidate the encryption key derived from the old password. The app must
-  /// handle re-encryption of existing data with a new key after password reset.
-  Future<void> resetPassword(String email) async {
-    await _client.auth.resetPasswordForEmail(email);
   }
 
   // ---------------------------------------------------------------------------
@@ -231,7 +179,7 @@ class AuthService {
     }
   }
 
-  /// Returns `true` if the user is within their 30-day free trial period.
+  /// Returns `true` if the user is within their 7-day free trial period.
   Future<bool> isInFreeTrial() async {
     final userId = currentUser?.id;
     if (userId == null) return false;
@@ -244,62 +192,11 @@ class AuthService {
       if (trialStartedAtStr == null) return false;
 
       final trialStartedAt = DateTime.parse(trialStartedAtStr);
-      final trialEnd = trialStartedAt.add(const Duration(days: 30));
+      final trialEnd = trialStartedAt.add(const Duration(days: 7));
 
       return DateTime.now().toUtc().isBefore(trialEnd);
     } catch (_) {
       return false;
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
-  /// Fetches the encryption salt from the user's profile, derives the key
-  /// from [password] + salt, and stores both the key (in memory) and the salt
-  /// (in secure storage) for future use.
-  Future<void> _deriveAndStoreKey(String userId, String password) async {
-    // Try to get the salt from the server (source of truth).
-    String? salt;
-
-    try {
-      final profile =
-          await _client.from('profiles').select().eq('id', userId).single();
-      salt = profile['encryption_salt'] as String?;
-    } catch (_) {
-      // If the network call fails, fall back to the locally cached salt.
-      salt = await _secureStorage.getEncryptionSalt();
-    }
-
-    if (salt == null) {
-      // This should not happen for existing users. If it does, the user's data
-      // cannot be decrypted. The UI should guide them through recovery.
-      throw const AuthEncryptionException(
-        'No encryption salt found for this account. '
-        'Data cannot be decrypted without the original salt.',
-      );
-    }
-
-    // Derive the encryption key (this is intentionally slow — ~100k PBKDF2
-    // iterations).
-    final keyBase64 = await _encryption.deriveKey(password, salt);
-    _encryption.setKey(keyBase64);
-
-    // Cache the salt locally for offline / biometric unlock scenarios.
-    await _secureStorage.saveEncryptionSalt(salt);
-
-    // Store the derived key in the device keychain for session restore.
-    await _secureStorage.saveEncryptionKey(keyBase64);
-  }
-}
-
-/// Exception thrown when encryption-related auth operations fail.
-class AuthEncryptionException implements Exception {
-  final String message;
-
-  const AuthEncryptionException(this.message);
-
-  @override
-  String toString() => 'AuthEncryptionException: $message';
 }

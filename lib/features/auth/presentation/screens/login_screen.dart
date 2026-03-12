@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
+import 'package:deardays/core/utils/password_validator.dart';
 import 'package:deardays/features/auth/presentation/screens/pin_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/pattern_screen.dart';
 
@@ -26,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _localAuth = LocalAuthentication();
 
   bool _obscurePassword = true;
-  bool _isSignUp = true;
+  bool _isSignUp = false;
   bool _isLoading = false;
   bool _showEmailForm = false;
   bool _biometricAvailable = false;
@@ -133,9 +134,13 @@ class _LoginScreenState extends State<LoginScreen> {
       _showError('Please enter your email and password.');
       return;
     }
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters.');
-      return;
+    // Only enforce complexity on signup; sign-in should accept any password.
+    if (_isSignUp) {
+      final pwError = PasswordValidator.validate(password);
+      if (pwError != null) {
+        _showError(pwError);
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -155,8 +160,6 @@ class _LoginScreenState extends State<LoginScreen> {
         if (response.user != null && mounted) widget.onLogin();
       }
     } on AuthException catch (e) {
-      if (mounted) _showError(e.message);
-    } on AuthEncryptionException catch (e) {
       if (mounted) _showError(e.message);
     } catch (e) {
       if (mounted) _showError('Something went wrong. Please try again.');
@@ -194,24 +197,26 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleForgotPassword() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      _showError('Enter your email first.');
+      _showError('Please enter your email address first.');
       return;
     }
+
     try {
       await _authService.resetPassword(email);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Password reset email sent.'),
+            content: Text('Password reset email sent to $email'),
             backgroundColor: AppColors.of(context).textPrimary,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } catch (_) {
-      if (mounted) _showError('Could not send reset email.');
+      if (mounted) {
+        _showError('Failed to send reset email. Please try again.');
+      }
     }
   }
 
@@ -500,7 +505,7 @@ class _LoginScreenState extends State<LoginScreen> {
             obscureText: _obscurePassword,
             enabled: !_isLoading,
             decoration: _inputDecoration(
-              hint: _isSignUp ? 'Create a password' : 'Enter your password',
+              hint: _isSignUp ? 'Create a password (${PasswordValidator.hint})' : 'Enter your password',
               prefixIcon: Icons.lock_outline_rounded,
             ).copyWith(
               suffixIcon: IconButton(
@@ -517,13 +522,13 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // Forgot password (sign-in only)
+          // Forgot password (login only)
           if (!_isSignUp) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: _isLoading ? null : _handleForgotPassword,
+              child: TextButton(
+                onPressed: _isLoading ? null : _handleForgotPassword,
                 child: Text(
                   'Forgot password?',
                   style: GoogleFonts.manrope(
@@ -636,7 +641,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (_isSignUp) ...[
             Center(
               child: Text(
-                'By signing up, you agree to our Terms of Service\nand Privacy Policy. 30-day free trial, no card required.',
+                'By signing up, you agree to our Terms of Service\nand Privacy Policy. 7-day free trial, no card required.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
                   fontSize: 12,

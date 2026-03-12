@@ -1,4 +1,4 @@
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { geminiChat } from "../_shared/ai-providers.ts";
@@ -12,21 +12,27 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     const { isPremium, userId } = await getUserTier(authHeader);
 
-    // Rate limit check
-    const limit = await checkRateLimit(userId, "chat", isPremium);
-    if (!limit.allowed) {
-      return new Response(
-        JSON.stringify({ error: limit.reason }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const { messages, mood, is_first_checkin, language } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
         JSON.stringify({ error: "messages array required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Combine user messages for token estimation
+    const inputText = messages
+      .filter((m: { role: string }) => m.role === "user")
+      .map((m: { content: string }) => m.content)
+      .join("\n");
+
+    // Rate limit check (with token estimation)
+    const limit = await checkRateLimit(userId, "chat", isPremium, inputText);
+    if (!limit.allowed) {
+      return new Response(
+        JSON.stringify({ error: limit.reason }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -58,7 +64,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ text }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: noCacheHeaders },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal error";

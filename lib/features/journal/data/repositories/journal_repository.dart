@@ -1,27 +1,23 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
 
 class JournalRepository {
   final SupabaseClient _client;
-  final EncryptionService _encryption;
 
-  JournalRepository({
-    required SupabaseClient client,
-    required EncryptionService encryption,
-  })  : _client = client,
-        _encryption = encryption;
+  JournalRepository({required SupabaseClient client}) : _client = client;
 
   String get _userId => _client.auth.currentUser!.id;
 
-  String _encrypt(String plaintext) =>
-      _encryption.encryptText(plaintext, _encryption.currentKey!);
+  /// The view that auto-decrypts content columns server-side.
+  static const _readTable = 'journal_entries_decrypted';
 
-  String _decrypt(String ciphertext) =>
-      _encryption.decryptText(ciphertext, _encryption.currentKey!);
+  /// The raw table — the DB trigger auto-encrypts on write.
+  static const _writeTable = 'journal_entries';
 
   /// Fetches journal entries with optional filters and pagination.
+  /// Uses a lightweight media select (id, media_type, storage_path) to reduce
+  /// payload size for list/timeline views. Use [getEntry] for full media details.
   Future<List<JournalEntry>> getEntries({
     DateTime? startDate,
     DateTime? endDate,
@@ -30,8 +26,8 @@ class JournalRepository {
     int offset = 0,
   }) async {
     var query = _client
-        .from('journal_entries')
-        .select('*, entry_media(*)')
+        .from(_readTable)
+        .select('*, entry_media(id, entry_id, user_id, media_type, storage_path, sort_order, created_at)')
         .eq('user_id', _userId);
 
     if (startDate != null) {
@@ -50,17 +46,14 @@ class JournalRepository {
         .range(offset, offset + limit - 1);
 
     return (response as List<dynamic>)
-        .map((row) => JournalEntry.fromSupabaseMap(
-              row as Map<String, dynamic>,
-              _decrypt,
-            ))
+        .map((row) => JournalEntry.fromSupabaseMap(row as Map<String, dynamic>))
         .toList();
   }
 
   /// Fetches a single journal entry by ID.
   Future<JournalEntry?> getEntry(String id) async {
     final response = await _client
-        .from('journal_entries')
+        .from(_readTable)
         .select('*, entry_media(*)')
         .eq('id', id)
         .eq('user_id', _userId)
@@ -68,41 +61,55 @@ class JournalRepository {
 
     if (response == null) return null;
 
-    return JournalEntry.fromSupabaseMap(response, _decrypt);
+    return JournalEntry.fromSupabaseMap(response);
   }
 
-  /// Creates a new journal entry. Content is encrypted before insert.
+  /// Creates a new journal entry. Content is sent as plaintext;
+  /// the DB trigger encrypts it server-side before storage.
   Future<JournalEntry> createEntry(JournalEntry entry) async {
-    final map = entry.toSupabaseMap(_encrypt);
+    final map = entry.toSupabaseMap();
 
-    final response = await _client
-        .from('journal_entries')
+    // Write to the raw table (trigger encrypts), then read back from
+    // the decrypted view to return plaintext to the caller.
+    final inserted = await _client
+        .from(_writeTable)
         .insert(map)
-        .select('*, entry_media(*)')
+        .select('id')
         .single();
 
-    return JournalEntry.fromSupabaseMap(response, _decrypt);
+    final response = await _client
+        .from(_readTable)
+        .select('*, entry_media(*)')
+        .eq('id', inserted['id'] as String)
+        .single();
+
+    return JournalEntry.fromSupabaseMap(response);
   }
 
-  /// Updates an existing journal entry. Content is encrypted before update.
+  /// Updates an existing journal entry. Content is sent as plaintext;
+  /// the DB trigger re-encrypts it server-side.
   Future<JournalEntry> updateEntry(JournalEntry entry) async {
-    final map = entry.toSupabaseMap(_encrypt);
+    final map = entry.toSupabaseMap();
 
-    final response = await _client
-        .from('journal_entries')
+    await _client
+        .from(_writeTable)
         .update(map)
         .eq('id', entry.id)
-        .eq('user_id', _userId)
+        .eq('user_id', _userId);
+
+    final response = await _client
+        .from(_readTable)
         .select('*, entry_media(*)')
+        .eq('id', entry.id)
         .single();
 
-    return JournalEntry.fromSupabaseMap(response, _decrypt);
+    return JournalEntry.fromSupabaseMap(response);
   }
 
   /// Deletes a journal entry by ID.
   Future<void> deleteEntry(String id) async {
     await _client
-        .from('journal_entries')
+        .from(_writeTable)
         .delete()
         .eq('id', id)
         .eq('user_id', _userId);
@@ -122,10 +129,7 @@ class JournalRepository {
     });
 
     return (response as List<dynamic>)
-        .map((row) => JournalEntry.fromSupabaseMap(
-              row as Map<String, dynamic>,
-              _decrypt,
-            ))
+        .map((row) => JournalEntry.fromSupabaseMap(row as Map<String, dynamic>))
         .toList();
   }
 
@@ -137,7 +141,7 @@ class JournalRepository {
     final startDate = DateTime(start.year, start.month, start.day);
 
     final response = await _client
-        .from('journal_entries')
+        .from(_writeTable)
         .select('entry_date, mood')
         .eq('user_id', _userId)
         .gte('entry_date', startDate.toIso8601String())
@@ -159,7 +163,7 @@ class JournalRepository {
     required DateTime end,
   }) async {
     final response = await _client
-        .from('journal_entries')
+        .from(_writeTable)
         .select('mood')
         .eq('user_id', _userId)
         .gte('entry_date', start.toIso8601String())
@@ -180,7 +184,7 @@ class JournalRepository {
   /// Returns a map of mood to entry count.
   Future<Map<String, int>> getMoodStats() async {
     final response = await _client
-        .from('journal_entries')
+        .from(_writeTable)
         .select('mood')
         .eq('user_id', _userId)
         .not('mood', 'is', null);
@@ -199,7 +203,7 @@ class JournalRepository {
   /// Returns the total number of journal entries for the current user.
   Future<int> getTotalEntries() async {
     final response = await _client
-        .from('journal_entries')
+        .from(_writeTable)
         .select('id')
         .eq('user_id', _userId)
         .count(CountOption.exact);

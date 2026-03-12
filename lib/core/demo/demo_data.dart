@@ -26,7 +26,7 @@ class DemoData {
     isSubscribed: true,
     subscriptionPlan: 'annual',
     bookOrganization: 'yearly',
-    trialStartedAt: DateTime.now().subtract(const Duration(days: 30)),
+    trialStartedAt: DateTime.now().subtract(const Duration(days: 7)),
     createdAt: DateTime.now().subtract(const Duration(days: 90)),
   );
 

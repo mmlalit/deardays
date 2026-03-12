@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -60,9 +57,8 @@ class _PatternScreenState extends State<PatternScreen> {
     }
   }
 
-  static String _hashPattern(List<int> pattern) {
-    final str = pattern.join('-');
-    return sha256.convert(utf8.encode('deardays_pattern_$str')).toString();
+  Future<String> _hashPattern(List<int> pattern) {
+    return _secureStorage.hashPattern(pattern);
   }
 
   Offset _dotCenter(int index) {
@@ -110,7 +106,7 @@ class _PatternScreenState extends State<PatternScreen> {
       } else {
         final currentPattern = _selectedDots.join('-');
         if (currentPattern == _firstPattern) {
-          await _secureStorage.savePatternHash(_hashPattern(_selectedDots));
+          await _secureStorage.savePatternHash(await _hashPattern(_selectedDots));
           await _secureStorage.saveLockMethod('pattern');
           if (mounted) {
             widget.onSuccess?.call();
@@ -130,7 +126,8 @@ class _PatternScreenState extends State<PatternScreen> {
     } else {
       // Verify mode
       final storedHash = await _secureStorage.getPatternHash();
-      if (storedHash != null && _hashPattern(_selectedDots) == storedHash) {
+      final enteredHash = await _hashPattern(_selectedDots);
+      if (storedHash != null && enteredHash == storedHash) {
         if (mounted) {
           widget.onSuccess?.call();
           Navigator.of(context).pop(true);

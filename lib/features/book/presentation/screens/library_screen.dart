@@ -1,17 +1,16 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/mock/mock_data.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/book/data/models/book.dart';
+import 'package:deardays/features/book/data/services/book_generator_service.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -76,8 +75,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
           ),
         ),
-        // Create Chapter Button
-        SliverToBoxAdapter(child: _buildCreateChapterButton(context)),
         // Create Book Button
         SliverToBoxAdapter(child: _buildCreateBookButton(context)),
         // Bottom spacing for nav bar
@@ -180,7 +177,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             SizedBox(
               width: double.infinity,
               child: TextButton(
-                onPressed: () => context.push('/my-life-book'),
+                onPressed: () {
+                  final book = BookGeneratorService().generateAutoBook(
+                    allEntries: mockEntries,
+                    author: 'You',
+                  );
+                  context.push('/book-detail', extra: book);
+                },
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF3B4FE8),
@@ -344,43 +347,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           visual.icon,
           color: Colors.white.withAlpha(180),
           size: 40,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCreateChapterButton(BuildContext context) {
-    final colors = AppColors.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: GestureDetector(
-        onTap: () => _showCreateChapterDialog(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: colors.accent.withAlpha(50),
-              width: 1.5,
-              strokeAlign: BorderSide.strokeAlignInside,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_circle, color: colors.accent, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Create Custom Chapter',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: colors.accent,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -614,27 +580,35 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: colors.card,
+      isDismissible: true,
+      enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.textMuted.withAlpha(60),
-                    borderRadius: BorderRadius.circular(2),
+              // Close button row
+              Align(
+                alignment: Alignment.topRight,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(ctx),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: colors.textMuted.withAlpha(30),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close, size: 18, color: colors.textSecondary),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Container(
@@ -690,49 +664,52 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    context.push('/record');
-                  },
-                  icon: const Icon(Icons.mic, size: 18),
-                  label: Text(
-                    'Start Recording',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
+              // Three inline action buttons in a row
+              Row(
+                children: [
+                  Expanded(
+                    child: _sheetActionButton(
+                      ctx: ctx,
+                      context: context,
+                      icon: Icons.mic_rounded,
+                      label: 'Record',
+                      colors: colors,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        context.push('/record');
+                      },
                     ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    foregroundColor: colors.bg,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _sheetActionButton(
+                      ctx: ctx,
+                      context: context,
+                      icon: Icons.edit_rounded,
+                      label: 'Write',
+                      colors: colors,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        context.push('/write');
+                      },
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    context.push('/write');
-                  },
-                  child: Text(
-                    'Write Instead',
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: colors.accent,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _sheetActionButton(
+                      ctx: ctx,
+                      context: context,
+                      icon: Icons.chat_rounded,
+                      label: 'Chat',
+                      colors: colors,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        // Chat entry — reuse write for now
+                        context.push('/write');
+                      },
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -741,226 +718,40 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Future<void> _showCreateChapterDialog(BuildContext context) async {
-    final colors = AppColors.of(context);
-    final titleController = TextEditingController();
-    File? selectedImage;
-
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.textMuted.withAlpha(60),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+  Widget _sheetActionButton({
+    required BuildContext ctx,
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required AppPalette colors,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: colors.accentFaint,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.accent.withAlpha(30)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 24, color: colors.accent),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: colors.accent,
               ),
-              const SizedBox(height: 20),
-              Text(
-                'New Chapter',
-                style: GoogleFonts.newsreader(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Cover image picker
-              GestureDetector(
-                onTap: () async {
-                  final source = await showModalBottomSheet<ImageSource>(
-                    context: ctx,
-                    backgroundColor: colors.card,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(16)),
-                    ),
-                    builder: (c) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: Icon(Icons.camera_alt,
-                                color: colors.accent),
-                            title: Text('Camera',
-                                style: GoogleFonts.manrope(
-                                    color: colors.textPrimary)),
-                            onTap: () =>
-                                Navigator.pop(c, ImageSource.camera),
-                          ),
-                          ListTile(
-                            leading: Icon(Icons.photo_library,
-                                color: colors.accent),
-                            title: Text('Gallery',
-                                style: GoogleFonts.manrope(
-                                    color: colors.textPrimary)),
-                            onTap: () =>
-                                Navigator.pop(c, ImageSource.gallery),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                  if (source == null) return;
-                  final picked = await ImagePicker().pickImage(
-                    source: source,
-                    maxWidth: 800,
-                    maxHeight: 800,
-                    imageQuality: 85,
-                  );
-                  if (picked != null) {
-                    setSheetState(() => selectedImage = File(picked.path));
-                  }
-                },
-                child: Container(
-                  height: 140,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: colors.accentFaint,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.accent.withAlpha(40)),
-                    image: selectedImage != null
-                        ? DecorationImage(
-                            image: FileImage(selectedImage!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: selectedImage == null
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add_photo_alternate_outlined,
-                                color: colors.accent, size: 32),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Add cover photo (optional)',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: colors.accent,
-                              ),
-                            ),
-                          ],
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Title input
-              TextField(
-                controller: titleController,
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  color: colors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Chapter title (e.g. My Travels)',
-                  hintStyle: GoogleFonts.manrope(
-                    fontSize: 16,
-                    color: colors.textMuted,
-                  ),
-                  filled: true,
-                  fillColor: colors.bg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent, width: 1.5),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 20),
-              // Create button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    final title = titleController.text.trim();
-                    if (title.isEmpty) return;
-                    Navigator.pop(ctx, {
-                      'title': title,
-                      'image': selectedImage,
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    foregroundColor: colors.bg,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(
-                    'Create Chapter',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
-
-    if (result == null) return;
-
-    final title = result['title'] as String;
-    final image = result['image'] as File?;
-    final now = DateTime.now();
-    final repo = ref.read(bookRepositoryProvider);
-
-    final book = await repo.createBook(Book(
-      id: '',
-      userId: '',
-      title: title,
-      startDate: now,
-      createdAt: now,
-      updatedAt: now,
-    ));
-
-    // Upload user photo if provided, then update book
-    if (image != null) {
-      try {
-        final url = await repo.uploadCoverImage(book.id, image);
-        await repo.updateBook(book.copyWith(coverImageUrl: url));
-      } catch (_) {
-        // Upload failed — book still created, falls back to stock/gradient
-      }
-    }
-
-    ref.invalidate(booksProvider);
   }
 
   String _subtitleForBook(Book book, {String? aiCoverQuery}) {

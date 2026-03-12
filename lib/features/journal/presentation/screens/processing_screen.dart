@@ -76,6 +76,22 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       transcript = widget.data.rawText;
     }
 
+    // If no transcript was produced at all, show error and go back
+    if (transcript.trim().isEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No conversation recorded. Please try again.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) Navigator.of(context).maybePop();
+      return;
+    }
+
     if (!mounted) return;
     _setStep(0, 'done');
 

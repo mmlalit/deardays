@@ -426,12 +426,14 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.manrope(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.of(context).textPrimary,
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.manrope(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.of(context).textPrimary,
+                          ),
                         ),
                       ),
                       if (badgeText != null) ...[

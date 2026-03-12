@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/services/connectivity/connectivity_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
@@ -32,6 +33,10 @@ class SyncService {
   static const _maxRetries = 3;
 
   bool _queueReady = false;
+
+  /// Callback invoked after a successful sync so the UI can refresh providers.
+  /// Set this from the widget layer (e.g., in main.dart or app_shell).
+  VoidCallback? onSyncComplete;
 
   /// Initialize: listen for connectivity changes and trigger sync.
   /// Note: SyncQueue must be initialized separately (requires Hive cipher).
@@ -81,6 +86,7 @@ class SyncService {
     }
 
     bool hadErrors = false;
+    bool hadSuccess = false;
 
     for (final entry in entries) {
       final key = entry.key;
@@ -97,6 +103,12 @@ class SyncService {
       try {
         await _replayOperation(op);
         await queue.dequeue(key);
+        hadSuccess = true;
+        // Remove from local cache after successful sync
+        if (op.type == SyncOperationType.create ||
+            op.type == SyncOperationType.update) {
+          await LocalStorageService().removeCachedEntry(op.id);
+        }
         if (kDebugMode) {
           debugPrint('[SyncService] Synced ${op.type.name} ${op.id}');
         }
@@ -119,22 +131,44 @@ class SyncService {
 
     _syncing = false;
     _updateStatus();
+
+    // Notify the UI to refresh data after successful syncs
+    if (hadSuccess) {
+      onSyncComplete?.call();
+    }
   }
 
   /// Replay a single operation against Supabase.
-  ///
-  /// In the current implementation this is a stub that logs the operation.
-  /// Wire up to JournalRepository.createEntry/updateEntry/deleteEntry
-  /// once the offline-aware repository wrapper is ready.
   Future<void> _replayOperation(SyncOperation op) async {
-    // TODO: Wire to JournalRepository when OfflineJournalRepository is implemented
-    // For now, simulate the replay with a short delay
-    await Future<void>.delayed(const Duration(milliseconds: 100));
+    final client = Supabase.instance.client;
+    final table = op.tableName;
 
-    if (kDebugMode) {
-      debugPrint(
-        '[SyncService] Replaying ${op.type.name} on ${op.tableName}: ${op.id}',
-      );
+    switch (op.type) {
+      case SyncOperationType.create:
+        await client.from(table).insert(op.payload);
+        if (kDebugMode) {
+          debugPrint('[SyncService] INSERT into $table: ${op.id}');
+        }
+
+      case SyncOperationType.update:
+        await client
+            .from(table)
+            .update(op.payload)
+            .eq('id', op.id)
+            .eq('user_id', op.payload['user_id'] as String);
+        if (kDebugMode) {
+          debugPrint('[SyncService] UPDATE $table: ${op.id}');
+        }
+
+      case SyncOperationType.delete:
+        await client
+            .from(table)
+            .delete()
+            .eq('id', op.id)
+            .eq('user_id', op.payload['user_id'] as String);
+        if (kDebugMode) {
+          debugPrint('[SyncService] DELETE from $table: ${op.id}');
+        }
     }
   }
 

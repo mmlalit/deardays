@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,8 +51,8 @@ class _PinScreenState extends State<PinScreen> {
     }
   }
 
-  static String _hashPin(String pin) {
-    return sha256.convert(utf8.encode('deardays_pin_$pin')).toString();
+  Future<String> _hashPin(String pin) {
+    return _secureStorage.hashPin(pin);
   }
 
   void _onDigitPressed(int digit) {
@@ -94,7 +91,7 @@ class _PinScreenState extends State<PinScreen> {
       } else {
         // Confirm step — check match
         if (_enteredPin == _firstPin) {
-          await _secureStorage.savePinHash(_hashPin(_enteredPin));
+          await _secureStorage.savePinHash(await _hashPin(_enteredPin));
           await _secureStorage.saveLockMethod('pin');
           if (mounted) {
             widget.onSuccess?.call();
@@ -113,7 +110,8 @@ class _PinScreenState extends State<PinScreen> {
     } else {
       // Verify mode
       final storedHash = await _secureStorage.getPinHash();
-      if (storedHash != null && _hashPin(_enteredPin) == storedHash) {
+      final enteredHash = await _hashPin(_enteredPin);
+      if (storedHash != null && enteredHash == storedHash) {
         if (mounted) {
           widget.onSuccess?.call();
           Navigator.of(context).pop(true);

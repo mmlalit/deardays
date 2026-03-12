@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/login_screen.dart';
+import 'package:deardays/features/auth/presentation/screens/set_passphrase_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/recording_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/processing_screen.dart';
@@ -41,7 +42,7 @@ class _AuthChangeNotifier extends ChangeNotifier {
 class AppRouter {
   AppRouter._();
 
-  static const _publicPaths = {'/onboarding', '/login'};
+  static const _publicPaths = {'/onboarding', '/login', '/set-passphrase'};
   static final _authNotifier = _AuthChangeNotifier();
 
   static final router = GoRouter(
@@ -52,12 +53,12 @@ class AppRouter {
       final isLoggedIn = user != null;
       final currentPath = state.matchedLocation;
 
-      if (isLoggedIn && _publicPaths.contains(currentPath)) {
-        return '/home';
-      }
-
       if (!isLoggedIn && !_publicPaths.contains(currentPath)) {
         return '/login';
+      }
+
+      if (isLoggedIn && (currentPath == '/onboarding' || currentPath == '/login')) {
+        return '/home';
       }
 
       return null;
@@ -73,6 +74,12 @@ class AppRouter {
         path: '/login',
         builder: (context, state) => LoginScreen(
           onLogin: () => context.go('/home'),
+        ),
+      ),
+      GoRoute(
+        path: '/set-passphrase',
+        builder: (context, state) => SetPassphraseScreen(
+          onComplete: () => context.go('/home'),
         ),
       ),
       ShellRoute(

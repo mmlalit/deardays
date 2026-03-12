@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
@@ -19,6 +20,8 @@ class EditMemoryScreen extends StatefulWidget {
 class _EditMemoryScreenState extends State<EditMemoryScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _storyController;
+  final _imagePicker = ImagePicker();
+  String? _attachedPhotoPath;
 
   final List<String> _tags = [];
   final _tagController = TextEditingController();
@@ -37,6 +40,8 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
     final lines = widget.data.rawText.split('\n').where((l) => l.trim().isNotEmpty).toList();
     final firstLine = lines.isNotEmpty ? lines.first : '';
     final bodyText = lines.length > 1 ? lines.skip(1).join('\n').trim() : widget.data.rawText;
+
+    _attachedPhotoPath = widget.data.attachedPhotoPath;
 
     _titleController = TextEditingController(
       text: (firstLine.length < 80 && lines.length > 1) ? firstLine : '',
@@ -67,6 +72,113 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
     setState(() => _tags.remove(tag));
   }
 
+  void _showPhotoOptions(BuildContext context) {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.textMuted.withAlpha(60),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(Icons.photo_library_rounded, color: colors.accent),
+              title: Text(
+                'Upload Photo',
+                style: GoogleFonts.manrope(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                ),
+              ),
+              subtitle: Text(
+                'Choose from your gallery',
+                style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickFromGallery();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.camera_alt_rounded, color: colors.accent),
+              title: Text(
+                'Take Photo',
+                style: GoogleFonts.manrope(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                ),
+              ),
+              subtitle: Text(
+                'Use your camera',
+                style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _takePhoto();
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFromGallery() async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 75,
+      );
+      if (picked != null && mounted) {
+        setState(() => _attachedPhotoPath = picked.path);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not access photo gallery.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 75,
+      );
+      if (picked != null && mounted) {
+        setState(() => _attachedPhotoPath = picked.path);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not access camera.')),
+        );
+      }
+    }
+  }
+
   void _saveChanges() {
     HapticFeedback.mediumImpact();
     final title = _titleController.text.trim();
@@ -78,7 +190,7 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
       rawText: combined,
       isVoice: widget.data.isVoice,
       audioPath: widget.data.audioPath,
-      attachedPhotoPath: widget.data.attachedPhotoPath,
+      attachedPhotoPath: _attachedPhotoPath,
       mood: widget.data.mood,
       locationName: widget.data.locationName,
       polishWithAI: false,
@@ -211,39 +323,76 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildPhotoSection(AppPalette colors) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: Stack(
-        children: [
-          Container(
-            height: 180,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [colors.accent, colors.accentLight],
+    return GestureDetector(
+      onTap: () => _showPhotoOptions(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            if (_attachedPhotoPath != null)
+              Image.asset(
+                _attachedPhotoPath!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: 180,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [colors.accent, colors.accentLight],
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(Icons.image_outlined, size: 48, color: Colors.white.withAlpha(120)),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [colors.accent, colors.accentLight],
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add_a_photo_rounded, size: 40, color: Colors.white.withAlpha(180)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to add a photo',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withAlpha(180),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(color: colors.border),
+                ),
+                child: Icon(Icons.camera_alt_outlined, size: 18, color: colors.textSecondary),
               ),
             ),
-            child: Center(
-              child: Icon(Icons.image_outlined, size: 48, color: Colors.white.withAlpha(120)),
-            ),
-          ),
-          Positioned(
-            right: 12,
-            bottom: 12,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                border: Border.all(color: colors.border),
-              ),
-              child: Icon(Icons.camera_alt_outlined, size: 18, color: colors.textSecondary),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

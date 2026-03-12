@@ -85,7 +85,15 @@ void main() {
       await tester.tap(find.text('Continue with Email'));
       await tester.pumpAndSettle();
 
-      // Default is sign-up mode
+      // Toggle to sign-up mode — the toggle uses RichText with TextSpan
+      // containing "Don't have an account? Sign up"
+      final toggle = find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('Sign up'),
+      );
+      expect(toggle, findsOneWidget);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+
       expect(find.byType(Checkbox), findsWidgets);
     });
 

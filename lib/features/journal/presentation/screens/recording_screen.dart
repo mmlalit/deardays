@@ -115,11 +115,17 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
 
     try {
       if (await _audioRecorder.hasPermission()) {
-        final dir = await getApplicationDocumentsDirectory();
+        // Use temp directory so recordings are auto-cleaned by the OS and
+        // don't persist unencrypted in the user's documents folder.
+        final dir = await getTemporaryDirectory();
         final path = '${dir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
         await _audioRecorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc),
+          const RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            bitRate: 64000,     // 64kbps — sufficient for voice, ~50% smaller
+            sampleRate: 22050,  // 22kHz — adequate for speech (vs default 44.1kHz)
+          ),
           path: path,
         );
 
@@ -257,6 +263,29 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
 
     try {
       final path = await _audioRecorder.stop();
+
+      // Validate: if no transcript was captured and recording was very short,
+      // show an error instead of navigating forward
+      if (transcript.isEmpty && _elapsedSeconds < 3) {
+        if (mounted) {
+          setState(() => _isRecording = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('No conversation recorded. Please try again.'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          // Restart recording so user can try again
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _startRecording();
+          });
+        }
+        return;
+      }
+
       if (mounted) {
         setState(() {
           _isRecording = false;

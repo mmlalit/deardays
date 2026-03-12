@@ -1,15 +1,17 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Wraps [FlutterSecureStorage] to provide a consistent API for storing
-/// sensitive data such as encryption salts, auth tokens, and user preferences.
+/// sensitive data such as auth tokens and user preferences.
 ///
 /// All values are stored in the platform's secure keychain/keystore:
 /// - iOS: Keychain with accessibility set to first_unlock (available after
 ///   first device unlock, persists across app restarts).
 /// - Android: EncryptedSharedPreferences backed by the Android Keystore.
-///
-/// IMPORTANT: This service stores metadata and tokens — NEVER store the
-/// encryption key itself. The key lives only in [EncryptionService] memory.
 class SecureStorageService {
   // ---------------------------------------------------------------------------
   // Singleton
@@ -27,13 +29,13 @@ class SecureStorageService {
   // Storage keys — defined as constants to prevent typos
   // ---------------------------------------------------------------------------
 
-  static const String _keyEncryptionSalt = 'dd_encryption_salt';
-  static const String _keyEncryptionKey = 'dd_encryption_key';
   static const String _keyBiometricEnabled = 'dd_biometric_enabled';
   static const String _keyAuthToken = 'dd_auth_token';
   static const String _keyPinHash = 'dd_pin_hash';
   static const String _keyPatternHash = 'dd_pattern_hash';
   static const String _keyLockMethod = 'dd_lock_method'; // none, pin, pattern, biometric
+  static const String _keyPinSalt = 'dd_pin_salt';
+  static const String _keyPatternSalt = 'dd_pattern_salt';
 
   // ---------------------------------------------------------------------------
   // Secure storage instance with platform-specific options
@@ -52,45 +54,6 @@ class SecureStorageService {
       accessibility: KeychainAccessibility.first_unlock,
     ),
   );
-
-  // ---------------------------------------------------------------------------
-  // Encryption salt
-  // ---------------------------------------------------------------------------
-
-  /// Saves the user's encryption salt. The salt is unique per user and is used
-  /// alongside their password to derive the encryption key via PBKDF2.
-  /// The salt itself is not secret, but storing it securely prevents local
-  /// tampering.
-  Future<void> saveEncryptionSalt(String salt) async {
-    await _storage.write(key: _keyEncryptionSalt, value: salt);
-  }
-
-  /// Retrieves the stored encryption salt, or `null` if none exists (e.g.,
-  /// first launch or after a full wipe).
-  Future<String?> getEncryptionSalt() async {
-    return await _storage.read(key: _keyEncryptionSalt);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Encryption key (derived key, stored in keychain for session restore)
-  // ---------------------------------------------------------------------------
-
-  /// Saves the derived encryption key to the device keychain so it can be
-  /// restored across app restarts without requiring the user to re-enter
-  /// their password.
-  Future<void> saveEncryptionKey(String keyBase64) async {
-    await _storage.write(key: _keyEncryptionKey, value: keyBase64);
-  }
-
-  /// Retrieves the stored encryption key, or `null` if not available.
-  Future<String?> getEncryptionKey() async {
-    return await _storage.read(key: _keyEncryptionKey);
-  }
-
-  /// Deletes the stored encryption key (called on logout).
-  Future<void> clearEncryptionKey() async {
-    await _storage.delete(key: _keyEncryptionKey);
-  }
 
   // ---------------------------------------------------------------------------
   // Biometric authentication preference
@@ -168,6 +131,68 @@ class SecureStorageService {
   /// Retrieves the stored auth token, or `null` if the user is not logged in.
   Future<String?> getAuthToken() async {
     return await _storage.read(key: _keyAuthToken);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Secure PIN/pattern hashing (PBKDF2)
+  // ---------------------------------------------------------------------------
+
+  static const int _pbkdf2Iterations = 100000;
+
+  /// Generates a random 16-byte salt encoded as base64.
+  String _generateSalt() {
+    final random = Random.secure();
+    final bytes = Uint8List(16);
+    for (int i = 0; i < 16; i++) {
+      bytes[i] = random.nextInt(256);
+    }
+    return base64.encode(bytes);
+  }
+
+  /// Derives a PBKDF2-HMAC-SHA256 hash from [input] and [salt].
+  String _pbkdf2Hash(String input, String salt) {
+    final saltBytes = base64.decode(salt);
+    final inputBytes = utf8.encode(input);
+    final hmacSha256 = Hmac(sha256, inputBytes);
+
+    // Single-block PBKDF2 (32 bytes < SHA-256 output size)
+    final blockBytes = Uint8List(4)
+      ..[0] = 0
+      ..[1] = 0
+      ..[2] = 0
+      ..[3] = 1;
+    final saltAndBlock = Uint8List.fromList([...saltBytes, ...blockBytes]);
+    var u = hmacSha256.convert(saltAndBlock).bytes;
+    final result = Uint8List.fromList(u);
+
+    for (int i = 1; i < _pbkdf2Iterations; i++) {
+      u = Hmac(sha256, inputBytes).convert(u).bytes;
+      for (int j = 0; j < result.length; j++) {
+        result[j] ^= u[j];
+      }
+    }
+    return base64.encode(result);
+  }
+
+  /// Hashes a PIN using PBKDF2 with a per-device random salt.
+  /// Generates and stores the salt on first call; reuses it thereafter.
+  Future<String> hashPin(String pin) async {
+    String? salt = await _storage.read(key: _keyPinSalt);
+    if (salt == null) {
+      salt = _generateSalt();
+      await _storage.write(key: _keyPinSalt, value: salt);
+    }
+    return _pbkdf2Hash('deardays_pin_$pin', salt);
+  }
+
+  /// Hashes a pattern using PBKDF2 with a per-device random salt.
+  Future<String> hashPattern(List<int> pattern) async {
+    String? salt = await _storage.read(key: _keyPatternSalt);
+    if (salt == null) {
+      salt = _generateSalt();
+      await _storage.write(key: _keyPatternSalt, value: salt);
+    }
+    return _pbkdf2Hash('deardays_pattern_${pattern.join('-')}', salt);
   }
 
   // ---------------------------------------------------------------------------

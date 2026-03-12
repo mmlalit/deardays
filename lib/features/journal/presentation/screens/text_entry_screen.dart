@@ -88,7 +88,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       source: ImageSource.gallery,
       maxWidth: 1920,
       maxHeight: 1920,
-      imageQuality: 85,
+      imageQuality: 75,
     );
     if (picked != null && mounted) {
       setState(() => _attachedPhotoPath = picked.path);
@@ -579,32 +579,43 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   // ── Writing Area ──────────────────────────────────────────────────────────
 
   Widget _buildWritingArea(AppPalette colors) {
-    return TextField(
-      controller: _textController,
-      focusNode: _focusNode,
-      maxLines: null,
-      minLines: 12,
-      keyboardType: TextInputType.multiline,
-      textCapitalization: TextCapitalization.sentences,
-      cursorColor: colors.accent,
-      cursorWidth: 2,
-      scrollPadding: const EdgeInsets.only(bottom: 120),
-      style: GoogleFonts.manrope(
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-        color: colors.textPrimary,
-        height: 1.75,
+    return Container(
+      constraints: const BoxConstraints(
+        minHeight: 200,
+        maxHeight: 320,
       ),
-      decoration: InputDecoration(
-        hintText: 'Write about your day...',
-        hintStyle: GoogleFonts.manrope(
+      decoration: BoxDecoration(
+        color: colors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
+      child: TextField(
+        controller: _textController,
+        focusNode: _focusNode,
+        maxLines: null,
+        minLines: 8,
+        keyboardType: TextInputType.multiline,
+        textCapitalization: TextCapitalization.sentences,
+        cursorColor: colors.accent,
+        cursorWidth: 2,
+        scrollPadding: const EdgeInsets.only(bottom: 120),
+        style: GoogleFonts.manrope(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          color: colors.textMuted,
+          color: colors.textPrimary,
           height: 1.75,
         ),
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.zero,
+        decoration: InputDecoration(
+          hintText: 'Write about your day...',
+          hintStyle: GoogleFonts.manrope(
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: colors.textMuted,
+            height: 1.75,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(16),
+        ),
       ),
     );
   }

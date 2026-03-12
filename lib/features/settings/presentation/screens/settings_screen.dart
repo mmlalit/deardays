@@ -14,6 +14,7 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/auth/presentation/screens/pin_screen.dart';
@@ -165,7 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (confirmed != true || !mounted) return;
 
     try {
-      await Supabase.instance.client.auth.signOut();
+      await AuthService().signOut();
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -259,61 +260,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
-  Future<void> _changePassword() async {
-    final emailController = TextEditingController();
-    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
-    emailController.text = email;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Change Password',
-            style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'We will send a password reset link to your email.',
-              style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.of(context).textSecondary),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Send Reset Link',
-                style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.of(context).accent)),
-          ),
-        ],
-      ),
+  void _changePassword() {
+    // Navigate to Edit Profile where the in-app password change safely
+    // re-encrypts all journal entries with the new key.
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
     );
-
-    if (confirmed != true || !mounted) return;
-
-    try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
-      if (mounted) {
-        AppSnackBar.success(context, 'Password reset link sent to $email');
-      }
-    } catch (e) {
-      if (mounted) {
-        AppSnackBar.error(context, 'Failed to send reset link.');
-      }
-    }
   }
 
   Future<void> _toggleHealthConsent(bool value) async {
@@ -646,7 +598,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           children: [
             Icon(Icons.shield_outlined, color: AppColors.of(context).accent, size: 24),
             const SizedBox(width: 10),
-            Text('Zero-Knowledge Encryption',
+            Text('Data Encryption',
                 style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
           ],
         ),
@@ -654,14 +606,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _infoRow('Algorithm', 'AES-256-GCM'),
-            _infoRow('Key Derivation', 'PBKDF2 (100,000 iterations)'),
-            _infoRow('Salt', 'Unique 256-bit per user'),
+            _infoRow('Algorithm', 'PGP Symmetric (AES-256)'),
+            _infoRow('Key Storage', 'Supabase Vault'),
+            _infoRow('Scope', 'All journal content columns'),
             const SizedBox(height: 12),
             Text(
-              'Your encryption key is derived from your password and never leaves '
-              'your device. The server stores only encrypted blobs — we cannot '
-              'read your journal entries.',
+              'Your journal content is encrypted server-side using a key stored '
+              'in Supabase Vault. If the database is compromised, content columns '
+              'contain only ciphertext. Data is also encrypted in transit via HTTPS.',
               style: GoogleFonts.manrope(
                 fontSize: 13, height: 1.5, color: AppColors.of(context).textSecondary,
               ),
@@ -847,6 +799,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (mounted) {
         await Share.shareXFiles([XFile(file.path)]);
       }
+
+      // Clean up temporary export file after sharing.
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
     } catch (e) {
       if (mounted) {
         AppSnackBar.error(context, 'Export failed: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}');
@@ -1283,16 +1240,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Center(
-            child: Text(
-              'Settings',
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: textColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.of(context).maybePop(),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.of(context).cardBg,
+                  ),
+                  child: Icon(Icons.arrow_back_rounded, size: 20, color: textColor),
+                ),
               ),
-            ),
+              Expanded(
+                child: Text(
+                  'Settings',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.manrope(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 40), // balance the back button
+            ],
           ),
         ),
       ),

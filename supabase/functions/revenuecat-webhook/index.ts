@@ -39,12 +39,17 @@ Deno.serve(async (req: Request) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  // Verify shared secret.
-  if (WEBHOOK_AUTH_KEY) {
-    const authHeader = req.headers.get("authorization") ?? "";
-    if (authHeader !== `Bearer ${WEBHOOK_AUTH_KEY}`) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+  // Verify shared secret — ALWAYS required in production.
+  // If the env var is missing, reject all requests to prevent unauthenticated
+  // callers from modifying subscription status.
+  if (!WEBHOOK_AUTH_KEY) {
+    console.error("REVENUECAT_WEBHOOK_AUTH_KEY is not set. Rejecting request.");
+    return new Response("Server misconfigured", { status: 500 });
+  }
+
+  const authHeader = req.headers.get("authorization") ?? "";
+  if (authHeader !== `Bearer ${WEBHOOK_AUTH_KEY}`) {
+    return new Response("Unauthorized", { status: 401 });
   }
 
   try {

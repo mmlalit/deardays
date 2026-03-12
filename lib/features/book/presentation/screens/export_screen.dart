@@ -9,7 +9,6 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
 
 class ExportScreen extends StatefulWidget {
   const ExportScreen({super.key});
@@ -43,7 +42,6 @@ class _ExportScreenState extends State<ExportScreen> {
 
   late final JournalRepository _repository = JournalRepository(
     client: Supabase.instance.client,
-    encryption: EncryptionService(),
   );
 
   static const _dateRanges = ['All Time', 'Last Year', 'Custom'];

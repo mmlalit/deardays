@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -16,8 +17,10 @@ import 'package:deardays/core/widgets/save_success_overlay.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/services/ai/ai_service.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/media/media_service.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
+import 'package:deardays/services/sync/sync_queue.dart';
+import 'package:deardays/services/sync/sync_operation.dart';
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
@@ -57,7 +60,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   final _aiService = AiService();
   late final JournalRepository _repository = JournalRepository(
     client: Supabase.instance.client,
-    encryption: EncryptionService(),
   );
   late final MediaService _mediaService = MediaService(
     client: Supabase.instance.client,
@@ -229,7 +231,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1920,
-      imageQuality: 85,
+      imageQuality: 75,
     );
     if (picked != null && mounted) {
       setState(() => _attachedPhotoPath = picked.path);
@@ -267,18 +269,37 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         updatedAt: now,
       );
 
-      final saved = await _repository.createEntry(entry);
+      JournalEntry saved;
+      bool savedOffline = false;
 
-      // Auto-create book if none exists
       try {
-        final profile = await ref.read(profileProvider.future);
-        final organization = profile?.bookOrganization ?? 'yearly';
-        final bookRepo = ref.read(bookRepositoryProvider);
-        await bookRepo.ensureDefaultBook(organization);
-      } catch (_) {}
+        saved = await _repository.createEntry(entry);
+      } catch (networkError) {
+        // Network failed — save locally and queue for sync
+        await LocalStorageService().cacheEntry(entry);
+        await SyncQueue().enqueue(SyncOperation(
+          id: entry.id,
+          type: SyncOperationType.create,
+          tableName: 'journal_entries',
+          payload: entry.toSupabaseMap(),
+          createdAt: now,
+        ));
+        saved = entry;
+        savedOffline = true;
+      }
 
-      // Upload photo if attached
-      if (_attachedPhotoPath != null) {
+      // Auto-create book if none exists (skip when offline)
+      if (!savedOffline) {
+        try {
+          final profile = await ref.read(profileProvider.future);
+          final organization = profile?.bookOrganization ?? 'yearly';
+          final bookRepo = ref.read(bookRepositoryProvider);
+          await bookRepo.ensureDefaultBook(organization);
+        } catch (_) {}
+      }
+
+      // Upload photo if attached (skip when offline — photo syncs on reconnect)
+      if (_attachedPhotoPath != null && !savedOffline) {
         try {
           await _mediaService.uploadPhoto(
             entryId: saved.id,
@@ -288,35 +309,45 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       }
 
       // Check streak: show milestone notification + update daily reminder
-      try {
-        final profileRepo = ProfileRepository(
-          client: Supabase.instance.client,
-        );
-        final streak = await profileRepo.getStreak();
-        if (streak != null) {
-          // Show milestone celebration if applicable
-          if (NotificationService.isStreakMilestone(streak.currentStreak)) {
-            await NotificationService().showStreakNotification(
-              streak.currentStreak,
-            );
-          }
-          // Re-schedule daily reminder with updated streak count
-          final profile = await profileRepo.getProfile();
-          if (profile?.reminderTime != null) {
-            final parts = profile!.reminderTime!.split(':');
-            if (parts.length >= 2) {
-              final time = TimeOfDay(
-                hour: int.parse(parts[0]),
-                minute: int.parse(parts[1]),
-              );
-              await NotificationService().scheduleDailyReminder(
-                time,
-                streak: streak.currentStreak,
+      if (!savedOffline) {
+        try {
+          final profileRepo = ProfileRepository(
+            client: Supabase.instance.client,
+          );
+          final streak = await profileRepo.getStreak();
+          if (streak != null) {
+            // Show milestone celebration if applicable
+            if (NotificationService.isStreakMilestone(streak.currentStreak)) {
+              await NotificationService().showStreakNotification(
+                streak.currentStreak,
               );
             }
+            // Re-schedule daily reminder with updated streak count
+            final profile = await profileRepo.getProfile();
+            if (profile?.reminderTime != null) {
+              final parts = profile!.reminderTime!.split(':');
+              if (parts.length >= 2) {
+                final time = TimeOfDay(
+                  hour: int.parse(parts[0]),
+                  minute: int.parse(parts[1]),
+                );
+                await NotificationService().scheduleDailyReminder(
+                  time,
+                  streak: streak.currentStreak,
+                );
+              }
+            }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
+
+      // Clean up temporary audio recording file after successful save.
+      if (widget.data.audioPath != null) {
+        try {
+          final audioFile = File(widget.data.audioPath!);
+          if (await audioFile.exists()) await audioFile.delete();
+        } catch (_) {}
+      }
 
       if (mounted) {
         // Invalidate providers so home screen and timeline refresh
@@ -324,21 +355,40 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         ref.invalidate(timelineEntriesProvider);
         ref.invalidate(booksProvider);
 
-        await SaveSuccessOverlay.show(
-          context,
-          onDismiss: () {
-            if (mounted) {
-              // Navigate to post-save organization flow
-              final title = _generatedTitle ?? _generateFallbackTitle();
-              final postData = PostSaveData(
-                entryId: saved.id,
-                title: title,
-                content: content,
-              );
-              context.push('/post-save', extra: postData);
-            }
-          },
-        );
+        if (savedOffline) {
+          // Show offline-save confirmation instead of full success overlay
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Saved offline. Will sync when you reconnect.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: AppColors.of(context).accent,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+          // Navigate back to home
+          if (mounted) context.go('/');
+        } else {
+          await SaveSuccessOverlay.show(
+            context,
+            onDismiss: () {
+              if (mounted) {
+                // Navigate to post-save organization flow
+                final title = _generatedTitle ?? _generateFallbackTitle();
+                final postData = PostSaveData(
+                  entryId: saved.id,
+                  title: title,
+                  content: content,
+                );
+                context.push('/post-save', extra: postData);
+              }
+            },
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -403,11 +453,13 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     ],
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
-                      child: _activeTab == 0 && _polishedText != null
-                          ? _buildPolishedView()
-                          : _activeTab == 1 && _cleanedText != null
-                              ? _buildCleanedView()
-                              : _buildOriginalView(),
+                      child: _activeTab == 2 && widget.data.isVoice
+                          ? _buildAudioView()
+                          : _activeTab == 0 && _polishedText != null
+                              ? _buildPolishedView()
+                              : _activeTab == 1 && _cleanedText != null
+                                  ? _buildCleanedView()
+                                  : _buildOriginalView(),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -1003,6 +1055,155 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Audio Player View (shown on AUDIO tab when voice entry)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAudioView() {
+    final colors = AppColors.of(context);
+    final hasAudio = widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty;
+    final transcript = widget.data.rawText.trim();
+
+    return _buildContentCard(
+      key: const ValueKey('audio'),
+      colors: colors,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Audio player section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(13),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.accent.withAlpha(30)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Play button (visual — audio playback is platform-dependent)
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.accent,
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.accent.withAlpha(60),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Voice Recording',
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Waveform placeholder bar
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: SizedBox(
+                              height: 24,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: List.generate(20, (i) {
+                                  final h = 6.0 + (i % 5) * 3.0 + (i % 3) * 2.0;
+                                  return Expanded(
+                                    child: Container(
+                                      height: h.clamp(6.0, 20.0),
+                                      margin: const EdgeInsets.symmetric(horizontal: 1),
+                                      decoration: BoxDecoration(
+                                        color: colors.accent.withAlpha(80),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (!hasAudio) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Audio playback not available',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: colors.textMuted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Raw transcript section
+          if (transcript.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Icon(Icons.description_rounded, size: 16, color: colors.textMuted),
+                const SizedBox(width: 6),
+                Text(
+                  'RAW TRANSCRIPT',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textMuted,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...transcript
+                .split('\n')
+                .where((p) => p.trim().isNotEmpty)
+                .map((p) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        p,
+                        style: GoogleFonts.manrope(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w400,
+                          color: colors.textPrimary.withAlpha(200),
+                          height: 1.7,
+                        ),
+                      ),
+                    )),
+          ] else ...[
+            const SizedBox(height: 16),
+            Text(
+              'No transcript available for this recording.',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                color: colors.textMuted,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildContentCard({required AppPalette colors, required Widget child, Key? key}) {
     return Container(
       key: key,
@@ -1087,7 +1288,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               final picked = await _imagePicker.pickImage(
                 source: ImageSource.camera,
                 maxWidth: 1920,
-                imageQuality: 85,
+                imageQuality: 75,
               );
               if (picked != null && mounted) {
                 setState(() => _attachedPhotoPath = picked.path);

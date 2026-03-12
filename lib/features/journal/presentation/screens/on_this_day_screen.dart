@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/demo/demo_data.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/media/media_service.dart';
 
 class OnThisDayScreen extends StatefulWidget {
@@ -18,7 +18,6 @@ class OnThisDayScreen extends StatefulWidget {
 class _OnThisDayScreenState extends State<OnThisDayScreen> {
   late final JournalRepository _repository = JournalRepository(
     client: Supabase.instance.client,
-    encryption: EncryptionService(),
   );
 
   late final MediaService _mediaService = MediaService(
@@ -62,7 +61,11 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
     });
 
     try {
-      final entries = await _repository.getOnThisDay(date: _selectedDate);
+      var entries = await _repository.getOnThisDay(date: _selectedDate);
+      // Fall back to demo data when no real entries exist
+      if (entries.isEmpty) {
+        entries = DemoData.entries;
+      }
       if (!mounted) return;
 
       // Pre-fetch photo URLs for entries that have photos.

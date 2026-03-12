@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
@@ -41,10 +40,6 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
 });
 
-final encryptionServiceProvider = Provider<EncryptionService>((ref) {
-  return EncryptionService();
-});
-
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
@@ -76,10 +71,7 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 // --- Repositories ---
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
-  return JournalRepository(
-    client: ref.watch(supabaseClientProvider),
-    encryption: ref.watch(encryptionServiceProvider),
-  );
+  return JournalRepository(client: ref.watch(supabaseClientProvider));
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
@@ -131,47 +123,119 @@ final booksProvider = FutureProvider<List<Book>>((ref) async {
 
 final entriesProvider =
     FutureProvider.family<List<JournalEntry>, EntriesFilter>((ref, filter) async {
-  return ref.watch(journalRepositoryProvider).getEntries(
-        startDate: filter.startDate,
-        endDate: filter.endDate,
-        mood: filter.mood,
-        limit: filter.limit,
-        offset: filter.offset,
-      );
+  try {
+    return await ref.watch(journalRepositoryProvider).getEntries(
+          startDate: filter.startDate,
+          endDate: filter.endDate,
+          mood: filter.mood,
+          limit: filter.limit,
+          offset: filter.offset,
+        );
+  } catch (_) {
+    // Offline fallback: return cached entries
+    return ref.watch(localStorageProvider).getCachedEntries();
+  }
 });
 
-final todayEntryProvider = FutureProvider<JournalEntry?>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.entries.first;
-  final now = DateTime.now().toUtc();
-  final startOfDay = DateTime.utc(now.year, now.month, now.day);
-  final entries = await ref.watch(journalRepositoryProvider).getEntries(
-        startDate: startOfDay,
-        endDate: now,
-        limit: 1,
-      );
-  return entries.isEmpty ? null : entries.first;
+final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
+  if (ref.watch(demoModeProvider)) {
+    yield DemoData.entries.first;
+    return;
+  }
+
+  final localStorage = ref.watch(localStorageProvider);
+  final today = DateTime.now();
+
+  // Check cache first for instant display
+  final cached = await localStorage.getCachedEntries();
+  final todayCached = cached.where((e) =>
+      e.entryDate.year == today.year &&
+      e.entryDate.month == today.month &&
+      e.entryDate.day == today.day).toList();
+  if (todayCached.isNotEmpty) {
+    yield todayCached.first;
+  }
+
+  // Then fetch fresh from network
+  try {
+    final now = DateTime.now().toUtc();
+    final startOfDay = DateTime.utc(now.year, now.month, now.day);
+    final entries = await ref.watch(journalRepositoryProvider).getEntries(
+          startDate: startOfDay,
+          endDate: now,
+          limit: 1,
+        );
+    yield entries.isEmpty ? null : entries.first;
+  } catch (_) {
+    // If cache was empty, emit null so UI exits loading
+    if (todayCached.isEmpty) {
+      yield null;
+    }
+  }
 });
 
 final onThisDayProvider = FutureProvider<List<JournalEntry>>((ref) async {
   if (ref.watch(demoModeProvider)) return DemoData.entries.take(2).toList();
-  return ref.watch(journalRepositoryProvider).getOnThisDay();
+  try {
+    return await ref.watch(journalRepositoryProvider).getOnThisDay();
+  } catch (_) {
+    return [];
+  }
 });
 
 final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
   if (ref.watch(demoModeProvider)) return DemoData.moodStats;
-  return ref.watch(journalRepositoryProvider).getMoodStats();
+  try {
+    return await ref.watch(journalRepositoryProvider).getMoodStats();
+  } catch (_) {
+    return {};
+  }
 });
 
 final totalEntriesProvider = FutureProvider<int>((ref) async {
   if (ref.watch(demoModeProvider)) return DemoData.streak.totalEntries;
-  return ref.watch(journalRepositoryProvider).getTotalEntries();
+  try {
+    return await ref.watch(journalRepositoryProvider).getTotalEntries();
+  } catch (_) {
+    final cached = await ref.watch(localStorageProvider).getCachedEntries();
+    return cached.length;
+  }
 });
 
 /// All entries for the timeline screen (most recent, paginated).
+/// Returns cached data first (if available), then refreshes from network.
+/// On success, caches entries locally for offline access.
 final timelineEntriesProvider =
-    FutureProvider<List<JournalEntry>>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.entries;
-  return ref.watch(journalRepositoryProvider).getEntries(limit: 50);
+    StreamProvider<List<JournalEntry>>((ref) async* {
+  if (ref.watch(demoModeProvider)) {
+    yield DemoData.entries;
+    return;
+  }
+
+  final localStorage = ref.watch(localStorageProvider);
+
+  // Emit cached data immediately so the UI has something to show
+  final cached = await localStorage.getCachedEntries();
+  if (cached.isNotEmpty) {
+    cached.sort((a, b) => b.entryDate.compareTo(a.entryDate));
+    yield cached;
+  }
+
+  // Then fetch fresh data from the network
+  try {
+    final entries = await ref.watch(journalRepositoryProvider).getEntries(limit: 50);
+    // Cache entries locally for offline access
+    for (final entry in entries) {
+      await localStorage.cacheEntry(entry);
+    }
+    yield entries;
+  } catch (_) {
+    // If we already emitted cached data, no need to emit again.
+    // If cache was empty, emit empty list so the UI exits loading state.
+    if (cached.isEmpty) {
+      yield <JournalEntry>[];
+    }
+  }
 });
 
 // --- Insights ---

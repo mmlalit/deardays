@@ -53,6 +53,25 @@ class BookGeneratorService {
     'Daily Life': '\u{2615}',    // ☕
   };
 
+  // ── AI story transition phrases ────────────────────────────────────────
+  static const List<String> _storyTransitions = [
+    'As the days unfolded, ',
+    'Looking back, ',
+    'What followed was unexpected \u2014 ',
+    'In the quiet moments that came after, ',
+    'Life had a way of surprising \u2014 ',
+    'The next chapter began when ',
+    'Time moved forward, and with it ',
+    'Before long, ',
+    'It was during this time that ',
+    'As one season gave way to the next, ',
+    'The world shifted slightly when ',
+    'Not long after, ',
+    'And then, unexpectedly, ',
+    'The rhythm of life continued \u2014 ',
+    'With each passing day, ',
+  ];
+
   // ── AI year title presets ───────────────────────────────────────────────
   static const List<String> _positiveTitles = [
     'Year of Joy',
@@ -417,6 +436,11 @@ class BookGeneratorService {
       );
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Build BY AI (seamless story) structure + aiStoryPages
+    // ══════════════════════════════════════════════════════════════════════
+    final aiStoryPages = _buildAiStoryPages(sorted, author, dateRange);
+
     return GeneratedBook(
       id: 'auto-${DateTime.now().millisecondsSinceEpoch}',
       title: 'My Life Story',
@@ -430,7 +454,153 @@ class BookGeneratorService {
       themeChapters: themeChapters,
       yearPages: yearPages,
       chapterPages: chapterPagesList,
+      aiStoryPages: aiStoryPages,
     );
+  }
+
+  /// Build AI story pages: entries woven into flowing narrative arcs.
+  List<BookPage> _buildAiStoryPages(
+    List<JournalEntry> sorted,
+    String author,
+    String dateRange,
+  ) {
+    if (sorted.isEmpty) return const [];
+
+    final pages = <BookPage>[];
+    final rng = Random(sorted.length); // seeded for consistency
+
+    // Title page
+    pages.add(BookPage(
+      pageNumber: 1,
+      type: BookPageType.titlePage,
+      content: 'Your Story',
+      chapterTitle: author,
+      dateLabel: dateRange,
+    ));
+
+    // TOC placeholder
+    pages.add(const BookPage(
+      pageNumber: 2,
+      type: BookPageType.tableOfContents,
+      content: 'A seamless narrative woven from your life',
+    ));
+
+    int pageNum = 3;
+
+    // Group entries into narrative arcs of 3-5 entries each
+    final arcs = <List<JournalEntry>>[];
+    int i = 0;
+    while (i < sorted.length) {
+      final arcSize = (3 + rng.nextInt(3)).clamp(1, sorted.length - i); // 3-5
+      arcs.add(sorted.sublist(i, i + arcSize));
+      i += arcSize;
+    }
+
+    int transitionIndex = 0;
+
+    for (int arcIdx = 0; arcIdx < arcs.length; arcIdx++) {
+      final arc = arcs[arcIdx];
+      final firstDate = arc.first.entryDate;
+      final lastDate = arc.last.entryDate;
+
+      // Arc divider page
+      final arcTitle = arcIdx == 0
+          ? 'The Beginning'
+          : _storyTransitions[transitionIndex % _storyTransitions.length]
+              .trimRight()
+              .replaceAll(RegExp(r'[,\s\u2014]+$'), '');
+      transitionIndex++;
+
+      final arcDateLabel = firstDate.year == lastDate.year
+          ? DateFormat.yMMMM().format(firstDate)
+          : '${DateFormat.yMMMM().format(firstDate)} \u2014 ${DateFormat.yMMMM().format(lastDate)}';
+
+      pages.add(BookPage(
+        pageNumber: pageNum,
+        type: BookPageType.chapterDivider,
+        content: arcTitle,
+        chapterTitle: 'Your Story',
+        dateLabel: arcDateLabel,
+      ));
+      pageNum++;
+
+      // Combine entries into flowing pages (2-3 entries per page)
+      int entryIdx = 0;
+      while (entryIdx < arc.length) {
+        final entriesPerPage = (2 + rng.nextInt(2)).clamp(1, arc.length - entryIdx);
+        final pageEntries = arc.sublist(entryIdx, entryIdx + entriesPerPage);
+
+        final buffer = StringBuffer();
+
+        for (int j = 0; j < pageEntries.length; j++) {
+          final entry = pageEntries[j];
+
+          // Add transition between entries within a page
+          if (j > 0) {
+            final transition =
+                _storyTransitions[transitionIndex % _storyTransitions.length];
+            transitionIndex++;
+            buffer.write('\n\n');
+            buffer.write(transition);
+          }
+
+          buffer.write(entry.content);
+        }
+
+        // Split the combined text into ~250-word pages
+        final combinedText = buffer.toString();
+        final words = combinedText.split(RegExp(r'\s+'));
+
+        if (words.length <= _wordsPerPage) {
+          pages.add(BookPage(
+            pageNumber: pageNum,
+            type: BookPageType.entryContent,
+            content: combinedText,
+            chapterTitle: 'Your Story',
+            dateLabel: DateFormat.yMMMMd().format(pageEntries.first.entryDate),
+            mood: pageEntries.first.mood,
+          ));
+          pageNum++;
+        } else {
+          int wordIdx = 0;
+          bool isFirst = true;
+          while (wordIdx < words.length) {
+            final end = (wordIdx + _wordsPerPage).clamp(0, words.length);
+            final pageWords = words.sublist(wordIdx, end);
+            pages.add(BookPage(
+              pageNumber: pageNum,
+              type: BookPageType.entryContent,
+              content: pageWords.join(' '),
+              chapterTitle: isFirst ? 'Your Story' : null,
+              dateLabel: isFirst
+                  ? DateFormat.yMMMMd().format(pageEntries.first.entryDate)
+                  : null,
+              mood: isFirst ? pageEntries.first.mood : null,
+            ));
+            pageNum++;
+            wordIdx = end;
+            isFirst = false;
+          }
+        }
+
+        entryIdx += entriesPerPage;
+      }
+    }
+
+    // Re-number all pages
+    for (int idx = 0; idx < pages.length; idx++) {
+      pages[idx] = BookPage(
+        pageNumber: idx + 1,
+        type: pages[idx].type,
+        content: pages[idx].content,
+        chapterTitle: pages[idx].chapterTitle,
+        dateLabel: pages[idx].dateLabel,
+        mood: pages[idx].mood,
+        locationName: pages[idx].locationName,
+      );
+    }
+
+    return pages;
   }
 
   /// Detect the best category for an entry using keyword matching.

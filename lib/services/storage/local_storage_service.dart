@@ -35,6 +35,22 @@ class LocalStorageService {
 
   bool _initialized = false;
 
+  /// The Hive encryption cipher, available after [init] completes.
+  /// Other services that open their own Hive boxes should use this cipher
+  /// so all local data is encrypted at rest.
+  HiveAesCipher? _cipher;
+
+  /// Returns the Hive encryption cipher for use by other services.
+  /// Throws [StateError] if [init] has not been called.
+  HiveAesCipher get cipher {
+    if (_cipher == null) {
+      throw StateError(
+        'LocalStorageService has not been initialized. Call init() first.',
+      );
+    }
+    return _cipher!;
+  }
+
   // ---------------------------------------------------------------------------
   // Initialization
   // ---------------------------------------------------------------------------
@@ -50,7 +66,8 @@ class LocalStorageService {
     await Hive.initFlutter();
 
     final encryptionKey = await _getOrCreateEncryptionKey();
-    final cipher = HiveAesCipher(encryptionKey);
+    _cipher = HiveAesCipher(encryptionKey);
+    final cipher = _cipher!;
 
     _entriesBox = await Hive.openBox<String>(
       _entriesBoxName,
@@ -97,7 +114,7 @@ class LocalStorageService {
   Future<void> cacheEntry(JournalEntry entry) async {
     _ensureInitialized();
     // Identity function: content is already encrypted at app layer
-    final json = jsonEncode(entry.toJson((s) => s));
+    final json = jsonEncode(entry.toJson());
     await _entriesBox!.put(entry.id, json);
   }
 
@@ -108,7 +125,7 @@ class LocalStorageService {
     if (json == null) return null;
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
-      return JournalEntry.fromJson(map, (s) => s);
+      return JournalEntry.fromJson(map);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[LocalStorageService] Failed to decode entry $id: $e');
@@ -124,7 +141,7 @@ class LocalStorageService {
     for (final json in _entriesBox!.values) {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
-        entries.add(JournalEntry.fromJson(map, (s) => s));
+        entries.add(JournalEntry.fromJson(map));
       } catch (e) {
         if (kDebugMode) {
           debugPrint('[LocalStorageService] Skipping corrupt entry: $e');

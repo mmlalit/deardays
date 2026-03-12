@@ -18,41 +18,14 @@ import 'package:deardays/features/timeline/presentation/screens/timeline_screen.
     show showMemoryContextMenu;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Motivational quotes for Daily Spark
+// Mock recent conversations (for demo mode)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _dailyQuotes = [
-  '"The only way to do great work is to love what you do." — Steve Jobs',
-  '"In the middle of every difficulty lies opportunity." — Albert Einstein',
-  '"Write it on your heart that every day is the best day in the year." — Ralph Waldo Emerson',
-  '"Life is what happens when you are busy making other plans." — John Lennon',
-  '"The purpose of our lives is to be happy." — Dalai Lama',
-  '"Not how long, but how well you have lived is the main thing." — Seneca',
-  '"Today is a good day to have a good day."',
-  '"Be yourself; everyone else is already taken." — Oscar Wilde',
-  '"The best time to plant a tree was 20 years ago. The second best time is now."',
-  '"Happiness is not something ready-made. It comes from your own actions." — Dalai Lama',
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Memory categories
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MemoryCategory {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final Color bgColor;
-  const _MemoryCategory(this.label, this.icon, this.color, this.bgColor);
-}
-
-const _categories = [
-  _MemoryCategory('Travel', Icons.flight_takeoff_rounded, AppColors.orange, AppColors.orangeBg),
-  _MemoryCategory('Celebrations', Icons.celebration_rounded, AppColors.rose, AppColors.roseBg),
-  _MemoryCategory('People', Icons.people_rounded, AppColors.purple, AppColors.purpleBg),
-  _MemoryCategory('Chapters', Icons.auto_stories_rounded, AppColors.blue, AppColors.blueBg),
-  _MemoryCategory('Voice Notes', Icons.mic_rounded, AppColors.emerald, AppColors.emeraldBg),
-  _MemoryCategory('Photo Memories', Icons.photo_library_rounded, AppColors.indigo, AppColors.indigoBg),
+const _mockConversations = [
+  {'date': 'Today', 'preview': 'Had a great lunch with Sarah at the new Italian place...', 'mood': '\u{1F60A}'},
+  {'date': 'Today', 'preview': 'Work meeting went well, got approval for the project...', 'mood': '\u{1F4AA}'},
+  {'date': 'Yesterday', 'preview': 'Took a long walk in the park, beautiful sunset...', 'mood': '\u{1F305}'},
+  {'date': 'Yesterday', 'preview': 'Called mom, she shared her pasta recipe...', 'mood': '\u{2764}\u{FE0F}'},
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,8 +40,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String? _selectedCategory;
-
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -134,36 +105,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     // ── Header ─────────────────────────────────────────────
                     _buildHeader(context, displayName, colors),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 8),
 
                     // 1. Greeting
                     _buildGreeting(firstName, colors),
                     const SizedBox(height: 28),
 
-                    // 3. Large Mic Button
+                    // 2. Large Mic Button
                     _buildMicButton(context, colors),
                     const SizedBox(height: 16),
 
-                    // 4. Write & Chat icons
+                    // 3. Write & Chat icons
                     _buildWriteChatRow(context, colors),
                     const SizedBox(height: 28),
 
-                    // 5. Daily Spark
-                    _buildDailySpark(colors),
-                    const SizedBox(height: 24),
-
-                    // 6. Streak Strip
+                    // 4. Streak Strip
                     _buildStreakStrip(colors),
                     const SizedBox(height: 24),
 
-                    // 7. On This Day
+                    // 5. On This Day
                     _buildOnThisDaySection(context, colors),
 
-                    // 8. Memory Categories
-                    _buildCategoryChips(colors),
+                    // 6. Recent Conversations
+                    _buildRecentConversations(context, colors),
                     const SizedBox(height: 24),
 
-                    // 9. Recent Memories header
+                    // 7. Recent Memories header
                     _buildSectionHeader(context, colors),
                     const SizedBox(height: 16),
                   ],
@@ -171,11 +138,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // ── Recent Memory cards ─────────────────────────────────────────
+            // ── Recent Memory cards (mixed layout) ───────────────────────────
             entriesAsync.when(
               data: (data) {
-                final allEntries = data.isEmpty ? DemoData.entries : data;
-                final entries = _filterEntries(allEntries);
+                final entries = data.isEmpty ? DemoData.entries : data;
                 if (entries.isEmpty) {
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
@@ -188,7 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           border: Border.all(color: colors.border),
                         ),
                         child: Text(
-                          'No memories in this category yet.',
+                          'No memories yet. Start capturing your day!',
                           style: GoogleFonts.manrope(
                             fontSize: 14,
                             color: colors.textSecondary,
@@ -199,25 +165,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   );
                 }
-                return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (_, i) {
-                        if (i == 0) {
-                          return _buildHeroCard(
-                              context, entries.first, allEntries, colors);
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: _buildCompactCard(
-                              context, entries[i], allEntries, colors),
-                        );
-                      },
-                      childCount: entries.length.clamp(0, 5),
-                    ),
-                  ),
-                );
+                return _buildMixedMemoryCards(context, entries, colors);
               },
               loading: () => SliverPadding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
@@ -231,8 +179,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
-              error: (_, __) =>
-                  const SliverToBoxAdapter(child: SizedBox.shrink()),
+              error: (_, __) => SliverPadding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+                sliver: SliverToBoxAdapter(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.cloud_off_rounded, size: 32, color: colors.textMuted),
+                        const SizedBox(height: 12),
+                        Text(
+                          'You\'re offline. Your memories will appear when you reconnect.',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            color: colors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -241,54 +214,292 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Filter entries by selected category
+  // Mixed memory card layout builder
   // ─────────────────────────────────────────────────────────────────────────
 
-  List<JournalEntry> _filterEntries(List<JournalEntry> entries) {
-    if (_selectedCategory == null) return entries;
-    switch (_selectedCategory) {
-      case 'Travel':
-        return entries
-            .where((e) =>
-                e.content.toLowerCase().contains('travel') ||
-                e.content.toLowerCase().contains('trip') ||
-                e.content.toLowerCase().contains('vacation') ||
-                e.content.toLowerCase().contains('beach') ||
-                e.content.toLowerCase().contains('flight') ||
-                e.locationName != null)
-            .toList();
-      case 'Celebrations':
-        return entries
-            .where((e) =>
-                e.content.toLowerCase().contains('birthday') ||
-                e.content.toLowerCase().contains('celebration') ||
-                e.content.toLowerCase().contains('party') ||
-                e.content.toLowerCase().contains('surprise') ||
-                e.isMilestone)
-            .toList();
-      case 'People':
-        return entries
-            .where((e) =>
-                e.content.toLowerCase().contains('family') ||
-                e.content.toLowerCase().contains('friend') ||
-                e.content.toLowerCase().contains('mom') ||
-                e.content.toLowerCase().contains('dad') ||
-                e.content.toLowerCase().contains('brother') ||
-                e.content.toLowerCase().contains('sister'))
-            .toList();
-      case 'Chapters':
-        return entries
-            .where((e) => e.isMilestone || e.milestoneType != null)
-            .toList();
-      case 'Voice Notes':
-        return entries.where((e) => e.hasVoice).toList();
-      case 'Photo Memories':
-        return entries
-            .where((e) => e.hasPhoto || e.media.isNotEmpty)
-            .toList();
-      default:
-        return entries;
+  Widget _buildMixedMemoryCards(
+      BuildContext context, List<JournalEntry> entries, AppPalette colors) {
+    // Build a list of widgets cycling: large → 2 compact → milestone (if any)
+    final widgets = <Widget>[];
+    int idx = 0;
+    final maxEntries = entries.length.clamp(0, 10);
+
+    while (idx < maxEntries) {
+      // Large card (hero style)
+      widgets.add(
+        Padding(
+          padding: EdgeInsets.only(top: widgets.isEmpty ? 0 : 16),
+          child: _buildHeroCard(context, entries[idx], entries, colors),
+        ),
+      );
+      idx++;
+
+      // Two compact cards side by side
+      if (idx < maxEntries) {
+        final first = entries[idx];
+        idx++;
+        final second = idx < maxEntries ? entries[idx] : null;
+        if (second != null) idx++;
+
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildCompactGridCard(context, first, entries, colors),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: second != null
+                      ? _buildCompactGridCard(
+                          context, second, entries, colors)
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // Milestone card — find next milestone entry if any
+      if (idx < maxEntries && entries[idx].isMilestone) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child:
+                _buildMilestoneCard(context, entries[idx], entries, colors),
+          ),
+        );
+        idx++;
+      }
     }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => i == 0 ? widgets[i] : Padding(
+            padding: const EdgeInsets.only(top: 0),
+            child: widgets[i],
+          ),
+          childCount: widgets.length,
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Compact grid card (for two-column layout)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildCompactGridCard(BuildContext context, JournalEntry entry,
+      List<JournalEntry> allEntries, AppPalette colors) {
+    final title = _extractTitle(entry);
+    final excerpt = _extractExcerpt(entry);
+    final dateStr = _relativeDate(entry.entryDate);
+    final photoMedia =
+        entry.media.where((m) => m.mediaType == 'photo').toList();
+
+    return GestureDetector(
+      onTap: () => context.push(
+        '/memory',
+        extra: MemoryDetailArgs(
+          entry: entry,
+          allEntries: allEntries,
+          initialIndex: allEntries.indexOf(entry),
+        ),
+      ),
+      onLongPress: () => showMemoryContextMenu(context, entry, colors),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+                color: colors.textPrimary.withAlpha(8),
+                blurRadius: 10,
+                offset: const Offset(0, 2)),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 90,
+              width: double.infinity,
+              child: photoMedia.isNotEmpty
+                  ? _NetworkImage(
+                      url: _getPhotoUrl(
+                          context, photoMedia.first.storagePath))
+                  : _GradientBanner(colors: colors, mood: entry.mood),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dateStr.toUpperCase(),
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: colors.accent,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                      height: 1.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    excerpt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      color: colors.textSecondary,
+                      height: 1.5,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Milestone card (special border and badge)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildMilestoneCard(BuildContext context, JournalEntry entry,
+      List<JournalEntry> allEntries, AppPalette colors) {
+    final title = _extractTitle(entry);
+    final excerpt = _extractExcerpt(entry);
+    final dateStr = _relativeDate(entry.entryDate);
+
+    return GestureDetector(
+      onTap: () => context.push(
+        '/memory',
+        extra: MemoryDetailArgs(
+          entry: entry,
+          allEntries: allEntries,
+          initialIndex: allEntries.indexOf(entry),
+        ),
+      ),
+      onLongPress: () => showMemoryContextMenu(context, entry, colors),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: colors.accent.withAlpha(100),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colors.accent.withAlpha(15),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(25),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 22,
+                color: colors.accent,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colors.accent.withAlpha(20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'MILESTONE',
+                          style: GoogleFonts.manrope(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: colors.accent,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        dateStr,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          color: colors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                      height: 1.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    excerpt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: colors.textSecondary,
+                      height: 1.5,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -297,10 +508,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildHeader(
       BuildContext context, String displayName, AppPalette colors) {
-    final user = Supabase.instance.client.auth.currentUser;
-    final avatarUrl = user?.userMetadata?['avatar_url'] as String?;
-    final initials =
-        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A';
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Row(
@@ -319,46 +526,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             label: 'Settings',
             button: true,
             child: GestureDetector(
-            onTap: () => context.push('/settings'),
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Center(
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accentFaint,
-                    border: Border.all(color: colors.accent.withAlpha(50)),
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: avatarUrl != null
-                      ? Image.network(avatarUrl, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                                child: Text(
-                                  initials,
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: colors.accent,
-                                  ),
-                                ),
-                              ))
-                      : Center(
-                          child: Text(
-                            initials,
-                            style: GoogleFonts.manrope(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: colors.accent,
-                            ),
-                          ),
-                        ),
+              onTap: () => context.push('/settings'),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: Icon(Icons.settings_outlined, size: 22, color: colors.textSecondary),
                 ),
               ),
             ),
-          ),
           ),
         ],
       ),
@@ -366,7 +542,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 1 & 2. Greeting + prompt
+  // 1. Greeting + prompt
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildGreeting(String firstName, AppPalette colors) {
@@ -383,9 +559,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         Text(
           '$greeting, $firstName',
           style: GoogleFonts.newsreader(
-            fontSize: 30,
-            fontWeight: FontWeight.w700,
-            color: colors.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: colors.textSecondary,
             height: 1.2,
             letterSpacing: -0.3,
           ),
@@ -394,9 +570,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         Text(
           'What happened today?',
           style: GoogleFonts.manrope(
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-            color: colors.textSecondary,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
             height: 1.4,
           ),
         ),
@@ -405,7 +581,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 3. Large Mic Button
+  // 2. Large Mic Button
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildMicButton(BuildContext context, AppPalette colors) {
@@ -444,7 +620,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 4. Write & Chat row
+  // 3. Write & Chat row
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildWriteChatRow(BuildContext context, AppPalette colors) {
@@ -523,65 +699,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 5. Daily Spark (motivational quote)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildDailySpark(AppPalette colors) {
-    final dayOfYear = DateTime.now()
-        .difference(DateTime(DateTime.now().year, 1, 1))
-        .inDays;
-    final quote = _dailyQuotes[dayOfYear % _dailyQuotes.length];
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.accent.withAlpha(13),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.accent.withAlpha(26)),
-      ),
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'DAILY SPARK',
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: colors.accent,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                quote,
-                style: GoogleFonts.newsreader(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  fontStyle: FontStyle.italic,
-                  color: colors.textPrimary,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            right: -8,
-            bottom: -12,
-            child: Icon(
-              Icons.auto_awesome_rounded,
-              size: 56,
-              color: colors.accent.withAlpha(20),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // 6. Streak Strip
+  // 4. Streak Strip
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildStreakStrip(AppPalette colors) {
@@ -726,7 +844,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 7. On This Day
+  // 5. On This Day
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildOnThisDaySection(BuildContext context, AppPalette colors) {
@@ -780,7 +898,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
-                context.go('/timeline');
+                context.push('/on-this-day');
               },
               child: ConstrainedBox(
                 constraints:
@@ -790,7 +908,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Center(
                     child: Text(
-                      'See all',
+                      'See All',
                       style: GoogleFonts.manrope(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -805,7 +923,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 100,
+          height: 190,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: entries.length,
@@ -814,7 +932,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final entry = entries[i];
               final excerpt = _extractExcerpt(entry);
               final relDate = _relativeDate(entry.entryDate);
-              final moodEmoji = _moodEmoji(entry.mood);
+              final photoMedia =
+                  entry.media.where((m) => m.mediaType == 'photo').toList();
 
               return GestureDetector(
                 onTap: () {
@@ -830,6 +949,149 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 },
                 onLongPress: () =>
                     showMemoryContextMenu(context, entry, colors),
+                child: Container(
+                  width: 180,
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.textPrimary.withAlpha(8),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 100,
+                        width: double.infinity,
+                        child: photoMedia.isNotEmpty
+                            ? _NetworkImage(
+                                url: _getPhotoUrl(
+                                    context, photoMedia.first.storagePath))
+                            : _GradientBanner(colors: colors, mood: entry.mood),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              relDate.toUpperCase(),
+                              style: GoogleFonts.manrope(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: colors.accent,
+                                letterSpacing: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              excerpt,
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                color: colors.textSecondary,
+                                height: 1.5,
+                              ),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 6. Recent Conversations
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildRecentConversations(BuildContext context, AppPalette colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.chat_bubble_rounded,
+                size: 18,
+                color: Color(0xFF8B5CF6),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Recent Conversations',
+                style: GoogleFonts.newsreader(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.go('/timeline');
+              },
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Center(
+                    child: Text(
+                      'See All',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: colors.accent,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 110,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _mockConversations.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final convo = _mockConversations[i];
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.push('/write');
+                },
                 child: Container(
                   width: 200,
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -852,7 +1114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              relDate.toUpperCase(),
+                              (convo['date'] ?? '').toUpperCase(),
                               style: GoogleFonts.manrope(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w800,
@@ -863,15 +1125,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (moodEmoji.isNotEmpty)
-                            Text(moodEmoji,
-                                style: const TextStyle(fontSize: 12)),
+                          Text(convo['mood'] ?? '',
+                              style: const TextStyle(fontSize: 14)),
                         ],
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 8),
                       Expanded(
                         child: Text(
-                          excerpt,
+                          convo['preview'] ?? '',
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             color: colors.textSecondary,
@@ -888,107 +1149,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
           ),
         ),
-        const SizedBox(height: 24),
       ],
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 8. Memory Categories (horizontal chips)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildCategoryChips(AppPalette colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Memory Categories',
-          style: GoogleFonts.newsreader(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: colors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 44,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) {
-              final cat = _categories[i];
-              final isSelected = _selectedCategory == cat.label;
-              return Semantics(
-                label: '${cat.label} category filter',
-                button: true,
-                child: GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  setState(() {
-                    _selectedCategory =
-                        isSelected ? null : cat.label;
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? cat.color.withAlpha(25)
-                        : colors.card,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: isSelected
-                          ? cat.color.withAlpha(100)
-                          : colors.border,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(cat.icon,
-                          size: 16,
-                          color: isSelected
-                              ? cat.color
-                              : colors.textSecondary),
-                      const SizedBox(width: 6),
-                      Text(
-                        cat.label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected
-                              ? cat.color
-                              : colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // 9. Recent Memories section header
+  // 7. Recent Memories section header
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildSectionHeader(BuildContext context, AppPalette colors) {
     return Row(
       children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981).withAlpha(20),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.photo_library_rounded,
+            size: 18,
+            color: Color(0xFF10B981),
+          ),
+        ),
+        const SizedBox(width: 10),
         Expanded(
           child: Text(
             'Recent Memories',
             style: GoogleFonts.newsreader(
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
               color: colors.textPrimary,
             ),
@@ -1013,7 +1203,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Hero card (first entry)
+  // Hero card (first entry — large full-width)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildHeroCard(BuildContext context, JournalEntry entry,
@@ -1061,27 +1251,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               context, photoMedia.first.storagePath))
                       : _GradientBanner(colors: colors, mood: entry.mood),
                 ),
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: colors.card.withAlpha(230),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      dateLabel.toUpperCase(),
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
                 if (entry.isAiPolished)
                   Positioned(
                     top: 12,
@@ -1116,6 +1285,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    dateLabel.toUpperCase(),
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: colors.accent,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
                     title,
                     style: GoogleFonts.newsreader(
                       fontSize: 18,
@@ -1141,126 +1320,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Compact card
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildCompactCard(BuildContext context, JournalEntry entry,
-      List<JournalEntry> allEntries, AppPalette colors) {
-    final title = _extractTitle(entry);
-    final excerpt = _extractExcerpt(entry);
-    final dateStr = _relativeDate(entry.entryDate);
-    final photoMedia =
-        entry.media.where((m) => m.mediaType == 'photo').toList();
-    final (tagLabel, tagColor) = _tagInfo(entry);
-
-    return GestureDetector(
-      onTap: () => context.push(
-        '/memory',
-        extra: MemoryDetailArgs(
-          entry: entry,
-          allEntries: allEntries,
-          initialIndex: allEntries.indexOf(entry),
-        ),
-      ),
-      onLongPress: () => showMemoryContextMenu(context, entry, colors),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(
-                color: colors.textPrimary.withAlpha(8),
-                blurRadius: 10,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: SizedBox(
-          height: 130,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 130,
-                child: photoMedia.isNotEmpty
-                    ? _NetworkImage(
-                        url: _getPhotoUrl(
-                            context, photoMedia.first.storagePath))
-                    : _GradientBanner(colors: colors, mood: entry.mood),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: GoogleFonts.newsreader(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: colors.textPrimary,
-                                height: 1.3,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            dateStr,
-                            style: GoogleFonts.manrope(
-                              fontSize: 10,
-                              color: colors.textMuted,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        excerpt,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          color: colors.textSecondary,
-                          height: 1.6,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        children: [
-                          if (tagLabel != null)
-                            _Tag(
-                                label: tagLabel,
-                                color: tagColor,
-                                colors: colors),
-                          if (entry.mood != null)
-                            _Tag(
-                              label: _moodLabel(entry.mood!),
-                              color: colors.accent.withAlpha(180),
-                              colors: colors,
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -1380,64 +1439,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return DateFormat('MMM d').format(date);
   }
 
-  (String?, Color) _tagInfo(JournalEntry entry) {
-    final text = entry.content.toLowerCase();
-    if (text.contains('travel') ||
-        text.contains('trip') ||
-        text.contains('vacation')) {
-      return ('Travel', AppColors.orange);
-    }
-    if (text.contains('work') ||
-        text.contains('job') ||
-        text.contains('career')) {
-      return ('Career', AppColors.blue);
-    }
-    if (text.contains('family') ||
-        text.contains('mom') ||
-        text.contains('dad') ||
-        text.contains('daughter') ||
-        text.contains('son')) {
-      return ('Family', AppColors.rose);
-    }
-    if (text.contains('friend') || text.contains('reunion')) {
-      return ('Friends', AppColors.purple);
-    }
-    return (null, Colors.transparent);
-  }
-
-  String _moodLabel(String mood) {
-    switch (mood) {
-      case 'great':
-        return 'Gratitude';
-      case 'good':
-        return 'Social';
-      case 'okay':
-        return 'Calm';
-      case 'low':
-        return 'Personal';
-      case 'tough':
-        return 'Growth';
-      default:
-        return mood;
-    }
-  }
-
-  String _moodEmoji(String? mood) {
-    switch (mood) {
-      case 'great':
-        return '\u{1F929}';
-      case 'good':
-        return '\u{1F60A}';
-      case 'okay':
-        return '\u{1F610}';
-      case 'low':
-        return '\u{1F614}';
-      case 'tough':
-        return '\u{1F622}';
-      default:
-        return '';
-    }
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1546,29 +1547,3 @@ class _GradientBanner extends StatelessWidget {
   }
 }
 
-class _Tag extends StatelessWidget {
-  final String label;
-  final Color color;
-  final AppPalette colors;
-  const _Tag(
-      {required this.label, required this.color, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.manrope(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-}

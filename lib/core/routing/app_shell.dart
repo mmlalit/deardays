@@ -1,9 +1,15 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
+
 class AppShell extends ConsumerStatefulWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
@@ -12,11 +18,95 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell>
-    with SingleTickerProviderStateMixin {
-  bool _fabOpen = false;
-  late final AnimationController _rotationController;
-  late final Animation<double> _rotationAnim;
+class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
+  bool _prefetched = false;
+  Timer? _refreshTimer;
+
+  /// How often to refresh cached data while the app is in the foreground.
+  static const _refreshInterval = Duration(minutes: 5);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _prefetchData();
+    _startPeriodicRefresh();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App came back to foreground — refresh data
+      _invalidateAndRefresh();
+      _startPeriodicRefresh();
+    } else if (state == AppLifecycleState.paused) {
+      _refreshTimer?.cancel();
+    }
+  }
+
+  /// Eagerly fetch and cache entries so screens display instantly.
+  /// Runs once when the authenticated shell mounts.
+  void _prefetchData() {
+    if (_prefetched) return;
+    _prefetched = true;
+
+    Future.microtask(() {
+      if (!mounted) return;
+      final isDemo = ref.read(demoModeProvider);
+      if (isDemo) return;
+
+      _triggerProviderFetch();
+
+      if (kDebugMode) {
+        debugPrint('[AppShell] Pre-fetching data in background.');
+      }
+    });
+  }
+
+  /// Invalidate stale providers and re-fetch fresh data from network.
+  void _invalidateAndRefresh() {
+    if (!mounted) return;
+    final isDemo = ref.read(demoModeProvider);
+    if (isDemo) return;
+
+    ref.invalidate(timelineEntriesProvider);
+    ref.invalidate(todayEntryProvider);
+    ref.invalidate(streakProvider);
+    ref.invalidate(profileProvider);
+    ref.invalidate(onThisDayProvider);
+    ref.invalidate(weeklyMoodsProvider);
+
+    _triggerProviderFetch();
+
+    if (kDebugMode) {
+      debugPrint('[AppShell] Refreshing cached data.');
+    }
+  }
+
+  /// Touch providers so they start fetching in the background.
+  void _triggerProviderFetch() {
+    ref.read(timelineEntriesProvider.future).ignore();
+    ref.read(todayEntryProvider.future).ignore();
+    ref.read(streakProvider.future).ignore();
+    ref.read(profileProvider.future).ignore();
+    ref.read(booksProvider.future).ignore();
+    ref.read(weeklyMoodsProvider.future).ignore();
+    ref.read(onThisDayProvider.future).ignore();
+  }
+
+  void _startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      _invalidateAndRefresh();
+    });
+  }
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
@@ -27,217 +117,13 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   @override
-  void initState() {
-    super.initState();
-    _rotationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _rotationAnim = Tween<double>(begin: 0, end: 0.125).animate(
-      CurvedAnimation(parent: _rotationController, curve: Curves.easeOutCubic),
-    );
-  }
-
-  @override
-  void dispose() {
-    _rotationController.dispose();
-    super.dispose();
-  }
-
-  void _toggleFab() {
-    HapticFeedback.mediumImpact();
-    setState(() => _fabOpen = !_fabOpen);
-    if (_fabOpen) {
-      _rotationController.forward();
-    } else {
-      _rotationController.reverse();
-    }
-  }
-
-  void _closeFab() {
-    if (!_fabOpen) return;
-    setState(() => _fabOpen = false);
-    _rotationController.reverse();
-  }
-
-  void _navigate(String route) {
-    HapticFeedback.lightImpact();
-    _closeFab();
-    context.push(route);
-  }
-
-  @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
     final colors = AppColors.of(context);
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    // nav bar: 60px fixed height + safe area + 16px gap above FAB
-    final fabBottomOffset = 60.0 + bottomPadding + 16.0;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // ── Routed screen ──────────────────────────────────────────────────
-          widget.child,
-
-          // ── Scrim ──────────────────────────────────────────────────────────
-          if (_fabOpen)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: _closeFab,
-                child: AnimatedOpacity(
-                  opacity: _fabOpen ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Container(color: Colors.black.withAlpha(80)),
-                ),
-              ),
-            ),
-
-          // ── FAB + mini menu ────────────────────────────────────────────────
-          Positioned(
-            bottom: fabBottomOffset,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Mini menu items (shown when open)
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
-                  child: _fabOpen
-                      ? Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              _MiniButton(
-                                icon: Icons.smart_toy_outlined,
-                                label: 'Chat AI',
-                                colors: colors,
-                                onTap: () => _navigate('/checkin'),
-                              ),
-                              const SizedBox(height: 12),
-                              _MiniButton(
-                                icon: Icons.mic_rounded,
-                                label: 'Speak',
-                                colors: colors,
-                                onTap: () => _navigate('/record'),
-                              ),
-                              const SizedBox(height: 12),
-                              _MiniButton(
-                                icon: Icons.edit_note_rounded,
-                                label: 'Write',
-                                colors: colors,
-                                onTap: () => _navigate('/write'),
-                              ),
-                            ],
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-
-                // Main FAB
-                GestureDetector(
-                  onTap: _toggleFab,
-                  child: AnimatedBuilder(
-                    animation: _rotationAnim,
-                    builder: (_, child) => Transform.rotate(
-                      angle: _rotationAnim.value * 2 * 3.14159265,
-                      child: child,
-                    ),
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: colors.accent,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors.accent.withAlpha(80),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.add_rounded,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      body: widget.child,
       bottomNavigationBar: _BottomNav(currentIndex: index, colors: colors),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mini FAB option button
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MiniButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final AppPalette colors;
-  final VoidCallback onTap;
-
-  const _MiniButton({
-    required this.icon,
-    required this.label,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: colors.card,
-              shape: BoxShape.circle,
-              border: Border.all(color: colors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.textPrimary.withAlpha(20),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Icon(icon, size: 20, color: colors.accent),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.manrope(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              shadows: [
-                Shadow(
-                  color: Colors.black.withAlpha(120),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

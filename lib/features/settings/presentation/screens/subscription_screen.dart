@@ -69,7 +69,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           ? 'Annual (${sub.yearlyPrice}/year)'
           : 'Monthly (${sub.monthlyPrice}/month)';
     }
-    if (_profile != null && _profile!.isInTrial) return '30-Day Free Trial';
+    if (_profile != null && _profile!.isInTrial) return '7-Day Free Trial';
     return 'No Plan';
   }
 
@@ -78,7 +78,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       return '${_monthName(expiresAt.month)} ${expiresAt.day}, ${expiresAt.year}';
     }
     if (_profile != null && _profile!.isInTrial) {
-      final trialEnd = _profile!.trialStartedAt.add(const Duration(days: 30));
+      final trialEnd = _profile!.trialStartedAt.add(const Duration(days: 7));
       final remaining = trialEnd.difference(DateTime.now()).inDays;
       return '$remaining days remaining';
     }
@@ -209,7 +209,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     _buildPlanOption(
                       plan: _Plan.yearly,
                       title: '${sub.yearlyPrice} / year',
-                      subtitle: 'Save 37% — billed annually',
+                      subtitle: 'Save 42% — billed annually',
                       badge: 'BEST VALUE',
                     ),
                     const SizedBox(height: 10),
@@ -512,7 +512,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       {'icon': Icons.fingerprint, 'text': 'Biometric, PIN & pattern lock'},
       {'icon': Icons.sync, 'text': 'Cross-device sync'},
       {'icon': Icons.auto_awesome, 'text': 'AI writing insights & prompts'},
-      {'icon': Icons.shield_outlined, 'text': 'Zero-knowledge encryption'},
+      {'icon': Icons.shield_outlined, 'text': 'Server-side encryption'},
     ];
 
     return Column(

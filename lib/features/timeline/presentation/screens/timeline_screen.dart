@@ -329,7 +329,33 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                 child: ExcludeSemantics(
-                  child: _MoodCalendarSection(entries: entries, colors: colors),
+                  child: _MoodCalendarSection(
+                    entries: entries,
+                    colors: colors,
+                    onDateTap: (date, dayEntries) {
+                      if (dayEntries.length == 1) {
+                        // Single entry — go straight to memory detail
+                        context.push(
+                          '/memory',
+                          extra: MemoryDetailArgs(
+                            entry: dayEntries.first,
+                            allEntries: dayEntries,
+                            initialIndex: 0,
+                          ),
+                        );
+                      } else if (dayEntries.length > 1) {
+                        // Multiple entries — go to first, but pass all as swipeable
+                        context.push(
+                          '/memory',
+                          extra: MemoryDetailArgs(
+                            entry: dayEntries.first,
+                            allEntries: dayEntries,
+                            initialIndex: 0,
+                          ),
+                        );
+                      }
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -1042,8 +1068,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             title: 'Morning run breakthrough',
             excerpt: 'Finally hit 5K without stopping. The sunrise over the park made it even more special. Feeling proud of the consistency.',
             tags: [('Wellness', AppColors.emerald)],
-            gradientColors: [const Color(0xFF81C784), const Color(0xFF388E3C)],
-            icon: Icons.spa,
           ),
           _buildSampleTimelineEntry(
             colors,
@@ -1051,8 +1075,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             title: 'Coffee with an old friend',
             excerpt: 'Ran into Maya at the farmer\'s market. We talked for an hour about everything and nothing...',
             tags: [('Friends', AppColors.purple), ('Happy', AppColors.moodGood)],
-            gradientColors: [const Color(0xFFCE93D8), const Color(0xFF8E24AA)],
-            icon: Icons.people_outline,
             isLast: true,
           ),
         ],
@@ -1067,8 +1089,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     required String title,
     required String excerpt,
     required List<(String, Color)> tags,
-    List<Color>? gradientColors,
-    IconData? icon,
     bool isFirst = false,
     bool isLast = false,
   }) {
@@ -1373,14 +1393,26 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mood Calendar Section
+// Mood Calendar Section — interactive with month navigation & date tap
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MoodCalendarSection extends StatelessWidget {
+class _MoodCalendarSection extends StatefulWidget {
   final List<JournalEntry> entries;
   final AppPalette colors;
+  final void Function(DateTime date, List<JournalEntry> dayEntries)? onDateTap;
 
-  const _MoodCalendarSection({required this.entries, required this.colors});
+  const _MoodCalendarSection({
+    required this.entries,
+    required this.colors,
+    this.onDateTap,
+  });
+
+  @override
+  State<_MoodCalendarSection> createState() => _MoodCalendarSectionState();
+}
+
+class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
+  late DateTime _viewMonth; // first day of the displayed month
 
   static const _moodColors = {
     'great': Color(0xFF10B981),
@@ -1399,39 +1431,67 @@ class _MoodCalendarSection extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
     final now = DateTime.now();
-    final year = now.year;
-    final month = now.month;
-    final monthName = DateFormat('MMMM yyyy').format(now);
+    _viewMonth = DateTime(now.year, now.month, 1);
+  }
 
-    // Build day → mood map for the current month
+  void _goToPreviousMonth() {
+    setState(() {
+      _viewMonth = DateTime(_viewMonth.year, _viewMonth.month - 1, 1);
+    });
+  }
+
+  void _goToNextMonth() {
+    final now = DateTime.now();
+    final nextMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 1);
+    // Don't navigate past current month
+    if (nextMonth.isAfter(DateTime(now.year, now.month + 1, 0))) return;
+    setState(() {
+      _viewMonth = nextMonth;
+    });
+  }
+
+  bool get _canGoNext {
+    final now = DateTime.now();
+    final nextMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 1);
+    return !nextMonth.isAfter(DateTime(now.year, now.month + 1, 0));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final year = _viewMonth.year;
+    final month = _viewMonth.month;
+    final monthName = DateFormat('MMMM yyyy').format(_viewMonth);
+    final now = DateTime.now();
+
+    // Build day -> mood map for the displayed month
     final moodMap = <int, String>{};
-    for (final entry in entries) {
+    final dayEntriesMap = <int, List<JournalEntry>>{};
+    for (final entry in widget.entries) {
       if (entry.entryDate.year == year && entry.entryDate.month == month) {
+        dayEntriesMap.putIfAbsent(entry.entryDate.day, () => []).add(entry);
         if (entry.mood != null) {
           moodMap[entry.entryDate.day] = entry.mood!;
         } else {
-          // Mark that there's an entry but no mood
           moodMap.putIfAbsent(entry.entryDate.day, () => '');
         }
       }
     }
 
-    // Days in month and what day-of-week the 1st falls on (Mon=0..Sun=6)
     final daysInMonth = DateUtils.getDaysInMonth(year, month);
-    // DateTime weekday: Mon=1..Sun=7; we want Mon=0..Sun=6
     final firstWeekday = DateTime(year, month, 1).weekday - 1;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.card,
+        color: widget.colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
+        border: Border.all(color: widget.colors.border),
         boxShadow: [
           BoxShadow(
-            color: colors.textPrimary.withAlpha(8),
+            color: widget.colors.textPrimary.withAlpha(8),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -1440,29 +1500,65 @@ class _MoodCalendarSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
+          // Header row with navigation arrows
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Icon(Icons.calendar_month_rounded, size: 18, color: widget.colors.accent),
+              const SizedBox(width: 8),
               Text(
-                'Mood This Month',
+                'Mood Calendar',
                 style: GoogleFonts.newsreader(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
+                  color: widget.colors.textPrimary,
                 ),
               ),
               const Spacer(),
-              Text(
-                monthName,
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  color: colors.textSecondary,
+              // Previous month
+              GestureDetector(
+                onTap: _goToPreviousMonth,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.colors.accentFaint,
+                  ),
+                  child: Icon(Icons.chevron_left_rounded, size: 18, color: widget.colors.accent),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  monthName,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: widget.colors.textSecondary,
+                  ),
+                ),
+              ),
+              // Next month
+              GestureDetector(
+                onTap: _canGoNext ? _goToNextMonth : null,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _canGoNext ? widget.colors.accentFaint : widget.colors.accentFaint.withAlpha(80),
+                  ),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: _canGoNext ? widget.colors.accent : widget.colors.textMuted,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // Day-of-week header
           Row(
@@ -1474,7 +1570,7 @@ class _MoodCalendarSection extends StatelessWidget {
                     style: GoogleFonts.manrope(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: colors.textSecondary,
+                      color: widget.colors.textSecondary,
                     ),
                   ),
                 ),
@@ -1484,7 +1580,7 @@ class _MoodCalendarSection extends StatelessWidget {
           const SizedBox(height: 6),
 
           // Calendar grid
-          _buildCalendarGrid(now, daysInMonth, firstWeekday, moodMap),
+          _buildCalendarGrid(now, year, month, daysInMonth, firstWeekday, moodMap, dayEntriesMap),
           const SizedBox(height: 12),
 
           // Legend
@@ -1510,7 +1606,7 @@ class _MoodCalendarSection extends StatelessWidget {
                       label,
                       style: GoogleFonts.manrope(
                         fontSize: 10,
-                        color: colors.textMuted,
+                        color: widget.colors.textMuted,
                       ),
                     ),
                   ],
@@ -1525,13 +1621,16 @@ class _MoodCalendarSection extends StatelessWidget {
 
   Widget _buildCalendarGrid(
     DateTime now,
+    int year,
+    int month,
     int daysInMonth,
     int firstWeekday,
     Map<int, String> moodMap,
+    Map<int, List<JournalEntry>> dayEntriesMap,
   ) {
-    // Total cells: leading empty + days + trailing to fill last row
     final totalCells = firstWeekday + daysInMonth;
     final rows = (totalCells / 7).ceil();
+    final isCurrentMonth = now.year == year && now.month == month;
 
     return Column(
       children: List.generate(rows, (rowIndex) {
@@ -1547,39 +1646,50 @@ class _MoodCalendarSection extends StatelessWidget {
               }
 
               final mood = moodMap[day];
-              final isToday = day == now.day;
+              final isToday = isCurrentMonth && day == now.day;
               final hasMood = mood != null && mood.isNotEmpty;
-              final moodColor = hasMood ? (_moodColors[mood] ?? colors.accent) : null;
+              final hasEntry = dayEntriesMap.containsKey(day);
+              final moodColor = hasMood ? (_moodColors[mood] ?? widget.colors.accent) : null;
 
               return Expanded(
-                child: Center(
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: hasMood
-                          ? moodColor
-                          : isToday
-                              ? colors.accent.withAlpha(30)
-                              : Colors.transparent,
-                      border: isToday && !hasMood
-                          ? Border.all(color: colors.accent, width: 1)
-                          : null,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$day',
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: hasMood
-                              ? (moodColor!.computeLuminance() > 0.35
-                                  ? const Color(0xFF1F2937)
-                                  : Colors.white)
-                              : isToday
-                                  ? colors.accent
-                                  : colors.textSecondary,
+                child: GestureDetector(
+                  onTap: hasEntry && widget.onDateTap != null
+                      ? () => widget.onDateTap!(
+                            DateTime(year, month, day),
+                            dayEntriesMap[day]!,
+                          )
+                      : null,
+                  child: Center(
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: hasMood
+                            ? moodColor
+                            : isToday
+                                ? widget.colors.accent.withAlpha(30)
+                                : hasEntry
+                                    ? widget.colors.accent.withAlpha(15)
+                                    : Colors.transparent,
+                        border: isToday && !hasMood
+                            ? Border.all(color: widget.colors.accent, width: 1.5)
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$day',
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: hasMood
+                                ? (moodColor!.computeLuminance() > 0.35
+                                    ? const Color(0xFF1F2937)
+                                    : Colors.white)
+                                : isToday
+                                    ? widget.colors.accent
+                                    : widget.colors.textSecondary,
+                          ),
                         ),
                       ),
                     ),

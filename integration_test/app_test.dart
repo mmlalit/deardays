@@ -32,6 +32,10 @@ import 'flows/subscription_flow_test.dart';
 import 'flows/my_story_flow_test.dart';
 import 'flows/book_creation_flow_test.dart';
 import 'flows/share_card_flow_test.dart';
+import 'flows/book_detail_flow_test.dart';
+import 'flows/settings_subscreen_flow_test.dart';
+import 'flows/see_all_flow_test.dart';
+import 'flows/paywall_flow_test.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -70,4 +74,8 @@ void main() {
   myStoryFlowTests();
   bookCreationFlowTests();
   shareCardFlowTests();
+  bookDetailFlowTests();
+  settingsSubscreenFlowTests();
+  seeAllFlowTests();
+  paywallFlowTests();
 }

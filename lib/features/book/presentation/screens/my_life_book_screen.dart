@@ -806,7 +806,7 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _navAction(Icons.bookmark_outline_rounded, 'SAVE', () {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -826,64 +826,6 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
               }),
               _navAction(Icons.share_outlined, 'SHARE', () {
                 _showShareSheet(context);
-              }),
-              Transform.translate(
-                offset: const Offset(0, -10),
-                child: GestureDetector(
-                  onTap: () => HapticFeedback.mediumImpact(),
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF195DE6),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF195DE6).withAlpha(100),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ),
-              _navAction(Icons.headphones_outlined, 'LISTEN', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Audio narration coming soon',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: const Color(0xFF64748B),
-                    duration: const Duration(seconds: 2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              }),
-              _navAction(Icons.tune_rounded, 'DISPLAY', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Display settings coming soon',
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: const Color(0xFF64748B),
-                    duration: const Duration(seconds: 2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
               }),
             ],
           ),
