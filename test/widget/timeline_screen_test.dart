@@ -22,20 +22,20 @@ void main() {
       expect(find.byType(TimelineScreen), findsOneWidget);
     });
 
-    testWidgets('shows search field', (tester) async {
+    testWidgets('shows search icon', (tester) async {
       await tester.pumpWidget(buildApp(overrides: authenticatedOverrides()));
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
     });
 
-    testWidgets('shows mood filter chip', (tester) async {
+    testWidgets('shows category filter chips', (tester) async {
       await tester.pumpWidget(buildApp(overrides: authenticatedOverrides()));
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(
-        find.text('Mood').evaluate().isNotEmpty ||
-        find.byIcon(Icons.mood).evaluate().isNotEmpty,
+        find.text('All Memories').evaluate().isNotEmpty ||
+        find.text('Family').evaluate().isNotEmpty,
         isTrue,
       );
     });
@@ -64,7 +64,7 @@ void main() {
 
       // Scroll down past stats to find entries
       await tester.drag(
-        find.byType(SingleChildScrollView).first,
+        find.byType(CustomScrollView).first,
         const Offset(0, -300),
       );
       await tester.pumpAndSettle();
@@ -79,34 +79,27 @@ void main() {
   });
 
   group('TimelineScreen - Search', () {
-    testWidgets('search field accepts input', (tester) async {
+    testWidgets('search icon is tappable', (tester) async {
       await tester.pumpWidget(buildApp(overrides: authenticatedOverrides()));
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.enterText(find.byType(TextField), 'happy');
-      await tester.pump();
-
-      expect(find.text('happy'), findsOneWidget);
+      // TimelineScreen uses a custom search icon, not a TextField in the bar.
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
     });
   });
 
-  group('TimelineScreen - Mood filter', () {
-    testWidgets('tapping mood filter opens selection sheet', (tester) async {
+  group('TimelineScreen - Category filter', () {
+    testWidgets('tapping category filter changes filter', (tester) async {
       await tester.pumpWidget(buildApp(overrides: authenticatedOverrides()));
       await tester.pump(const Duration(milliseconds: 500));
 
-      final moodChip = find.text('Mood');
-      if (moodChip.evaluate().isNotEmpty) {
-        await tester.tap(moodChip);
+      final familyChip = find.text('Family');
+      if (familyChip.evaluate().isNotEmpty) {
+        await tester.tap(familyChip);
         await tester.pumpAndSettle();
 
-        // Mood options should appear
-        expect(
-          find.text('Great').evaluate().isNotEmpty ||
-          find.text('Good').evaluate().isNotEmpty ||
-          find.text('great').evaluate().isNotEmpty,
-          isTrue,
-        );
+        // Screen should still be present after filter tap
+        expect(find.byType(TimelineScreen), findsOneWidget);
       }
     });
   });

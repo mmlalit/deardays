@@ -268,6 +268,39 @@ class AiService {
     }
   }
 
+  /// Generates a short, poetic summary of a journal entry for sharing.
+  ///
+  /// Returns 1-2 evocative sentences (max ~25 words) suitable for a share card.
+  Future<String> generateShareSummary(
+    String entryText, {
+    String? language,
+  }) async {
+    _ensureConfigured('generateShareSummary');
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-chat',
+        data: {
+          'messages': [
+            {
+              'role': 'user',
+              'content':
+                  'Summarize this journal entry into 1-2 poetic, shareable sentences. '
+                  'Keep it evocative and personal but not too revealing. Max 25 words. '
+                  'Return ONLY the summary, nothing else.\n\n$entryText',
+            },
+          ],
+          if (language != null) 'language': language,
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+      return _extractText(response).trim();
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'generateShareSummary');
+    }
+  }
+
   /// Detects recurring themes and patterns across the supplied entries.
   Future<List<String>> detectThemes(List<String> entries) async {
     _ensureConfigured('detectThemes');

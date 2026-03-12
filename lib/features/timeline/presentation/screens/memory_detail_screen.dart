@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -15,13 +14,198 @@ import 'package:deardays/features/journal/data/models/entry_media.dart';
 
 class MemoryDetailScreen extends ConsumerStatefulWidget {
   final JournalEntry entry;
-  const MemoryDetailScreen({super.key, required this.entry});
+  // Optional — when provided enables swipe-between-memories PageView
+  final List<JournalEntry>? allEntries;
+  final int? initialIndex;
+
+  const MemoryDetailScreen({
+    super.key,
+    required this.entry,
+    this.allEntries,
+    this.initialIndex,
+  });
 
   @override
   ConsumerState<MemoryDetailScreen> createState() => _MemoryDetailScreenState();
 }
 
 class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
+  late PageController _pageController;
+  late int _currentIndex;
+  late List<JournalEntry> _entries;
+
+  @override
+  void initState() {
+    super.initState();
+    final all = widget.allEntries;
+    if (all != null && all.isNotEmpty) {
+      _entries = all;
+      _currentIndex = widget.initialIndex?.clamp(0, all.length - 1) ?? 0;
+    } else {
+      _entries = [widget.entry];
+      _currentIndex = 0;
+    }
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  bool get _multiPage => _entries.length > 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
+    if (!_multiPage) {
+      // Single entry — no PageView overhead
+      return _EntryPage(entry: widget.entry);
+    }
+
+    return Scaffold(
+      backgroundColor: colors.bg,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: _entries.length,
+            onPageChanged: (i) => setState(() => _currentIndex = i),
+            itemBuilder: (_, i) => _EntryPage(entry: _entries[i]),
+          ),
+
+          // Left arrow
+          if (_currentIndex > 0)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => _pageController.previousPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  ),
+                  child: Container(
+                    width: 30,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: colors.textPrimary.withAlpha(30),
+                      borderRadius: const BorderRadius.horizontal(
+                        right: Radius.circular(8),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.chevron_left_rounded,
+                      size: 24,
+                      color: colors.textPrimary.withAlpha(160),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Right arrow
+          if (_currentIndex < _entries.length - 1)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  ),
+                  child: Container(
+                    width: 30,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: colors.textPrimary.withAlpha(30),
+                      borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(8),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 24,
+                      color: colors.textPrimary.withAlpha(160),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Page indicator at bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 32,
+            child: _entries.length <= 10
+                ? _buildDotIndicator(colors)
+                : _buildTextIndicator(colors),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDotIndicator(AppPalette colors) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_entries.length, (i) {
+        final isActive = i == _currentIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: isActive ? 16 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: isActive ? colors.accent : colors.border,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildTextIndicator(AppPalette colors) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: colors.card.withAlpha(220),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.border),
+        ),
+        child: Text(
+          '${_currentIndex + 1} of ${_entries.length}',
+          style: GoogleFonts.manrope(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: colors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Single entry page — extracted so PageView can reuse it cleanly
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EntryPage extends ConsumerStatefulWidget {
+  final JournalEntry entry;
+  const _EntryPage({required this.entry});
+
+  @override
+  ConsumerState<_EntryPage> createState() => _EntryPageState();
+}
+
+class _EntryPageState extends ConsumerState<_EntryPage> {
   final _player = AudioPlayer();
   bool _isPlaying = false;
   Duration _position = Duration.zero;
@@ -73,11 +257,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   }
 
   void _shareEntry() {
-    final entry = widget.entry;
-    final title = _extractTitle(entry);
-    final body = entry.polishedContent ?? entry.content;
-    final dateStr = '${entry.entryDate.day}/${entry.entryDate.month}/${entry.entryDate.year}';
-    Share.share('$title\n\n$body\n\n— $dateStr', subject: title);
+    context.push('/share-card', extra: widget.entry);
   }
 
   Future<void> _togglePlay() async {
@@ -147,7 +327,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
 
                       // Actions
                       _buildActions(colors),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
@@ -241,8 +421,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   shape: BoxShape.circle,
                   color: hasPhoto ? Colors.white.withAlpha(230) : colors.accent.withAlpha(25),
                 ),
-                child: Icon(Icons.ios_share_rounded, size: 20,
-                    color: hasPhoto ? colors.accent : colors.accent),
+                child: Icon(Icons.ios_share_rounded, size: 20, color: colors.accent),
               ),
             ),
             const SizedBox(width: 8),
@@ -256,8 +435,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   shape: BoxShape.circle,
                   color: hasPhoto ? Colors.white.withAlpha(230) : colors.accent.withAlpha(25),
                 ),
-                child: Icon(Icons.more_horiz_rounded, size: 20,
-                    color: colors.accent),
+                child: Icon(Icons.more_horiz_rounded, size: 20, color: colors.accent),
               ),
             ),
           ],
@@ -479,7 +657,6 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        // Only left border, lighter accent — matches HTML border-l-4 border-primary/20
         border: Border(
           left: BorderSide(color: colors.accent.withAlpha(50), width: 4),
         ),
@@ -574,7 +751,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        // Back to Timeline — full-width cardBg button (not just a text link)
+        // Back to Timeline — full-width cardBg button
         GestureDetector(
           onTap: () => context.pop(),
           child: Container(
@@ -716,4 +893,3 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
     return '$m:$s';
   }
 }
-

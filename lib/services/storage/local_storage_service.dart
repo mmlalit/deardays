@@ -71,6 +71,23 @@ class LocalStorageService {
     }
   }
 
+  /// Initializes the service for unit tests using plain (unencrypted) Hive
+  /// boxes in the given [hiveDir]. Does NOT use flutter_secure_storage.
+  ///
+  /// Call this instead of [init] in test `setUp` blocks.
+  @visibleForTesting
+  Future<void> initForTesting(String hiveDir) async {
+    if (_initialized) {
+      await Hive.close();
+      _initialized = false;
+    }
+    Hive.init(hiveDir);
+    _entriesBox  = await Hive.openBox<String>(_entriesBoxName);
+    _draftsBox   = await Hive.openBox<String>(_draftsBoxName);
+    _syncMetaBox = await Hive.openBox<String>(_syncMetaBoxName);
+    _initialized = true;
+  }
+
   // ---------------------------------------------------------------------------
   // Journal entry cache
   // ---------------------------------------------------------------------------

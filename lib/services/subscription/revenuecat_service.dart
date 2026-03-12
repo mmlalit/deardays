@@ -28,8 +28,8 @@ class RevenueCatService {
   Future<void> init() async {
     if (_isConfigured) return;
 
-    // Web is not supported by RevenueCat.
-    if (kIsWeb) return;
+    // Web and Desktop are not supported by RevenueCat.
+    if (kIsWeb || Platform.isWindows || Platform.isLinux) return;
 
     final apiKey = Platform.isIOS || Platform.isMacOS
         ? RevenueCatConfig.appleApiKey

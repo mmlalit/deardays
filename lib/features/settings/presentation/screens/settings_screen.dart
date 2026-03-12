@@ -23,7 +23,6 @@ import 'package:deardays/features/settings/presentation/screens/privacy_screen.d
 import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:deardays/core/widgets/snack_bar_helper.dart';
-import 'package:go_router/go_router.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -701,47 +700,86 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Export All Data
+  // Export All Data — polished bottom sheet
   // ---------------------------------------------------------------------------
 
   Future<void> _exportAllData() async {
+    final colors = AppColors.of(context);
+
     final format = await showModalBottomSheet<String>(
       context: context,
+      backgroundColor: colors.bg,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.of(context).border,
-                borderRadius: BorderRadius.circular(2),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text('Export Your Data',
-                style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: Icon(Icons.code, color: AppColors.of(context).accent),
-              title: Text('JSON', style: GoogleFonts.manrope(fontSize: 15)),
-              subtitle: Text('Machine-readable, includes all fields',
-                  style: GoogleFonts.manrope(fontSize: 12, color: AppColors.of(context).textMuted)),
-              onTap: () => Navigator.pop(ctx, 'json'),
-            ),
-            ListTile(
-              leading: Icon(Icons.picture_as_pdf, color: AppColors.of(context).accent),
-              title: Text('PDF', style: GoogleFonts.manrope(fontSize: 15)),
-              subtitle: Text('Print-ready book format',
-                  style: GoogleFonts.manrope(fontSize: 12, color: AppColors.of(context).textMuted)),
-              onTap: () => Navigator.pop(ctx, 'pdf'),
-            ),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                'Export Your Memories',
+                style: GoogleFonts.newsreader(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Download all your entries in your preferred format.',
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  color: colors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // PDF option
+              _ExportOptionCard(
+                icon: Icons.picture_as_pdf_rounded,
+                iconColor: const Color(0xFFEF4444),
+                label: 'PDF',
+                description: 'Beautiful formatted document',
+                onTap: () => Navigator.pop(ctx, 'pdf'),
+                colors: colors,
+              ),
+              const SizedBox(height: 12),
+              // JSON option
+              _ExportOptionCard(
+                icon: Icons.data_object_rounded,
+                iconColor: const Color(0xFF3B82F6),
+                label: 'JSON',
+                description: 'Raw data backup',
+                onTap: () => Navigator.pop(ctx, 'json'),
+                colors: colors,
+              ),
+              const SizedBox(height: 12),
+              // Plain text option
+              _ExportOptionCard(
+                icon: Icons.text_snippet_rounded,
+                iconColor: const Color(0xFF10B981),
+                label: 'Plain Text',
+                description: 'Simple text file',
+                onTap: () => Navigator.pop(ctx, 'txt'),
+                colors: colors,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -749,8 +787,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (format == null || !mounted) return;
 
     if (format == 'pdf') {
-      // Navigate to existing export screen
-      context.push('/export');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Preparing your PDF export... This feature is coming soon!',
+            style: GoogleFonts.manrope(fontSize: 13),
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: colors.accent,
+        ),
+      );
+      return;
+    }
+
+    if (format == 'txt') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Preparing your plain text export... This feature is coming soon!',
+            style: GoogleFonts.manrope(fontSize: 13),
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: colors.accent,
+        ),
+      );
       return;
     }
 
@@ -1664,6 +1726,81 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 color: textColor,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export option card widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ExportOptionCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String description;
+  final VoidCallback onTap;
+  final AppPalette colors;
+
+  const _ExportOptionCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.description,
+    required this.onTap,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconColor.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 22, color: iconColor),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 20, color: colors.textMuted),
           ],
         ),
       ),

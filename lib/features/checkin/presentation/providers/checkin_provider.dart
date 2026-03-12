@@ -73,15 +73,15 @@ class CheckInState {
 
 const _returnGreetings = [
   "What's up?",
-  "Hey, back again!",
+  'Hey, back again!',
   "How's the rest of your day going?",
   "Welcome back! What's on your mind?",
-  "Hey there! Anything new?",
-  "Good to see you again! How are things?",
+  'Hey there! Anything new?',
+  'Good to see you again! How are things?',
   "Back so soon? Tell me what's happening.",
   "Hi again! What's going on?",
   "How's everything since we last talked?",
-  "Hey! What have you been up to?",
+  'Hey! What have you been up to?',
 ];
 
 // ---------------------------------------------------------------------------
@@ -89,9 +89,9 @@ const _returnGreetings = [
 // ---------------------------------------------------------------------------
 
 class CheckInNotifier extends StateNotifier<CheckInState> {
-  CheckInNotifier(this._aiService, {this.language, this.repository})
+  CheckInNotifier(this._aiService, {this.language, this.repository, bool loadData = true})
       : super(CheckInState()) {
-    _loadTodayData();
+    if (loadData) _loadTodayData();
   }
 
   final AiService _aiService;
@@ -338,7 +338,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       state = state.copyWith(isLoading: false);
       await _persist();
     } catch (e) {
-      _addAiMessage("I hear you. Tell me more about that.");
+      _addAiMessage('I hear you. Tell me more about that.');
       state = state.copyWith(isLoading: false);
       await _persist();
     }
@@ -394,11 +394,11 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
 
   Future<String> _getAiMoodResponse(String mood) async {
     final basePrompt = _moodPromptMap[mood.toLowerCase()] ??
-        "The user is feeling $mood today. Respond warmly and ask them to share more.";
+        'The user is feeling $mood today. Respond warmly and ask them to share more.';
 
     final langInstruction = language != null && language != 'English'
         ? " The user's preferred language is $language. Default to $language, but if the user writes in a different language, respond in that language instead."
-        : " Respond in the same language the user writes in.";
+        : ' Respond in the same language the user writes in.';
 
     return _aiService.chat(
       messages: [
@@ -415,7 +415,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       case 'great':
         return "That's amazing! What's making your day so great?";
       case 'good':
-        return "Nice to hear! What good things happened today?";
+        return 'Nice to hear! What good things happened today?';
       case 'okay':
         return "Fair enough. Want to talk about what's on your mind?";
       case 'low':
@@ -425,7 +425,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       case 'skipped':
         return "No worries! Just tell me about your day whenever you're ready.";
       default:
-        return "Thanks for sharing. Tell me more about your day.";
+        return 'Thanks for sharing. Tell me more about your day.';
     }
   }
 
@@ -433,11 +433,11 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     'great':
         "The user is feeling great today. Respond with enthusiasm and ask them to share what's making their day wonderful. Keep it short and warm.",
     'good':
-        "The user is feeling good today. Respond positively and ask them to share the good things. Keep it conversational and brief.",
+        'The user is feeling good today. Respond positively and ask them to share the good things. Keep it conversational and brief.',
     'okay':
         "The user is feeling okay today. Be gently curious, ask what's on their mind. Keep it warm and non-pushy.",
     'low':
-        "The user is feeling low today. Be empathetic and caring. Ask what happened in a gentle way. Keep it short and supportive.",
+        'The user is feeling low today. Be empathetic and caring. Ask what happened in a gentle way. Keep it short and supportive.',
     'tough':
         "The user is having a tough day. Be deeply empathetic. Let them know you're there for them and gently ask if they want to share. Keep it brief and caring.",
     'skipped':

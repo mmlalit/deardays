@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter config:*)",
+      "Bash(where flutter:*)",
+      "Read(//c/Users/YOGA/**)",
+      "Bash(/c/Users/YOGA/flutter/bin/flutter build:*)",
+      "Bash(start \"\" \"C:\\\\Users\\\\YOGA\\\\Desktop\\\\deardays\\\\build\\\\windows\\\\x64\\\\runner\\\\Release\\\\deardays.exe\")",
+      "Bash(cmd /c \"taskkill /F /IM deardays.exe\")",
+      "Bash(flutter test:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter create:*)",
+      "Bash(flutter build:*)"
+    ]
+  }
+}

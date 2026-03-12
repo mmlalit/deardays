@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    // Prevent google_fonts from making async HTTP requests in tests, which
+    // would cause "test failed after it had already completed" errors.
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
 
   group('ThemeState', () {
     test('defaults to Serene Dusk Blue', () {
@@ -13,27 +20,24 @@ void main() {
       expect(state.themeColor, equals(AppThemeColor.sereneDuskBlue));
     });
 
-    test('lightTheme uses correct scaffold background', () {
-      const state = ThemeState(themeColor: AppThemeColor.warmCream);
-      expect(
-        state.lightTheme.scaffoldBackgroundColor,
-        equals(AppThemeColor.warmCream.light.bg),
-      );
+    test('light palette bg is fully opaque', () {
+      // Avoid building ThemeData (triggers google_fonts network calls in tests).
+      // Verify the palette bg Color directly.
+      expect((AppThemeColor.warmCream.light.bg.a * 255.0).round(), equals(255));
+      expect((AppThemeColor.sageGreen.light.bg.a * 255.0).round(), equals(255));
     });
 
-    test('darkTheme uses correct scaffold background', () {
-      const state = ThemeState(themeColor: AppThemeColor.sageGreen);
-      expect(
-        state.darkTheme.scaffoldBackgroundColor,
-        equals(AppThemeColor.sageGreen.dark.bg),
-      );
+    test('dark palette bg is darker than light palette bg', () {
+      final lightBg = AppThemeColor.warmCream.light.bg;
+      final darkBg  = AppThemeColor.warmCream.dark.bg;
+      expect(darkBg.computeLuminance(), lessThan(lightBg.computeLuminance()));
     });
 
-    test('each palette generates distinct light themes', () {
-      final themes = AppThemeColor.values.map((c) {
-        return ThemeState(themeColor: c).lightTheme.scaffoldBackgroundColor;
+    test('each palette generates a distinct accent color', () {
+      final accents = AppThemeColor.values.map((c) {
+        return c.light.accent;
       }).toSet();
-      expect(themes.length, equals(AppThemeColor.values.length));
+      expect(accents.length, equals(AppThemeColor.values.length));
     });
   });
 
@@ -86,16 +90,16 @@ void main() {
       }
     });
 
-    test('Warm Cream light bg is correct', () {
-      expect(AppThemeColor.warmCream.light.bg, equals(const Color(0xFFF8F4EF)));
+    test('Warm Cream accent is correct', () {
+      expect(AppThemeColor.warmCream.light.accent, equals(const Color(0xFFC49A3C)));
     });
 
-    test('Sage Green light bg is correct', () {
-      expect(AppThemeColor.sageGreen.light.bg, equals(const Color(0xFFF4F7F4)));
+    test('Sage Green accent is correct', () {
+      expect(AppThemeColor.sageGreen.light.accent, equals(const Color(0xFF2D8F5E)));
     });
 
-    test('Classic White light bg is correct', () {
-      expect(AppThemeColor.classicWhite.light.bg, equals(const Color(0xFFFAF8F5)));
+    test('Classic White accent is correct', () {
+      expect(AppThemeColor.classicWhite.light.accent, equals(const Color(0xFF4F46E5)));
     });
 
     test('all light nav backgrounds are white', () {

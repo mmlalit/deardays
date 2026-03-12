@@ -343,7 +343,7 @@ class _LoginScreenState extends State<LoginScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 12,
-                color: AppColors.of(context).textMuted,
+                color: AppColors.of(context).textSecondary,
                 height: 1.5,
               ),
             ),
@@ -464,7 +464,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Name field (signup only)
           if (_isSignUp) ...[
-            _FieldLabel('What should we call you?'),
+            const _FieldLabel('What should we call you?'),
             const SizedBox(height: 8),
             TextField(
               controller: _nameController,
@@ -479,7 +479,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
 
           // Email field
-          _FieldLabel('Email'),
+          const _FieldLabel('Email'),
           const SizedBox(height: 8),
           TextField(
             controller: _emailController,
@@ -493,7 +493,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 20),
 
           // Password field
-          _FieldLabel('Password'),
+          const _FieldLabel('Password'),
           const SizedBox(height: 8),
           TextField(
             controller: _passwordController,
@@ -640,7 +640,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
                   fontSize: 12,
-                  color: AppColors.of(context).textMuted,
+                  color: AppColors.of(context).textSecondary,
                   height: 1.5,
                 ),
               ),

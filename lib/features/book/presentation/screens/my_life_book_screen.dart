@@ -808,8 +808,25 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _navAction(Icons.bookmark_outline_rounded, 'SAVE', () {}),
-              _navAction(Icons.share_outlined, 'SHARE', () {}),
+              _navAction(Icons.bookmark_outline_rounded, 'SAVE', () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Book saved to your library',
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: const Color(0xFF10B981),
+                    duration: const Duration(seconds: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              }),
+              _navAction(Icons.share_outlined, 'SHARE', () {
+                _showShareSheet(context);
+              }),
               Transform.translate(
                 offset: const Offset(0, -10),
                 child: GestureDetector(
@@ -836,8 +853,102 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
                   ),
                 ),
               ),
-              _navAction(Icons.headphones_outlined, 'LISTEN', () {}),
-              _navAction(Icons.tune_rounded, 'DISPLAY', () {}),
+              _navAction(Icons.headphones_outlined, 'LISTEN', () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Audio narration coming soon',
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: const Color(0xFF64748B),
+                    duration: const Duration(seconds: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              }),
+              _navAction(Icons.tune_rounded, 'DISPLAY', () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Display settings coming soon',
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: const Color(0xFF64748B),
+                    duration: const Duration(seconds: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showShareSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFFFFFFFF),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF94A3B8).withAlpha(60),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Share Your Story',
+                style: GoogleFonts.newsreader(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF195DE6)),
+                title: Text('Export as PDF', style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: Text('Download a beautifully formatted book', style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFF94A3B8))),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/export');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_rounded, color: Color(0xFF195DE6)),
+                title: Text('Copy Link', style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: Text('Share a read-only link to your book', style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFF94A3B8))),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Link sharing coming soon', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: const Color(0xFF64748B),
+                      duration: const Duration(seconds: 2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),

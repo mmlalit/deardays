@@ -18,6 +18,7 @@ import 'package:deardays/features/journal/data/repositories/journal_repository.d
 import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/media/media_service.dart';
+import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 
@@ -205,7 +206,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   void _animateProgress(double from, double to) async {
-    final steps = 5;
+    const steps = 5;
     final increment = (to - from) / steps;
     for (int i = 1; i <= steps; i++) {
       await Future.delayed(const Duration(milliseconds: 400));
@@ -327,8 +328,14 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           context,
           onDismiss: () {
             if (mounted) {
-              // Pop back to home (through any intermediate screens)
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              // Navigate to post-save organization flow
+              final title = _generatedTitle ?? _generateFallbackTitle();
+              final postData = PostSaveData(
+                entryId: saved.id,
+                title: title,
+                content: content,
+              );
+              context.push('/post-save', extra: postData);
             }
           },
         );
@@ -1034,7 +1041,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         ),
         child: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.moodOkay),
+            const Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.moodOkay),
             const SizedBox(width: 12),
             Expanded(
               child: Text(

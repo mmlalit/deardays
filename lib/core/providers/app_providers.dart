@@ -18,6 +18,15 @@ import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/repositories/book_repository.dart';
 import 'package:deardays/services/media/media_service.dart';
+import 'package:deardays/services/sync/sync_service.dart';
+
+// Re-export SyncStatus so widgets can import from app_providers
+export 'package:deardays/services/sync/sync_service.dart' show SyncStatus;
+
+// --- Sync & Connectivity ---
+
+final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.synced);
+final connectivityProvider = StateProvider<bool>((ref) => true);
 
 // --- Demo Mode ---
 

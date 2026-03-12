@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:deardays/l10n/app_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/routing/app_router.dart';
 import 'package:deardays/core/config/supabase_config.dart';
@@ -12,6 +11,8 @@ import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
+import 'package:deardays/services/connectivity/connectivity_service.dart';
+import 'package:deardays/services/sync/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,10 @@ void main() async {
 
   // Initialize local notifications
   await NotificationService().init();
+
+  // Initialize connectivity monitoring and background sync
+  await ConnectivityService().init();
+  await SyncService().init();
 
   runApp(const ProviderScope(child: DearDaysApp()));
 }

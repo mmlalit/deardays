@@ -297,22 +297,21 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
             Expanded(
               child: Column(
                 children: [
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
                   _buildPromptSection(colors),
-                  const Spacer(),
+                  const Spacer(flex: 2),
                   _buildWaveform(colors),
+                  const SizedBox(height: 32),
+                  _buildMicButton(colors),
+                  const SizedBox(height: 28),
+                  _buildTimer(colors),
                   if (_liveTranscript.isNotEmpty || _currentWords.isNotEmpty)
                     _buildLiveTranscript(colors),
-                  const Spacer(),
-                  _buildMicButton(colors),
-                  const SizedBox(height: 24),
-                  _buildTimer(colors),
-                  const Spacer(),
+                  const Spacer(flex: 1),
                 ],
               ),
             ),
             _buildActionButtons(colors),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -363,30 +362,16 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
 
   Widget _buildPromptSection(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        children: [
-          Text(
-            'CURRENT PROMPT',
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: colors.accent,
-              letterSpacing: 2.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _currentPrompt,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: colors.textPrimary,
-              height: 1.25,
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 36),
+      child: Text(
+        _currentPrompt,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.newsreader(
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+          color: colors.textPrimary,
+          height: 1.3,
+        ),
       ),
     );
   }
@@ -463,20 +448,20 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
 
   Widget _buildWaveform(AppPalette colors) {
     return SizedBox(
-      height: 160,
+      height: 80,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: List.generate(_barHeights.length, (i) {
           final isActive = _isRecording && !_isPaused;
-          final height = isActive ? 20.0 + _barHeights[i] * 140.0 : 16.0;
-          final opacity = isActive ? (0.5 + _barHeights[i] * 0.5) : 0.15;
+          final height = isActive ? 10.0 + _barHeights[i] * 60.0 : 10.0;
+          final opacity = isActive ? (0.4 + _barHeights[i] * 0.6) : 0.15;
 
           return AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            width: 4,
+            width: 3.5,
             height: height,
-            margin: const EdgeInsets.symmetric(horizontal: 3.5),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
             decoration: BoxDecoration(
               color: colors.accent.withAlpha((opacity * 255).round()),
               borderRadius: BorderRadius.circular(3),
@@ -504,8 +489,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
               // Outer glow ring
               if (_isRecording && !_isPaused)
                 Container(
-                  width: 140,
-                  height: 140,
+                  width: 116,
+                  height: 116,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: colors.accent.withAlpha(20),
@@ -545,7 +530,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
 
   Widget _buildActionButtons(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
       child: Row(
         children: [
           // Pause button

@@ -213,7 +213,7 @@ class PrivacyScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.shield_outlined, size: 28, color: AppColors.success),
+          const Icon(Icons.shield_outlined, size: 28, color: AppColors.success),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

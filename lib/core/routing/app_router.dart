@@ -17,11 +17,17 @@ import 'package:deardays/features/book/presentation/screens/export_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/memory_detail_screen.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/explore/presentation/screens/explore_screen.dart';
 import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
 import 'package:deardays/features/book/presentation/screens/my_life_book_screen.dart';
+import 'package:deardays/features/share/presentation/screens/share_card_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
+import 'package:deardays/features/book/presentation/screens/book_creation_screen.dart';
+import 'package:deardays/features/book/presentation/screens/book_detail_screen.dart';
+import 'package:deardays/features/book/data/models/generated_book.dart';
 import 'package:deardays/core/routing/app_shell.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
@@ -165,13 +171,45 @@ class AppRouter {
       ),
       GoRoute(
         path: '/memory',
-        builder: (context, state) => MemoryDetailScreen(
-          entry: state.extra as JournalEntry,
-        ),
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is MemoryDetailArgs) {
+            return MemoryDetailScreen(
+              entry: extra.entry,
+              allEntries: extra.allEntries,
+              initialIndex: extra.initialIndex,
+            );
+          }
+          // Backward-compatible: bare JournalEntry
+          final entry = extra as JournalEntry;
+          return MemoryDetailScreen(entry: entry);
+        },
       ),
       GoRoute(
         path: '/my-life-book',
         builder: (context, state) => const MyLifeBookScreen(),
+      ),
+      GoRoute(
+        path: '/share-card',
+        builder: (context, state) => ShareCardScreen(
+          entry: state.extra as JournalEntry,
+        ),
+      ),
+      GoRoute(
+        path: '/post-save',
+        builder: (context, state) => PostSaveScreen(
+          data: state.extra as PostSaveData,
+        ),
+      ),
+      GoRoute(
+        path: '/book-create',
+        builder: (context, state) => const BookCreationScreen(),
+      ),
+      GoRoute(
+        path: '/book-detail',
+        builder: (context, state) => BookDetailScreen(
+          book: state.extra as GeneratedBook,
+        ),
       ),
     ],
   );

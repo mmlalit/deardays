@@ -3,11 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:deardays/core/routing/app_shell.dart';
+import 'package:deardays/core/theme/app_theme.dart';
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
 import 'package:deardays/features/book/presentation/screens/library_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
-import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
-import 'package:deardays/core/providers/theme_provider.dart';
+import 'package:deardays/features/explore/presentation/screens/explore_screen.dart';
 import '../helpers/mock_providers.dart';
 
 GoRouter _buildRouter() {
@@ -20,7 +20,7 @@ GoRouter _buildRouter() {
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
           GoRoute(path: '/book', builder: (_, __) => const LibraryScreen()),
           GoRoute(path: '/timeline', builder: (_, __) => const TimelineScreen()),
-          GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/explore', builder: (_, __) => const ExploreScreen()),
         ],
       ),
       GoRoute(path: '/record', builder: (_, __) => const Scaffold(body: Center(child: Text('Recording')))),
@@ -36,6 +36,7 @@ Widget buildApp() {
       ...authenticatedOverrides(),
     ],
     child: MaterialApp.router(
+      theme: AppTheme.light,
       routerConfig: router,
     ),
   );
@@ -48,28 +49,28 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Home'), findsOneWidget);
+      expect(find.text('HOME'), findsOneWidget);
     });
 
-    testWidgets('shows Library tab', (tester) async {
+    testWidgets('shows Chapters tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Library'), findsOneWidget);
+      expect(find.text('CHAPTERS'), findsOneWidget);
     });
 
     testWidgets('shows Timeline tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Timeline'), findsOneWidget);
+      expect(find.text('TIMELINE'), findsOneWidget);
     });
 
-    testWidgets('shows Settings tab', (tester) async {
+    testWidgets('shows Explore tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('EXPLORE'), findsOneWidget);
     });
 
     testWidgets('starts on Home screen', (tester) async {
@@ -79,11 +80,11 @@ void main() {
       expect(find.byType(HomeScreen), findsOneWidget);
     });
 
-    testWidgets('navigates to Library tab', (tester) async {
+    testWidgets('navigates to Chapters tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
       expect(find.byType(LibraryScreen), findsOneWidget);
@@ -93,30 +94,30 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Timeline'));
+      await tester.tap(find.text('TIMELINE'));
       await tester.pumpAndSettle();
 
       expect(find.byType(TimelineScreen), findsOneWidget);
     });
 
-    testWidgets('navigates to Settings tab', (tester) async {
+    testWidgets('navigates to Explore tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Settings'));
+      await tester.tap(find.text('EXPLORE'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.byType(ExploreScreen), findsOneWidget);
     });
 
     testWidgets('can navigate back to Home from another tab', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Home'));
+      await tester.tap(find.text('HOME'));
       await tester.pumpAndSettle();
 
       expect(find.byType(HomeScreen), findsOneWidget);
@@ -126,20 +127,18 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      // FAB uses mic icon, should not appear on home (home has its own recording UI)
       // AppShell hides FAB when on home tab (index == 0)
       expect(find.byType(HomeScreen), findsOneWidget);
     });
 
-    testWidgets('FAB appears on Library tab', (tester) async {
+    testWidgets('Chapters tab renders LibraryScreen', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Library'));
+      await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
-      // FAB should be present with mic icon
-      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.byType(LibraryScreen), findsOneWidget);
     });
   });
 }

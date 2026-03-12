@@ -78,6 +78,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ),
         // Create Chapter Button
         SliverToBoxAdapter(child: _buildCreateChapterButton(context)),
+        // Create Book Button
+        SliverToBoxAdapter(child: _buildCreateBookButton(context)),
         // Bottom spacing for nav bar
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
@@ -104,10 +106,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           const Spacer(),
           IconButton(
             onPressed: () {},
+            tooltip: 'Search',
             icon: Icon(Icons.search, color: colors.textSecondary, size: 22),
           ),
           IconButton(
             onPressed: () {},
+            tooltip: 'More options',
             icon: Icon(Icons.more_vert, color: colors.textSecondary, size: 22),
           ),
         ],
@@ -156,7 +160,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               'Read your entire life story chapter by chapter in one place.',
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: Colors.white.withAlpha(220),
+                color: Colors.white,
                 height: 1.5,
               ),
             ),
@@ -167,7 +171,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               style: GoogleFonts.manrope(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.white.withAlpha(180),
+                color: Colors.white,
                 letterSpacing: 1.2,
               ),
             ),
@@ -207,14 +211,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 14),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Your Life Stories',
-            style: GoogleFonts.newsreader(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
+          Expanded(
+            child: Text(
+              'Your Life Stories',
+              style: GoogleFonts.newsreader(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+              ),
             ),
           ),
           Text(
@@ -293,13 +298,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       children: [
                         Icon(Icons.auto_stories, size: 14, color: colors.accent),
                         const SizedBox(width: 4),
-                        Text(
-                          _formatDateRange(book),
-                          style: GoogleFonts.manrope(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textMuted,
-                            letterSpacing: 1.5,
+                        Flexible(
+                          child: Text(
+                            _formatDateRange(book),
+                            style: GoogleFonts.manrope(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textMuted,
+                              letterSpacing: 1.5,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -378,6 +386,41 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
+  Widget _buildCreateBookButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: GestureDetector(
+        onTap: () => context.push('/book-create'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF3B4FE8), Color(0xFF5B6CF9)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.menu_book_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Create a Book',
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadingContent(BuildContext context) {
     return CustomScrollView(
       slivers: [
@@ -419,14 +462,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             aspectRatio: 1.0,
             child: Container(color: colors.border.withAlpha(80)),
           ),
-          Expanded(
+          const Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SkeletonBox(width: 100, height: 14),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   SkeletonBox(width: 70, height: 10),
                 ],
               ),
@@ -450,7 +493,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final colors = AppColors.of(context);
     final visual = ChapterVisual.forTitle(sample.title);
 
-    return Opacity(
+    return GestureDetector(
+      onTap: () => _showSampleChapterSheet(context, sample),
+      child: Opacity(
       opacity: 0.85,
       child: Container(
         decoration: BoxDecoration(
@@ -511,7 +556,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             // Info section
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -556,6 +601,141 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    ),
+    );
+  }
+
+  void _showSampleChapterSheet(BuildContext context, _SampleChapter sample) {
+    final colors = AppColors.of(context);
+    final visual = ChapterVisual.forTitle(sample.title);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textMuted.withAlpha(60),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: visual.gradient,
+                    ),
+                    child: Icon(visual.icon, color: Colors.white.withAlpha(200), size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sample.title,
+                          style: GoogleFonts.newsreader(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          sample.subtitle,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.accentFaint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Start recording memories to fill this chapter with your personal stories.',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    color: colors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.push('/record');
+                  },
+                  icon: const Icon(Icons.mic, size: 18),
+                  label: Text(
+                    'Start Recording',
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.accent,
+                    foregroundColor: colors.bg,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.push('/write');
+                  },
+                  child: Text(
+                    'Write Instead',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: colors.accent,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -391,7 +391,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                     ),
                   ],
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.auto_awesome_rounded,
                   size: 22,
                   color: AppColors.moodOkay,

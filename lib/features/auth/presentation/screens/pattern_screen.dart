@@ -68,7 +68,7 @@ class _PatternScreenState extends State<PatternScreen> {
   Offset _dotCenter(int index) {
     final row = index ~/ _gridSize;
     final col = index % _gridSize;
-    final totalWidth = (_gridSize - 1) * _gridSpacing;
+    const totalWidth = (_gridSize - 1) * _gridSpacing;
     final startX = -totalWidth / 2;
     final startY = -totalWidth / 2;
     return Offset(
@@ -287,7 +287,7 @@ class _PatternScreenState extends State<PatternScreen> {
       height: (_gridSize - 1) * _gridSpacing + _dotRadius * 2 + 32,
       child: GestureDetector(
         onPanUpdate: (details) {
-          final center = Offset(
+          const center = Offset(
             ((_gridSize - 1) * _gridSpacing + _dotRadius * 2 + 32) / 2,
             ((_gridSize - 1) * _gridSpacing + _dotRadius * 2 + 32) / 2,
           );

@@ -11,6 +11,249 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/timeline/presentation/widgets/milestone_card.dart';
 import 'package:deardays/features/timeline/presentation/widgets/photo_collage_card.dart';
 import 'package:deardays/features/timeline/presentation/widgets/on_this_day_card.dart';
+import 'package:deardays/core/routing/memory_detail_args.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Context-menu helper (shared with home_screen.dart via top-level function)
+// ─────────────────────────────────────────────────────────────────────────────
+
+void showMemoryContextMenu(
+  BuildContext context,
+  JournalEntry entry,
+  AppPalette colors, {
+  VoidCallback? onDelete,
+}) {
+  final title = _contextMenuTitle(entry);
+  final dateStr = DateFormat('MMMM d, yyyy').format(entry.entryDate);
+
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: colors.card,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetCtx) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header: title + date
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    dateStr,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: colors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Divider(color: colors.border, height: 1),
+
+            // Options
+            _ContextMenuOption(
+              icon: Icons.edit_rounded,
+              label: 'Edit Memory',
+              colors: colors,
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                context.push('/edit-memory', extra: entry);
+              },
+            ),
+            _ContextMenuOption(
+              icon: Icons.share_rounded,
+              label: 'Share',
+              colors: colors,
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                context.push('/share-card', extra: entry);
+              },
+            ),
+            _ContextMenuOption(
+              icon: Icons.bookmark_add_outlined,
+              label: 'Add to Chapter',
+              colors: colors,
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Feature coming soon')),
+                );
+              },
+            ),
+            _ContextMenuOption(
+              icon: Icons.lock_outline_rounded,
+              label: 'Mark as Private',
+              colors: colors,
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Entry marked as private')),
+                );
+              },
+            ),
+            Divider(color: colors.border, height: 1),
+            _ContextMenuOption(
+              icon: Icons.delete_outline_rounded,
+              label: 'Delete',
+              colors: colors,
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _confirmDeleteFromMenu(context, colors, onDelete);
+              },
+            ),
+
+            // Cancel button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: GestureDetector(
+                onTap: () => Navigator.pop(sheetCtx),
+                child: Container(
+                  width: double.infinity,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+String _contextMenuTitle(JournalEntry entry) {
+  final lines = entry.content.split('\n').where((l) => l.trim().isNotEmpty).toList();
+  if (lines.isEmpty) return 'Untitled Memory';
+  final first = lines.first.trim();
+  if (first.length < 80 && lines.length > 1) return first;
+  return entry.content.length > 50 ? '${entry.content.substring(0, 50)}...' : entry.content;
+}
+
+void _confirmDeleteFromMenu(BuildContext context, AppPalette colors, VoidCallback? onDelete) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: colors.bg,
+      title: Text(
+        'Delete Memory?',
+        style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: colors.textPrimary),
+      ),
+      content: Text(
+        'This memory will be permanently deleted and cannot be undone.',
+        style: GoogleFonts.manrope(color: colors.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textSecondary)),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            onDelete?.call();
+          },
+          child: Text(
+            'Delete',
+            style: GoogleFonts.manrope(color: const Color(0xFFEF4444), fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ContextMenuOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final AppPalette colors;
+  final bool isDestructive;
+  final VoidCallback onTap;
+
+  const _ContextMenuOption({
+    required this.icon,
+    required this.label,
+    required this.colors,
+    required this.onTap,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? const Color(0xFFEF4444) : colors.textPrimary;
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        height: 56,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 16),
+              Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Timeline Screen
+// ─────────────────────────────────────────────────────────────────────────────
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -73,7 +316,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
     return CustomScrollView(
       slivers: [
-        // Top bar + hero + stats + filters
+        // Top bar + hero + stats + mood calendar + filters
         SliverToBoxAdapter(
           child: Column(
             children: [
@@ -81,6 +324,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               _buildHeroSection(colors),
               _buildStatsGrid(totalMemories, chapters, years, colors),
               _buildWeeklySummaryCard(colors),
+              const SizedBox(height: 20),
+              // Mood Calendar — decorative heatmap, entries accessible via list
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                child: ExcludeSemantics(
+                  child: _MoodCalendarSection(entries: entries, colors: colors),
+                ),
+              ),
               const SizedBox(height: 24),
               _buildFilterChips(colors),
               const SizedBox(height: 16),
@@ -96,7 +347,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               child: OnThisDaySection(
                 entries: onThisDayEntries,
                 colors: colors,
-                onEntryTap: (entry) => context.push('/memory', extra: entry),
+                onEntryTap: (entry) => context.push(
+                  '/memory',
+                  extra: MemoryDetailArgs(
+                    entry: entry,
+                    allEntries: onThisDayEntries,
+                    initialIndex: onThisDayEntries.indexOf(entry),
+                  ),
+                ),
                 photoUrlBuilder: _getPhotoUrl,
               ),
             ),
@@ -178,7 +436,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             textAlign: TextAlign.center,
             style: GoogleFonts.manrope(
               fontSize: 14,
-              color: colors.textMuted,
+              color: colors.textSecondary,
             ),
           ),
         ],
@@ -227,7 +485,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             style: GoogleFonts.manrope(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: colors.textMuted,
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 4),
@@ -393,7 +651,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             isCurrentYear: item.entry!.entryDate.year == mostRecentYear,
             isLast: item.isLast,
             colors: colors,
-            cardWidget: _buildCardForType(item.entry!, colors),
+            cardWidget: _buildCardForType(item.entry!, entries, colors),
           );
         },
         childCount: items.length,
@@ -473,14 +731,21 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   /// Picks the right card widget based on entry properties.
   /// Priority: Milestone > Photo Collage > Standard.
-  Widget _buildCardForType(JournalEntry entry, AppPalette colors) {
+  Widget _buildCardForType(JournalEntry entry, List<JournalEntry> allEntries, AppPalette colors) {
     final photoCount = entry.media.where((m) => m.mediaType == 'photo').length;
 
     if (entry.isMilestone) {
       return MilestoneCard(
         entry: entry,
         colors: colors,
-        onTap: () => context.push('/memory', extra: entry),
+        onTap: () => context.push(
+          '/memory',
+          extra: MemoryDetailArgs(
+            entry: entry,
+            allEntries: allEntries,
+            initialIndex: allEntries.indexOf(entry),
+          ),
+        ),
         photoUrlBuilder: _getPhotoUrl,
       );
     }
@@ -489,12 +754,19 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       return PhotoCollageCard(
         entry: entry,
         colors: colors,
-        onTap: () => context.push('/memory', extra: entry),
+        onTap: () => context.push(
+          '/memory',
+          extra: MemoryDetailArgs(
+            entry: entry,
+            allEntries: allEntries,
+            initialIndex: allEntries.indexOf(entry),
+          ),
+        ),
         photoUrlBuilder: _getPhotoUrl,
       );
     }
 
-    return _buildCard(entry, isCurrentYear: false, colors: colors);
+    return _buildCard(entry, allEntries, isCurrentYear: false, colors: colors);
   }
 
   Widget _buildCardRow(
@@ -552,7 +824,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: cardWidget ?? _buildCard(entry, isCurrentYear: isCurrentYear, colors: colors),
+              child: cardWidget,
             ),
           ),
         ],
@@ -564,7 +836,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Memory Card
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildCard(JournalEntry entry, {required bool isCurrentYear, required AppPalette colors}) {
+  Widget _buildCard(JournalEntry entry, List<JournalEntry> allEntries, {required bool isCurrentYear, required AppPalette colors}) {
     final title = _extractTitle(entry);
     final excerpt = _extractExcerpt(entry);
     final dateStr = DateFormat('MMM dd').format(entry.entryDate).toUpperCase();
@@ -572,7 +844,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final tags = _entryTags(entry);
 
     return GestureDetector(
-      onTap: () => context.push('/memory', extra: entry),
+      onTap: () => context.push(
+        '/memory',
+        extra: MemoryDetailArgs(
+          entry: entry,
+          allEntries: allEntries,
+          initialIndex: allEntries.indexOf(entry),
+        ),
+      ),
+      onLongPress: () => showMemoryContextMenu(context, entry, colors),
       child: Container(
         decoration: BoxDecoration(
           color: colors.cardBg,
@@ -916,15 +1196,15 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget _buildSkeleton(AppPalette colors) {
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
+        const SliverToBoxAdapter(
           child: SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 60, 16, 32),
+              padding: EdgeInsets.fromLTRB(16, 60, 16, 32),
               child: Column(
                 children: [
                   SkeletonBox(width: 200, height: 28, borderRadius: 8),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   SkeletonBox(width: 160, height: 14, borderRadius: 6),
                 ],
               ),
@@ -966,13 +1246,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           border: Border.all(color: colors.border),
                         ),
                         padding: const EdgeInsets.all(20),
-                        child: Column(
+                        child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SkeletonBox(width: 80, height: 10, borderRadius: 5),
-                            const SizedBox(height: 10),
+                            SizedBox(height: 10),
                             SkeletonBox(width: 220, height: 16, borderRadius: 7),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             SkeletonBox(width: 180, height: 11, borderRadius: 5),
                           ],
                         ),
@@ -1089,6 +1369,228 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     }
 
     return tags.take(2).toList();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mood Calendar Section
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MoodCalendarSection extends StatelessWidget {
+  final List<JournalEntry> entries;
+  final AppPalette colors;
+
+  const _MoodCalendarSection({required this.entries, required this.colors});
+
+  static const _moodColors = {
+    'great': Color(0xFF10B981),
+    'good': Color(0xFF3B82F6),
+    'okay': Color(0xFFF59E0B),
+    'low': Color(0xFFF97316),
+    'tough': Color(0xFFEF4444),
+  };
+
+  static const _legend = [
+    ('Great', Color(0xFF10B981)),
+    ('Good', Color(0xFF3B82F6)),
+    ('Okay', Color(0xFFF59E0B)),
+    ('Low', Color(0xFFF97316)),
+    ('Tough', Color(0xFFEF4444)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month;
+    final monthName = DateFormat('MMMM yyyy').format(now);
+
+    // Build day → mood map for the current month
+    final moodMap = <int, String>{};
+    for (final entry in entries) {
+      if (entry.entryDate.year == year && entry.entryDate.month == month) {
+        if (entry.mood != null) {
+          moodMap[entry.entryDate.day] = entry.mood!;
+        } else {
+          // Mark that there's an entry but no mood
+          moodMap.putIfAbsent(entry.entryDate.day, () => '');
+        }
+      }
+    }
+
+    // Days in month and what day-of-week the 1st falls on (Mon=0..Sun=6)
+    final daysInMonth = DateUtils.getDaysInMonth(year, month);
+    // DateTime weekday: Mon=1..Sun=7; we want Mon=0..Sun=6
+    final firstWeekday = DateTime(year, month, 1).weekday - 1;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: colors.textPrimary.withAlpha(8),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Mood This Month',
+                style: GoogleFonts.newsreader(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                monthName,
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Day-of-week header
+          Row(
+            children: ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) {
+              return Expanded(
+                child: Center(
+                  child: Text(
+                    d,
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 6),
+
+          // Calendar grid
+          _buildCalendarGrid(now, daysInMonth, firstWeekday, moodMap),
+          const SizedBox(height: 12),
+
+          // Legend
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: _legend.map((item) {
+              final (label, color) = item;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      label,
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        color: colors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarGrid(
+    DateTime now,
+    int daysInMonth,
+    int firstWeekday,
+    Map<int, String> moodMap,
+  ) {
+    // Total cells: leading empty + days + trailing to fill last row
+    final totalCells = firstWeekday + daysInMonth;
+    final rows = (totalCells / 7).ceil();
+
+    return Column(
+      children: List.generate(rows, (rowIndex) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: List.generate(7, (colIndex) {
+              final cellIndex = rowIndex * 7 + colIndex;
+              final day = cellIndex - firstWeekday + 1;
+
+              if (day < 1 || day > daysInMonth) {
+                return const Expanded(child: SizedBox(height: 36));
+              }
+
+              final mood = moodMap[day];
+              final isToday = day == now.day;
+              final hasMood = mood != null && mood.isNotEmpty;
+              final moodColor = hasMood ? (_moodColors[mood] ?? colors.accent) : null;
+
+              return Expanded(
+                child: Center(
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: hasMood
+                          ? moodColor
+                          : isToday
+                              ? colors.accent.withAlpha(30)
+                              : Colors.transparent,
+                      border: isToday && !hasMood
+                          ? Border.all(color: colors.accent, width: 1)
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$day',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: hasMood
+                              ? (moodColor!.computeLuminance() > 0.35
+                                  ? const Color(0xFF1F2937)
+                                  : Colors.white)
+                              : isToday
+                                  ? colors.accent
+                                  : colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      }),
+    );
   }
 }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
-import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/core/providers/subscription_providers.dart';
 import 'package:deardays/features/settings/presentation/screens/terms_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';

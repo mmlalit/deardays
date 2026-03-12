@@ -275,7 +275,7 @@ class AuthService {
     if (salt == null) {
       // This should not happen for existing users. If it does, the user's data
       // cannot be decrypted. The UI should guide them through recovery.
-      throw AuthEncryptionException(
+      throw const AuthEncryptionException(
         'No encryption salt found for this account. '
         'Data cannot be decrypted without the original salt.',
       );

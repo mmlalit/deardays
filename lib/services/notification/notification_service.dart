@@ -242,6 +242,56 @@ class NotificationService {
   }
 
   // ---------------------------------------------------------------------------
+  // Weekly Recap & On This Day notifications
+  // ---------------------------------------------------------------------------
+
+  /// Schedule a weekly recap notification every Sunday evening.
+  ///
+  /// Summary: "Your week: $memoriesCount memories, mostly feeling $topMood"
+  Future<void> scheduleWeeklyRecap({
+    required String weekSummary,
+    required int memoriesCount,
+    required String topMood,
+  }) async {
+    // TODO: Implement weekly recap notification
+    // Requires: notification_service wired to flutter_local_notifications
+    // Summary: "Your week: $memoriesCount memories, mostly feeling $topMood"
+    debugPrint(
+      '[NotificationService] Weekly recap scheduled: '
+      '$memoriesCount memories, mood: $topMood',
+    );
+  }
+
+  /// Schedule "On This Day" morning notification.
+  ///
+  /// Fires every morning at 8am if there are historical entries for today.
+  Future<void> scheduleOnThisDayNotification({
+    required String entryExcerpt,
+    required int yearsAgo,
+  }) async {
+    // TODO: Implement On This Day notification
+    // Fires every morning at 8am if there are historical entries for today
+    debugPrint(
+      '[NotificationService] On This Day notification: '
+      '$yearsAgo years ago: $entryExcerpt',
+    );
+  }
+
+  /// Schedule streak-at-risk notification.
+  ///
+  /// Fires at 9pm if user has an active streak and hasn't written today.
+  Future<void> scheduleStreakReminder({
+    required int currentStreak,
+  }) async {
+    // TODO: Implement streak reminder
+    // Fires at 9pm if user has an active streak and hasn't written today
+    debugPrint(
+      '[NotificationService] Streak reminder scheduled: '
+      'current streak = $currentStreak',
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 

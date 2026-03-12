@@ -43,9 +43,9 @@ class OnThisDaySection extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.orange.withAlpha(20),
+                  color: colors.accent.withAlpha(20),
                 ),
-                child: const Icon(Icons.history_rounded, size: 18, color: AppColors.orange),
+                child: Icon(Icons.history_rounded, size: 18, color: colors.accent),
               ),
               const SizedBox(width: 12),
               Column(
@@ -63,7 +63,7 @@ class OnThisDaySection extends StatelessWidget {
                     'Memories from years past',
                     style: GoogleFonts.manrope(
                       fontSize: 11,
-                      color: colors.textMuted,
+                      color: colors.textSecondary,
                     ),
                   ),
                 ],
@@ -106,7 +106,7 @@ class OnThisDaySection extends StatelessWidget {
           border: Border.all(color: colors.border),
           boxShadow: [
             BoxShadow(
-              color: AppColors.orange.withAlpha(12),
+              color: colors.accent.withAlpha(12),
               blurRadius: 12,
               offset: const Offset(0, 3),
             ),
@@ -182,7 +182,7 @@ class OnThisDaySection extends StatelessWidget {
                       style: GoogleFonts.manrope(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.orange,
+                        color: colors.accent,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -241,8 +241,8 @@ class OnThisDaySection extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.orange.withAlpha(25),
-            AppColors.orangeBg,
+            colors.accent.withAlpha(25),
+            colors.accentFaint,
           ],
         ),
       ),
@@ -252,7 +252,7 @@ class OnThisDaySection extends StatelessWidget {
           style: GoogleFonts.newsreader(
             fontSize: 72,
             fontWeight: FontWeight.w700,
-            color: AppColors.orange.withAlpha(40),
+            color: colors.accent.withAlpha(40),
             height: 1,
           ),
         ),

@@ -27,6 +27,9 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   final List<String> _tags = [];
   final _tagController = TextEditingController();
 
+  // Distraction-free mode state
+  bool _distractionFree = false;
+
   static const _suggestedTags = [
     'Family', 'Travel', 'Work', 'Friends', 'Nature',
     'Food', 'Health', 'Gratitude', 'Achievement', 'Funny',
@@ -52,11 +55,28 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   @override
   void initState() {
     super.initState();
-    _textController.addListener(() => setState(() {}));
+    _textController.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onTextChanged() {
+    setState(() {});
+    // Enter distraction-free when focused + enough text
+    if (_focusNode.hasFocus && _wordCount >= 3 && !_distractionFree) {
+      setState(() => _distractionFree = true);
+    }
+  }
+
+  void _onFocusChanged() {
+    if (!_focusNode.hasFocus && _distractionFree) {
+      setState(() => _distractionFree = false);
+    }
   }
 
   @override
   void dispose() {
+    _textController.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
     _textController.dispose();
     _focusNode.dispose();
     _tagController.dispose();
@@ -228,37 +248,196 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     return text.split(RegExp(r'\s+')).length;
   }
 
+  void _exitDistractionFree() {
+    setState(() => _distractionFree = false);
+    _focusNode.unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
 
-    return Scaffold(
-      backgroundColor: colors.bg,
-      resizeToAvoidBottomInset: true,
-      body: Column(
-        children: [
-          _buildTopBar(colors),
-          Expanded(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  _buildPromptsSection(colors),
-                  const SizedBox(height: 20),
-                  _buildWritingArea(colors),
-                  const SizedBox(height: 32),
-                  _buildMetaSection(colors),
-                  const SizedBox(height: 32),
-                ],
+    return PopScope(
+      canPop: !_distractionFree,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _distractionFree) {
+          _exitDistractionFree();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: colors.bg,
+        resizeToAvoidBottomInset: true,
+        body: _distractionFree
+            ? _buildDistractionFreeBody(colors)
+            : _buildNormalBody(colors),
+      ),
+    );
+  }
+
+  // ── Distraction-free layout ───────────────────────────────────────────────
+
+  Widget _buildDistractionFreeBody(AppPalette colors) {
+    return Column(
+      children: [
+        _buildMinimalTopBar(colors),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: TextField(
+              controller: _textController,
+              focusNode: _focusNode,
+              maxLines: null,
+              expands: true,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              textAlignVertical: TextAlignVertical.top,
+              cursorColor: colors.accent,
+              cursorWidth: 2,
+              style: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: colors.textPrimary,
+                height: 1.75,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Write about your day...',
+                hintStyle: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  color: colors.textMuted,
+                  height: 1.75,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
               ),
             ),
           ),
-          _buildSaveButton(colors),
-        ],
+        ),
+        // Word count pill + save button area
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Row(
+              children: [
+                // Word count pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: colors.highlightFaint,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$_wordCount word${_wordCount == 1 ? '' : 's'}',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      color: colors.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: 110,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: _goToReview,
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.white),
+                    label: Text(
+                      'Save',
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accent,
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      shadowColor: colors.accent.withAlpha(60),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMinimalTopBar(AppPalette colors) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: _exitDistractionFree,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.cardBg,
+                ),
+                child: Icon(Icons.arrow_back_rounded, size: 18, color: colors.textSecondary),
+              ),
+            ),
+            const Spacer(),
+            // Toggle focus icon
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _distractionFree = false);
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.accent.withAlpha(20),
+                ),
+                child: Icon(Icons.fullscreen_exit_rounded, size: 18, color: colors.accent),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  // ── Normal layout ─────────────────────────────────────────────────────────
+
+  Widget _buildNormalBody(AppPalette colors) {
+    return Column(
+      children: [
+        _buildTopBar(colors),
+        Expanded(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                _buildPromptsSection(colors),
+                const SizedBox(height: 20),
+                _buildWritingArea(colors),
+                const SizedBox(height: 32),
+                _buildMetaSection(colors),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+        _buildSaveButton(colors),
+      ],
     );
   }
 
@@ -294,19 +473,26 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
                 ),
               ),
             ),
-            SizedBox(
-              width: 40,
-              child: AnimatedOpacity(
-                opacity: _wordCount > 0 ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: Text(
-                  '$_wordCount w',
-                  textAlign: TextAlign.end,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    color: colors.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
+            // Focus toggle icon
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                if (_wordCount > 0) {
+                  setState(() => _distractionFree = true);
+                  _focusNode.requestFocus();
+                }
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.cardBg,
+                ),
+                child: Icon(
+                  Icons.fullscreen_rounded,
+                  size: 20,
+                  color: _wordCount > 0 ? colors.textSecondary : colors.textMuted.withAlpha(80),
                 ),
               ),
             ),

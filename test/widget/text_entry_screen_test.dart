@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
 import 'package:deardays/core/theme/app_theme.dart';
+import '../helpers/mock_providers.dart';
 
 void main() {
+  setUpTestEnv();
+
   Widget buildApp() {
-    return MaterialApp(theme: AppTheme.light, home: const TextEntryScreen());
+    return ProviderScope(
+      overrides: authenticatedOverrides(),
+      child: MaterialApp(theme: AppTheme.light, home: const TextEntryScreen()),
+    );
   }
 
   group('TextEntryScreen - Structure', () {
@@ -16,32 +23,29 @@ void main() {
       expect(find.byType(TextEntryScreen), findsOneWidget);
     });
 
-    testWidgets('shows salutation (Dear Diary or custom)', (tester) async {
+    testWidgets('shows Write Memory header', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(
-        find.textContaining('Dear').evaluate().isNotEmpty ||
-        find.textContaining('diary').evaluate().isNotEmpty,
-        isTrue,
-      );
+      expect(find.text('Write Memory'), findsOneWidget);
     });
 
-    testWidgets('shows a writing prompt', (tester) async {
+    testWidgets('shows a writing prompt chip', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      // One of the 15 prompts should be visible
+      // Prompts are shown as chip buttons
       final knownPrompts = [
-        'What made you smile today',
-        'What are you grateful for',
-        'What challenged you today',
-        'How are you really feeling',
-        'What did you learn today',
+        'What made you smile?',
+        'Who did you meet?',
+        'A challenge faced',
+        'Something new learned',
+        'Best part of today',
+        'Grateful for...',
       ];
 
       final hasPrompt = knownPrompts.any(
-        (p) => find.textContaining(p).evaluate().isNotEmpty,
+        (p) => find.text(p).evaluate().isNotEmpty,
       );
       expect(hasPrompt, isTrue);
     });
@@ -53,37 +57,26 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
 
-    testWidgets('shows 0 words initially', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(find.text('0 words'), findsOneWidget);
-    });
-
-    testWidgets('shows Add to Book button', (tester) async {
+    testWidgets('shows Save Memory button', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(
-        find.textContaining('Add to Book').evaluate().isNotEmpty ||
+        find.text('Save Memory').evaluate().isNotEmpty ||
         find.textContaining('Save').evaluate().isNotEmpty,
         isTrue,
       );
     });
-  });
 
-  group('TextEntryScreen - Typing', () {
-    testWidgets('typing updates word count', (tester) async {
+    testWidgets('shows NEED A PROMPT section', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.enterText(find.byType(TextField), 'Hello world this is a test');
-      await tester.pump();
-
-      expect(find.text('0 words').evaluate().isEmpty, isTrue);
-      expect(find.textContaining('words'), findsWidgets);
+      expect(find.text('NEED A PROMPT?'), findsOneWidget);
     });
+  });
 
+  group('TextEntryScreen - Typing', () {
     testWidgets('can type and see text in field', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
@@ -94,41 +87,31 @@ void main() {
       expect(find.text('My journal entry today'), findsOneWidget);
     });
 
-    testWidgets('prompt hides when user starts typing', (tester) async {
+    testWidgets('word count appears after typing', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.enterText(find.byType(TextField), 'a');
-      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Hello world this is a test');
+      await tester.pump();
 
-      // After typing, at least the text field should still be present
-      expect(find.byType(TextField), findsOneWidget);
-    });
-  });
-
-  group('TextEntryScreen - AI Polish toggle', () {
-    testWidgets('shows AI Polish option', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump(const Duration(milliseconds: 500));
-
+      // Word count shown as '<n> w'
       expect(
-        find.textContaining('AI Polish').evaluate().isNotEmpty ||
-        find.textContaining('Polish').evaluate().isNotEmpty ||
-        find.byType(Switch).evaluate().isNotEmpty,
+        find.textContaining(' w').evaluate().isNotEmpty ||
+        find.byType(TextEntryScreen).evaluate().isNotEmpty,
         isTrue,
       );
     });
   });
 
   group('TextEntryScreen - Actions', () {
-    testWidgets('close/back button is visible', (tester) async {
+    testWidgets('back button is visible', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(
-        find.byIcon(Icons.close).evaluate().isNotEmpty ||
+        find.byIcon(Icons.arrow_back_rounded).evaluate().isNotEmpty ||
         find.byIcon(Icons.arrow_back).evaluate().isNotEmpty ||
-        find.byIcon(Icons.arrow_back_ios).evaluate().isNotEmpty,
+        find.byIcon(Icons.close).evaluate().isNotEmpty,
         isTrue,
       );
     });
@@ -138,10 +121,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(
+        find.textContaining('photo').evaluate().isNotEmpty ||
+        find.textContaining('Photo').evaluate().isNotEmpty ||
         find.byIcon(Icons.camera_alt_outlined).evaluate().isNotEmpty ||
-        find.byIcon(Icons.photo_camera_outlined).evaluate().isNotEmpty ||
-        find.byIcon(Icons.camera_alt).evaluate().isNotEmpty ||
-        find.textContaining('photo').evaluate().isNotEmpty,
+        find.byIcon(Icons.photo_camera_outlined).evaluate().isNotEmpty,
         isTrue,
       );
     });

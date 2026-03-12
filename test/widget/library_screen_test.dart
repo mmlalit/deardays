@@ -15,11 +15,11 @@ void main() {
   }
 
   group('LibraryScreen - Header', () {
-    testWidgets('shows My Books header', (tester) async {
+    testWidgets('shows Chapters header', (tester) async {
       await tester.pumpWidget(buildApp(overrides: authenticatedOverrides()));
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('My Books'), findsOneWidget);
+      expect(find.text('Chapters'), findsOneWidget);
     });
   });
 
@@ -31,7 +31,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should show header regardless of books
-      expect(find.text('My Books'), findsOneWidget);
+      expect(find.text('Chapters'), findsOneWidget);
     });
 
     testWidgets('shows loading skeleton initially', (tester) async {

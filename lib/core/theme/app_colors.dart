@@ -206,13 +206,13 @@ enum AppThemeColor {
           textPrimary: Color(0xFF111111),
           textSecondary: Color(0xFF6B7280),
           textMuted: Color(0xFF9CA3AF),
-          accent: Color(0xFF6366F1),
+          accent: Color(0xFF4F46E5),
           accentLight: Color(0xFFA5B4FC),
           accentFaint: Color(0xFFEEF2FF),
-          iconActive: Color(0xFF6366F1),
+          iconActive: Color(0xFF4F46E5),
           iconInactive: Color(0xFF9CA3AF),
           border: Color(0xFFE5E7EB),
-          highlight: Color(0xFF6366F1),
+          highlight: Color(0xFF4F46E5),
           highlightFaint: Color(0xFFEEF2FF),
         );
       case AppThemeColor.warmDark:

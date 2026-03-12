@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,6 +58,31 @@ String? _detectCategory(JournalEntry entry) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mood chip config
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _moodChips = [
+  _MoodChip(value: 'great', label: 'Great', emoji: '🤩', color: Color(0xFF10B981)),
+  _MoodChip(value: 'good',  label: 'Good',  emoji: '😊', color: Color(0xFF3B82F6)),
+  _MoodChip(value: 'okay',  label: 'Okay',  emoji: '😐', color: Color(0xFFF59E0B)),
+  _MoodChip(value: 'low',   label: 'Low',   emoji: '😔', color: Color(0xFFF97316)),
+  _MoodChip(value: 'tough', label: 'Tough', emoji: '😢', color: Color(0xFFEF4444)),
+];
+
+class _MoodChip {
+  final String value;
+  final String label;
+  final String emoji;
+  final Color color;
+  const _MoodChip({
+    required this.value,
+    required this.label,
+    required this.emoji,
+    required this.color,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Explore Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -71,11 +98,38 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   final _searchFocus = FocusNode();
   String _searchQuery = '';
 
+  // Filter state
+  String? _filterMood;
+  bool _filterHasPhoto = false;
+  DateTimeRange? _filterDateRange;
+  bool _showFilters = false;
+
+  bool get _hasActiveFilter =>
+      _filterMood != null || _filterHasPhoto || _filterDateRange != null;
+
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
+  }
+
+  List<JournalEntry> _applyFilters(List<JournalEntry> entries) {
+    var filtered = entries;
+    if (_filterMood != null) {
+      filtered = filtered.where((e) => e.mood == _filterMood).toList();
+    }
+    if (_filterHasPhoto) {
+      filtered = filtered.where((e) => e.media.any((m) => m.mediaType == 'photo')).toList();
+    }
+    if (_filterDateRange != null) {
+      filtered = filtered.where((e) {
+        final d = e.entryDate;
+        return !d.isBefore(_filterDateRange!.start) &&
+               !d.isAfter(_filterDateRange!.end.add(const Duration(days: 1)));
+      }).toList();
+    }
+    return filtered;
   }
 
   @override
@@ -87,6 +141,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         children: [
           _buildHeader(colors),
           _buildSearchBar(colors),
+          if (_showFilters) _buildFilterRow(colors),
+          if (_hasActiveFilter && !_showFilters) _buildActiveFiltersBadge(colors),
           Expanded(child: _buildBody(colors)),
         ],
       ),
@@ -169,41 +225,312 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Search bar
+  // Search bar (with filter icon)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildSearchBar(AppPalette colors) {
     return Container(
       color: colors.bg,
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: colors.highlightFaint,
-          borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: colors.highlightFaint,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+                style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Search memories...',
+                  hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
+                  prefixIcon: Icon(Icons.search_rounded, color: colors.textMuted, size: 20),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                          child: Icon(Icons.close_rounded, size: 18, color: colors.textMuted),
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Filter icon button with active indicator
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _showFilters = !_showFilters);
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: _showFilters
+                        ? colors.accent.withAlpha(30)
+                        : colors.highlightFaint,
+                    borderRadius: BorderRadius.circular(14),
+                    border: _showFilters
+                        ? Border.all(color: colors.accent.withAlpha(80))
+                        : null,
+                  ),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    size: 22,
+                    color: _showFilters ? colors.accent : colors.textMuted,
+                  ),
+                ),
+                if (_hasActiveFilter)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Filter row (horizontal chips)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFilterRow(AppPalette colors) {
+    return Container(
+      color: colors.bg,
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
+      child: SizedBox(
+        height: 36,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          children: [
+            // Mood chips
+            for (final mc in _moodChips) ...[
+              _buildMoodChip(mc, colors),
+              const SizedBox(width: 8),
+            ],
+            // Has Photo chip
+            _buildPhotoChip(colors),
+            const SizedBox(width: 8),
+            // Date range chip
+            _buildDateRangeChip(colors),
+            // Clear all (only if filters active)
+            if (_hasActiveFilter) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _filterMood = null;
+                    _filterHasPhoto = false;
+                    _filterDateRange = null;
+                  });
+                },
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withAlpha(20),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFEF4444).withAlpha(60)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Clear all',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFEF4444),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-        child: TextField(
-          controller: _searchController,
-          focusNode: _searchFocus,
-          onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-          style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Search memories...',
-            hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
-            prefixIcon: Icon(Icons.search_rounded, color: colors.textMuted, size: 20),
-            suffixIcon: _searchQuery.isNotEmpty
-                ? GestureDetector(
-                    onTap: () {
-                      _searchController.clear();
-                      setState(() => _searchQuery = '');
-                    },
-                    child: Icon(Icons.close_rounded, size: 18, color: colors.textMuted),
-                  )
-                : null,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    );
+  }
+
+  Widget _buildMoodChip(_MoodChip mc, AppPalette colors) {
+    final selected = _filterMood == mc.value;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _filterMood = selected ? null : mc.value);
+      },
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? mc.color : colors.highlightFaint,
+          borderRadius: BorderRadius.circular(20),
+          border: selected ? null : Border.all(color: colors.border),
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(mc.emoji, style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 5),
+            Text(
+              mc.label,
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : colors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoChip(AppPalette colors) {
+    final selected = _filterHasPhoto;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _filterHasPhoto = !selected);
+      },
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.highlightFaint,
+          borderRadius: BorderRadius.circular(20),
+          border: selected ? null : Border.all(color: colors.border),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '📷 Has Photo',
+          style: GoogleFonts.manrope(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : colors.textSecondary,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDateRangeChip(AppPalette colors) {
+    final selected = _filterDateRange != null;
+    final label = selected
+        ? '${DateFormat('MMM d').format(_filterDateRange!.start)} – ${DateFormat('MMM d').format(_filterDateRange!.end)}'
+        : '📅 Date range';
+
+    return GestureDetector(
+      onTap: () async {
+        HapticFeedback.selectionClick();
+        if (selected) {
+          setState(() => _filterDateRange = null);
+          return;
+        }
+        final range = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2010),
+          lastDate: DateTime.now(),
+          builder: (ctx, child) => Theme(
+            data: Theme.of(ctx).copyWith(
+              colorScheme: ColorScheme.light(primary: colors.accent),
+            ),
+            child: child!,
+          ),
+        );
+        if (range != null && mounted) {
+          setState(() => _filterDateRange = range);
+        }
+      },
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.highlightFaint,
+          borderRadius: BorderRadius.circular(20),
+          border: selected ? null : Border.all(color: colors.border),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : colors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveFiltersBadge(AppPalette colors) {
+    final count = (_filterMood != null ? 1 : 0) +
+        (_filterHasPhoto ? 1 : 0) +
+        (_filterDateRange != null ? 1 : 0);
+    return Container(
+      color: colors.bg,
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(20),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$count filter${count > 1 ? 's' : ''} active',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: colors.accent,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _filterMood = null;
+                _filterHasPhoto = false;
+                _filterDateRange = null;
+              });
+            },
+            child: Text(
+              'Clear',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: colors.textMuted,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -216,9 +543,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final entriesAsync = ref.watch(timelineEntriesProvider);
     return entriesAsync.when(
       data: (entries) {
+        final filtered = _applyFilters(entries);
         // Search mode
         if (_searchQuery.isNotEmpty) {
-          return _buildSearchResults(entries, colors);
+          return _buildSearchResults(filtered, colors);
+        }
+        // Filter-only mode (no search but filters active)
+        if (_hasActiveFilter && filtered.isEmpty) {
+          return _buildNoFilterResults(colors);
+        }
+        if (_hasActiveFilter) {
+          return _buildFilteredResults(filtered, colors);
         }
         // Default overview
         if (entries.isEmpty) return _buildEmptyState(colors);
@@ -228,6 +563,47 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       error: (_, __) => Center(
         child: Text('Could not load', style: GoogleFonts.manrope(color: colors.textMuted)),
       ),
+    );
+  }
+
+  Widget _buildNoFilterResults(AppPalette colors) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.filter_alt_off_rounded, size: 48, color: colors.textMuted.withAlpha(100)),
+          const SizedBox(height: 12),
+          Text(
+            'No memories match your filters',
+            style: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => setState(() {
+              _filterMood = null;
+              _filterHasPhoto = false;
+              _filterDateRange = null;
+            }),
+            child: Text(
+              'Clear filters',
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.accent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilteredResults(List<JournalEntry> filtered, AppPalette colors) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
+      itemCount: filtered.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) => _buildCompactEntryCard(filtered[i], colors),
     );
   }
 
@@ -259,10 +635,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
       children: [
+        // ── Surprise Me button ──
+        if (entries.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: _buildSurpriseMe(entries, colors),
+          ),
+
         // ── Happiest Memories ──
         if (happiest.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: _buildSectionHeader('Happiest Memories', colors, onSeeAll: () {
               context.push('/explore/see-all/${SeeAllSection.happiest.name}');
             }),
@@ -318,6 +701,51 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         if (happiest.isEmpty && familyEntries.isEmpty && travelEntries.isEmpty)
           _buildEmptyState(colors),
       ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Surprise Me button (Feature 4)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildSurpriseMe(List<JournalEntry> entries, AppPalette colors) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        final random = entries[Random().nextInt(entries.length)];
+        context.push('/memory', extra: random);
+      },
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [colors.accent.withAlpha(180), colors.accentLight],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: colors.accent.withAlpha(60),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.shuffle_rounded, size: 20, color: Colors.white),
+            const SizedBox(width: 10),
+            Text(
+              '✨ Surprise Me',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1081,6 +1509,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     return Image.network(
       url,
       fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
       errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
     );
   }

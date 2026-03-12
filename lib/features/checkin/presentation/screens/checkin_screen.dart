@@ -139,7 +139,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           ),
           GestureDetector(
             onTap: () => _showMoodPicker(),
-            child: Container(
+            child: SizedBox(
               width: 40,
               height: 40,
               child: Icon(Icons.more_horiz_rounded, size: 22, color: colors.textPrimary),

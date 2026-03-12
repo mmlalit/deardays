@@ -24,9 +24,21 @@ class _CoverColor {
   const _CoverColor(this.label, this.color);
 }
 
+enum ExportFormat {
+  byYear('By Year', 'Pages in chronological order', Icons.calendar_today_outlined),
+  byChapter('By Chapter', 'Pages grouped by theme', Icons.folder_outlined),
+  both('Both', 'Combined timeline + chapters', Icons.auto_stories_outlined);
+
+  const ExportFormat(this.label, this.description, this.icon);
+  final String label;
+  final String description;
+  final IconData icon;
+}
+
 class _ExportScreenState extends State<ExportScreen> {
   String _selectedRange = 'All Time';
   int _selectedColorIndex = 2; // default sand (primary)
+  ExportFormat _selectedFormat = ExportFormat.both;
   bool _isExporting = false;
 
   late final JournalRepository _repository = JournalRepository(
@@ -62,10 +74,16 @@ class _ExportScreenState extends State<ExportScreen> {
       final coverColor = _coverColors[_selectedColorIndex].color;
       final pdfDoc = await _buildPdfDocument(entries, coverColor);
 
+      final formatSuffix = switch (_selectedFormat) {
+        ExportFormat.byYear => 'Timeline',
+        ExportFormat.byChapter => 'Chapters',
+        ExportFormat.both => 'Combined',
+      };
+
       if (mounted) {
         await Printing.layoutPdf(
           onLayout: (_) => pdfDoc.save(),
-          name: 'DearDays_Journal.pdf',
+          name: 'DearDays_$formatSuffix.pdf',
         );
       }
     } catch (e) {
@@ -102,7 +120,7 @@ class _ExportScreenState extends State<ExportScreen> {
             children: [
               pw.Text(
                 'A PERSONAL JOURNEY',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                   color: PdfColors.white,
                   fontSize: 12,
                   letterSpacing: 3,
@@ -121,8 +139,8 @@ class _ExportScreenState extends State<ExportScreen> {
               ),
               pw.SizedBox(height: 16),
               pw.Text(
-                '${entries.length} entries',
-                style: pw.TextStyle(
+                '${entries.length} entries \u2022 ${_selectedFormat.label}',
+                style: const pw.TextStyle(
                   color: PdfColor.fromInt(0xCCFFFFFF),
                   fontSize: 14,
                 ),
@@ -148,7 +166,7 @@ class _ExportScreenState extends State<ExportScreen> {
               children: [
                 pw.Text(
                   '$dateStr$moodStr',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.grey600,
                     letterSpacing: 1,
@@ -316,7 +334,100 @@ class _ExportScreenState extends State<ExportScreen> {
                         );
                       }),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
+
+                    // ── Export Format ──
+                    _sectionTitle('EXPORT FORMAT'),
+                    const SizedBox(height: 10),
+                    ...ExportFormat.values.map((format) {
+                      final selected = _selectedFormat == format;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedFormat = format),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.of(context).accentFaint
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.of(context).accent
+                                    : AppColors.of(context).border,
+                                width: selected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  format.icon,
+                                  size: 22,
+                                  color: selected
+                                      ? AppColors.of(context).accent
+                                      : AppColors.of(context).textMuted,
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        format.label,
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: selected
+                                              ? AppColors.of(context).accent
+                                              : AppColors.of(context)
+                                                  .textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        format.description,
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.of(context)
+                                              .textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: selected
+                                          ? AppColors.of(context).accent
+                                          : AppColors.of(context).border,
+                                      width: selected ? 2 : 1.5,
+                                    ),
+                                    color: selected
+                                        ? AppColors.of(context).accent
+                                        : Colors.transparent,
+                                  ),
+                                  child: selected
+                                      ? const Icon(Icons.check,
+                                          size: 13, color: Colors.white)
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 20),
 
                     // ── Digital Edition ──
                     Container(
@@ -379,7 +490,7 @@ class _ExportScreenState extends State<ExportScreen> {
                                       ),
                                     )
                                   : Text(
-                                'Download High-Quality PDF',
+                                'Download PDF \u2014 ${_selectedFormat.label}',
                                 style: GoogleFonts.manrope(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
