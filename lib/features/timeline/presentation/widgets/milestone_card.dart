@@ -20,7 +20,7 @@ class MilestoneCard extends StatelessWidget {
   final JournalEntry entry;
   final AppPalette colors;
   final VoidCallback onTap;
-  final String Function(String storagePath)? photoUrlBuilder;
+  final Future<String> Function(String storagePath)? photoUrlBuilder;
 
   // Milestone type → icon mapping
   static const _milestoneIcons = <String, IconData>{
@@ -140,18 +140,26 @@ class MilestoneCard extends StatelessWidget {
   }
 
   Widget _buildHeroPhoto(String storagePath) {
-    final url = photoUrlBuilder?.call(storagePath);
+    final future = photoUrlBuilder?.call(storagePath);
 
     return Stack(
       children: [
         // Photo
-        if (url != null && url.isNotEmpty)
-          Image.network(
-            url,
-            height: 180,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(),
+        if (future != null)
+          FutureBuilder<String>(
+            future: future,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
+                return _buildPhotoPlaceholder();
+              }
+              return Image.network(
+                snapshot.data!,
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(),
+              );
+            },
           )
         else
           _buildPhotoPlaceholder(),

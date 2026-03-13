@@ -228,7 +228,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       final voiceMedia = widget.entry.media.where((m) => m.mediaType == 'voice').toList();
       if (voiceMedia.isEmpty) return;
       final mediaService = ref.read(mediaServiceProvider);
-      final url = mediaService.getPublicUrl(voiceMedia.first.storagePath);
+      final url = await mediaService.getSignedUrl(voiceMedia.first.storagePath);
       await _player.setUrl(url);
       if (mounted) {
         setState(() {
@@ -355,13 +355,30 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   Widget _buildBanner(List<EntryMedia> photoMedia, AppPalette colors) {
     if (photoMedia.isNotEmpty) {
       final mediaService = ref.read(mediaServiceProvider);
-      final url = mediaService.getPublicUrl(photoMedia.first.storagePath);
-      return Image.network(
-        url,
-        height: 240,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
+      final storagePath = photoMedia.first.storagePath;
+      if (storagePath.startsWith('http')) {
+        return Image.network(
+          storagePath,
+          height: 240,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
+        );
+      }
+      return FutureBuilder<String>(
+        future: mediaService.getSignedUrl(storagePath),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData || snapshot.hasError) {
+            return _buildGradientBanner(colors);
+          }
+          return Image.network(
+            snapshot.data!,
+            height: 240,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
+          );
+        },
       );
     }
     return _buildGradientBanner(colors);

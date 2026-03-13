@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,8 +15,54 @@ import 'package:deardays/core/widgets/milestone_overlay.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
+import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart'
     show showMemoryContextMenu;
+
+// ── Dynamic mood responses (hardcoded, no AI call) ──────────────────────────
+
+const _moodResponses = <String, List<String>>{
+  'Great': [
+    "That's awesome! What made your day so good?",
+    "Love to hear it! Want to capture the moment?",
+    "Amazing! Tell me what's going right.",
+    "So glad! What's making you feel great?",
+    "Wonderful! Let's save this good energy.",
+  ],
+  'Good': [
+    "Nice! Anything in particular going well?",
+    "Good vibes! What's been the highlight?",
+    "Glad to hear! Want to write about it?",
+    "That's great! What made it a good day?",
+    "Sweet! Anything worth remembering?",
+  ],
+  'Okay': [
+    "Fair enough. Want to talk about what's up?",
+    "Got it. Sometimes okay is just fine.",
+    "Noted! Anything on your mind today?",
+    "That's alright. Want to capture your thoughts?",
+    "Okay days matter too. What happened?",
+  ],
+  'Low': [
+    "I hear you. Want to get it off your chest?",
+    "Sorry to hear. Writing it out might help.",
+    "That's okay. What's been weighing on you?",
+    "I'm here. Want to talk about it?",
+    "Sending good vibes. What's going on?",
+  ],
+  'Tough': [
+    "I'm here for you. Want to talk about it?",
+    "That's rough. Sometimes it helps to write it down.",
+    "I'm sorry. Let it out if you need to.",
+    "Tough days happen. I'm listening.",
+    "Take your time. I'm here when you're ready.",
+  ],
+};
+
+String _getRandomMoodResponse(String mood) {
+  final responses = _moodResponses[mood] ?? _moodResponses['Okay']!;
+  return responses[Random().nextInt(responses.length)];
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HomeScreen
@@ -27,7 +75,58 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with TickerProviderStateMixin {
+  // ── Mood check-in state ──────────────────────────────────────────────────
+  AnimationController? _moodAnimController;
+  Animation<double>? _moodScaleAnim;
+  String? _selectedMoodLabel;
+  bool _moodAnimCompleted = false;
+  String? _moodResponseText;
+
+  static const _moodOptions = [
+    _HomeMoodOption('Great', Icons.sentiment_very_satisfied, AppColors.moodGreat),
+    _HomeMoodOption('Good', Icons.sentiment_satisfied, AppColors.moodGood),
+    _HomeMoodOption('Okay', Icons.sentiment_neutral, AppColors.moodOkay),
+    _HomeMoodOption('Low', Icons.sentiment_dissatisfied, AppColors.moodLow),
+    _HomeMoodOption('Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
+  ];
+
+  void _onHomeMoodTap(String label) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _selectedMoodLabel = label;
+      _moodAnimCompleted = false;
+      _moodResponseText = _getRandomMoodResponse(label);
+    });
+
+    _moodAnimController?.dispose();
+    _moodAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _moodScaleAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
+    ]).animate(CurvedAnimation(
+      parent: _moodAnimController!,
+      curve: Curves.easeInOut,
+    ));
+
+    _moodAnimController!.forward().then((_) {
+      if (mounted) {
+        setState(() => _moodAnimCompleted = true);
+        // Persist mood via checkInProvider
+        ref.read(checkInProvider.notifier).selectMood(label);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _moodAnimController?.dispose();
+    super.dispose();
+  }
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -320,8 +419,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               width: double.infinity,
               child: photoMedia.isNotEmpty
                   ? _NetworkImage(
-                      url: _getPhotoUrl(
-                          context, photoMedia.first.storagePath))
+                      storagePath: photoMedia.first.storagePath)
                   : _GradientBanner(colors: colors, mood: entry.mood),
             ),
             Padding(
@@ -554,6 +652,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? 'Good Afternoon'
             : 'Good Evening';
 
+    final checkInState = ref.watch(checkInProvider);
+    final hasMoodToday = checkInState.currentMood != null &&
+        checkInState.currentMood != 'skipped' &&
+        checkInState.isViewingToday;
+    final showMoodIcons = !hasMoodToday && _selectedMoodLabel == null;
+    final showMoodCard = (_moodAnimCompleted && _selectedMoodLabel != null) || hasMoodToday;
+    final displayMood = hasMoodToday ? checkInState.currentMood! : _selectedMoodLabel;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -568,17 +674,194 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          'What happened today?',
-          style: GoogleFonts.manrope(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: colors.textPrimary,
-            height: 1.4,
+        if (showMoodIcons) ...[
+          Text(
+            'How are you feeling?',
+            style: GoogleFonts.manrope(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.4,
+            ),
           ),
-        ),
+          const SizedBox(height: 20),
+          _buildHomeMoodRow(colors),
+        ] else if (showMoodCard && displayMood != null) ...[
+          const SizedBox(height: 8),
+          _buildMoodResponseCard(displayMood, colors),
+        ] else ...[
+          Text(
+            'What happened today?',
+            style: GoogleFonts.manrope(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.4,
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  // ── Home Mood Row ──────────────────────────────────────────────────────────
+
+  Widget _buildHomeMoodRow(AppPalette colors) {
+    final selected = _selectedMoodLabel;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: _moodOptions.map((mood) {
+        final isSelected = selected == mood.label;
+        final isDimmed = selected != null && !isSelected;
+
+        Widget icon = AnimatedOpacity(
+          opacity: isDimmed ? 0.3 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: GestureDetector(
+            onTap: selected == null ? () => _onHomeMoodTap(mood.label) : null,
+            child: Column(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: mood.color.withAlpha(isSelected ? 40 : 20),
+                    border: Border.all(
+                      color: mood.color.withAlpha(isSelected ? 120 : 60),
+                      width: isSelected ? 2.5 : 1.5,
+                    ),
+                  ),
+                  child: Icon(mood.icon, size: 26, color: mood.color),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  mood.label,
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    color: isSelected ? mood.color : colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        if (isSelected && _moodScaleAnim != null && !_moodAnimCompleted) {
+          icon = AnimatedBuilder(
+            animation: _moodScaleAnim!,
+            builder: (context, child) => Transform.scale(
+              scale: _moodScaleAnim!.value,
+              child: child,
+            ),
+            child: icon,
+          );
+        }
+
+        return icon;
+      }).toList(),
+    );
+  }
+
+  // ── Mood Response Card ─────────────────────────────────────────────────────
+
+  Widget _buildMoodResponseCard(String mood, AppPalette colors) {
+    final moodColor = _homeMoodColor(mood);
+    final moodIcon = _homeMoodIcon(mood);
+    final responseText = _moodResponseText ?? _getRandomMoodResponse(mood);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        context.push('/checkin');
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: moodColor.withAlpha(12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: moodColor.withAlpha(40)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: moodColor.withAlpha(25),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(moodIcon, size: 16, color: moodColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Feeling ${mood.toLowerCase()}',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: moodColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              responseText,
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'Tell me more',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: moodColor.withAlpha(180),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, size: 14, color: moodColor.withAlpha(180)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _homeMoodColor(String mood) {
+    switch (mood.toLowerCase()) {
+      case 'great': return AppColors.moodGreat;
+      case 'good': return AppColors.moodGood;
+      case 'okay': return AppColors.moodOkay;
+      case 'low': return AppColors.moodLow;
+      case 'tough': return AppColors.moodTough;
+      default: return AppColors.moodOkay;
+    }
+  }
+
+  IconData _homeMoodIcon(String mood) {
+    switch (mood.toLowerCase()) {
+      case 'great': return Icons.sentiment_very_satisfied;
+      case 'good': return Icons.sentiment_satisfied;
+      case 'okay': return Icons.sentiment_neutral;
+      case 'low': return Icons.sentiment_dissatisfied;
+      case 'tough': return Icons.sentiment_very_dissatisfied;
+      default: return Icons.sentiment_neutral;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1003,8 +1286,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         width: double.infinity,
                         child: photoMedia.isNotEmpty
                             ? _NetworkImage(
-                                url: _getPhotoUrl(
-                                    context, photoMedia.first.storagePath))
+                                storagePath: photoMedia.first.storagePath)
                             : _GradientBanner(colors: colors, mood: entry.mood),
                       ),
                       Padding(
@@ -1299,8 +1581,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   width: double.infinity,
                   child: photoMedia.isNotEmpty
                       ? _NetworkImage(
-                          url: _getPhotoUrl(
-                              context, photoMedia.first.storagePath))
+                          storagePath: photoMedia.first.storagePath)
                       : _GradientBanner(colors: colors, mood: entry.mood),
                 ),
                 if (entry.isAiPolished)
@@ -1441,12 +1722,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
 
-  String _getPhotoUrl(BuildContext context, String storagePath) {
-    if (storagePath.startsWith('http')) return storagePath;
-    return Supabase.instance.client.storage
-        .from('entry-media')
-        .getPublicUrl(storagePath);
-  }
 
   String _extractTitle(JournalEntry entry) {
     final lines =
@@ -1498,18 +1773,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _NetworkImage extends StatelessWidget {
-  final String url;
-  const _NetworkImage({required this.url});
+  final String storagePath;
+  const _NetworkImage({required this.storagePath});
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (_, __, ___) => _GradientBanner(colors: colors),
+    // If already an HTTP URL (demo data), use directly
+    if (storagePath.startsWith('http')) {
+      return Image.network(
+        storagePath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _GradientBanner(colors: colors),
+      );
+    }
+    // Use signed URL for private bucket storage
+    final future = Supabase.instance.client.storage
+        .from('entry-media')
+        .createSignedUrl(storagePath, 3600);
+    return FutureBuilder<String>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            color: colors.accentFaint,
+            child: Center(
+              child: SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, color: colors.textMuted,
+                ),
+              ),
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.hasError) {
+          return _GradientBanner(colors: colors);
+        }
+        return Image.network(
+          snapshot.data!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => _GradientBanner(colors: colors),
+        );
+      },
     );
   }
 }
@@ -1597,6 +1907,14 @@ class _GradientBanner extends StatelessWidget {
       ],
     );
   }
+}
+
+class _HomeMoodOption {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _HomeMoodOption(this.label, this.icon, this.color);
 }
 
 class _ReflectionCardData {

@@ -44,6 +44,9 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   void _finish() {
     HapticFeedback.lightImpact();
     ref.read(postSaveDataProvider.notifier).state = null;
+    // Re-invalidate so home screen fetches fresh data
+    ref.invalidate(timelineEntriesProvider);
+    ref.invalidate(todayEntryProvider);
     context.go('/home');
   }
 

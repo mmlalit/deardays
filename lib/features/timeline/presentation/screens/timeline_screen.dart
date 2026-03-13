@@ -293,9 +293,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Content
   // ─────────────────────────────────────────────────────────────────────────
 
-  String _getPhotoUrl(String storagePath) {
+  Future<String> _getPhotoUrl(String storagePath) async {
     try {
-      return ref.read(mediaServiceProvider).getPublicUrl(storagePath);
+      if (storagePath.startsWith('http')) return storagePath;
+      return await ref.read(mediaServiceProvider).getSignedUrl(storagePath);
     } catch (_) {
       return '';
     }
@@ -1021,17 +1022,43 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   Widget _buildCardPhoto(String storagePath, AppPalette colors) {
     final mediaService = ref.read(mediaServiceProvider);
-    final url = mediaService.getPublicUrl(storagePath);
-    return Image.network(
-        url,
-        height: 140,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          height: 100,
-          color: colors.accentFaint,
-          child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
-        ),
+    return FutureBuilder<String>(
+      future: mediaService.getSignedUrl(storagePath),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 140,
+            width: double.infinity,
+            color: colors.accentFaint,
+            child: Center(
+              child: SizedBox(
+                width: 20, height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, color: colors.textMuted,
+                ),
+              ),
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.hasError) {
+          return Container(
+            height: 100,
+            color: colors.accentFaint,
+            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
+          );
+        }
+        return Image.network(
+          snapshot.data!,
+          height: 140,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            height: 100,
+            color: colors.accentFaint,
+            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
+          ),
+        );
+      },
     );
   }
 

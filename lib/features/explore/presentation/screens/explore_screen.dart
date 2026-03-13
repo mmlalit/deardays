@@ -615,9 +615,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // Overview — main curated sections
   // ─────────────────────────────────────────────────────────────────────────
 
-  String _getPhotoUrl(String storagePath) {
+  Future<String> _getPhotoUrl(String storagePath) async {
     try {
-      return ref.read(mediaServiceProvider).getPublicUrl(storagePath);
+      if (storagePath.startsWith('http')) return storagePath;
+      return await ref.read(mediaServiceProvider).getSignedUrl(storagePath);
     } catch (_) {
       return '';
     }
@@ -1634,18 +1635,32 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     if (photo == null) return const SizedBox.shrink();
 
     // If storagePath is already a full URL (demo data), use directly
-    final url = photo.storagePath.startsWith('http')
-        ? photo.storagePath
-        : Supabase.instance.client.storage
-            .from('entry-media')
-            .getPublicUrl(photo.storagePath);
+    if (photo.storagePath.startsWith('http')) {
+      return Image.network(
+        photo.storagePath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+      );
+    }
 
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+    return FutureBuilder<String>(
+      future: Supabase.instance.client.storage
+          .from('entry-media')
+          .createSignedUrl(photo.storagePath, 3600),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.hasError) {
+          return Container(color: colors.highlightFaint);
+        }
+        return Image.network(
+          snapshot.data!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+        );
+      },
     );
   }
 

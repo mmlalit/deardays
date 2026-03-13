@@ -634,18 +634,30 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
     final photo = entry.media.where((m) => m.mediaType == 'photo').firstOrNull;
     if (photo == null) return const SizedBox.shrink();
 
-    // If storagePath is already a full URL (demo data), use directly
-    final url = photo.storagePath.startsWith('http')
-        ? photo.storagePath
-        : Supabase.instance.client.storage
-            .from('entry-media')
-            .getPublicUrl(photo.storagePath);
+    if (photo.storagePath.startsWith('http')) {
+      return Image.network(
+        photo.storagePath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+      );
+    }
 
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+    return FutureBuilder<String>(
+      future: Supabase.instance.client.storage
+          .from('entry-media')
+          .createSignedUrl(photo.storagePath, 3600),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.hasError) {
+          return Container(color: colors.highlightFaint);
+        }
+        return Image.network(
+          snapshot.data!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+        );
+      },
     );
   }
 

@@ -23,7 +23,7 @@ class PhotoCollageCard extends StatelessWidget {
   final JournalEntry entry;
   final AppPalette colors;
   final VoidCallback onTap;
-  final String Function(String storagePath)? photoUrlBuilder;
+  final Future<String> Function(String storagePath)? photoUrlBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -197,17 +197,23 @@ class PhotoCollageCard extends StatelessWidget {
   }
 
   Widget _photoTile(String storagePath) {
-    final url = photoUrlBuilder?.call(storagePath);
-    if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (_, __, ___) => _photoPlaceholder(),
-      );
-    }
-    return _photoPlaceholder();
+    final future = photoUrlBuilder?.call(storagePath);
+    if (future == null) return _photoPlaceholder();
+    return FutureBuilder<String>(
+      future: future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
+          return _photoPlaceholder();
+        }
+        return Image.network(
+          snapshot.data!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => _photoPlaceholder(),
+        );
+      },
+    );
   }
 
   Widget _photoTileWithOverlay(String storagePath, String label) {

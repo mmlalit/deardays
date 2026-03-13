@@ -20,7 +20,7 @@ class OnThisDaySection extends StatelessWidget {
   final List<JournalEntry> entries;
   final AppPalette colors;
   final void Function(JournalEntry entry) onEntryTap;
-  final String Function(String storagePath)? photoUrlBuilder;
+  final Future<String> Function(String storagePath)? photoUrlBuilder;
 
   int _yearsAgo(JournalEntry e) {
     return DateTime.now().year - e.entryDate.year;
@@ -211,16 +211,18 @@ class OnThisDaySection extends StatelessWidget {
   }
 
   Widget _buildSepiaPhoto(String storagePath) {
-    final url = photoUrlBuilder?.call(storagePath);
-    final child = (url != null && url.isNotEmpty)
-        ? Image.network(
-            url,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-            errorBuilder: (_, __, ___) => _buildDecorativeFallback(),
-          )
-        : _buildDecorativeFallback();
+    final future = photoUrlBuilder?.call(storagePath);
+    if (future == null) {
+      return ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          0.39, 0.35, 0.17, 0, 20,
+          0.35, 0.31, 0.14, 0, 15,
+          0.27, 0.24, 0.11, 0, 10,
+          0,    0,    0,    1,  0,
+        ]),
+        child: _buildDecorativeFallback(),
+      );
+    }
 
     // Apply sepia-like warm tint
     return ColorFiltered(
@@ -230,7 +232,21 @@ class OnThisDaySection extends StatelessWidget {
         0.27, 0.24, 0.11, 0, 10,
         0,    0,    0,    1,  0,
       ]),
-      child: child,
+      child: FutureBuilder<String>(
+        future: future,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
+            return _buildDecorativeFallback();
+          }
+          return Image.network(
+            snapshot.data!,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, __, ___) => _buildDecorativeFallback(),
+          );
+        },
+      ),
     );
   }
 
