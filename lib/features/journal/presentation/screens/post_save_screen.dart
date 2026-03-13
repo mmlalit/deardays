@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -32,36 +32,13 @@ class PostSaveScreen extends ConsumerStatefulWidget {
 }
 
 class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
-  final PageController _pageController = PageController();
   int _currentStep = 0; // 0 = chapter, 1 = confirmation
-
-  // Chapter
   String? _selectedChapterId;
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _goToStep(int step) {
-    setState(() => _currentStep = step);
-    _pageController.animateToPage(
-      step,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOutCubic,
-    );
-  }
 
   void _next() {
     if (_currentStep == 0 && _selectedChapterId != null) {
-      _goToStep(1); // Go to confirmation
+      setState(() => _currentStep = 1);
     }
-    // Do nothing if no chapter selected
-  }
-
-  void _skipAll() {
-    _finish();
   }
 
   void _finish() {
@@ -70,218 +47,177 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     context.go('/home');
   }
 
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
 
     return Scaffold(
       backgroundColor: colors.bg,
-      body: Column(
-        children: [
-          // Header only on chapter step
-          if (_currentStep == 0) _buildHeader(colors),
-          if (_currentStep == 0) _buildProgressIndicator(colors),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildChapterStep(colors),
-                _buildConfirmationStep(colors),
-              ],
-            ),
-          ),
-          // Bottom bar only on chapter step
-          if (_currentStep == 0) _buildBottomBar(colors),
-        ],
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        child: _currentStep == 0
+            ? _buildChapterScreen(colors)
+            : _buildConfirmationScreen(colors),
       ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Header (chapter step only)
+  // Step 0 — Add to Chapter
   // ---------------------------------------------------------------------------
 
-  Widget _buildHeader(AppPalette colors) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.bg,
-        border: Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  if (Navigator.of(context).canPop()) {
-                    context.pop();
-                  } else {
-                    _finish();
-                  }
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accent.withAlpha(15),
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Organize Memory',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.newsreader(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: _skipAll,
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(Icons.close_rounded, size: 22, color: colors.textPrimary),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Progress indicator (only for chapter step)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildProgressIndicator(AppPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Container(
-        height: 3,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(2),
-          color: colors.accent,
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Step 1 — Chapters (required selection)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildChapterStep(AppPalette colors) {
+  Widget _buildChapterScreen(AppPalette colors) {
     final chaptersAsync = ref.watch(chaptersProvider);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Add to a chapter',
-            style: GoogleFonts.manrope(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: colors.textPrimary,
-            ),
+    return Column(
+      key: const ValueKey('chapter'),
+      children: [
+        // Header
+        Container(
+          decoration: BoxDecoration(
+            color: colors.bg,
+            border: Border(bottom: BorderSide(color: colors.border)),
           ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            'Select a chapter to organize this memory.',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: colors.textSecondary,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          chaptersAsync.when(
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-            error: (_, __) => _buildMockChapters(colors),
-            data: (chapters) {
-              if (chapters.isEmpty) return _buildMockChapters(colors);
-              return Column(
-                children: chapters
-                    .map((c) => _buildChapterCard(c.id, c.title, c.entryCount, colors))
-                    .toList(),
-              );
-            },
-          ),
-
-          const SizedBox(height: 12),
-
-          // Create new chapter option
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Create chapter coming soon',
-                    style: GoogleFonts.manrope(fontSize: 13),
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: colors.accent.withAlpha(80),
-                  style: BorderStyle.solid,
-                ),
-              ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_rounded, size: 20, color: colors.accent),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Create New Chapter',
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: colors.accent,
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      if (Navigator.of(context).canPop()) {
+                        context.pop();
+                      } else {
+                        _finish();
+                      }
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.accent.withAlpha(15),
+                        border: Border.all(color: colors.border),
+                      ),
+                      child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Add to Chapter',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _finish,
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Icon(Icons.close_rounded, size: 22, color: colors.textPrimary),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+
+        // Chapter list
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select a chapter to organize this memory.',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    color: colors.textSecondary,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                chaptersAsync.when(
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  error: (_, __) => _buildMockChapters(colors),
+                  data: (chapters) {
+                    if (chapters.isEmpty) return _buildMockChapters(colors);
+                    return Column(
+                      children: chapters
+                          .map((c) => _buildChapterCard(c.id, c.title, c.entryCount, colors))
+                          .toList(),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Create new chapter
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Create chapter coming soon',
+                          style: GoogleFonts.manrope(fontSize: 13),
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: colors.accent.withAlpha(80),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_rounded, size: 20, color: colors.accent),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Create New Chapter',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom bar with Next button
+        _buildBottomBar(colors),
+      ],
     );
   }
 
-  /// Fallback mock chapters when no real data is available.
   Widget _buildMockChapters(AppPalette colors) {
     final mockChapters = [
       ('ch-travel', 'Travel & Adventures', 12),
@@ -297,12 +233,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     );
   }
 
-  Widget _buildChapterCard(
-    String id,
-    String title,
-    int entryCount,
-    AppPalette colors,
-  ) {
+  Widget _buildChapterCard(String id, String title, int entryCount, AppPalette colors) {
     final isSelected = _selectedChapterId == id;
 
     return GestureDetector(
@@ -372,12 +303,76 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     );
   }
 
+  Widget _buildBottomBar(AppPalette colors) {
+    final hasSelection = _selectedChapterId != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.bg,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!hasSelection)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Select a chapter to continue',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: colors.textMuted,
+                    ),
+                  ),
+                ),
+              GestureDetector(
+                onTap: hasSelection ? _next : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: hasSelection ? colors.accent : colors.accent.withAlpha(60),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: hasSelection
+                        ? [
+                            BoxShadow(
+                              color: colors.accent.withAlpha(50),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Text(
+                    'Continue',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: hasSelection ? Colors.white : Colors.white.withAlpha(120),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
-  // Step 2 — Confirmation (full-screen, no header/bottom bar)
+  // Step 1 — Confirmation
   // ---------------------------------------------------------------------------
 
-  Widget _buildConfirmationStep(AppPalette colors) {
+  Widget _buildConfirmationScreen(AppPalette colors) {
     return Container(
+      key: const ValueKey('confirmation'),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -393,14 +388,12 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
           child: Column(
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 40),
 
-              // Tilted photo card with floating decorations
               _buildPhotoCardSection(colors),
 
               const SizedBox(height: 36),
 
-              // Heading
               Text(
                 'Memory saved\nsuccessfully.',
                 textAlign: TextAlign.center,
@@ -414,7 +407,6 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
 
               const SizedBox(height: 14),
 
-              // Subtitle
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
@@ -430,7 +422,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
 
               const SizedBox(height: 40),
 
-              // Primary button: View Memory
+              // View Memory
               GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
@@ -465,10 +457,9 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
 
               const SizedBox(height: 12),
 
-              // Secondary buttons row
+              // Secondary buttons
               Row(
                 children: [
-                  // Record Another
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
@@ -498,10 +489,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
-                  // Go to Timeline
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
@@ -550,7 +538,6 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          // Tilted photo card
           Transform.rotate(
             angle: -5 * math.pi / 180,
             child: Container(
@@ -583,8 +570,6 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
               ),
             ),
           ),
-
-          // Floating heart — top right
           Positioned(
             top: 0,
             right: 40,
@@ -603,15 +588,9 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                   ),
                 ],
               ),
-              child: Icon(
-                Icons.favorite_rounded,
-                size: 18,
-                color: colors.accent,
-              ),
+              child: Icon(Icons.favorite_rounded, size: 18, color: colors.accent),
             ),
           ),
-
-          // Floating sparkle — bottom left
           Positioned(
             bottom: 4,
             left: 40,
@@ -630,82 +609,10 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                   ),
                 ],
               ),
-              child: Icon(
-                Icons.auto_awesome_rounded,
-                size: 16,
-                color: colors.accent,
-              ),
+              child: Icon(Icons.auto_awesome_rounded, size: 16, color: colors.accent),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Bottom bar (chapter step only)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildBottomBar(AppPalette colors) {
-    final hasSelection = _selectedChapterId != null;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.bg,
-        border: Border(top: BorderSide(color: colors.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!hasSelection)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Select a chapter to continue',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ),
-              // Full-width Next button
-              GestureDetector(
-                onTap: hasSelection ? _next : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: hasSelection ? colors.accent : colors.accent.withAlpha(60),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: hasSelection
-                        ? [
-                            BoxShadow(
-                              color: colors.accent.withAlpha(50),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: Text(
-                    'Next',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: hasSelection ? Colors.white : Colors.white.withAlpha(120),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
