@@ -881,7 +881,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget _buildCard(JournalEntry entry, List<JournalEntry> allEntries, {required bool isCurrentYear, required AppPalette colors}) {
     final title = _extractTitle(entry);
     final excerpt = _extractExcerpt(entry);
-    final dateStr = '${DateFormat('MMM dd').format(entry.entryDate).toUpperCase()} • ${DateFormat('HH:mm').format(entry.entryDate)}';
+    final timeStr = entry.entryTime != null
+        ? '${entry.entryTime!.hour.toString().padLeft(2, '0')}:${entry.entryTime!.minute.toString().padLeft(2, '0')}'
+        : DateFormat('HH:mm').format(entry.createdAt);
+    final dateStr = '${DateFormat('MMM dd').format(entry.entryDate).toUpperCase()} • $timeStr';
     final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
     final tags = _entryTags(entry);
     final hasPhoto = photoMedia.isNotEmpty;
