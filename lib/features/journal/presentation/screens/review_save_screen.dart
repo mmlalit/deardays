@@ -24,6 +24,7 @@ import 'package:deardays/services/sync/sync_operation.dart';
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
+import 'package:deardays/services/location/location_service.dart';
 
 /// Data passed between RecordingScreen → ProcessingScreen → ReviewSaveScreen.
 class ReviewData {
@@ -85,6 +86,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   bool _isSaving = false;
   String? _attachedPhotoPath;
   String? _locationName;
+  final List<String> _tags = [];
+  final _locationService = LocationService();
+  final _tagController = TextEditingController();
 
   // Shimmer animation
   late AnimationController _shimmerController;
@@ -112,6 +116,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   @override
   void dispose() {
     _titleEditController.dispose();
+    _tagController.dispose();
     _shimmerController.dispose();
     super.dispose();
   }
@@ -1269,35 +1274,224 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildActionPills() {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _actionPill(
-            icon: Icons.photo_library_outlined,
-            label: _attachedPhotoPath != null ? 'Photo added' : 'Add photo',
-            isActive: _attachedPhotoPath != null,
-            onTap: _pickPhoto,
+          // Photo row
+          Row(
+            children: [
+              _actionPill(
+                icon: Icons.photo_library_outlined,
+                label: _attachedPhotoPath != null ? 'Photo added' : 'Add photo',
+                isActive: _attachedPhotoPath != null,
+                onTap: _pickPhoto,
+              ),
+              const SizedBox(width: 12),
+              _actionPill(
+                icon: Icons.camera_alt_outlined,
+                label: 'Take photo',
+                isActive: false,
+                onTap: () async {
+                  final picked = await _imagePicker.pickImage(
+                    source: ImageSource.camera,
+                    maxWidth: 1920,
+                    imageQuality: 75,
+                  );
+                  if (picked != null && mounted) {
+                    setState(() => _attachedPhotoPath = picked.path);
+                  }
+                },
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          _actionPill(
-            icon: Icons.camera_alt_outlined,
-            label: 'Take photo',
-            isActive: false,
-            onTap: () async {
-              final picked = await _imagePicker.pickImage(
-                source: ImageSource.camera,
-                maxWidth: 1920,
-                imageQuality: 75,
-              );
-              if (picked != null && mounted) {
-                setState(() => _attachedPhotoPath = picked.path);
-              }
-            },
+          const SizedBox(height: 12),
+          // Tags + Location row
+          Row(
+            children: [
+              _actionPill(
+                icon: Icons.sell_outlined,
+                label: _tags.isNotEmpty ? '${_tags.length} tag${_tags.length == 1 ? '' : 's'}' : 'Add tags',
+                isActive: _tags.isNotEmpty,
+                onTap: _showTagsSheet,
+              ),
+              const SizedBox(width: 12),
+              _actionPill(
+                icon: Icons.location_on_outlined,
+                label: _locationName ?? 'Add location',
+                isActive: _locationName != null,
+                onTap: _addLocation,
+              ),
+            ],
           ),
+          // Show tag chips if any
+          if (_tags.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _tags.map((tag) => GestureDetector(
+                onTap: () => setState(() => _tags.remove(tag)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withAlpha(15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colors.accent.withAlpha(40)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(tag, style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: colors.accent)),
+                      const SizedBox(width: 4),
+                      Icon(Icons.close_rounded, size: 12, color: colors.accent.withAlpha(150)),
+                    ],
+                  ),
+                ),
+              )).toList(),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  static const _suggestedTags = [
+    'Family', 'Travel', 'Work', 'Friends', 'Nature',
+    'Food', 'Health', 'Gratitude', 'Achievement', 'Funny',
+  ];
+
+  void _showTagsSheet() {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.bg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add Tags', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _tagController,
+                autofocus: false,
+                decoration: InputDecoration(
+                  hintText: 'Type a tag...',
+                  hintStyle: GoogleFonts.manrope(color: colors.textMuted),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.check_rounded, color: colors.accent),
+                    onPressed: () {
+                      final tag = _tagController.text.trim();
+                      if (tag.isNotEmpty && !_tags.contains(tag)) {
+                        setState(() => _tags.add(tag));
+                        setSheet(() {});
+                      }
+                      _tagController.clear();
+                    },
+                  ),
+                ),
+                onSubmitted: (v) {
+                  final tag = v.trim();
+                  if (tag.isNotEmpty && !_tags.contains(tag)) {
+                    setState(() => _tags.add(tag));
+                    setSheet(() {});
+                  }
+                  _tagController.clear();
+                },
+              ),
+              const SizedBox(height: 16),
+              if (_tags.isNotEmpty) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _tags.map((tag) => GestureDetector(
+                    onTap: () {
+                      setState(() => _tags.remove(tag));
+                      setSheet(() {});
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(tag, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                          const SizedBox(width: 4),
+                          Icon(Icons.close_rounded, size: 14, color: Colors.white.withAlpha(200)),
+                        ],
+                      ),
+                    ),
+                  )).toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Text('Suggestions', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textMuted, letterSpacing: 0.5)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _suggestedTags.where((t) => !_tags.contains(t)).map((t) => GestureDetector(
+                  onTap: () {
+                    setState(() => _tags.add(t));
+                    setSheet(() {});
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: colors.accentFaint,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Text(t, style: GoogleFonts.manrope(fontSize: 13, color: colors.textPrimary)),
+                  ),
+                )).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addLocation() async {
+    if (_locationName != null) {
+      setState(() => _locationName = null);
+      return;
+    }
+    final position = await _locationService.getCurrentPosition();
+    if (position == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not get location. Check permissions.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+      return;
+    }
+    final name = await _locationService.getLocationName(
+      position.latitude,
+      position.longitude,
+    );
+    if (mounted) {
+      setState(() => _locationName = name ??
+          '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}');
+    }
   }
 
   Widget _actionPill({

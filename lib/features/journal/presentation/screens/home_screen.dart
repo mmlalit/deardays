@@ -645,7 +645,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           colors: colors,
           onTap: () {
             HapticFeedback.mediumImpact();
-            context.push('/write');
+            context.push('/checkin');
           },
         ),
       ],

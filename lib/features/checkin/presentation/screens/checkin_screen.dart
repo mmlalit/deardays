@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +24,31 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   final _scrollController = ScrollController();
   String? _editingMessageId;
   String? _editingSectionId;
+  int _promptSeed = 0;
+
+  static const _allPromptChips = [
+    (Icons.sentiment_satisfied_rounded, 'Something that made you smile'),
+    (Icons.group_rounded, 'Someone you met today'),
+    (Icons.psychology_rounded, 'Something I learned'),
+    (Icons.emoji_events_rounded, 'A challenge I faced'),
+    (Icons.favorite_rounded, "I'm grateful for..."),
+    (Icons.wb_sunny_rounded, 'How your morning started'),
+    (Icons.restaurant_rounded, 'A meal you enjoyed'),
+    (Icons.music_note_rounded, 'A song stuck in your head'),
+    (Icons.local_florist_rounded, 'Something beautiful you saw'),
+    (Icons.lightbulb_rounded, 'An idea that excited you'),
+  ];
+
+  List<(IconData, String)> get _visiblePromptChips {
+    final rng = Random(_promptSeed);
+    final shuffled = List<(IconData, String)>.from(_allPromptChips)..shuffle(rng);
+    return shuffled.take(5).toList();
+  }
+
+  void _refreshPrompts() {
+    HapticFeedback.selectionClick();
+    setState(() => _promptSeed++);
+  }
 
   static const _moods = [
     _MoodOption('Great', Icons.sentiment_very_satisfied, AppColors.moodGreat),
@@ -31,13 +58,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     _MoodOption('Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
   ];
 
-  static const _promptChips = [
-    (Icons.sentiment_satisfied_rounded, 'Something that made you smile'),
-    (Icons.group_rounded, 'Someone you met today'),
-    (Icons.psychology_rounded, 'Something I learned'),
-    (Icons.emoji_events_rounded, 'A challenge I faced'),
-    (Icons.favorite_rounded, "I'm grateful for..."),
-  ];
 
   @override
   void dispose() {
@@ -322,6 +342,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   Widget _buildPromptSuggestions(AppPalette colors) {
+    final prompts = _visiblePromptChips;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -359,9 +380,36 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 color: colors.textMuted,
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
+            // Refresh button
+            GestureDetector(
+              onTap: _refreshPrompts,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: colors.accent.withAlpha(12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh_rounded, size: 15, color: colors.accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      'More prompts',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: colors.accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             // Prompt cards in a vertical list
-            ..._promptChips.map((chip) => Padding(
+            ...prompts.map((chip) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: GestureDetector(
                 onTap: () => _textController.text = chip.$2,
