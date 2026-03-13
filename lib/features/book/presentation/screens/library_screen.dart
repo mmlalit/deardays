@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/core/mock/mock_data.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/book/data/models/book.dart';
@@ -43,8 +42,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildContent(BuildContext context, List<Book> books) {
-    final isDemoMode = ref.watch(demoModeProvider);
-    final showSamples = books.isEmpty || isDemoMode;
+    final showSamples = books.isEmpty;
 
     return CustomScrollView(
       slivers: [
@@ -117,9 +115,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildAiInsightCard(BuildContext context, int bookCount) {
-    final isDemoMode = ref.watch(demoModeProvider);
-    final memoryCount = isDemoMode ? 45 : bookCount * 8;
-    final chapterCount = isDemoMode ? 6 : (bookCount > 0 ? bookCount : 6);
+    final entriesAsync = ref.watch(timelineEntriesProvider);
+    final memoryCount = entriesAsync.valueOrNull?.length ?? 0;
+    final chapterCount = bookCount > 0 ? bookCount : 0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -178,8 +176,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               width: double.infinity,
               child: TextButton(
                 onPressed: () {
+                  final entriesAsync = ref.read(timelineEntriesProvider);
+                  final entries = entriesAsync.valueOrNull ?? [];
+                  if (entries.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No memories yet. Start recording to build your book!')),
+                    );
+                    return;
+                  }
                   final book = BookGeneratorService().generateAutoBook(
-                    allEntries: mockEntries,
+                    allEntries: entries,
                     author: 'You',
                   );
                   context.push('/book-detail', extra: book);

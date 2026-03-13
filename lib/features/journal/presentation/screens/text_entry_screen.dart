@@ -28,18 +28,18 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   int _promptSeed = 0;
 
   static const _allPrompts = [
-    'What made you smile today?',
-    'Who did you spend time with?',
+    'What made you smile?',
+    'Who were you with?',
     'A challenge you faced',
     'Something new you learned',
-    'Best part of your day',
-    "What you're grateful for...",
-    'A moment of calm today',
+    'Best part of today',
+    'What are you grateful?',
+    'A calm moment today',
     'What surprised you?',
     'Something you accomplished',
-    'A conversation that stuck with you',
-    'What would you do differently?',
-    'A small joy you noticed',
+    'A memorable conversation',
+    'What would you change?',
+    'A small joy noticed',
   ];
 
   List<String> get _visiblePrompts {
@@ -94,7 +94,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       );
       return;
     }
-    context.push('/review', extra: ReviewData(
+    context.push('/processing', extra: ReviewData(
       rawText: text,
     ));
   }
@@ -221,15 +221,16 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     return Column(
       children: [
         _buildTopBar(colors),
+        const SizedBox(height: 8),
         // Prompts section
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: _buildPromptsSection(colors),
         ),
         // Expanded writing area fills remaining space
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: _buildWritingArea(colors),
           ),
         ),
@@ -409,12 +410,12 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border, width: 1.5),
+        border: Border.all(color: colors.accent.withAlpha(40), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: colors.textPrimary.withAlpha(8),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: colors.textPrimary.withAlpha(15),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -478,28 +479,36 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
             ),
           ),
           const Spacer(),
-          SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _goToReview,
-              icon: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
-              label: Text(
-                'Continue',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+          GestureDetector(
+            onTap: _goToReview,
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(
+                color: colors.accent,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.accent.withAlpha(60),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shadowColor: colors.accent.withAlpha(60),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Continue',
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

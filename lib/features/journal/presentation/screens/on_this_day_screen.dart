@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
-import 'package:deardays/core/demo/demo_data.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/services/media/media_service.dart';
@@ -61,11 +60,7 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
     });
 
     try {
-      var entries = await _repository.getOnThisDay(date: _selectedDate);
-      // Fall back to demo data when no real entries exist
-      if (entries.isEmpty) {
-        entries = DemoData.entries;
-      }
+      final entries = await _repository.getOnThisDay(date: _selectedDate);
       if (!mounted) return;
 
       // Pre-fetch photo URLs for entries that have photos.

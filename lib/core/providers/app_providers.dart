@@ -2,12 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/ai/ai_credit_service.dart';
+import 'package:deardays/services/ai/offline_ai_queue.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
-import 'package:deardays/core/demo/demo_data.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
@@ -18,21 +19,25 @@ import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/repositories/book_repository.dart';
 import 'package:deardays/services/media/media_service.dart';
 import 'package:deardays/services/sync/sync_service.dart';
+import 'package:deardays/services/search/search_service.dart';
+import 'package:deardays/services/backup/backup_service.dart';
+import 'package:deardays/services/analytics/analytics_service.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
+import 'package:deardays/services/ai/mood_detection_service.dart';
+import 'package:deardays/services/ai/highlight_service.dart';
+import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 
 // Re-export SyncStatus so widgets can import from app_providers
 export 'package:deardays/services/sync/sync_service.dart' show SyncStatus;
+
+// --- Post-Save Data (survives go_router refreshes) ---
+
+final postSaveDataProvider = StateProvider<PostSaveData?>((ref) => null);
 
 // --- Sync & Connectivity ---
 
 final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.synced);
 final connectivityProvider = StateProvider<bool>((ref) => true);
-
-// --- Demo Mode ---
-
-/// When true, all data providers return static demo data instead of
-/// making real network/database calls.
-/// Defaults to true so the app always looks great with sample content.
-final demoModeProvider = StateProvider<bool>((ref) => true);
 
 // --- Core Services ---
 
@@ -68,6 +73,40 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
 });
 
+// --- New Services (Phase 1-3) ---
+
+final searchServiceProvider = Provider<SearchService>((ref) {
+  return SearchService();
+});
+
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService();
+});
+
+final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
+  return AnalyticsService();
+});
+
+final crashReportingProvider = Provider<CrashReportingService>((ref) {
+  return CrashReportingService();
+});
+
+final moodDetectionProvider = Provider<MoodDetectionService>((ref) {
+  return MoodDetectionService();
+});
+
+final highlightServiceProvider = Provider<HighlightService>((ref) {
+  return HighlightService();
+});
+
+final aiCreditServiceProvider = Provider<AiCreditService>((ref) {
+  return AiCreditService();
+});
+
+final offlineAiQueueProvider = Provider<OfflineAiQueue>((ref) {
+  return OfflineAiQueue();
+});
+
 // --- Repositories ---
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
@@ -91,13 +130,11 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 // --- Profile & Streak ---
 
 final profileProvider = FutureProvider<UserProfile?>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.profile;
   ref.watch(authStateProvider);
   return ref.watch(profileRepositoryProvider).getProfile();
 });
 
 final streakProvider = FutureProvider<Streak?>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.streak;
   ref.watch(authStateProvider);
   return ref.watch(profileRepositoryProvider).getStreak();
 });
@@ -114,7 +151,6 @@ final bookRepositoryProvider = Provider<BookRepository>((ref) {
 });
 
 final booksProvider = FutureProvider<List<Book>>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.books;
   ref.watch(authStateProvider);
   return ref.watch(bookRepositoryProvider).getBooks();
 });
@@ -138,11 +174,6 @@ final entriesProvider =
 });
 
 final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
-  if (ref.watch(demoModeProvider)) {
-    yield DemoData.entries.first;
-    return;
-  }
-
   final localStorage = ref.watch(localStorageProvider);
   final today = DateTime.now();
 
@@ -175,7 +206,6 @@ final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
 });
 
 final onThisDayProvider = FutureProvider<List<JournalEntry>>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.entries.take(2).toList();
   try {
     return await ref.watch(journalRepositoryProvider).getOnThisDay();
   } catch (_) {
@@ -184,7 +214,6 @@ final onThisDayProvider = FutureProvider<List<JournalEntry>>((ref) async {
 });
 
 final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.moodStats;
   try {
     return await ref.watch(journalRepositoryProvider).getMoodStats();
   } catch (_) {
@@ -193,7 +222,6 @@ final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 });
 
 final totalEntriesProvider = FutureProvider<int>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.streak.totalEntries;
   try {
     return await ref.watch(journalRepositoryProvider).getTotalEntries();
   } catch (_) {
@@ -207,11 +235,6 @@ final totalEntriesProvider = FutureProvider<int>((ref) async {
 /// On success, caches entries locally for offline access.
 final timelineEntriesProvider =
     StreamProvider<List<JournalEntry>>((ref) async* {
-  if (ref.watch(demoModeProvider)) {
-    yield DemoData.entries;
-    return;
-  }
-
   final localStorage = ref.watch(localStorageProvider);
 
   // Emit cached data immediately so the UI has something to show
@@ -243,14 +266,12 @@ final timelineEntriesProvider =
 /// Mood values for the last 7 days (for the weekly bar chart).
 final weeklyMoodsProvider =
     FutureProvider<List<Map<String, String>>>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.weeklyMoods;
   return ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: 7);
 });
 
 /// Mood breakdown for the last 30 days.
 final monthlyMoodStatsProvider =
     FutureProvider<Map<String, int>>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.moodStats;
   final now = DateTime.now();
   final start = DateTime(now.year, now.month - 1, now.day);
   return ref
@@ -261,7 +282,6 @@ final monthlyMoodStatsProvider =
 /// Weekly entries for AI summary generation.
 final weeklyEntriesProvider =
     FutureProvider<List<JournalEntry>>((ref) async {
-  if (ref.watch(demoModeProvider)) return DemoData.entries;
   final now = DateTime.now();
   final weekStart = now.subtract(const Duration(days: 6));
   return ref.watch(journalRepositoryProvider).getEntries(
@@ -297,6 +317,81 @@ final weeklyThemesProvider = FutureProvider<List<String>>((ref) async {
   final texts = entries.map((e) => e.content).toList();
   try {
     return await ref.watch(aiServiceProvider).detectThemes(texts);
+  } catch (_) {
+    return [];
+  }
+});
+
+// --- Period-aware reflection providers (monthly / yearly) ---
+
+enum ReflectionPeriod { weekly, monthly, yearly }
+
+/// Entries for a given reflection period.
+final reflectionEntriesProvider =
+    FutureProvider.family<List<JournalEntry>, ReflectionPeriod>((ref, period) async {
+  final now = DateTime.now();
+  final DateTime start;
+  switch (period) {
+    case ReflectionPeriod.weekly:
+      start = now.subtract(const Duration(days: 6));
+    case ReflectionPeriod.monthly:
+      start = DateTime(now.year, now.month - 1, now.day);
+    case ReflectionPeriod.yearly:
+      start = DateTime(now.year - 1, now.month, now.day);
+  }
+  return ref.watch(journalRepositoryProvider).getEntries(
+        startDate: DateTime(start.year, start.month, start.day),
+        endDate: now,
+        limit: period == ReflectionPeriod.yearly ? 500 : 100,
+      );
+});
+
+/// Moods for a given reflection period.
+final reflectionMoodsProvider =
+    FutureProvider.family<List<Map<String, String>>, ReflectionPeriod>((ref, period) async {
+  final days = switch (period) {
+    ReflectionPeriod.weekly => 7,
+    ReflectionPeriod.monthly => 30,
+    ReflectionPeriod.yearly => 365,
+  };
+  return ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: days);
+});
+
+/// AI summary for a given reflection period.
+final reflectionSummaryProvider =
+    FutureProvider.family<String?, ReflectionPeriod>((ref, period) async {
+  final entries = await ref.watch(reflectionEntriesProvider(period).future);
+  if (entries.isEmpty) return null;
+
+  final language = ref.watch(localeProvider).languageName;
+  final texts = entries.map((e) => e.content).toList();
+  // For yearly, sample at most 30 entries to stay within token limits
+  final sampled = period == ReflectionPeriod.yearly && texts.length > 30
+      ? (texts.toList()..shuffle()).take(30).toList()
+      : texts;
+  try {
+    return await ref.watch(aiServiceProvider).generateSummary(
+          sampled,
+          period: period.name,
+          language: language,
+        );
+  } catch (_) {
+    return null;
+  }
+});
+
+/// AI themes for a given reflection period.
+final reflectionThemesProvider =
+    FutureProvider.family<List<String>, ReflectionPeriod>((ref, period) async {
+  final entries = await ref.watch(reflectionEntriesProvider(period).future);
+  if (entries.isEmpty) return [];
+
+  final texts = entries.map((e) => e.content).toList();
+  final sampled = period == ReflectionPeriod.yearly && texts.length > 30
+      ? (texts.toList()..shuffle()).take(30).toList()
+      : texts;
+  try {
+    return await ref.watch(aiServiceProvider).detectThemes(sampled);
   } catch (_) {
     return [];
   }

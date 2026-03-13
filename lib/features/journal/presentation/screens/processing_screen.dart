@@ -7,9 +7,12 @@ import 'package:go_router/go_router.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/ai/ai_credit_service.dart';
+import 'package:deardays/services/ai/offline_ai_queue.dart';
 
-/// Processing screen shown after recording ends.
+/// Processing screen shown after recording or writing ends.
 /// Runs transcription + AI polish while showing animated 3-step progress.
+/// Uses green accent for voice entries and blue accent for text entries.
 class ProcessingScreen extends StatefulWidget {
   final ReviewData data;
   const ProcessingScreen({super.key, required this.data});
@@ -21,12 +24,17 @@ class ProcessingScreen extends StatefulWidget {
 class _ProcessingScreenState extends State<ProcessingScreen>
     with TickerProviderStateMixin {
   final _aiService = AiService();
+  final _creditService = AiCreditService();
+  final _offlineQueue = OfflineAiQueue();
+
+  // Local analysis result (instant, free)
+  LocalAnalysisResult? _localResult;
 
   // Step states: 'waiting' | 'active' | 'done'
-  final List<String> _stepStates = ['active', 'waiting', 'waiting'];
+  final List<String> _stepStates = ['active', 'waiting', 'waiting', 'waiting'];
 
   // Step progress 0.0 → 1.0 (used for overall % calculation)
-  final List<double> _stepProgress = [0.0, 0.0, 0.0];
+  final List<double> _stepProgress = [0.0, 0.0, 0.0, 0.0];
 
   // Pulse animation for the concentric rings
   late AnimationController _pulseController;
@@ -61,16 +69,21 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   Future<void> _runProcessing() async {
     // ── Step 1: Transcribe voice ──────────────────────────────────────────
     _setStep(0, 'active');
-    await _animateProgress(0, 0.0, 1.0, duration: const Duration(milliseconds: 500));
+    await _animateProgress(0, 0.0, 0.3, duration: const Duration(milliseconds: 200));
 
     String transcript = '';
     try {
       if (widget.data.rawText.isNotEmpty) {
-        // Use on-device live transcript when available
+        // Use on-device live transcript when available (free)
         transcript = widget.data.rawText;
       } else if (widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty) {
-        // Fall back to cloud transcription (OpenAI Whisper)
-        transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
+        // Fall back to cloud transcription — check credits first
+        if (_creditService.canUse(AiOperation.transcription)) {
+          _creditService.consume(AiOperation.transcription);
+          transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
+        } else {
+          transcript = widget.data.rawText;
+        }
       }
     } catch (_) {
       transcript = widget.data.rawText;
@@ -93,39 +106,97 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     }
 
     if (!mounted) return;
+    await _animateProgress(0, 0.3, 1.0, duration: const Duration(milliseconds: 300));
     _setStep(0, 'done');
 
-    // ── Step 2: Understand story ──────────────────────────────────────────
+    // ── Step 2: Local analysis (instant, free, no network) ────────────────
     _setStep(1, 'active');
-    await _animateProgress(1, 0.0, 0.7, duration: const Duration(milliseconds: 400));
+    await _animateProgress(1, 0.0, 0.3, duration: const Duration(milliseconds: 150));
+
+    // Run on-device mood detection, title extraction, highlight extraction
+    _localResult = _offlineQueue.analyzeLocally(transcript);
+
+    if (!mounted) return;
+    await _animateProgress(1, 0.3, 1.0, duration: const Duration(milliseconds: 250));
+    _setStep(1, 'done');
+
+    // ── Step 3: Server AI polish — light polish (grammar/spelling) ────────
+    _setStep(2, 'active');
+    await _animateProgress(2, 0.0, 0.2, duration: const Duration(milliseconds: 150));
 
     String cleanedText = transcript;
     try {
-      cleanedText = await _aiService.lightPolish(transcript);
+      if (_creditService.canUse(AiOperation.polish)) {
+        _creditService.consume(AiOperation.polish);
+        cleanedText = await _aiService.lightPolish(transcript);
+      }
     } catch (_) {
+      _offlineQueue.enqueue(AiQueueItem(
+        entryId: 'pending_${DateTime.now().millisecondsSinceEpoch}',
+        text: transcript,
+        operation: QueueOperation.lightPolish,
+        createdAt: DateTime.now(),
+      ));
       cleanedText = transcript;
     }
 
     if (!mounted) return;
-    await _animateProgress(1, 0.7, 1.0, duration: const Duration(milliseconds: 200));
-    _setStep(1, 'done');
+    await _animateProgress(2, 0.2, 1.0, duration: const Duration(milliseconds: 300));
+    _setStep(2, 'done');
 
-    // ── Step 3: Write memory ──────────────────────────────────────────────
-    _setStep(2, 'active');
-    await _animateProgress(2, 0.0, 1.0, duration: const Duration(milliseconds: 600));
+    // ── Step 4: Full narrative polish + dedicated title generation ─────────
+    _setStep(3, 'active');
+    await _animateProgress(3, 0.0, 0.1, duration: const Duration(milliseconds: 100));
+
+    String? polishedText;
+    String? generatedTitle;
+    try {
+      // Run polish and title generation in parallel
+      final results = await Future.wait([
+        _aiService.polishNarrative(cleanedText, style: 'memoir'),
+        _aiService.generateTitle(cleanedText).catchError((_) => ''),
+      ]);
+
+      polishedText = results[0].trim();
+      generatedTitle = results[1].isNotEmpty ? results[1] : null;
+
+      // Strip any leading markdown header from polished text
+      final lines = polishedText.split('\n').where((l) => l.trim().isNotEmpty).toList();
+      if (lines.length > 1 && lines.first.startsWith('#')) {
+        polishedText = lines.skip(1).join('\n\n').trim();
+      }
+    } catch (_) {
+      polishedText = null;
+    }
+
+    // Fallback title if AI title generation failed
+    if (generatedTitle == null || generatedTitle.isEmpty) {
+      final match = RegExp(r'^(.{5,40}[.!?])').firstMatch(cleanedText.trim());
+      if (match != null) {
+        generatedTitle = match.group(1)!.replaceAll(RegExp(r'[.!?]$'), '').trim();
+      } else {
+        final words = cleanedText.trim().split(RegExp(r'\s+'));
+        generatedTitle = words.take(4).join(' ');
+      }
+    }
 
     if (!mounted) return;
-    _setStep(2, 'done');
+    await _animateProgress(3, 0.1, 1.0, duration: const Duration(milliseconds: 400));
+    _setStep(3, 'done');
 
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
 
     context.pushReplacement('/review', extra: ReviewData(
-      rawText: cleanedText,
+      rawText: transcript,
+      cleanedText: cleanedText,
+      polishedText: polishedText,
+      generatedTitle: generatedTitle,
       isVoice: widget.data.isVoice,
       audioPath: widget.data.audioPath,
       attachedPhotoPath: widget.data.attachedPhotoPath,
       polishWithAI: true,
+      mood: _localResult?.mood,
     ));
   }
 
@@ -144,9 +215,16 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   }
 
   double get _overallProgress {
-    final total = _stepProgress[0] + _stepProgress[1] + _stepProgress[2];
-    return (total / 3).clamp(0.0, 1.0);
+    final total = _stepProgress[0] + _stepProgress[1] + _stepProgress[2] + _stepProgress[3];
+    return (total / 4).clamp(0.0, 1.0);
   }
+
+  /// Whether this is a text entry (not voice recording).
+  bool get _isTextEntry => !widget.data.isVoice;
+
+  /// Blue accent for text entries, default accent for voice.
+  Color _accentColor(AppPalette colors) =>
+      _isTextEntry ? const Color(0xFF3B82F6) : colors.accent;
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +301,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   // ── Concentric Rings Illustration ──────────────────────────────────────
 
   Widget _buildIllustration(AppPalette colors) {
+    final accent = _accentColor(colors);
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (_, __) {
@@ -239,7 +318,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                 height: 192,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.accent.withAlpha(outerAlpha),
+                  color: accent.withAlpha(outerAlpha),
                 ),
               ),
               // Middle ring
@@ -248,7 +327,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                 height: 152,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.accent.withAlpha(35),
+                  color: accent.withAlpha(35),
                 ),
               ),
               // Inner ring
@@ -257,7 +336,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                 height: 112,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.accent.withAlpha(55),
+                  color: accent.withAlpha(55),
                 ),
               ),
               // Center circle with icon
@@ -266,17 +345,17 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.accent,
+                  color: accent,
                   boxShadow: [
                     BoxShadow(
-                      color: colors.accent.withAlpha(100),
+                      color: accent.withAlpha(100),
                       blurRadius: 24,
                       spreadRadius: 4,
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.psychology_rounded,
+                child: Icon(
+                  _isTextEntry ? Icons.edit_note_rounded : Icons.psychology_rounded,
                   size: 38,
                   color: Colors.white,
                 ),
@@ -321,6 +400,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   // ── Overall Progress Bar ──────────────────────────────────────────────────
 
   Widget _buildProgressBar(AppPalette colors, double progress, int pct) {
+    final accent = _accentColor(colors);
     return Column(
       children: [
         Row(
@@ -339,7 +419,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: colors.accent,
+                color: accent,
               ),
             ),
           ],
@@ -349,8 +429,8 @@ class _ProcessingScreenState extends State<ProcessingScreen>
           borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
             value: progress,
-            backgroundColor: colors.accent.withAlpha(25),
-            valueColor: AlwaysStoppedAnimation(colors.accent),
+            backgroundColor: accent.withAlpha(25),
+            valueColor: AlwaysStoppedAnimation(accent),
             minHeight: 12,
           ),
         ),
@@ -361,11 +441,10 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   // ── Steps Timeline ────────────────────────────────────────────────────────
 
   Widget _buildStepsTimeline(AppPalette colors) {
-    final steps = [
-      'Transcribing voice',
-      'Understanding story',
-      'Writing your memory',
-    ];
+    final accent = _accentColor(colors);
+    final steps = _isTextEntry
+        ? ['Reading your words', 'Understanding story', 'Polishing grammar', 'Crafting your narrative']
+        : ['Transcribing voice', 'Understanding story', 'Polishing grammar', 'Crafting your narrative'];
 
     return Column(
       children: List.generate(steps.length, (i) {
@@ -390,7 +469,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                         child: Container(
                           width: 2,
                           margin: const EdgeInsets.symmetric(vertical: 4),
-                          color: isDone ? colors.accent : colors.border,
+                          color: isDone ? accent : colors.border,
                         ),
                       ),
                   ],
@@ -418,7 +497,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                         style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: isWaiting ? colors.textMuted : colors.accent,
+                          color: isWaiting ? colors.textMuted : accent,
                         ),
                       ),
                     ],
@@ -433,11 +512,12 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   }
 
   Widget _buildStepCircle(AppPalette colors, {required bool isDone, required bool isActive}) {
+    final accent = _accentColor(colors);
     if (isDone) {
       return Container(
         width: 32,
         height: 32,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
         child: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
       );
     }
@@ -450,9 +530,9 @@ class _ProcessingScreenState extends State<ProcessingScreen>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.transparent,
-            border: Border.all(color: colors.accent, width: 2),
+            border: Border.all(color: accent, width: 2),
           ),
-          child: Icon(Icons.refresh_rounded, size: 16, color: colors.accent),
+          child: Icon(Icons.refresh_rounded, size: 16, color: accent),
         ),
       );
     }
@@ -471,19 +551,20 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   // ── Footer Info Card ──────────────────────────────────────────────────────
 
   Widget _buildFooter(AppPalette colors) {
+    final accent = _accentColor(colors);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: colors.accent.withAlpha(13),
+          color: accent.withAlpha(13),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.accent.withAlpha(30)),
+          border: Border.all(color: accent.withAlpha(30)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.info_rounded, size: 20, color: colors.accent),
+            Icon(Icons.info_rounded, size: 20, color: accent),
             const SizedBox(width: 8),
             Text(
               'This usually takes about 10 seconds.',

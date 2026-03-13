@@ -13,7 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/core/widgets/save_success_overlay.dart';
+import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/services/ai/ai_service.dart';
@@ -21,7 +21,6 @@ import 'package:deardays/services/media/media_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/sync/sync_queue.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
-import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/services/location/location_service.dart';
@@ -36,6 +35,11 @@ class ReviewData {
   final bool isVoice;
   final bool polishWithAI;
 
+  // Pre-computed by ProcessingScreen so ReviewSaveScreen loads instantly
+  final String? cleanedText;     // light polish: grammar/spelling fixed
+  final String? polishedText;    // full AI literary narrative
+  final String? generatedTitle;  // AI-extracted title
+
   const ReviewData({
     required this.rawText,
     this.mood,
@@ -44,6 +48,9 @@ class ReviewData {
     this.audioPath,
     this.isVoice = false,
     this.polishWithAI = false,
+    this.cleanedText,
+    this.polishedText,
+    this.generatedTitle,
   });
 }
 
@@ -89,6 +96,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   final List<String> _tags = [];
   final _locationService = LocationService();
   final _tagController = TextEditingController();
+  final _scrollController = ScrollController();
 
   // Shimmer animation
   late AnimationController _shimmerController;
@@ -105,11 +113,23 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       duration: const Duration(milliseconds: 1500),
     )..repeat();
 
-    if (widget.data.polishWithAI) {
+    // Auto-fetch GPS location if not already set
+    if (_locationName == null) {
+      _autoFetchLocation();
+    }
+
+    // Use pre-computed results from ProcessingScreen if available
+    if (widget.data.cleanedText != null || widget.data.polishedText != null) {
+      _cleanedText = widget.data.cleanedText;
+      _polishedText = widget.data.polishedText;
+      _generatedTitle = widget.data.generatedTitle ?? _generateFallbackTitle();
+      _titleEditController.text = _generatedTitle!;
+      _activeTab = 0; // Show story tab by default
+    } else if (widget.data.polishWithAI) {
       _polishText();
     } else {
       _activeTab = 2; // Show original/raw text by default
-      _generateTitleOnly(); // Still auto-generate title from content
+      _generateTitleOnly();
     }
   }
 
@@ -118,15 +138,22 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     _titleEditController.dispose();
     _tagController.dispose();
     _shimmerController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   /// Lightweight title generation used when full AI polish is not requested.
   Future<void> _generateTitleOnly() async {
     try {
-      final cleaned = await _aiService.lightPolish(widget.data.rawText);
+      // Run light polish and AI title generation in parallel
+      final results = await Future.wait([
+        _aiService.lightPolish(widget.data.rawText),
+        _aiService.generateTitle(widget.data.rawText).catchError((_) => ''),
+      ]);
       if (!mounted) return;
-      final title = _extractTitle(cleaned ?? widget.data.rawText);
+      final cleaned = results[0];
+      final aiTitle = results[1];
+      final title = aiTitle.isNotEmpty ? aiTitle : _generateFallbackTitle();
       setState(() {
         _cleanedText = cleaned;
         _generatedTitle = title;
@@ -143,19 +170,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     }
   }
 
-  String _extractTitle(String text) {
-    final trimmed = text.trim();
-    // First sentence up to 60 chars
-    final match = RegExp(r'^(.{10,60}[.!?])').firstMatch(trimmed);
-    if (match != null) {
-      return match.group(1)!.replaceAll(RegExp(r'[.!?]$'), '').trim();
-    }
-    // Fallback: first 7 words
-    final words = trimmed.split(RegExp(r'\s+'));
-    if (words.length <= 7) return words.join(' ');
-    return '${words.take(7).join(' ')}...';
-  }
-
   Future<void> _polishText() async {
     setState(() {
       _isPolishing = true;
@@ -170,25 +184,24 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       if (!mounted) return;
       setState(() => _cleanedText = cleaned);
 
-      // Step 2: Literary polish — full AI narrative (40% → 100%)
+      // Step 2: Literary polish + title generation in parallel (40% → 100%)
       _animateProgress(0.4, 0.85);
-      final result = await _aiService.polishNarrative(
-        cleaned,
-        style: 'memoir',
-      );
+      final results = await Future.wait([
+        _aiService.polishNarrative(cleaned, style: 'memoir'),
+        _aiService.generateTitle(cleaned).catchError((_) => ''),
+      ]);
 
-      // Extract title (first line) and body
-      final lines = result.split('\n').where((l) => l.trim().isNotEmpty).toList();
-      String title;
-      String body;
+      final result = results[0];
+      final aiTitle = results[1];
 
-      if (lines.length > 1 && lines.first.length < 80) {
-        title = lines.first.replaceAll(RegExp(r'^#+\s*'), '').trim();
+      // Strip any leading markdown header from polished text
+      String body = result.trim();
+      final lines = body.split('\n').where((l) => l.trim().isNotEmpty).toList();
+      if (lines.length > 1 && lines.first.startsWith('#')) {
         body = lines.skip(1).join('\n\n').trim();
-      } else {
-        title = _generateFallbackTitle();
-        body = result.trim();
       }
+
+      final title = aiTitle.isNotEmpty ? aiTitle : _generateFallbackTitle();
 
       if (mounted) {
         _titleEditController.text = title;
@@ -226,21 +239,217 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   String _generateFallbackTitle() {
     final now = DateTime.now();
     final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
-    return 'A ${months[now.month - 1]} Reflection';
+    final timeOfDay = now.hour < 12 ? 'Morning' : now.hour < 17 ? 'Afternoon' : 'Evening';
+    return '$timeOfDay, ${months[now.month - 1]} ${now.day}';
   }
 
   Future<void> _pickPhoto() async {
-    final picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      imageQuality: 75,
+    await _pickPhotoFromGallery();
+  }
+
+  void _showSaveConfirmation() {
+    HapticFeedback.lightImpact();
+    final colors = AppColors.of(context);
+    final title = _generatedTitle ?? _generateFallbackTitle();
+    final content = _cleanedText ?? widget.data.rawText;
+    final preview = content.length > 120 ? '${content.substring(0, 120)}...' : content;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: colors.textPrimary.withAlpha(25),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.textMuted.withAlpha(60),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Header
+            Text(
+              'Save this memory?',
+              style: GoogleFonts.manrope(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Memory card preview
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.bg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Photo + title row
+                  Row(
+                    children: [
+                      if (_attachedPhotoPath != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(
+                            File(_attachedPhotoPath!),
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Content preview
+                  Text(
+                    preview,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: colors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  // Tags
+                  if (_tags.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: _tags.map((tag) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: colors.accent.withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '#$tag',
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accent,
+                          ),
+                        ),
+                      )).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: colors.bg,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: colors.border),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Go back',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _saveEntry();
+                    },
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.accent.withAlpha(60),
+                            blurRadius: 12,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Looks good, save!',
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
-    if (picked != null && mounted) {
-      setState(() => _attachedPhotoPath = picked.path);
-    }
   }
 
   Future<void> _saveEntry() async {
@@ -278,8 +487,11 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       bool savedOffline = false;
 
       try {
+        debugPrint('[SAVE] Attempting online save...');
         saved = await _repository.createEntry(entry);
+        debugPrint('[SAVE] Online save SUCCESS');
       } catch (networkError) {
+        debugPrint('[SAVE] Online save FAILED: $networkError — saving offline');
         // Network failed — save locally and queue for sync
         await LocalStorageService().cacheEntry(entry);
         await SyncQueue().enqueue(SyncOperation(
@@ -310,7 +522,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             entryId: saved.id,
             filePath: _attachedPhotoPath!,
           );
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[ReviewSaveScreen] Photo upload failed: $e');
+        }
       }
 
       // Check streak: show milestone notification + update daily reminder
@@ -354,13 +568,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         } catch (_) {}
       }
 
+      debugPrint('[SAVE] Post-save: mounted=$mounted, savedOffline=$savedOffline');
       if (mounted) {
-        // Invalidate providers so home screen and timeline refresh
-        ref.invalidate(todayEntryProvider);
-        ref.invalidate(timelineEntriesProvider);
-        ref.invalidate(booksProvider);
-
         if (savedOffline) {
+          debugPrint('[SAVE] Taking OFFLINE path → /home');
+          // Invalidate providers so home screen refreshes
+          ref.invalidate(todayEntryProvider);
+          ref.invalidate(timelineEntriesProvider);
+          ref.invalidate(booksProvider);
+
           // Show offline-save confirmation instead of full success overlay
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -376,26 +592,41 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             ),
           );
           // Navigate back to home
-          if (mounted) context.go('/');
+          if (mounted) context.go('/home');
         } else {
-          await SaveSuccessOverlay.show(
-            context,
-            onDismiss: () {
-              if (mounted) {
-                // Navigate to post-save organization flow
-                final title = _generatedTitle ?? _generateFallbackTitle();
-                final postData = PostSaveData(
-                  entryId: saved.id,
-                  title: title,
-                  content: content,
-                );
-                context.push('/post-save', extra: postData);
-              }
-            },
-          );
+          // Navigate to post-save confirmation screen.
+          // Store data in provider so it survives go_router refreshes
+          // (Supabase DB writes trigger onAuthStateChange which causes
+          // go_router to rebuild and lose route `extra` data).
+          if (mounted) {
+            final title = _generatedTitle ?? _generateFallbackTitle();
+            final entryContent = _cleanedText ?? widget.data.rawText;
+            final entryId = saved.id;
+
+            final postSaveData = PostSaveData(
+              entryId: entryId,
+              title: title,
+              content: entryContent,
+            );
+
+            // Store in provider (survives router refresh)
+            ref.read(postSaveDataProvider.notifier).state = postSaveData;
+
+            // Invalidate data providers so home/timeline refresh later
+            ref.invalidate(todayEntryProvider);
+            ref.invalidate(timelineEntriesProvider);
+            ref.invalidate(booksProvider);
+
+            // Navigate to post-save
+            debugPrint('[SAVE] Taking ONLINE path → navigating to /post-save');
+            if (mounted) context.go('/post-save');
+            debugPrint('[SAVE] context.go(/post-save) called');
+          }
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[SAVE] OUTER CATCH: $e');
+      debugPrint('[SAVE] Stack: $stack');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -419,6 +650,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           _buildHeader(),
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController,
               padding: const EdgeInsets.only(bottom: 120),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,6 +660,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
                   // Title + date section
                   _buildTitleSection(colors),
+
+                  // Tags & location (top for visibility)
+                  _buildMetadataRow(colors),
 
                   // Tab bar: Audio | Transcript | Story
                   _buildTabBar(colors),
@@ -441,9 +676,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   // Content views
                   if (!_isPolishing) ...[
                     if (_polishedText != null || _cleanedText != null) ...[
-                      const SizedBox(height: 8),
-                      if (_activeTab == 0 || _activeTab == 1)
-                        _buildRevertButton(),
                       const SizedBox(height: 8),
                     ] else if (!widget.data.isVoice) ...[
                       const SizedBox(height: 8),
@@ -467,9 +699,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                                   : _buildOriginalView(),
                     ),
                   ],
-                  const SizedBox(height: 24),
-                  // Add photo pill
-                  _buildActionPills(),
                 ],
               ),
             ),
@@ -538,12 +767,11 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   Widget _buildPhotoOrGradientBanner() {
     final colors = AppColors.of(context);
-    final title = _isEditingTitle ? _titleEditController.text.trim() : _generatedTitle;
 
     Widget imageChild;
     if (_attachedPhotoPath != null) {
-      imageChild = Image.asset(
-        _attachedPhotoPath!,
+      imageChild = Image.file(
+        File(_attachedPhotoPath!),
         fit: BoxFit.cover,
         width: double.infinity,
         height: 300,
@@ -554,10 +782,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     }
 
     return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(0),
-        bottomRight: Radius.circular(0),
-      ),
       child: Stack(
         children: [
           SizedBox(height: 300, width: double.infinity, child: imageChild),
@@ -577,27 +801,133 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               ),
             ),
           ),
-          // Italic serif title overlaid at bottom-left
-          if (title != null)
-            Positioned(
-              bottom: 20,
-              left: 20,
-              right: 60,
-              child: Text(
-                title,
-                style: GoogleFonts.newsreader(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white,
-                  height: 1.3,
-                  shadows: [
-                    Shadow(color: Colors.black.withAlpha(8), blurRadius: 8),
-                  ],
+          // Edit photo button (top-right)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: GestureDetector(
+              onTap: _showPhotoOptions,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withAlpha(100),
                 ),
+                child: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
               ),
             ),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _showPhotoOptions() {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: colors.textMuted.withAlpha(60), borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 16),
+            Text('Add Photo', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+            const SizedBox(height: 16),
+            _photoOptionTile(ctx, Icons.photo_library_outlined, 'Choose from gallery', () async {
+              Navigator.of(ctx).pop();
+              await _pickPhotoFromGallery();
+            }),
+            const SizedBox(height: 8),
+            _photoOptionTile(ctx, Icons.camera_alt_outlined, 'Take a photo', () async {
+              Navigator.of(ctx).pop();
+              await _takePhoto();
+            }),
+            if (_attachedPhotoPath != null) ...[
+              const SizedBox(height: 8),
+              _photoOptionTile(ctx, Icons.delete_outline_rounded, 'Remove photo', () {
+                Navigator.of(ctx).pop();
+                setState(() => _attachedPhotoPath = null);
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _photoOptionTile(BuildContext ctx, IconData icon, String label, VoidCallback onTap) {
+    final colors = AppColors.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: colors.textPrimary),
+            const SizedBox(width: 12),
+            Text(label, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w500, color: colors.textPrimary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickPhotoFromGallery() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      imageQuality: 75,
+    );
+    if (picked != null && mounted) {
+      setState(() => _attachedPhotoPath = picked.path);
+      _showPhotoConfirmation(true);
+      _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        imageQuality: 75,
+      );
+      if (picked != null && mounted) {
+        setState(() => _attachedPhotoPath = picked.path);
+        _showPhotoConfirmation(true);
+        _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showPhotoConfirmation(false);
+      }
+    }
+  }
+
+  void _showPhotoConfirmation(bool success) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? 'Photo added successfully!' : 'Could not add photo. Please try again.'),
+        backgroundColor: success ? AppColors.of(context).accent : AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -774,43 +1104,22 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Revert Button (shown when viewing polished text)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildRevertButton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: GestureDetector(
-        onTap: () => setState(() => _activeTab = 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.undo, size: 14, color: AppColors.of(context).textSecondary),
-            const SizedBox(width: 6),
-            Text(
-              'Revert to original',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppColors.of(context).textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // Tab Bar — Story | Transcript | Audio
   // ---------------------------------------------------------------------------
 
   Widget _buildTabBar(AppPalette colors) {
-    final tabs = [
-      (icon: Icons.graphic_eq_rounded, label: 'AUDIO', index: 2),
-      (icon: Icons.description_rounded, label: 'TRANSCRIPT', index: 1),
-      (icon: Icons.auto_stories_rounded, label: 'STORY', index: 0),
-    ];
+    final tabs = widget.data.isVoice
+        ? [
+            (icon: Icons.graphic_eq_rounded, label: 'AUDIO', index: 2),
+            (icon: Icons.description_rounded, label: 'TRANSCRIPT', index: 1),
+            (icon: Icons.auto_stories_rounded, label: 'STORY', index: 0),
+          ]
+        : [
+            (icon: Icons.article_rounded, label: 'ORIGINAL', index: 2),
+            (icon: Icons.auto_fix_high_rounded, label: 'POLISHED', index: 1),
+            (icon: Icons.auto_stories_rounded, label: 'STORY', index: 0),
+          ];
 
     return Container(
       decoration: BoxDecoration(
@@ -872,13 +1181,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     final now = DateTime.now();
     final months = ['January','February','March','April','May','June',
         'July','August','September','October','November','December'];
-    final hour = now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
-    final ampm = now.hour >= 12 ? 'PM' : 'AM';
-    final dateStr =
-        '${months[now.month - 1].toUpperCase()} ${now.day}, ${now.year} • ${hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} $ampm';
+    final dateStr = '${months[now.month - 1]} ${now.day}, ${now.year}';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       child: Column(
         children: [
           if (_isEditingTitle)
@@ -935,7 +1241,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                       _generatedTitle ?? (_isPolishing ? 'Writing your story...' : 'Your Memory'),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.newsreader(
-                        fontSize: 28,
+                        fontSize: 26,
                         fontWeight: FontWeight.w700,
                         color: colors.textPrimary,
                         height: 1.25,
@@ -949,14 +1255,14 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 ],
               ),
             ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             dateStr,
             style: GoogleFonts.manrope(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: colors.textMuted,
-              letterSpacing: 1.5,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -1270,45 +1576,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Action Pills — Add photo, Add location
+  // Metadata Row — Tags & Location (shown at top for visibility)
   // ---------------------------------------------------------------------------
 
-  Widget _buildActionPills() {
-    final colors = AppColors.of(context);
+  Widget _buildMetadataRow(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Photo row
-          Row(
-            children: [
-              _actionPill(
-                icon: Icons.photo_library_outlined,
-                label: _attachedPhotoPath != null ? 'Photo added' : 'Add photo',
-                isActive: _attachedPhotoPath != null,
-                onTap: _pickPhoto,
-              ),
-              const SizedBox(width: 12),
-              _actionPill(
-                icon: Icons.camera_alt_outlined,
-                label: 'Take photo',
-                isActive: false,
-                onTap: () async {
-                  final picked = await _imagePicker.pickImage(
-                    source: ImageSource.camera,
-                    maxWidth: 1920,
-                    imageQuality: 75,
-                  );
-                  if (picked != null && mounted) {
-                    setState(() => _attachedPhotoPath = picked.path);
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Tags + Location row
           Row(
             children: [
               _actionPill(
@@ -1326,9 +1602,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               ),
             ],
           ),
-          // Show tag chips if any
           if (_tags.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1465,6 +1740,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     );
   }
 
+  Future<void> _autoFetchLocation() async {
+    try {
+      final location = await _locationService.getCurrentLocation();
+      if (location?.locationName != null && mounted) {
+        setState(() => _locationName = location!.locationName);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _addLocation() async {
     if (_locationName != null) {
       setState(() => _locationName = null);
@@ -1489,8 +1773,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       position.longitude,
     );
     if (mounted) {
-      setState(() => _locationName = name ??
-          '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}');
+      setState(() => _locationName = name ?? 'My Location');
     }
   }
 
@@ -1591,7 +1874,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               Expanded(
                 flex: 2,
                 child: GestureDetector(
-                  onTap: (_isSaving || _isPolishing) ? null : _saveEntry,
+                  onTap: (_isSaving || _isPolishing) ? null : _showSaveConfirmation,
                   child: Container(
                     height: 56,
                     decoration: BoxDecoration(
@@ -1621,7 +1904,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                             : const Icon(Icons.bookmark_added_rounded, size: 20, color: Colors.white),
                         const SizedBox(width: 6),
                         Text(
-                          _isSaving ? 'Saving...' : 'Save to Vault',
+                          _isSaving ? 'Saving...' : 'Save Memory',
                           style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,

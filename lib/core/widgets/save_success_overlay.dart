@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
 /// Full-screen "Memory saved successfully" confirmation screen.
 ///
@@ -13,6 +14,7 @@ class SaveSuccessOverlay {
   static Future<void> show(
     BuildContext context, {
     VoidCallback? onDismiss,
+    JournalEntry? savedEntry,
     Duration displayDuration = const Duration(milliseconds: 2200),
   }) async {
     final overlayState = Overlay.of(context);
@@ -26,11 +28,17 @@ class SaveSuccessOverlay {
         },
         onViewMemory: () {
           entry.remove();
-          onDismiss?.call();
+          if (savedEntry != null) {
+            context.go('/timeline');
+            context.push('/memory', extra: savedEntry);
+          } else {
+            onDismiss?.call();
+          }
         },
         onRecordAnother: () {
           entry.remove();
-          context.pushReplacement('/record');
+          context.go('/home');
+          context.push('/write');
         },
         onGoToTimeline: () {
           entry.remove();
@@ -198,26 +206,30 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                 // ── Action buttons ──────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: widget.onViewMemory,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.accent,
-                        foregroundColor: Colors.white,
-                        elevation: 4,
-                        shadowColor: colors.accent.withAlpha(70),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                  child: GestureDetector(
+                    onTap: widget.onViewMemory,
+                    child: Container(
+                      width: double.infinity,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.accent.withAlpha(70),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        'View Memory',
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                      child: Center(
+                        child: Text(
+                          'View Memory',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),

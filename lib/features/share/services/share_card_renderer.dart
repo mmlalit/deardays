@@ -41,7 +41,7 @@ class ShareCardRenderer {
       '${dir.path}/deardays_share_${DateTime.now().millisecondsSinceEpoch}.png',
     );
     await file.writeAsBytes(pngBytes);
-    await Share.shareXFiles([XFile(file.path)], subject: subject);
+    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], subject: subject));
 
     // Clean up temporary share image after sharing.
     try {

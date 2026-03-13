@@ -10,8 +10,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
+import 'package:deardays/features/timeline/presentation/widgets/on_this_day_card.dart';
+import 'package:deardays/features/story/data/models/life_story.dart';
+import 'package:deardays/features/story/presentation/providers/story_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category definitions for keyword matching
@@ -611,6 +615,135 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // Overview — main curated sections
   // ─────────────────────────────────────────────────────────────────────────
 
+  String _getPhotoUrl(String storagePath) {
+    try {
+      return ref.read(mediaServiceProvider).getPublicUrl(storagePath);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Widget _buildStoryBanner(AppPalette colors) {
+    final storyState = ref.watch(storyProvider);
+
+    // Trigger availability check on first build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (storyState.status == StoryStatus.notEnoughData && storyState.entriesNeeded == 5) {
+        ref.read(storyProvider.notifier).checkAvailability();
+      }
+    });
+
+    final bool isReady = storyState.status == StoryStatus.ready ||
+        storyState.status == StoryStatus.available;
+    final bool isGenerating = storyState.status == StoryStatus.generating;
+    final bool notEnough = storyState.status == StoryStatus.notEnoughData;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: GestureDetector(
+        onTap: isReady || isGenerating
+            ? () => context.push('/story')
+            : null,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colors.accent.withAlpha(30),
+                colors.accent.withAlpha(10),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: colors.accent.withAlpha(40),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.accent.withAlpha(30),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: colors.accent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your AI Life Story',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isGenerating
+                          ? 'Generating your story...'
+                          : isReady
+                              ? 'Your weekly story is ready!'
+                              : notEnough
+                                  ? '${storyState.entriesNeeded} more entries needed this week'
+                                  : 'Write more to unlock your story',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isReady)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'View',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              else if (isGenerating)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(colors.accent),
+                    value: storyState.progress,
+                  ),
+                )
+              else
+                Icon(
+                  Icons.lock_outline_rounded,
+                  color: colors.textSecondary.withAlpha(100),
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildOverview(List<JournalEntry> entries, AppPalette colors) {
     final happiest = entries
         .where((e) => e.mood == 'great' || e.mood == 'good')
@@ -624,6 +757,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         .where((e) => _detectCategory(e) == 'travel')
         .take(6)
         .toList();
+    final onThisDayEntries = ref.watch(onThisDayProvider).valueOrNull ?? [];
 
     // Find family book for the featured card
     final booksAsync = ref.watch(booksProvider);
@@ -635,12 +769,35 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
       children: [
+        // ── AI Life Story banner ──
+        _buildStoryBanner(colors),
+
         // ── Surprise Me button ──
         if (entries.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: _buildSurpriseMe(entries, colors),
           ),
+
+        // ── On This Day ──
+        if (onThisDayEntries.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: OnThisDaySection(
+              entries: onThisDayEntries,
+              colors: colors,
+              onEntryTap: (entry) => context.push(
+                '/memory',
+                extra: MemoryDetailArgs(
+                  entry: entry,
+                  allEntries: onThisDayEntries,
+                  initialIndex: onThisDayEntries.indexOf(entry),
+                ),
+              ),
+              photoUrlBuilder: _getPhotoUrl,
+            ),
+          ),
+        ],
 
         // ── Happiest Memories ──
         if (happiest.isNotEmpty) ...[
@@ -1413,29 +1570,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                ref.read(demoModeProvider.notifier).state = true;
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                decoration: BoxDecoration(
-                  color: colors.cardBg,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: colors.border),
-                ),
-                child: Text(
-                  'Browse sample data',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: colors.textSecondary,
                   ),
                 ),
               ),

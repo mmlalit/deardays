@@ -167,7 +167,6 @@ List<Override> authenticatedOverrides({
   final p = profile ?? mockProfile;
   final s = streak ?? mockStreak;
   return [
-    demoModeProvider.overrideWith((ref) => false),
     checkInProvider.overrideWith((ref) => FakeCheckInNotifier()),
     profileProvider.overrideWith((ref) async => p),
     streakProvider.overrideWith((ref) async => s),

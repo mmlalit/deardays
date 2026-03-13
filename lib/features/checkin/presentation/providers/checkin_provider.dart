@@ -10,6 +10,7 @@ import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/data/repositories/checkin_repository.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/ai/ai_prompts.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 
@@ -405,16 +406,11 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   Future<String> _getAiMoodResponse(String mood) async {
-    final basePrompt = _moodPromptMap[mood.toLowerCase()] ??
-        'The user is feeling $mood today. Respond warmly and ask them to share more.';
-
-    final langInstruction = language != null && language != 'English'
-        ? " The user's preferred language is $language. Default to $language, but if the user writes in a different language, respond in that language instead."
-        : ' Respond in the same language the user writes in.';
+    final systemPrompt = AiPrompts.moodChat(mood, language: language);
 
     return _aiService.chat(
       messages: [
-        {'role': 'system', 'content': basePrompt + langInstruction},
+        {'role': 'system', 'content': systemPrompt},
       ],
       mood: mood,
       isFirstCheckIn: true,
@@ -441,20 +437,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     }
   }
 
-  static const _moodPromptMap = {
-    'great':
-        "The user is feeling great today. Respond with enthusiasm and ask them to share what's making their day wonderful. Keep it short and warm.",
-    'good':
-        'The user is feeling good today. Respond positively and ask them to share the good things. Keep it conversational and brief.',
-    'okay':
-        "The user is feeling okay today. Be gently curious, ask what's on their mind. Keep it warm and non-pushy.",
-    'low':
-        'The user is feeling low today. Be empathetic and caring. Ask what happened in a gentle way. Keep it short and supportive.',
-    'tough':
-        "The user is having a tough day. Be deeply empathetic. Let them know you're there for them and gently ask if they want to share. Keep it brief and caring.",
-    'skipped':
-        "The user skipped mood selection. Be casual and open. Simply ask them what's on their mind or how their day is going. Keep it brief and friendly.",
-  };
+  // Mood prompts are now unified in AiPrompts.moodChat()
 }
 
 // ---------------------------------------------------------------------------

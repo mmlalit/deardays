@@ -1,14 +1,15 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/features/book/data/models/book.dart';
-import 'package:deardays/services/ai/tag_suggestion_service.dart';
 
-/// Lightweight data object passed from ReviewSaveScreen → PostSaveScreen.
+/// Lightweight data object passed from ReviewSaveScreen -> PostSaveScreen.
 class PostSaveData {
   final String entryId;
   final String title;
@@ -22,9 +23,9 @@ class PostSaveData {
 }
 
 class PostSaveScreen extends ConsumerStatefulWidget {
-  final PostSaveData data;
+  final PostSaveData? data;
 
-  const PostSaveScreen({super.key, required this.data});
+  const PostSaveScreen({super.key, this.data});
 
   @override
   ConsumerState<PostSaveScreen> createState() => _PostSaveScreenState();
@@ -32,30 +33,14 @@ class PostSaveScreen extends ConsumerStatefulWidget {
 
 class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   final PageController _pageController = PageController();
-  int _currentStep = 0; // 0 = tags, 1 = chapter, 2 = book
+  int _currentStep = 0; // 0 = chapter, 1 = confirmation
 
-  // Step 1 — Tags
-  late List<String> _suggestedTags;
-  final Set<String> _selectedTags = {};
-  final TextEditingController _customTagController = TextEditingController();
-
-  // Step 2 — Chapter
+  // Chapter
   String? _selectedChapterId;
-
-  // Step 3 — Book
-  String? _selectedBookId;
-
-  @override
-  void initState() {
-    super.initState();
-    _suggestedTags = TagSuggestionService.suggest(widget.data.content);
-    _selectedTags.addAll(_suggestedTags);
-  }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _customTagController.dispose();
     super.dispose();
   }
 
@@ -69,19 +54,10 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   }
 
   void _next() {
-    if (_currentStep < 2) {
-      _goToStep(_currentStep + 1);
-    } else {
-      _finish();
+    if (_currentStep == 0 && _selectedChapterId != null) {
+      _goToStep(1); // Go to confirmation
     }
-  }
-
-  void _skip() {
-    if (_currentStep < 2) {
-      _goToStep(_currentStep + 1);
-    } else {
-      _finish();
-    }
+    // Do nothing if no chapter selected
   }
 
   void _skipAll() {
@@ -90,21 +66,8 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
 
   void _finish() {
     HapticFeedback.lightImpact();
-    // Pop back to home (through any intermediate screens)
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
-  void _addCustomTag() {
-    final tag = _customTagController.text.trim();
-    if (tag.isNotEmpty && !_selectedTags.contains(tag)) {
-      setState(() {
-        if (!_suggestedTags.contains(tag)) {
-          _suggestedTags.add(tag);
-        }
-        _selectedTags.add(tag);
-        _customTagController.clear();
-      });
-    }
+    ref.read(postSaveDataProvider.notifier).state = null;
+    context.go('/home');
   }
 
   // ---------------------------------------------------------------------------
@@ -119,27 +82,28 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
       backgroundColor: colors.bg,
       body: Column(
         children: [
-          _buildHeader(colors),
-          _buildProgressIndicator(colors),
+          // Header only on chapter step
+          if (_currentStep == 0) _buildHeader(colors),
+          if (_currentStep == 0) _buildProgressIndicator(colors),
           Expanded(
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildTagStep(colors),
                 _buildChapterStep(colors),
-                _buildBookStep(colors),
+                _buildConfirmationStep(colors),
               ],
             ),
           ),
-          _buildBottomBar(colors),
+          // Bottom bar only on chapter step
+          if (_currentStep == 0) _buildBottomBar(colors),
         ],
       ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Header
+  // Header (chapter step only)
   // ---------------------------------------------------------------------------
 
   Widget _buildHeader(AppPalette colors) {
@@ -155,11 +119,23 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
           child: Row(
             children: [
               GestureDetector(
-                onTap: _skipAll,
-                child: SizedBox(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  if (Navigator.of(context).canPop()) {
+                    context.pop();
+                  } else {
+                    _finish();
+                  }
+                },
+                child: Container(
                   width: 40,
                   height: 40,
-                  child: Icon(Icons.close_rounded, size: 22, color: colors.textPrimary),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.accent.withAlpha(15),
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
                 ),
               ),
               Expanded(
@@ -175,13 +151,10 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
               ),
               GestureDetector(
                 onTap: _skipAll,
-                child: Text(
-                  'Skip All',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.accent,
-                  ),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.close_rounded, size: 22, color: colors.textPrimary),
                 ),
               ),
             ],
@@ -192,193 +165,24 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Progress indicator
+  // Progress indicator (only for chapter step)
   // ---------------------------------------------------------------------------
 
   Widget _buildProgressIndicator(AppPalette colors) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Row(
-        children: List.generate(3, (i) {
-          final isActive = i <= _currentStep;
-          return Expanded(
-            child: Container(
-              margin: EdgeInsets.only(right: i < 2 ? 8 : 0),
-              height: 3,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                color: isActive ? colors.accent : colors.border,
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Step 1 — Tags
-  // ---------------------------------------------------------------------------
-
-  Widget _buildTagStep(AppPalette colors) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Entry title preview
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.auto_stories_rounded, size: 20, color: colors.accent),
-                const SizedBox(height: 8),
-                Text(
-                  widget.data.title,
-                  style: GoogleFonts.newsreader(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          Text(
-            'We found these tags for your memory:',
-            style: GoogleFonts.manrope(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            'Tap to toggle. Tags help you find memories later.',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: colors.textSecondary,
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Tag chips
-          Wrap(
-            spacing: 8,
-            runSpacing: 10,
-            children: [
-              // Suggested + custom tags
-              ..._suggestedTags.map((tag) => _buildTagChip(tag, colors)),
-              // Remaining available tags not already suggested
-              ...TagSuggestionService.allTags
-                  .where((t) => !_suggestedTags.contains(t))
-                  .map((tag) => _buildTagChip(tag, colors)),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Custom tag input
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: TextField(
-                    controller: _customTagController,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      color: colors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Add custom tag...',
-                      hintStyle: GoogleFonts.manrope(
-                        fontSize: 14,
-                        color: colors.textMuted,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                      border: InputBorder.none,
-                    ),
-                    onSubmitted: (_) => _addCustomTag(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _addCustomTag,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: colors.accent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTagChip(String tag, AppPalette colors) {
-    final isSelected = _selectedTags.contains(tag);
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() {
-          if (isSelected) {
-            _selectedTags.remove(tag);
-          } else {
-            _selectedTags.add(tag);
-          }
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Container(
+        height: 3,
         decoration: BoxDecoration(
-          color: isSelected ? colors.accent : colors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? colors.accent : colors.border,
-          ),
-        ),
-        child: Text(
-          tag,
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : colors.textSecondary,
-          ),
+          borderRadius: BorderRadius.circular(2),
+          color: colors.accent,
         ),
       ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Step 2 — Chapters
+  // Step 1 — Chapters (required selection)
   // ---------------------------------------------------------------------------
 
   Widget _buildChapterStep(AppPalette colors) {
@@ -390,7 +194,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Add to a chapter?',
+            'Add to a chapter',
             style: GoogleFonts.manrope(
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -401,7 +205,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
           const SizedBox(height: 6),
 
           Text(
-            'Chapters organize your memories into life themes.',
+            'Select a chapter to organize this memory.',
             style: GoogleFonts.manrope(
               fontSize: 13,
               color: colors.textSecondary,
@@ -433,7 +237,6 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
           // Create new chapter option
           GestureDetector(
             onTap: () {
-              // Placeholder — would open a create chapter dialog
               HapticFeedback.lightImpact();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -570,205 +373,73 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Step 3 — Books
+  // Step 2 — Confirmation (full-screen, no header/bottom bar)
   // ---------------------------------------------------------------------------
 
-  Widget _buildBookStep(AppPalette colors) {
-    final booksAsync = ref.watch(booksProvider);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Add to a book?',
-            style: GoogleFonts.manrope(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: colors.textPrimary,
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            'Books collect your memories into beautiful life stories.',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: colors.textSecondary,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          booksAsync.when(
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-            error: (_, __) => _buildBookList([], colors),
-            data: (books) => _buildBookList(books, colors),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookList(List<Book> books, AppPalette colors) {
-    if (books.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            children: [
-              Icon(Icons.auto_stories_rounded, size: 48, color: colors.textMuted),
-              const SizedBox(height: 12),
-              Text(
-                'No books yet',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Your first book will be created automatically.',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: colors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: books.map((book) {
-        final isSelected = _selectedBookId == book.id;
-        final bookColor = _parseHexColor(book.coverColor);
-
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() {
-              _selectedBookId = isSelected ? null : book.id;
-            });
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isSelected ? colors.accentFaint : colors.card,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSelected ? colors.accent : colors.border,
-                width: isSelected ? 1.5 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: bookColor,
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: bookColor.withAlpha(60),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.menu_book_rounded,
-                    size: 22,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        book.title,
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        book.writingStyle,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          color: colors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  Icon(Icons.check_circle_rounded, size: 22, color: colors.accent),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Bottom bar
-  // ---------------------------------------------------------------------------
-
-  Widget _buildBottomBar(AppPalette colors) {
-    final isLastStep = _currentStep == 2;
-    final buttonLabel = isLastStep ? 'Done' : 'Next';
-
+  Widget _buildConfirmationStep(AppPalette colors) {
     return Container(
       decoration: BoxDecoration(
-        color: colors.bg,
-        border: Border(top: BorderSide(color: colors.border)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colors.accentFaint,
+            colors.bg,
+          ],
+        ),
       ),
       child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: Row(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          child: Column(
             children: [
-              // Skip button
-              GestureDetector(
-                onTap: _skip,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-                  child: Text(
-                    'Skip',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textSecondary,
-                    ),
+              const SizedBox(height: 24),
+
+              // Tilted photo card with floating decorations
+              _buildPhotoCardSection(colors),
+
+              const SizedBox(height: 36),
+
+              // Heading
+              Text(
+                'Memory saved\nsuccessfully.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.newsreader(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                  height: 1.2,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Subtitle
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Your memory has been safely preserved. It\'s ready whenever you wish to revisit it.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    color: colors.textSecondary,
+                    height: 1.6,
                   ),
                 ),
               ),
-              const Spacer(),
-              // Next / Done button
+
+              const SizedBox(height: 40),
+
+              // Primary button: View Memory
               GestureDetector(
-                onTap: _next,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  ref.read(postSaveDataProvider.notifier).state = null;
+                  context.go('/timeline');
+                },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
                     color: colors.accent,
                     borderRadius: BorderRadius.circular(14),
@@ -781,11 +452,253 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                     ],
                   ),
                   child: Text(
-                    buttonLabel,
+                    'View Memory',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Secondary buttons row
+              Row(
+                children: [
+                  // Record Another
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        ref.read(postSaveDataProvider.notifier).state = null;
+                        context.go('/home');
+                        Future.microtask(() {
+                          if (mounted) context.push('/write');
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: Text(
+                          'Record Another',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // Go to Timeline
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        ref.read(postSaveDataProvider.notifier).state = null;
+                        context.go('/timeline');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: Text(
+                          'Go to Timeline',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tilted photo card with floating decorations
+  // ---------------------------------------------------------------------------
+
+  Widget _buildPhotoCardSection(AppPalette colors) {
+    return SizedBox(
+      height: 220,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // Tilted photo card
+          Transform.rotate(
+            angle: -5 * math.pi / 180,
+            child: Container(
+              width: 200,
+              height: 160,
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.border, width: 4),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.textPrimary.withAlpha(20),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  color: colors.accentFaint,
+                  child: Center(
+                    child: Icon(
+                      Icons.landscape_rounded,
+                      size: 48,
+                      color: colors.accent.withAlpha(120),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Floating heart — top right
+          Positioned(
+            top: 0,
+            right: 40,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.card,
+                border: Border.all(color: colors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.textPrimary.withAlpha(10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.favorite_rounded,
+                size: 18,
+                color: colors.accent,
+              ),
+            ),
+          ),
+
+          // Floating sparkle — bottom left
+          Positioned(
+            bottom: 4,
+            left: 40,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.card,
+                border: Border.all(color: colors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.textPrimary.withAlpha(10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 16,
+                color: colors.accent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bottom bar (chapter step only)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildBottomBar(AppPalette colors) {
+    final hasSelection = _selectedChapterId != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.bg,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!hasSelection)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Select a chapter to continue',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      color: colors.textMuted,
+                    ),
+                  ),
+                ),
+              // Full-width Next button
+              GestureDetector(
+                onTap: hasSelection ? _next : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: hasSelection ? colors.accent : colors.accent.withAlpha(60),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: hasSelection
+                        ? [
+                            BoxShadow(
+                              color: colors.accent.withAlpha(50),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Text(
+                    'Next',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: hasSelection ? Colors.white : Colors.white.withAlpha(120),
                     ),
                   ),
                 ),
@@ -795,17 +708,5 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
         ),
       ),
     );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
-
-  Color _parseHexColor(String hex) {
-    final clean = hex.replaceFirst('#', '');
-    if (clean.length == 6) {
-      return Color(int.parse('FF$clean', radix: 16));
-    }
-    return const Color(0xFF6366F1);
   }
 }

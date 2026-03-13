@@ -123,9 +123,6 @@ List<Override> _e2eOverrides() {
   );
 
   return [
-    // Demo mode ON so home shows sample data & banner
-    demoModeProvider.overrideWith((ref) => true),
-
     // All data providers → mock data, no DB calls
     profileProvider.overrideWith((_) async => profile),
     streakProvider.overrideWith((_) async => streak),
@@ -241,7 +238,11 @@ GoRouter _createRouter() => GoRouter(
         ),
         GoRoute(
           path: '/post-save',
-          builder: (_, s) => PostSaveScreen(data: s.extra as PostSaveData),
+          builder: (_, s) {
+            final extra = s.extra;
+            if (extra is PostSaveData) return PostSaveScreen(data: extra);
+            return const PostSaveScreen();
+          },
         ),
         GoRoute(
           path: '/book-create',

@@ -12,6 +12,59 @@ import 'package:deardays/features/checkin/data/models/conversation_section.dart'
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 
+// ── Variable greetings by time of day ──────────────────────────────────────
+
+const _morningGreetings = [
+  'Good morning! How are you feeling?',
+  'Morning! How did you sleep?',
+  'Rise and shine! How are things?',
+  'Hey, good morning! How\'s it going?',
+  'Morning! What\'s on your mind today?',
+  'Good morning! Ready for the day?',
+  'Hey! How are you this morning?',
+  'Morning! How\'s your mood today?',
+  'Good morning! What\'s the vibe?',
+  'Hey, early bird! How are you?',
+];
+
+const _afternoonGreetings = [
+  'Good afternoon! How\'s your day going?',
+  'Hey! How\'s the day treating you?',
+  'Afternoon! How are you feeling?',
+  'Hey there! How\'s it going so far?',
+  'Good afternoon! What\'s on your mind?',
+  'Hey! How\'s your afternoon?',
+  'Afternoon check-in — how are you?',
+  'Hey! Anything good happen today?',
+  'Good afternoon! How are things?',
+  'Hey! How\'s the rest of your day?',
+];
+
+const _eveningGreetings = [
+  'Good evening! How was your day?',
+  'Hey! How are you feeling tonight?',
+  'Evening! How did today go?',
+  'Hey there! How\'s your evening?',
+  'Good evening! What\'s on your mind?',
+  'Hey! How are you doing tonight?',
+  'Evening! Ready to wind down?',
+  'Hey! How was today for you?',
+  'Good evening! Anything on your mind?',
+  'Hey! How are things tonight?',
+];
+
+String _getGreeting() {
+  final hour = DateTime.now().hour;
+  final rng = Random();
+  if (hour < 12) {
+    return _morningGreetings[rng.nextInt(_morningGreetings.length)];
+  } else if (hour < 17) {
+    return _afternoonGreetings[rng.nextInt(_afternoonGreetings.length)];
+  } else {
+    return _eveningGreetings[rng.nextInt(_eveningGreetings.length)];
+  }
+}
+
 class CheckInScreen extends ConsumerStatefulWidget {
   const CheckInScreen({super.key});
 
@@ -19,12 +72,20 @@ class CheckInScreen extends ConsumerStatefulWidget {
   ConsumerState<CheckInScreen> createState() => _CheckInScreenState();
 }
 
-class _CheckInScreenState extends ConsumerState<CheckInScreen> {
+class _CheckInScreenState extends ConsumerState<CheckInScreen>
+    with TickerProviderStateMixin {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   String? _editingMessageId;
   String? _editingSectionId;
   int _promptSeed = 0;
+  late final String _greeting;
+
+  // Mood scale animation
+  AnimationController? _moodAnimController;
+  Animation<double>? _moodScaleAnim;
+  String? _selectedMoodLabel;
+  bool _moodAnimCompleted = false;
 
   static const _allPromptChips = [
     (Icons.sentiment_satisfied_rounded, 'Something that made you smile'),
@@ -41,7 +102,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
   List<(IconData, String)> get _visiblePromptChips {
     final rng = Random(_promptSeed);
-    final shuffled = List<(IconData, String)>.from(_allPromptChips)..shuffle(rng);
+    final shuffled = List<(IconData, String)>.from(_allPromptChips)
+      ..shuffle(rng);
     return shuffled.take(5).toList();
   }
 
@@ -58,11 +120,17 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     _MoodOption('Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _greeting = _getGreeting();
+  }
 
   @override
   void dispose() {
     _textController.dispose();
     _scrollController.dispose();
+    _moodAnimController?.dispose();
     super.dispose();
   }
 
@@ -74,6 +142,34 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
+      }
+    });
+  }
+
+  void _onMoodTap(String label) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _selectedMoodLabel = label;
+      _moodAnimCompleted = false;
+    });
+
+    _moodAnimController?.dispose();
+    _moodAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _moodScaleAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
+    ]).animate(CurvedAnimation(
+      parent: _moodAnimController!,
+      curve: Curves.easeInOut,
+    ));
+
+    _moodAnimController!.forward().then((_) {
+      if (mounted) {
+        setState(() => _moodAnimCompleted = true);
+        ref.read(checkInProvider.notifier).selectMood(label);
       }
     });
   }
@@ -96,28 +192,36 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(state, colors),
+            _buildGreetingHeader(state, colors),
+            if (_shouldShowMoodRow(state)) _buildInlineMoodRow(state, colors),
             Expanded(
-              child: state.currentMood == null && state.isFirstCheckInToday
-                  ? _buildMoodSelection(colors)
-                  : _buildChatView(state, colors),
+              child: state.allMessages.isNotEmpty
+                  ? _buildChatView(state, colors)
+                  : _buildPromptSuggestions(colors),
             ),
-            if (state.currentMood != null || !state.isFirstCheckInToday)
-              _buildInputBar(state, colors),
+            _buildInputBar(state, colors),
           ],
         ),
       ),
     );
   }
 
-  // ── Header ──────────────────────────────────────────────────────────────
+  bool _shouldShowMoodRow(CheckInState state) {
+    // Show mood row if no mood selected yet, or if we're mid-animation
+    if (state.currentMood == null) return true;
+    // Show during/after selection animation (before first message)
+    if (_selectedMoodLabel != null && state.allMessages.isEmpty) return true;
+    return false;
+  }
 
-  Widget _buildHeader(CheckInState state, AppPalette colors) {
-    final moodLabel = state.currentMood;
-    final hasMood = moodLabel != null && moodLabel != 'skipped';
+  // ── Greeting Header ──────────────────────────────────────────────────────
+
+  Widget _buildGreetingHeader(CheckInState state, AppPalette colors) {
+    final hasMood = state.currentMood != null && state.currentMood != 'skipped';
+    final hasMessages = state.allMessages.isNotEmpty;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -131,21 +235,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent.withAlpha(15),
-                border: Border.all(color: colors.border),
-              ),
-              child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // AI avatar
+          // Aura avatar
           Container(
             width: 38,
             height: 38,
@@ -166,59 +256,42 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             ),
             child: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Aura',
+                  _greeting,
                   style: GoogleFonts.manrope(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                     color: colors.textPrimary,
-                    letterSpacing: -0.3,
+                    letterSpacing: -0.2,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Row(
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: state.isLoading ? Colors.orange : const Color(0xFF4CAF50),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      state.isLoading ? 'Thinking...' : 'Online',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    if (hasMood) ...[
-                      const SizedBox(width: 8),
-                      Icon(_moodIcon(moodLabel), size: 14, color: _moodColor(moodLabel)),
-                    ],
-                  ],
-                ),
+                if (hasMood && hasMessages)
+                  // Collapsed mood pill after conversation starts
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: _buildMoodPill(state.currentMood!, colors),
+                  ),
               ],
             ),
           ),
+          // Close button
           GestureDetector(
-            onTap: () => _showMoodPicker(),
+            onTap: () => Navigator.of(context).maybePop(),
             child: Container(
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.accent.withAlpha(15),
-                border: Border.all(color: colors.border),
+                color: colors.textMuted.withAlpha(15),
               ),
-              child: Icon(Icons.tune_rounded, size: 20, color: colors.textSecondary),
+              child: Icon(Icons.close_rounded, size: 20, color: colors.textMuted),
             ),
           ),
         ],
@@ -226,87 +299,121 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     );
   }
 
-  // ── Mood Selection ────────────────────────────────────────────────────────
+  Widget _buildMoodPill(String mood, AppPalette colors) {
+    final color = _moodColor(mood);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_moodIcon(mood), size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            'Feeling ${mood.toLowerCase()}',
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _buildMoodSelection(AppPalette colors) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'How are you\nfeeling today?',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: colors.textPrimary,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Tap to share your mood',
-              style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary),
-            ),
-            const SizedBox(height: 48),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _moods.map((mood) {
-                return GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    ref.read(checkInProvider.notifier).selectMood(mood.label);
-                  },
+  // ── Inline Mood Row ────────────────────────────────────────────────────────
+
+  Widget _buildInlineMoodRow(CheckInState state, AppPalette colors) {
+    final selected = _selectedMoodLabel;
+    final animating = selected != null && !_moodAnimCompleted;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: colors.bg,
+        border: Border(bottom: BorderSide(color: colors.border.withAlpha(80))),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: _moods.map((mood) {
+              final isSelected = selected == mood.label;
+              final isDimmed = selected != null && !isSelected;
+
+              Widget icon = AnimatedOpacity(
+                opacity: isDimmed ? 0.3 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: GestureDetector(
+                  onTap: selected == null ? () => _onMoodTap(mood.label) : null,
                   child: Column(
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [mood.color.withAlpha(60), mood.color.withAlpha(25)],
+                          color: mood.color.withAlpha(isSelected ? 40 : 20),
+                          border: Border.all(
+                            color: mood.color.withAlpha(isSelected ? 120 : 60),
+                            width: isSelected ? 2.5 : 1.5,
                           ),
-                          border: Border.all(color: mood.color.withAlpha(80), width: 2),
-                          boxShadow: [
-                            BoxShadow(color: mood.color.withAlpha(40), blurRadius: 8, offset: const Offset(0, 2)),
-                          ],
                         ),
-                        child: Icon(mood.icon, size: 30, color: mood.color),
+                        child: Icon(mood.icon, size: 26, color: mood.color),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         mood.label,
                         style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: mood.color,
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? mood.color : colors.textSecondary,
                         ),
                       ),
                     ],
                   ),
+                ),
+              );
+
+              // Apply scale animation to the selected mood
+              if (isSelected && animating && _moodScaleAnim != null) {
+                icon = AnimatedBuilder(
+                  animation: _moodScaleAnim!,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _moodScaleAnim!.value,
+                      child: child,
+                    );
+                  },
+                  child: icon,
                 );
-              }).toList(),
-            ),
-            const SizedBox(height: 32),
-            GestureDetector(
-              onTap: () => ref.read(checkInProvider.notifier).selectMood('skipped'),
-              child: Text(
-                'Skip for now',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  color: colors.textMuted,
-                  decoration: TextDecoration.underline,
-                  decorationColor: colors.textMuted.withAlpha(102),
+              }
+
+              return icon;
+            }).toList(),
+          ),
+          // "Skip" link
+          if (selected == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: GestureDetector(
+                onTap: () => ref.read(checkInProvider.notifier).selectMood('skipped'),
+                child: Text(
+                  'Skip for now',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    color: colors.textMuted,
+                    decoration: TextDecoration.underline,
+                    decorationColor: colors.textMuted.withAlpha(80),
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -314,8 +421,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   // ── Chat View ─────────────────────────────────────────────────────────────
 
   Widget _buildChatView(CheckInState state, AppPalette colors) {
-    final hasMessages = state.allMessages.isNotEmpty;
-
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -327,16 +432,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           ],
         ),
       ),
-      child: hasMessages
-          ? ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              itemCount: state.sections.length,
-              itemBuilder: (context, sectionIndex) {
-                return _buildSection(state.sections[sectionIndex], sectionIndex, colors);
-              },
-            )
-          : _buildPromptSuggestions(colors),
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        itemCount: state.sections.length,
+        itemBuilder: (context, sectionIndex) {
+          return _buildSection(state.sections[sectionIndex], sectionIndex, colors);
+        },
+      ),
     );
   }
 
@@ -357,7 +460,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [colors.accent.withAlpha(30), colors.accent.withAlpha(12)],
+                  colors: [
+                    colors.accent.withAlpha(30),
+                    colors.accent.withAlpha(12),
+                  ],
                 ),
               ),
               child: Icon(Icons.chat_bubble_outline_rounded, size: 32, color: colors.accent),
@@ -407,54 +513,54 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Prompt cards in a vertical list
+            // Prompt cards
             ...prompts.map((chip) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: GestureDetector(
-                onTap: () => _textController.text = chip.$2,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.textPrimary.withAlpha(6),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: colors.accent.withAlpha(18),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(chip.$1, size: 17, color: colors.accent),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          chip.$2,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: colors.textPrimary,
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: GestureDetector(
+                    onTap: () => _textController.text = chip.$2,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: colors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: colors.border),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.textPrimary.withAlpha(6),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
+                        ],
                       ),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 13, color: colors.textMuted),
-                    ],
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: colors.accent.withAlpha(18),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(chip.$1, size: 17, color: colors.accent),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              chip.$2,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.arrow_forward_ios_rounded, size: 13, color: colors.textMuted),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            )),
+                )),
           ],
         ),
       ),
@@ -546,12 +652,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     bottomLeft: Radius.circular(isUser ? 18 : 4),
                     bottomRight: Radius.circular(isUser ? 4 : 18),
                   ),
-                  border: isUser
-                      ? null
-                      : Border.all(color: colors.border),
+                  border: isUser ? null : Border.all(color: colors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: (isUser ? colors.accent : colors.textPrimary).withAlpha(isUser ? 30 : 8),
+                      color: (isUser ? colors.accent : colors.textPrimary)
+                          .withAlpha(isUser ? 30 : 8),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -590,7 +695,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Generate Memory Journal — compact pill, only when there are messages
+          // Generate Memory Journal
           if (hasMessages && !isEditing)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -802,68 +907,6 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       _editingSectionId = null;
       _textController.clear();
     });
-  }
-
-  void _showMoodPicker() {
-    final colors = AppColors.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Change your mood',
-              style: GoogleFonts.manrope(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _moods.map((mood) {
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    ref.read(checkInProvider.notifier).redoMood(mood.label);
-                  },
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: mood.color.withAlpha(31),
-                        ),
-                        child: Icon(mood.icon, size: 26, color: mood.color),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        mood.label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
-          ],
-        ),
-      ),
-    );
   }
 
   // ── Mood helpers ──────────────────────────────────────────────────────────

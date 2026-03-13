@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:local_auth/local_auth.dart';
@@ -797,7 +798,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       await file.writeAsString(jsonStr);
 
       if (mounted) {
-        await Share.shareXFiles([XFile(file.path)]);
+        await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
       }
 
       // Clean up temporary export file after sharing.
@@ -1142,6 +1143,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   // DATA
                   _buildSectionLabel('Data'),
                   _buildCardGroup(cardColor, [
+                    _buildCardRow(
+                      icon: Icons.cloud_sync_outlined,
+                      label: 'Backup & Restore',
+                      textColor: textColor,
+                      trailing: Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.of(context).textMuted),
+                      onTap: () => context.push('/backup-restore'),
+                    ),
                     _buildCardRow(
                       icon: Icons.download_outlined,
                       label: 'Export All Data',
@@ -1665,9 +1673,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.of(context).accent.withAlpha(76)),
                     ),
-                    child: palette.isDark
-                        ? Icon(Icons.dark_mode, size: 16, color: AppColors.of(context).accent)
-                        : null,
+                    child: Center(
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: palette.light.accent,
+                        ),
+                      ),
+                    ),
                   ),
                   title: Text(palette.label, style: GoogleFonts.manrope(fontSize: 15)),
                   trailing: palette == currentTheme

@@ -21,15 +21,13 @@ void main() {
     });
 
     test('light palette bg is fully opaque', () {
-      // Avoid building ThemeData (triggers google_fonts network calls in tests).
-      // Verify the palette bg Color directly.
-      expect((AppThemeColor.warmCream.light.bg.a * 255.0).round(), equals(255));
-      expect((AppThemeColor.sageGreen.light.bg.a * 255.0).round(), equals(255));
+      expect((AppThemeColor.golden.light.bg.a * 255.0).round(), equals(255));
+      expect((AppThemeColor.morningSage.light.bg.a * 255.0).round(), equals(255));
     });
 
     test('dark palette bg is darker than light palette bg', () {
-      final lightBg = AppThemeColor.warmCream.light.bg;
-      final darkBg  = AppThemeColor.warmCream.dark.bg;
+      final lightBg = AppThemeColor.golden.light.bg;
+      final darkBg  = AppThemeColor.golden.dark.bg;
       expect(darkBg.computeLuminance(), lessThan(lightBg.computeLuminance()));
     });
 
@@ -49,14 +47,14 @@ void main() {
 
     test('setThemeColor changes state', () {
       final notifier = ThemeNotifier();
-      notifier.setThemeColor(AppThemeColor.sageGreen);
-      expect(notifier.debugState.themeColor, equals(AppThemeColor.sageGreen));
+      notifier.setThemeColor(AppThemeColor.morningSage);
+      expect(notifier.debugState.themeColor, equals(AppThemeColor.morningSage));
     });
 
-    test('setThemeColor updates to Warm Cream', () {
+    test('setThemeColor updates to Golden', () {
       final notifier = ThemeNotifier();
-      notifier.setThemeColor(AppThemeColor.warmCream);
-      expect(notifier.debugState.themeColor, equals(AppThemeColor.warmCream));
+      notifier.setThemeColor(AppThemeColor.golden);
+      expect(notifier.debugState.themeColor, equals(AppThemeColor.golden));
     });
   });
 
@@ -73,15 +71,15 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      container.read(themeProvider.notifier).setThemeColor(AppThemeColor.sageGreen);
+      container.read(themeProvider.notifier).setThemeColor(AppThemeColor.morningSage);
       final state = container.read(themeProvider);
-      expect(state.themeColor, equals(AppThemeColor.sageGreen));
+      expect(state.themeColor, equals(AppThemeColor.morningSage));
     });
   });
 
   group('AppThemeColor enum', () {
-    test('has exactly 5 options', () {
-      expect(AppThemeColor.values.length, equals(5));
+    test('has exactly 4 options', () {
+      expect(AppThemeColor.values.length, equals(4));
     });
 
     test('all have non-empty labels', () {
@@ -90,39 +88,30 @@ void main() {
       }
     });
 
-    test('Warm Cream accent is correct', () {
-      expect(AppThemeColor.warmCream.light.accent, equals(const Color(0xFFC49A3C)));
+    test('Golden accent is correct', () {
+      expect(AppThemeColor.golden.light.accent, equals(const Color(0xFFF59E0B)));
     });
 
-    test('Sage Green accent is correct', () {
-      expect(AppThemeColor.sageGreen.light.accent, equals(const Color(0xFF2D8F5E)));
+    test('Morning Sage accent is correct', () {
+      expect(AppThemeColor.morningSage.light.accent, equals(const Color(0xFF10B981)));
     });
 
-    test('Classic White accent is correct', () {
-      expect(AppThemeColor.classicWhite.light.accent, equals(const Color(0xFF4F46E5)));
+    test('Rose Quartz accent is correct', () {
+      expect(AppThemeColor.roseQuartz.light.accent, equals(const Color(0xFFE8729A)));
     });
 
     test('all light nav backgrounds are white', () {
-      final lightPalettes = [
-        AppThemeColor.warmCream,
-        AppThemeColor.sageGreen,
-        AppThemeColor.classicWhite,
-        AppThemeColor.sereneDuskBlue,
-      ];
-      for (final color in lightPalettes) {
+      for (final color in AppThemeColor.values) {
         expect(color.light.navBg, equals(const Color(0xFFFFFFFF)));
       }
     });
 
-    test('warmDark isDark is true', () {
-      expect(AppThemeColor.warmDark.isDark, isTrue);
-    });
-
-    test('other palettes isDark is false', () {
-      expect(AppThemeColor.warmCream.isDark, isFalse);
-      expect(AppThemeColor.sageGreen.isDark, isFalse);
-      expect(AppThemeColor.classicWhite.isDark, isFalse);
-      expect(AppThemeColor.sereneDuskBlue.isDark, isFalse);
+    test('all palettes have both light and dark modes', () {
+      for (final color in AppThemeColor.values) {
+        final lightBg = color.light.bg;
+        final darkBg = color.dark.bg;
+        expect(darkBg.computeLuminance(), lessThan(lightBg.computeLuminance()));
+      }
     });
   });
 

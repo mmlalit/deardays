@@ -31,6 +31,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Private by design',
       subtitle: 'End-to-end encrypted. Your story belongs to you alone.',
     ),
+    _OnboardingPageData(
+      icon: Icons.record_voice_over_rounded,
+      title: 'Record your first memory',
+      subtitle: 'It takes 30 seconds. Just speak about your day and watch AI transform it into a story.',
+    ),
   ];
 
   bool get _isLastPage => _currentPage == _pages.length - 1;

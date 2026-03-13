@@ -11,6 +11,7 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
+import 'package:deardays/features/journal/presentation/widgets/version_history_sheet.dart';
 
 class MemoryDetailScreen extends ConsumerStatefulWidget {
   final JournalEntry entry;
@@ -357,7 +358,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       final url = mediaService.getPublicUrl(photoMedia.first.storagePath);
       return Image.network(
         url,
-        height: 320,
+        height: 240,
         width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
@@ -725,28 +726,36 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     return Column(
       children: [
         // Edit Memory — full-width accent, rounded-xl
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton.icon(
-            onPressed: () => HapticFeedback.mediumImpact(),
-            icon: const Icon(Icons.edit_rounded, size: 20, color: Colors.white),
-            label: Text(
-              'Edit Memory',
-              style: GoogleFonts.manrope(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+        GestureDetector(
+          onTap: () => HapticFeedback.mediumImpact(),
+          child: Container(
+            width: double.infinity,
+            height: 56,
+            decoration: BoxDecoration(
+              color: colors.accent,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.accent.withAlpha(70),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.accent,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shadowColor: colors.accent.withAlpha(70),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.edit_rounded, size: 20, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(
+                  'Edit Memory',
+                  style: GoogleFonts.manrope(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -800,6 +809,18 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              ListTile(
+                leading: const Icon(Icons.history_rounded),
+                title: Text(
+                  'Version History',
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  VersionHistorySheet.show(context, widget.entry);
+                },
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               ListTile(
                 leading: const Icon(Icons.share_outlined),
                 title: Text(

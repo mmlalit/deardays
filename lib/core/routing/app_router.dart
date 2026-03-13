@@ -30,6 +30,12 @@ import 'package:deardays/features/book/presentation/screens/book_creation_screen
 import 'package:deardays/features/book/presentation/screens/book_detail_screen.dart';
 import 'package:deardays/features/book/data/models/generated_book.dart';
 import 'package:deardays/core/routing/app_shell.dart';
+import 'package:deardays/features/search/presentation/screens/search_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/weekly_report_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/reflection_screen.dart';
+import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/settings/presentation/screens/backup_restore_screen.dart';
+import 'package:deardays/features/story/presentation/screens/story_viewer_screen.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier() {
@@ -133,9 +139,13 @@ class AppRouter {
       ),
       GoRoute(
         path: '/processing',
-        builder: (context, state) => ProcessingScreen(
-          data: state.extra as ReviewData,
-        ),
+        builder: (context, state) {
+          final data = state.extra;
+          if (data is! ReviewData) {
+            return const HomeScreen();
+          }
+          return ProcessingScreen(data: data);
+        },
       ),
       GoRoute(
         path: '/write',
@@ -143,15 +153,23 @@ class AppRouter {
       ),
       GoRoute(
         path: '/review',
-        builder: (context, state) => ReviewSaveScreen(
-          data: state.extra as ReviewData,
-        ),
+        builder: (context, state) {
+          final data = state.extra;
+          if (data is! ReviewData) {
+            return const HomeScreen();
+          }
+          return ReviewSaveScreen(data: data);
+        },
       ),
       GoRoute(
         path: '/edit-memory',
-        builder: (context, state) => EditMemoryScreen(
-          data: state.extra as ReviewData,
-        ),
+        builder: (context, state) {
+          final data = state.extra;
+          if (data is! ReviewData) {
+            return const HomeScreen();
+          }
+          return EditMemoryScreen(data: data);
+        },
       ),
       GoRoute(
         path: '/paywall',
@@ -198,15 +216,26 @@ class AppRouter {
       ),
       GoRoute(
         path: '/share-card',
-        builder: (context, state) => ShareCardScreen(
-          entry: state.extra as JournalEntry,
-        ),
+        builder: (context, state) {
+          final entry = state.extra;
+          if (entry is! JournalEntry) {
+            return const HomeScreen();
+          }
+          return ShareCardScreen(entry: entry);
+        },
       ),
       GoRoute(
         path: '/post-save',
-        builder: (context, state) => PostSaveScreen(
-          data: state.extra as PostSaveData,
-        ),
+        builder: (context, state) {
+          // Accept data from route extra OR from provider (provider
+          // survives go_router refreshes caused by auth state changes).
+          final extra = state.extra;
+          if (extra is PostSaveData) {
+            return PostSaveScreen(data: extra);
+          }
+          // Fallback: screen reads from postSaveDataProvider
+          return const PostSaveScreen();
+        },
       ),
       GoRoute(
         path: '/book-create',
@@ -214,9 +243,40 @@ class AppRouter {
       ),
       GoRoute(
         path: '/book-detail',
-        builder: (context, state) => BookDetailScreen(
-          book: state.extra as GeneratedBook,
-        ),
+        builder: (context, state) {
+          final book = state.extra;
+          if (book is! GeneratedBook) {
+            return const HomeScreen();
+          }
+          return BookDetailScreen(book: book);
+        },
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/weekly-report',
+        builder: (context, state) => const WeeklyReportScreen(),
+      ),
+      GoRoute(
+        path: '/reflection',
+        builder: (context, state) {
+          final periodStr = state.uri.queryParameters['period'] ?? 'weekly';
+          final period = ReflectionPeriod.values.firstWhere(
+            (p) => p.name == periodStr,
+            orElse: () => ReflectionPeriod.weekly,
+          );
+          return ReflectionScreen(period: period);
+        },
+      ),
+      GoRoute(
+        path: '/backup-restore',
+        builder: (context, state) => const BackupRestoreScreen(),
+      ),
+      GoRoute(
+        path: '/story',
+        builder: (context, state) => const StoryViewerScreen(),
       ),
     ],
   );

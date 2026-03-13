@@ -10,7 +10,6 @@ import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/timeline/presentation/widgets/milestone_card.dart';
 import 'package:deardays/features/timeline/presentation/widgets/photo_collage_card.dart';
-import 'package:deardays/features/timeline/presentation/widgets/on_this_day_card.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -277,14 +276,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final entriesAsync = ref.watch(timelineEntriesProvider);
-    final onThisDayAsync = ref.watch(onThisDayProvider);
 
     return Scaffold(
       backgroundColor: colors.bg,
       body: entriesAsync.when(
         data: (entries) {
-          final onThisDayEntries = onThisDayAsync.valueOrNull ?? [];
-          return _buildContent(entries, onThisDayEntries, colors);
+          return _buildContent(entries, colors);
         },
         loading: () => _buildSkeleton(colors),
         error: (_, __) => _buildError(colors),
@@ -304,7 +301,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     }
   }
 
-  Widget _buildContent(List<JournalEntry> entries, List<JournalEntry> onThisDayEntries, AppPalette colors) {
+  Widget _buildContent(List<JournalEntry> entries, AppPalette colors) {
     var filtered = entries;
     if (_categoryFilter != null) {
       filtered = filtered.where((e) => _primaryCategory(e) == _categoryFilter).toList();
@@ -316,75 +313,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
     return CustomScrollView(
       slivers: [
-        // Top bar + hero + stats + mood calendar + filters
+        // Top bar + hero + stats + compact calendar + filters
         SliverToBoxAdapter(
           child: Column(
             children: [
-              _buildTopBar(colors),
+              _buildTopBar(colors, entries),
               _buildHeroSection(colors),
               _buildStatsGrid(totalMemories, chapters, years, colors),
               _buildWeeklySummaryCard(colors),
               const SizedBox(height: 20),
-              // Mood Calendar — decorative heatmap, entries accessible via list
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                child: ExcludeSemantics(
-                  child: _MoodCalendarSection(
-                    entries: entries,
-                    colors: colors,
-                    onDateTap: (date, dayEntries) {
-                      if (dayEntries.length == 1) {
-                        // Single entry — go straight to memory detail
-                        context.push(
-                          '/memory',
-                          extra: MemoryDetailArgs(
-                            entry: dayEntries.first,
-                            allEntries: dayEntries,
-                            initialIndex: 0,
-                          ),
-                        );
-                      } else if (dayEntries.length > 1) {
-                        // Multiple entries — go to first, but pass all as swipeable
-                        context.push(
-                          '/memory',
-                          extra: MemoryDetailArgs(
-                            entry: dayEntries.first,
-                            allEntries: dayEntries,
-                            initialIndex: 0,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
               _buildFilterChips(colors),
               const SizedBox(height: 16),
             ],
           ),
         ),
-
-        // On This Day section
-        if (onThisDayEntries.isNotEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: OnThisDaySection(
-                entries: onThisDayEntries,
-                colors: colors,
-                onEntryTap: (entry) => context.push(
-                  '/memory',
-                  extra: MemoryDetailArgs(
-                    entry: entry,
-                    allEntries: onThisDayEntries,
-                    initialIndex: onThisDayEntries.indexOf(entry),
-                  ),
-                ),
-                photoUrlBuilder: _getPhotoUrl,
-              ),
-            ),
-          ),
 
         if (filtered.isEmpty)
           SliverToBoxAdapter(child: _buildEmptyState(colors))
@@ -401,7 +343,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Top Bar — "Aura" branding
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildTopBar(AppPalette colors) {
+  Widget _buildTopBar(AppPalette colors, List<JournalEntry> entries) {
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -419,8 +361,40 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
             ),
             const Spacer(),
-            Icon(Icons.search_rounded, size: 24, color: colors.textSecondary),
-            const SizedBox(width: 16),
+            // Calendar icon — opens mood calendar overlay
+            Semantics(
+              label: 'Mood Calendar',
+              button: true,
+              child: GestureDetector(
+                onTap: () => _showCalendarOverlay(context, entries, colors),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.accent.withAlpha(20),
+                    border: Border.all(color: colors.accent.withAlpha(40)),
+                  ),
+                  child: Icon(Icons.calendar_month_rounded, size: 22, color: colors.accent),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Semantics(
+              label: 'Search',
+              button: true,
+              child: GestureDetector(
+                onTap: () => context.push('/search'),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: Icon(Icons.search_rounded, size: 24, color: colors.textSecondary),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Container(
               width: 32,
               height: 32,
@@ -433,6 +407,34 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCalendarOverlay(BuildContext context, List<JournalEntry> entries, AppPalette colors) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _MoodCalendarSheet(
+        entries: entries,
+        colors: colors,
+        onDateTap: (date, dayEntries) {
+          Navigator.pop(context);
+          if (dayEntries.isNotEmpty) {
+            this.context.push(
+              '/memory',
+              extra: MemoryDetailArgs(
+                entry: dayEntries.first,
+                allEntries: dayEntries,
+                initialIndex: 0,
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -540,43 +542,57 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         if (summary == null || summary.isEmpty) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: colors.accent.withAlpha(13),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.accent.withAlpha(26)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.auto_awesome_rounded, size: 16, color: colors.accent),
-                    const SizedBox(width: 6),
-                    Text(
-                      'WEEKLY SUMMARY',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: colors.accent,
-                        letterSpacing: 1.5,
+          child: GestureDetector(
+            onTap: () => context.push('/reflection?period=weekly'),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(13),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.accent.withAlpha(26)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.auto_awesome_rounded, size: 16, color: colors.accent),
+                      const SizedBox(width: 6),
+                      Text(
+                        'WEEKLY SUMMARY',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: colors.accent,
+                          letterSpacing: 1.5,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  summary,
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    color: colors.textPrimary,
-                    height: 1.5,
+                      const Spacer(),
+                      Text(
+                        'View full report',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: colors.accent,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right_rounded, size: 16, color: colors.accent),
+                    ],
                   ),
-                  maxLines: 5,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Text(
+                    summary,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      color: colors.textPrimary,
+                      height: 1.5,
+                    ),
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -865,9 +881,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget _buildCard(JournalEntry entry, List<JournalEntry> allEntries, {required bool isCurrentYear, required AppPalette colors}) {
     final title = _extractTitle(entry);
     final excerpt = _extractExcerpt(entry);
-    final dateStr = DateFormat('MMM dd').format(entry.entryDate).toUpperCase();
+    final dateStr = '${DateFormat('MMM dd').format(entry.entryDate).toUpperCase()} • ${DateFormat('HH:mm').format(entry.entryDate)}';
     final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
     final tags = _entryTags(entry);
+    final hasPhoto = photoMedia.isNotEmpty;
 
     return GestureDetector(
       onTap: () => context.push(
@@ -892,68 +909,88 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(20),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date + tag chips row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  dateStr,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textMuted,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const Spacer(),
-                // Up to 2 tag chips
-                ...tags.take(2).map((t) => Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: _buildTagChip(t.$1, t.$2),
-                    )),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Title
-            Text(
-              title,
-              style: GoogleFonts.newsreader(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Excerpt
-            Text(
-              excerpt,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: colors.textSecondary,
-                height: 1.6,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            // Photo (full-width inside card, rounded corners)
-            if (photoMedia.isNotEmpty) ...[
-              const SizedBox(height: 12),
+            // Photo at top — bleeds to card edges for a unified look
+            if (hasPhoto)
               _buildCardPhoto(photoMedia.first.storagePath, colors),
-            ],
 
-            // Voice indicator
-            if (entry.hasVoice) ...[
-              const SizedBox(height: 12),
-              _buildVoiceIndicator(colors),
-            ],
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, hasPhoto ? 14 : 18, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date + tag chips row
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        dateStr,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textMuted,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const Spacer(),
+                      ...tags.take(2).map((t) => Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: _buildTagChip(t.$1, t.$2),
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Title
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Excerpt
+                  Text(
+                    excerpt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: colors.textSecondary,
+                      height: 1.6,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  // Voice indicator + share icon row
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      if (entry.hasVoice) _buildVoiceIndicator(colors),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => context.push('/share-card', extra: entry),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Icon(
+                            Icons.ios_share_rounded,
+                            size: 18,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -982,22 +1019,16 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget _buildCardPhoto(String storagePath, AppPalette colors) {
     final mediaService = ref.read(mediaServiceProvider);
     final url = mediaService.getPublicUrl(storagePath);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Image.network(
+    return Image.network(
         url,
-        height: 128,
+        height: 140,
         width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: colors.accentFaint,
-            borderRadius: BorderRadius.circular(10),
-          ),
+          height: 100,
+          color: colors.accentFaint,
           child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
         ),
-      ),
     );
   }
 
@@ -1049,162 +1080,45 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   Widget _buildEmptyState(AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 120),
+      padding: const EdgeInsets.fromLTRB(32, 60, 32, 120),
       child: Column(
         children: [
-          // Sample timeline entries
-          _buildSampleTimelineEntry(
-            colors,
-            year: DateTime.now().year,
-            date: 'TODAY',
-            title: 'Sunday dinner at Mom\'s',
-            excerpt: 'The whole family gathered for the first time in months. Dad made his famous lasagna and we laughed until our sides hurt...',
-            tags: [('Family', AppColors.rose), ('Joy', AppColors.moodOkay)],
-            isFirst: true,
-          ),
-          _buildSampleTimelineEntry(
-            colors,
-            date: DateFormat('MMM dd').format(DateTime.now().subtract(const Duration(days: 2))).toUpperCase(),
-            title: 'Morning run breakthrough',
-            excerpt: 'Finally hit 5K without stopping. The sunrise over the park made it even more special. Feeling proud of the consistency.',
-            tags: [('Wellness', AppColors.emerald)],
-          ),
-          _buildSampleTimelineEntry(
-            colors,
-            date: DateFormat('MMM dd').format(DateTime.now().subtract(const Duration(days: 5))).toUpperCase(),
-            title: 'Coffee with an old friend',
-            excerpt: 'Ran into Maya at the farmer\'s market. We talked for an hour about everything and nothing...',
-            tags: [('Friends', AppColors.purple), ('Happy', AppColors.moodGood)],
-            isLast: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSampleTimelineEntry(
-    AppPalette colors, {
-    int? year,
-    required String date,
-    required String title,
-    required String excerpt,
-    required List<(String, Color)> tags,
-    bool isFirst = false,
-    bool isLast = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          // Year header for first item
-          if (isFirst && year != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: SizedBox(
-                height: 48,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      height: 48,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Positioned(top: 0, bottom: 0, left: 19, child: Container(width: 2, color: colors.border)),
-                          Container(
-                            width: 40, height: 40,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent,
-                              boxShadow: [BoxShadow(color: colors.accent.withAlpha(60), blurRadius: 10, spreadRadius: 2)],
-                            ),
-                            child: Center(child: Text('$year', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(child: Container(height: 1, color: colors.border)),
-                  ],
-                ),
-              ),
+          Icon(Icons.timeline_rounded, size: 64, color: colors.textMuted.withAlpha(80)),
+          const SizedBox(height: 20),
+          Text(
+            'Your timeline is empty',
+            style: GoogleFonts.newsreader(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
             ),
-          // Card row
-          Opacity(
-            opacity: 0.8,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 40,
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      children: [
-                        if (!isLast)
-                          Positioned(top: 0, bottom: 0, left: 19, child: Container(width: 2, color: colors.border))
-                        else
-                          Positioned(top: 0, bottom: 24, left: 19, child: Container(width: 2, color: colors.border)),
-                        Positioned(
-                          top: 22, left: 14,
-                          child: Container(
-                            width: 12, height: 12,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: colors.accent, border: Border.all(color: colors.bg, width: 3)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: Stack(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: colors.cardBg,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: colors.border),
-                              boxShadow: [BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 12, offset: const Offset(0, 2))],
-                            ),
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(date, style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: colors.textMuted, letterSpacing: 1.5)),
-                                    const Spacer(),
-                                    ...tags.take(2).map((t) => Padding(
-                                      padding: const EdgeInsets.only(left: 6),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(color: t.$2.withAlpha(25), borderRadius: BorderRadius.circular(6)),
-                                        child: Text(t.$1.toUpperCase(), style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w700, color: t.$2, letterSpacing: 0.5)),
-                                      ),
-                                    )),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Text(title, style: GoogleFonts.newsreader(fontSize: 18, fontWeight: FontWeight.w600, color: colors.textPrimary, height: 1.3)),
-                                const SizedBox(height: 8),
-                                Text(excerpt, style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary, height: 1.6), maxLines: 3, overflow: TextOverflow.ellipsis),
-                              ],
-                            ),
-                          ),
-                          Positioned(
-                            top: 8, right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: colors.textPrimary.withAlpha(120), borderRadius: BorderRadius.circular(4)),
-                              child: Text('EXAMPLE', style: GoogleFonts.manrope(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Start recording memories to see them here.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              fontSize: 14,
+              color: colors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          GestureDetector(
+            onTap: () => context.push('/write'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: colors.accent,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                'Write your first memory',
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -1393,26 +1307,26 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mood Calendar Section — interactive with month navigation & date tap
+// Mood Calendar Sheet — bottom-sheet with month navigation & date tap
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MoodCalendarSection extends StatefulWidget {
+class _MoodCalendarSheet extends StatefulWidget {
   final List<JournalEntry> entries;
   final AppPalette colors;
-  final void Function(DateTime date, List<JournalEntry> dayEntries)? onDateTap;
+  final void Function(DateTime date, List<JournalEntry> dayEntries) onDateTap;
 
-  const _MoodCalendarSection({
+  const _MoodCalendarSheet({
     required this.entries,
     required this.colors,
-    this.onDateTap,
+    required this.onDateTap,
   });
 
   @override
-  State<_MoodCalendarSection> createState() => _MoodCalendarSectionState();
+  State<_MoodCalendarSheet> createState() => _MoodCalendarSheetState();
 }
 
-class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
-  late DateTime _viewMonth; // first day of the displayed month
+class _MoodCalendarSheetState extends State<_MoodCalendarSheet> {
+  late DateTime _viewMonth;
 
   static const _moodColors = {
     'great': Color(0xFF10B981),
@@ -1446,7 +1360,6 @@ class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
   void _goToNextMonth() {
     final now = DateTime.now();
     final nextMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 1);
-    // Don't navigate past current month
     if (nextMonth.isAfter(DateTime(now.year, now.month + 1, 0))) return;
     setState(() {
       _viewMonth = nextMonth;
@@ -1466,7 +1379,6 @@ class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
     final monthName = DateFormat('MMMM yyyy').format(_viewMonth);
     final now = DateTime.now();
 
-    // Build day -> mood map for the displayed month
     final moodMap = <int, String>{};
     final dayEntriesMap = <int, List<JournalEntry>>{};
     for (final entry in widget.entries) {
@@ -1480,141 +1392,143 @@ class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
       }
     }
 
+    // Count entries for this month
+    final monthEntryCount = dayEntriesMap.values.fold<int>(0, (sum, list) => sum + list.length);
+
     final daysInMonth = DateUtils.getDaysInMonth(year, month);
     final firstWeekday = DateTime(year, month, 1).weekday - 1;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: widget.colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: widget.colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: widget.colors.textPrimary.withAlpha(8),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row with navigation arrows
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(Icons.calendar_month_rounded, size: 18, color: widget.colors.accent),
-              const SizedBox(width: 8),
-              Text(
-                'Mood Calendar',
-                style: GoogleFonts.newsreader(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: widget.colors.textPrimary,
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: widget.colors.border,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const Spacer(),
-              // Previous month
-              GestureDetector(
-                onTap: _goToPreviousMonth,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: widget.colors.accentFaint,
-                  ),
-                  child: Icon(Icons.chevron_left_rounded, size: 18, color: widget.colors.accent),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  monthName,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: widget.colors.textSecondary,
-                  ),
-                ),
-              ),
-              // Next month
-              GestureDetector(
-                onTap: _canGoNext ? _goToNextMonth : null,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _canGoNext ? widget.colors.accentFaint : widget.colors.accentFaint.withAlpha(80),
-                  ),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: _canGoNext ? widget.colors.accent : widget.colors.textMuted,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+            ),
+            const SizedBox(height: 16),
 
-          // Day-of-week header
-          Row(
-            children: ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) {
-              return Expanded(
-                child: Center(
+            // Month navigation
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: _goToPreviousMonth,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.colors.accentFaint,
+                    ),
+                    child: Icon(Icons.chevron_left_rounded, size: 22, color: widget.colors.accent),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    d,
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: widget.colors.textSecondary,
+                    monthName,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: widget.colors.textPrimary,
                     ),
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 6),
-
-          // Calendar grid
-          _buildCalendarGrid(now, year, month, daysInMonth, firstWeekday, moodMap, dayEntriesMap),
-          const SizedBox(height: 12),
-
-          // Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: _legend.map((item) {
-              final (label, color) = item;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: color,
-                      ),
+                GestureDetector(
+                  onTap: _canGoNext ? _goToNextMonth : null,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _canGoNext ? widget.colors.accentFaint : widget.colors.accentFaint.withAlpha(80),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      label,
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: _canGoNext ? widget.colors.accent : widget.colors.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // Entry count for this month
+            Text(
+              '$monthEntryCount ${monthEntryCount == 1 ? 'entry' : 'entries'} this month',
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                color: widget.colors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Day-of-week header
+            Row(
+              children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) {
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      d,
                       style: GoogleFonts.manrope(
-                        fontSize: 10,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: widget.colors.textMuted,
                       ),
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+
+            // Calendar grid
+            _buildCalendarGrid(now, year, month, daysInMonth, firstWeekday, moodMap, dayEntriesMap),
+            const SizedBox(height: 16),
+
+            // Legend
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _legend.map((item) {
+                final (label, color) = item;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        label,
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          color: widget.colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1642,7 +1556,7 @@ class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
               final day = cellIndex - firstWeekday + 1;
 
               if (day < 1 || day > daysInMonth) {
-                return const Expanded(child: SizedBox(height: 36));
+                return const Expanded(child: SizedBox(height: 40));
               }
 
               final mood = moodMap[day];
@@ -1653,16 +1567,16 @@ class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
 
               return Expanded(
                 child: GestureDetector(
-                  onTap: hasEntry && widget.onDateTap != null
-                      ? () => widget.onDateTap!(
+                  onTap: hasEntry
+                      ? () => widget.onDateTap(
                             DateTime(year, month, day),
                             dayEntriesMap[day]!,
                           )
                       : null,
                   child: Center(
                     child: Container(
-                      width: 36,
-                      height: 36,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: hasMood
@@ -1673,14 +1587,14 @@ class _MoodCalendarSectionState extends State<_MoodCalendarSection> {
                                     ? widget.colors.accent.withAlpha(15)
                                     : Colors.transparent,
                         border: isToday && !hasMood
-                            ? Border.all(color: widget.colors.accent, width: 1.5)
+                            ? Border.all(color: widget.colors.accent, width: 2)
                             : null,
                       ),
                       child: Center(
                         child: Text(
                           '$day',
                           style: GoogleFonts.manrope(
-                            fontSize: 11,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: hasMood
                                 ? (moodColor!.computeLuminance() > 0.35

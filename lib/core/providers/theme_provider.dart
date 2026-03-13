@@ -15,9 +15,8 @@ class ThemeState {
   ThemeData get lightTheme => AppTheme.lightFrom(themeColor);
   ThemeData get darkTheme => AppTheme.darkFrom(themeColor);
 
-  /// Effective brightness: dark palette forces dark mode.
-  ThemeMode get effectiveThemeMode =>
-      themeColor.isDark ? ThemeMode.dark : themeMode;
+  /// Effective brightness based on user preference.
+  ThemeMode get effectiveThemeMode => themeMode;
 }
 
 class ThemeNotifier extends StateNotifier<ThemeState> {

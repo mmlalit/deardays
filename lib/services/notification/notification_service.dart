@@ -245,50 +245,156 @@ class NotificationService {
   // Weekly Recap & On This Day notifications
   // ---------------------------------------------------------------------------
 
-  /// Schedule a weekly recap notification every Sunday evening.
-  ///
-  /// Summary: "Your week: $memoriesCount memories, mostly feeling $topMood"
+  // Additional notification IDs
+  static const _weeklyRecapId = 1003;
+  static const _onThisDayId = 1004;
+  static const _streakReminderId = 1005;
+
+  /// Schedule a weekly recap notification every Sunday evening at 7pm.
   Future<void> scheduleWeeklyRecap({
     required String weekSummary,
     required int memoriesCount,
     required String topMood,
   }) async {
-    // TODO: Implement weekly recap notification
-    // Requires: notification_service wired to flutter_local_notifications
-    // Summary: "Your week: $memoriesCount memories, mostly feeling $topMood"
-    debugPrint(
-      '[NotificationService] Weekly recap scheduled: '
-      '$memoriesCount memories, mood: $topMood',
+    _ensureInitialized();
+    await _plugin.cancel(_weeklyRecapId);
+
+    final body = memoriesCount > 0
+        ? 'Your week: $memoriesCount memories, mostly feeling $topMood. Tap to see your reflection.'
+        : 'Start capturing your week \u2014 your future self will thank you.';
+
+    final now = tz.TZDateTime.now(tz.local);
+    var sunday = tz.TZDateTime(tz.local, now.year, now.month, now.day, 19, 0);
+    while (sunday.weekday != DateTime.sunday || sunday.isBefore(now)) {
+      sunday = sunday.add(const Duration(days: 1));
+    }
+
+    await _plugin.zonedSchedule(
+      _weeklyRecapId,
+      'Your Week in Review',
+      body,
+      sunday,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
+          styleInformation: BigTextStyleInformation(body, contentTitle: 'Your Week in Review'),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      payload: 'weekly_recap',
     );
+
+    debugPrint('[NotificationService] Weekly recap scheduled for Sunday 7pm.');
   }
 
-  /// Schedule "On This Day" morning notification.
-  ///
-  /// Fires every morning at 8am if there are historical entries for today.
-  Future<void> scheduleOnThisDayNotification({
+  /// Shows an immediate "On This Day" notification for a past memory.
+  Future<void> showOnThisDayNotification({
     required String entryExcerpt,
     required int yearsAgo,
   }) async {
-    // TODO: Implement On This Day notification
-    // Fires every morning at 8am if there are historical entries for today
-    debugPrint(
-      '[NotificationService] On This Day notification: '
-      '$yearsAgo years ago: $entryExcerpt',
+    _ensureInitialized();
+
+    final title = '$yearsAgo year${yearsAgo == 1 ? '' : 's'} ago today';
+    final body = entryExcerpt.length > 100
+        ? '${entryExcerpt.substring(0, 100)}...'
+        : entryExcerpt;
+
+    await _plugin.show(
+      _onThisDayId,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
+          styleInformation: BigTextStyleInformation(body, contentTitle: title),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      payload: 'on_this_day',
     );
+
+    debugPrint('[NotificationService] On This Day: $yearsAgo years ago.');
   }
 
-  /// Schedule streak-at-risk notification.
-  ///
-  /// Fires at 9pm if user has an active streak and hasn't written today.
+  /// Schedules a daily "On This Day" check at 8am.
+  Future<void> scheduleOnThisDayCheck() async {
+    _ensureInitialized();
+
+    final scheduledTime = _nextInstanceOfTime(const TimeOfDay(hour: 8, minute: 0));
+
+    await _plugin.zonedSchedule(
+      _onThisDayId + 100,
+      'A memory from your past',
+      'You have memories from this day in previous years. Tap to revisit.',
+      scheduledTime,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: 'on_this_day_check',
+    );
+
+    debugPrint('[NotificationService] On This Day check scheduled for 8am daily.');
+  }
+
+  /// Schedule streak-at-risk notification at 9pm.
   Future<void> scheduleStreakReminder({
     required int currentStreak,
   }) async {
-    // TODO: Implement streak reminder
-    // Fires at 9pm if user has an active streak and hasn't written today
-    debugPrint(
-      '[NotificationService] Streak reminder scheduled: '
-      'current streak = $currentStreak',
+    _ensureInitialized();
+    await _plugin.cancel(_streakReminderId);
+
+    if (currentStreak <= 0) return;
+
+    final body = 'You have a $currentStreak day streak! Don\'t forget to journal today.';
+    final scheduledTime = _nextInstanceOfTime(const TimeOfDay(hour: 21, minute: 0));
+
+    await _plugin.zonedSchedule(
+      _streakReminderId,
+      'Keep your streak alive!',
+      body,
+      scheduledTime,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
+          styleInformation: BigTextStyleInformation(body, contentTitle: 'Keep your streak alive!'),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      payload: 'streak_reminder_$currentStreak',
     );
+
+    debugPrint('[NotificationService] Streak reminder scheduled for 9pm.');
   }
 
   // ---------------------------------------------------------------------------

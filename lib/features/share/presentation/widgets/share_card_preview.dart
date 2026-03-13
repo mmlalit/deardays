@@ -121,8 +121,6 @@ double _bodyFontSize(SharePlatform platform) {
       return 18;
     case SharePlatform.whatsapp:
       return 17;
-    case SharePlatform.twitter:
-      return 15;
   }
 }
 
@@ -133,8 +131,6 @@ double _hPadding(SharePlatform platform) {
       return 36;
     case SharePlatform.whatsapp:
       return 32;
-    case SharePlatform.twitter:
-      return 28;
   }
 }
 
@@ -205,7 +201,7 @@ class _MinimalCard extends StatelessWidget {
                   height: 1.7,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: platform == SharePlatform.twitter ? 4 : 8,
+                maxLines: 8,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -320,7 +316,7 @@ class _VibrantCard extends StatelessWidget {
                   height: 1.7,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: platform == SharePlatform.twitter ? 4 : 8,
+                maxLines: 8,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -329,7 +325,7 @@ class _VibrantCard extends StatelessWidget {
           // Frosted date pill
           if (config.showDate)
             Positioned(
-              bottom: platform == SharePlatform.twitter ? 40 : 56,
+              bottom: 56,
               left: 0,
               right: 0,
               child: Center(
@@ -357,7 +353,7 @@ class _VibrantCard extends StatelessWidget {
           // Location below date
           if (config.showLocation && entry.locationName != null)
             Positioned(
-              bottom: platform == SharePlatform.twitter ? 22 : 36,
+              bottom: 36,
               left: 0,
               right: 0,
               child: Center(
@@ -446,7 +442,7 @@ class _DarkCard extends StatelessWidget {
                   height: 1.7,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: platform == SharePlatform.twitter ? 4 : 8,
+                maxLines: 8,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -455,7 +451,7 @@ class _DarkCard extends StatelessWidget {
           // Date with accent dot
           if (config.showDate)
             Positioned(
-              bottom: platform == SharePlatform.twitter ? 36 : 48,
+              bottom: 48,
               left: 0,
               right: 0,
               child: Row(
@@ -485,7 +481,7 @@ class _DarkCard extends StatelessWidget {
           // Location
           if (config.showLocation && entry.locationName != null)
             Positioned(
-              bottom: platform == SharePlatform.twitter ? 18 : 30,
+              bottom: 30,
               left: 0,
               right: 0,
               child: Center(
@@ -593,7 +589,7 @@ class _NatureCard extends StatelessWidget {
                   height: 1.8,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: platform == SharePlatform.twitter ? 4 : 8,
+                maxLines: 8,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -602,7 +598,7 @@ class _NatureCard extends StatelessWidget {
           // Small leaf divider above date
           if (config.showDate)
             Positioned(
-              bottom: platform == SharePlatform.twitter ? 48 : 64,
+              bottom: 64,
               left: 0,
               right: 0,
               child: Center(
@@ -619,7 +615,7 @@ class _NatureCard extends StatelessWidget {
           // Date
           if (config.showDate)
             Positioned(
-              bottom: platform == SharePlatform.twitter ? 30 : 44,
+              bottom: 44,
               left: 0,
               right: 0,
               child: Center(
@@ -638,7 +634,7 @@ class _NatureCard extends StatelessWidget {
           // Location
           if (config.showLocation && entry.locationName != null)
             Positioned(
-              bottom: platform == SharePlatform.twitter ? 14 : 28,
+              bottom: 28,
               left: 0,
               right: 0,
               child: Center(

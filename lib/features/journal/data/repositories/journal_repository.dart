@@ -9,10 +9,8 @@ class JournalRepository {
 
   String get _userId => _client.auth.currentUser!.id;
 
-  /// The view that auto-decrypts content columns server-side.
-  static const _readTable = 'journal_entries_decrypted';
-
-  /// The raw table — the DB trigger auto-encrypts on write.
+  /// The table for both reads and writes.
+  static const _readTable = 'journal_entries';
   static const _writeTable = 'journal_entries';
 
   /// Fetches journal entries with optional filters and pagination.

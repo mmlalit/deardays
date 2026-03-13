@@ -20,6 +20,7 @@ class JournalEntry {
   final bool isMilestone;
   final String? milestoneType;
   final int wordCount;
+  final String promptVersion; // tracks which AI prompt version processed this entry
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<EntryMedia> media;
@@ -42,6 +43,7 @@ class JournalEntry {
     this.isMilestone = false,
     this.milestoneType,
     this.wordCount = 0,
+    this.promptVersion = 'v1',
     required this.createdAt,
     required this.updatedAt,
     this.media = const [],
@@ -65,6 +67,7 @@ class JournalEntry {
     bool? isMilestone,
     String? milestoneType,
     int? wordCount,
+    String? promptVersion,
     DateTime? createdAt,
     DateTime? updatedAt,
     List<EntryMedia>? media,
@@ -87,6 +90,7 @@ class JournalEntry {
       isMilestone: isMilestone ?? this.isMilestone,
       milestoneType: milestoneType ?? this.milestoneType,
       wordCount: wordCount ?? this.wordCount,
+      promptVersion: promptVersion ?? this.promptVersion,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       media: media ?? this.media,
@@ -115,6 +119,7 @@ class JournalEntry {
       'is_milestone': isMilestone,
       'milestone_type': milestoneType,
       'word_count': wordCount,
+      'prompt_version': promptVersion,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -140,6 +145,7 @@ class JournalEntry {
       isMilestone: (json['is_milestone'] as bool?) ?? false,
       milestoneType: json['milestone_type'] as String?,
       wordCount: (json['word_count'] as num?)?.toInt() ?? 0,
+      promptVersion: json['prompt_version'] as String? ?? 'v1',
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       media: (json['entry_media'] as List<dynamic>?)
@@ -150,13 +156,14 @@ class JournalEntry {
   }
 
   /// Converts to a map suitable for Supabase insert/update.
-  /// Content is sent as plaintext; the DB trigger encrypts it server-side.
+  /// Uses actual DB table column names (not decrypted-view aliases).
+  /// Only includes columns that exist on the raw `journal_entries` table.
   Map<String, dynamic> toSupabaseMap() {
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'user_id': userId,
-      'encrypted_content': content,
-      'encrypted_raw_content': rawContent,
+      'content': content,
+      'raw_content': rawContent,
       'polished_content': polishedContent,
       'mood': mood,
       'entry_date': entryDate.toIso8601String(),
@@ -169,22 +176,23 @@ class JournalEntry {
       'has_photo': hasPhoto,
       'has_voice': hasVoice,
       'is_ai_polished': isAiPolished,
-      'is_milestone': isMilestone,
-      'milestone_type': milestoneType,
       'word_count': wordCount,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    // Remove null values so Supabase uses DB defaults
+    map.removeWhere((_, v) => v == null);
+    return map;
   }
 
   /// Creates a JournalEntry from a Supabase row map.
-  /// Reads from the decrypted view — content arrives as plaintext.
+  /// Supports both raw table columns (`content`) and view aliases (`encrypted_content`).
   factory JournalEntry.fromSupabaseMap(Map<String, dynamic> map) {
     return JournalEntry(
       id: map['id'] as String,
       userId: map['user_id'] as String,
-      content: map['encrypted_content'] as String,
-      rawContent: map['encrypted_raw_content'] as String?,
+      content: (map['content'] ?? map['encrypted_content']) as String,
+      rawContent: (map['raw_content'] ?? map['encrypted_raw_content']) as String?,
       polishedContent: map['polished_content'] as String?,
       mood: map['mood'] as String?,
       entryDate: DateTime.parse(map['entry_date'] as String),
@@ -198,6 +206,7 @@ class JournalEntry {
       isMilestone: (map['is_milestone'] as bool?) ?? false,
       milestoneType: map['milestone_type'] as String?,
       wordCount: (map['word_count'] as num?)?.toInt() ?? 0,
+      promptVersion: map['prompt_version'] as String? ?? 'v1',
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
       media: (map['entry_media'] as List<dynamic>?)

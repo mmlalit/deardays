@@ -10,23 +10,11 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/core/widgets/milestone_overlay.dart';
-import 'package:deardays/core/demo/demo_data.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart'
     show showMemoryContextMenu;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock recent conversations (for demo mode)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const _mockConversations = [
-  {'date': 'Today', 'preview': 'Had a great lunch with Sarah at the new Italian place...', 'mood': '\u{1F60A}'},
-  {'date': 'Today', 'preview': 'Work meeting went well, got approval for the project...', 'mood': '\u{1F4AA}'},
-  {'date': 'Yesterday', 'preview': 'Took a long walk in the park, beautiful sunset...', 'mood': '\u{1F305}'},
-  {'date': 'Yesterday', 'preview': 'Called mom, she shared her pasta recipe...', 'mood': '\u{2764}\u{FE0F}'},
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HomeScreen
@@ -121,16 +109,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                     // 4. Streak Strip
                     _buildStreakStrip(colors),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    // 5. On This Day
+                    // 4b. On This Day
                     _buildOnThisDaySection(context, colors),
 
-                    // 6. Recent Conversations
-                    _buildRecentConversations(context, colors),
-                    const SizedBox(height: 24),
+                    // 4c. Reflections (picture cards)
+                    _buildReflectionsSection(context, colors),
 
-                    // 7. Recent Memories header
+                    // 6. Recent Memories header
                     _buildSectionHeader(context, colors),
                     const SizedBox(height: 16),
                   ],
@@ -141,7 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // ── Recent Memory cards (mixed layout) ───────────────────────────
             entriesAsync.when(
               data: (data) {
-                final entries = data.isEmpty ? DemoData.entries : data;
+                final entries = data;
                 if (entries.isEmpty) {
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
@@ -523,6 +510,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const Spacer(),
           Semantics(
+            label: 'Search',
+            button: true,
+            child: GestureDetector(
+              onTap: () => context.push('/search'),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: Icon(Icons.search_rounded, size: 22, color: colors.textSecondary),
+                ),
+              ),
+            ),
+          ),
+          Semantics(
             label: 'Settings',
             button: true,
             child: GestureDetector(
@@ -708,25 +709,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final streak = streakAsync.valueOrNull;
     final entries = entriesAsync.valueOrNull ?? [];
+    final streakCount = streak?.currentStreak ?? 0;
 
     final today = DateTime.now();
+    final todayNorm = DateTime(today.year, today.month, today.day);
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
     final days = List.generate(7, (i) {
       final d = today.subtract(Duration(days: 6 - i));
       return DateTime(d.year, d.month, d.day);
     });
-
-    const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     final entryDays = entries.map((e) {
       final d = e.entryDate;
       return DateTime(d.year, d.month, d.day);
     }).toSet();
 
-    final todayNorm = DateTime(today.year, today.month, today.day);
-    final streakCount = streak?.currentStreak ?? 0;
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
@@ -739,112 +739,143 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
+          // Header: streak info + calendar button
+          Row(
+            children: [
+              if (streakCount > 0) ...[
+                const ExcludeSemantics(
+                  child: Text('\u{1F525}', style: TextStyle(fontSize: 16)),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$streakCount day streak',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.accent,
+                  ),
+                ),
+              ] else
+                Text(
+                  'Journal Activity',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _showCalendarSheet(context, colors, entries),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: colors.accent.withAlpha(15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.calendar_month_rounded,
+                    size: 18,
+                    color: colors.accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 7-day row
           Row(
             children: List.generate(7, (i) {
               final day = days[i];
               final isToday = day == todayNorm;
               final hasEntry = entryDays.contains(day);
-              final letterIndex = (day.weekday - 1) % 7;
+              final dayName = dayNames[(day.weekday - 1) % 7];
 
-              Color bgColor;
-              Color textColor;
-              Border? border;
-
-              if (hasEntry) {
-                bgColor = colors.accent;
-                textColor = Colors.white;
-                border = null;
-              } else if (isToday) {
-                bgColor = colors.accent.withAlpha(40);
-                textColor = colors.accent;
-                border = Border.all(
-                    color: colors.accent.withAlpha(80), width: 1.5);
-              } else {
-                bgColor = colors.card;
-                textColor = colors.textPrimary;
-                border = Border.all(color: colors.border, width: 1);
-              }
-
-              return ExcludeSemantics(
-                child: Padding(
-                  padding: EdgeInsets.only(right: i < 6 ? 4 : 0),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      shape: BoxShape.circle,
-                      border: border,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      dayLetters[letterIndex],
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
+              return Expanded(
+                child: ExcludeSemantics(
+                  child: Column(
+                    children: [
+                      Text(
+                        dayName,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: isToday ? colors.accent : colors.textMuted,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${day.day}',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: isToday ? colors.accent : colors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: hasEntry
+                              ? colors.accent
+                              : isToday
+                                  ? colors.accent.withAlpha(30)
+                                  : Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: isToday && !hasEntry
+                              ? Border.all(color: colors.accent.withAlpha(80), width: 1.5)
+                              : !hasEntry
+                                  ? Border.all(color: colors.border, width: 1)
+                                  : null,
+                        ),
+                        child: Center(
+                          child: hasEntry
+                              ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                              : Icon(
+                                  Icons.remove_rounded,
+                                  size: 12,
+                                  color: isToday ? colors.accent : colors.textMuted,
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
             }),
           ),
-          const SizedBox(width: 16),
-          if (streakCount > 0)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const ExcludeSemantics(
-                        child: Text('\u{1F525}',
-                            style: TextStyle(fontSize: 18)),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$streakCount',
-                        style: GoogleFonts.manrope(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: colors.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'day streak',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Expanded(
-              child: Text(
-                'Start your streak!',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textMuted,
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 
+  /// Opens a bottom sheet with a monthly calendar view that shows
+  /// which days had journal entries. Users can navigate months.
+  void _showCalendarSheet(
+    BuildContext context,
+    AppPalette colors,
+    List<JournalEntry> entries,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (_) => _CalendarSheet(
+        colors: colors,
+        entries: entries,
+      ),
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
-  // 5. On This Day
+  // 4b. On This Day
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildOnThisDaySection(BuildContext context, AppPalette colors) {
@@ -1019,10 +1050,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 6. Recent Conversations
+  // 5b. Reflections — Weekly / Monthly / Yearly cards
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildRecentConversations(BuildContext context, AppPalette colors) {
+  Widget _buildReflectionsSection(BuildContext context, AppPalette colors) {
+    const cards = <_ReflectionCardData>[
+      _ReflectionCardData(
+        title: 'Weekly',
+        subtitle: 'This week\u2019s story',
+        icon: Icons.view_week_rounded,
+        iconColor: Color(0xFF3B82F6),
+        gradientColors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
+        period: 'weekly',
+      ),
+      _ReflectionCardData(
+        title: 'Monthly',
+        subtitle: 'Your month at a glance',
+        icon: Icons.calendar_month_rounded,
+        iconColor: Color(0xFF10B981),
+        gradientColors: [Color(0xFF10B981), Color(0xFF059669)],
+        period: 'monthly',
+      ),
+      _ReflectionCardData(
+        title: 'Yearly',
+        subtitle: 'A year of memories',
+        icon: Icons.auto_awesome_rounded,
+        iconColor: Color(0xFFF59E0B),
+        gradientColors: [Color(0xFFF59E0B), Color(0xFFF97316)],
+        period: 'yearly',
+      ),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1036,65 +1094,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.chat_bubble_rounded,
+                Icons.insights_rounded,
                 size: 18,
                 color: Color(0xFF8B5CF6),
               ),
             ),
             const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Recent Conversations',
-                style: GoogleFonts.newsreader(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                context.go('/timeline');
-              },
-              child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(minWidth: 48, minHeight: 48),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Center(
-                    child: Text(
-                      'See All',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: colors.accent,
-                      ),
-                    ),
-                  ),
-                ),
+            Text(
+              'Reflections',
+              style: GoogleFonts.newsreader(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 110,
+          height: 160,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            itemCount: _mockConversations.length,
+            itemCount: cards.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) {
-              final convo = _mockConversations[i];
+              final card = cards[i];
               return GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
-                  context.push('/write');
+                  context.push('/reflection?period=${card.period}');
                 },
                 child: Container(
-                  width: 200,
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  width: 150,
                   decoration: BoxDecoration(
                     color: colors.card,
                     borderRadius: BorderRadius.circular(12),
@@ -1107,40 +1138,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ],
                   ),
+                  clipBehavior: Clip.hardEdge,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              (convo['date'] ?? '').toUpperCase(),
+                      // Gradient banner with icon
+                      Container(
+                        height: 85,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: card.gradientColors,
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            card.icon,
+                            size: 36,
+                            color: Colors.white.withAlpha(230),
+                          ),
+                        ),
+                      ),
+                      // Text section
+                      Expanded(
+                        child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              card.title,
                               style: GoogleFonts.manrope(
-                                fontSize: 9,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: colors.accent,
-                                letterSpacing: 1.2,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              card.subtitle,
+                              style: GoogleFonts.manrope(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: colors.textSecondary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          Text(convo['mood'] ?? '',
-                              style: const TextStyle(fontSize: 14)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: Text(
-                          convo['preview'] ?? '',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            color: colors.textSecondary,
-                            height: 1.5,
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
+                          ],
                         ),
+                      ),
                       ),
                     ],
                   ),
@@ -1149,12 +1199,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
           ),
         ),
+        const SizedBox(height: 24),
       ],
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 7. Recent Memories section header
+  // ─────────────────────────────────────────────────────────────────────────
+  // 6. Recent Memories section header
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildSectionHeader(BuildContext context, AppPalette colors) {
@@ -1392,7 +1444,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _getPhotoUrl(BuildContext context, String storagePath) {
     if (storagePath.startsWith('http')) return storagePath;
     return Supabase.instance.client.storage
-        .from('media')
+        .from('entry-media')
         .getPublicUrl(storagePath);
   }
 
@@ -1547,3 +1599,270 @@ class _GradientBanner extends StatelessWidget {
   }
 }
 
+class _ReflectionCardData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color iconColor;
+  final List<Color> gradientColors;
+  final String period;
+
+  const _ReflectionCardData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.iconColor,
+    required this.gradientColors,
+    required this.period,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calendar bottom sheet — monthly view with entry markers
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CalendarSheet extends StatefulWidget {
+  final AppPalette colors;
+  final List<JournalEntry> entries;
+
+  const _CalendarSheet({required this.colors, required this.entries});
+
+  @override
+  State<_CalendarSheet> createState() => _CalendarSheetState();
+}
+
+class _CalendarSheetState extends State<_CalendarSheet> {
+  late DateTime _viewMonth; // first day of the displayed month
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _viewMonth = DateTime(now.year, now.month, 1);
+  }
+
+  Set<DateTime> get _entryDays => widget.entries.map((e) {
+        final d = e.entryDate;
+        return DateTime(d.year, d.month, d.day);
+      }).toSet();
+
+  void _prevMonth() {
+    setState(() {
+      _viewMonth = DateTime(_viewMonth.year, _viewMonth.month - 1, 1);
+    });
+  }
+
+  void _nextMonth() {
+    final now = DateTime.now();
+    final nextMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 1);
+    // Don't go past current month
+    if (nextMonth.isBefore(DateTime(now.year, now.month + 1, 1))) {
+      setState(() => _viewMonth = nextMonth);
+    }
+  }
+
+  bool get _canGoNext {
+    final now = DateTime.now();
+    return _viewMonth.year < now.year ||
+        (_viewMonth.year == now.year && _viewMonth.month < now.month);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final now = DateTime.now();
+    final todayNorm = DateTime(now.year, now.month, now.day);
+    final entryDays = _entryDays;
+
+    // Calendar grid data
+    final daysInMonth =
+        DateTime(_viewMonth.year, _viewMonth.month + 1, 0).day;
+    final firstWeekday = _viewMonth.weekday; // 1 = Mon
+    final totalCells = firstWeekday - 1 + daysInMonth;
+    final rows = (totalCells / 7).ceil();
+
+    // Count entries this month
+    final monthEntryCount = entryDays
+        .where((d) =>
+            d.year == _viewMonth.year && d.month == _viewMonth.month)
+        .length;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            margin: const EdgeInsets.only(top: 10, bottom: 6),
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colors.textMuted.withAlpha(60),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Month nav header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: _prevMonth,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Icon(Icons.chevron_left_rounded,
+                        size: 20, color: colors.textPrimary),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        DateFormat('MMMM yyyy').format(_viewMonth),
+                        style: GoogleFonts.manrope(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      if (monthEntryCount > 0)
+                        Text(
+                          '$monthEntryCount ${monthEntryCount == 1 ? 'entry' : 'entries'}',
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _canGoNext ? _nextMonth : null,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Icon(Icons.chevron_right_rounded,
+                        size: 20,
+                        color: _canGoNext
+                            ? colors.textPrimary
+                            : colors.textMuted.withAlpha(60)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Day-of-week header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                  .map((d) => Expanded(
+                        child: Center(
+                          child: Text(
+                            d,
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Calendar grid
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: List.generate(rows, (row) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: List.generate(7, (col) {
+                      final cellIndex = row * 7 + col;
+                      final dayNum = cellIndex - (firstWeekday - 1) + 1;
+
+                      if (dayNum < 1 || dayNum > daysInMonth) {
+                        return const Expanded(child: SizedBox(height: 40));
+                      }
+
+                      final cellDate = DateTime(
+                          _viewMonth.year, _viewMonth.month, dayNum);
+                      final isToday = cellDate == todayNorm;
+                      final hasEntry = entryDays.contains(cellDate);
+
+                      return Expanded(
+                        child: SizedBox(
+                          height: 40,
+                          child: Center(
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: hasEntry
+                                    ? colors.accent
+                                    : isToday
+                                        ? colors.accent.withAlpha(20)
+                                        : Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: isToday && !hasEntry
+                                    ? Border.all(
+                                        color: colors.accent, width: 1.5)
+                                    : null,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$dayNum',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 13,
+                                    fontWeight: hasEntry || isToday
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: hasEntry
+                                        ? Colors.white
+                                        : isToday
+                                            ? colors.accent
+                                            : colors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}

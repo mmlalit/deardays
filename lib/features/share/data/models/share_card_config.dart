@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 
 /// Target social platform for the share card.
 enum SharePlatform {
-  instagram('Instagram', 1080, 1920, Icons.camera_alt_rounded),
-  whatsapp('WhatsApp', 1080, 1080, Icons.chat_rounded),
-  twitter('X', 1200, 675, Icons.alternate_email_rounded);
+  instagram('Instagram Story', 1080, 1920, Icons.camera_alt_rounded),
+  whatsapp('WhatsApp', 1080, 1080, Icons.chat_rounded);
 
   const SharePlatform(this.label, this.width, this.height, this.icon);
 
@@ -20,11 +19,9 @@ enum SharePlatform {
   double get previewWidth {
     switch (this) {
       case SharePlatform.instagram:
-        return 300;
+        return 280;
       case SharePlatform.whatsapp:
-        return 320;
-      case SharePlatform.twitter:
-        return 360;
+        return 300;
     }
   }
 

@@ -7,8 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/core/demo/demo_data.dart';
-import 'package:deardays/core/mock/mock_data.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/book/data/models/generated_book.dart';
 import 'package:deardays/features/book/data/services/book_generator_service.dart';
@@ -24,11 +22,8 @@ class _BookCreationScreenState extends ConsumerState<BookCreationScreen> {
   BookCreationApproach? _selectedApproach;
 
   List<JournalEntry> get _allEntries {
-    final isDemoMode = ref.read(demoModeProvider);
-    if (isDemoMode) {
-      return [...DemoData.entries, ...mockEntries];
-    }
-    return DemoData.entries;
+    final entriesAsync = ref.read(timelineEntriesProvider);
+    return entriesAsync.valueOrNull ?? [];
   }
 
   @override

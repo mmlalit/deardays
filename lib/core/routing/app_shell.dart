@@ -59,8 +59,6 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
     Future.microtask(() {
       if (!mounted) return;
-      final isDemo = ref.read(demoModeProvider);
-      if (isDemo) return;
 
       _triggerProviderFetch();
 
@@ -73,8 +71,6 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   /// Invalidate stale providers and re-fetch fresh data from network.
   void _invalidateAndRefresh() {
     if (!mounted) return;
-    final isDemo = ref.read(demoModeProvider);
-    if (isDemo) return;
 
     ref.invalidate(timelineEntriesProvider);
     ref.invalidate(todayEntryProvider);

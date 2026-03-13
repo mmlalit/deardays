@@ -25,7 +25,8 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
   late ShareCardConfig _config;
   bool _isLoadingAi = false;
   bool _isSaving = false;
-  bool _isSharing = false;
+  bool _isSharingIG = false;
+  bool _isSharingWA = false;
 
   @override
   void initState() {
@@ -42,7 +43,6 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
     _captionController = TextEditingController(text: fallback);
     _captionController.addListener(_onCaptionChanged);
 
-    // Try AI summary
     if (AiService().isConfigured) {
       _generateAiSummary();
     }
@@ -109,23 +109,21 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
     });
   }
 
-  Future<void> _share() async {
-    setState(() => _isSharing = true);
+  Future<void> _shareToInstagram() async {
+    setState(() => _isSharingIG = true);
     try {
+      // Switch to Instagram format before rendering
+      if (_config.platform != SharePlatform.instagram) {
+        setState(() {
+          _config = _config.copyWith(platform: SharePlatform.instagram);
+        });
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
       await Future.delayed(const Duration(milliseconds: 100));
       final bytes = await ShareCardRenderer.renderToPng(_repaintKey);
 
       if (!ShareCardRenderer.supportsNativeShare) {
-        // Windows fallback
-        final path = await ShareCardRenderer.saveToGallery(bytes);
-        await Clipboard.setData(ClipboardData(text: path));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Image saved and path copied to clipboard:\n$path'),
-            ),
-          );
-        }
+        await _windowsFallback(bytes, 'Instagram');
       } else {
         final dateStr =
             DateFormat('MMMM d, yyyy').format(widget.entry.entryDate);
@@ -138,7 +136,50 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isSharing = false);
+      if (mounted) setState(() => _isSharingIG = false);
+    }
+  }
+
+  Future<void> _shareToWhatsApp() async {
+    setState(() => _isSharingWA = true);
+    try {
+      // Switch to WhatsApp format before rendering
+      if (_config.platform != SharePlatform.whatsapp) {
+        setState(() {
+          _config = _config.copyWith(platform: SharePlatform.whatsapp);
+        });
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+      await Future.delayed(const Duration(milliseconds: 100));
+      final bytes = await ShareCardRenderer.renderToPng(_repaintKey);
+
+      if (!ShareCardRenderer.supportsNativeShare) {
+        await _windowsFallback(bytes, 'WhatsApp');
+      } else {
+        final dateStr =
+            DateFormat('MMMM d, yyyy').format(widget.entry.entryDate);
+        await ShareCardRenderer.shareImage(bytes, subject: 'DearDays - $dateStr');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to share: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSharingWA = false);
+    }
+  }
+
+  Future<void> _windowsFallback(Uint8List bytes, String platform) async {
+    final path = await ShareCardRenderer.saveToGallery(bytes);
+    await Clipboard.setData(ClipboardData(text: path));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$platform image saved & path copied:\n$path'),
+        ),
+      );
     }
   }
 
@@ -164,13 +205,6 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
     }
   }
 
-  void _copyText() {
-    Clipboard.setData(ClipboardData(text: _config.displayText));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Caption copied to clipboard')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -189,33 +223,12 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                   children: [
                     const SizedBox(height: 12),
 
-                    // Platform tabs
+                    // Platform tabs (Instagram / WhatsApp)
                     _buildPlatformTabs(colors),
                     const SizedBox(height: 20),
 
-                    // Live card preview
-                    Center(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors.textPrimary.withAlpha(20),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: ShareCardPreview(
-                            config: _config,
-                            entry: widget.entry,
-                            repaintKey: _repaintKey,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // Phone mockup with live card preview
+                    Center(child: _buildPhoneMockup(colors)),
                     const SizedBox(height: 24),
 
                     // Caption editor
@@ -230,8 +243,8 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                     _buildToggleChips(colors),
                     const SizedBox(height: 28),
 
-                    // Action buttons
-                    _buildActionButtons(colors),
+                    // Two share buttons + save
+                    _buildShareButtons(colors),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -276,7 +289,7 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
     );
   }
 
-  // ─── Platform tabs (Instagram, WhatsApp, X) ───────────────────────────────
+  // ─── Platform tabs (Instagram / WhatsApp only) ────────────────────────────
 
   Widget _buildPlatformTabs(AppPalette colors) {
     return Row(
@@ -288,7 +301,7 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                 color: isActive ? colors.accentFaint : colors.cardBg,
                 borderRadius: BorderRadius.circular(12),
@@ -297,18 +310,19 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                   width: isActive ? 2 : 1,
                 ),
               ),
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     platform.icon,
-                    size: 22,
+                    size: 20,
                     color: isActive ? colors.accent : colors.textMuted,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(width: 8),
                   Text(
                     platform.label,
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight:
                           isActive ? FontWeight.w700 : FontWeight.w500,
                       color: isActive ? colors.accent : colors.textSecondary,
@@ -320,6 +334,250 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  // ─── Phone mockup with platform-specific preview ──────────────────────────
+
+  Widget _buildPhoneMockup(AppPalette colors) {
+    final isIG = _config.platform == SharePlatform.instagram;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: isIG ? 240 : 320,
+      decoration: BoxDecoration(
+        color: isIG ? Colors.black : const Color(0xFFECE5DD),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: colors.textPrimary.withAlpha(20),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Platform header
+          if (isIG) _buildIGHeader() else _buildWAHeader(colors),
+          // Card preview
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isIG ? 0 : 10,
+              vertical: isIG ? 0 : 6,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(isIG ? 0 : 12),
+              child: ShareCardPreview(
+                config: _config,
+                entry: widget.entry,
+                repaintKey: _repaintKey,
+              ),
+            ),
+          ),
+          // Platform footer
+          if (isIG) _buildIGFooter() else _buildWAFooter(colors),
+        ],
+      ),
+    );
+  }
+
+  // ─── Instagram Story mockup elements ──────────────────────────────────────
+
+  Widget _buildIGHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 8),
+      child: Row(
+        children: [
+          // Profile pic placeholder
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withAlpha(180), width: 2),
+              color: Colors.white.withAlpha(30),
+            ),
+            child: Icon(Icons.person, size: 18, color: Colors.white.withAlpha(180)),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your Story',
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                'Just now',
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  color: Colors.white.withAlpha(150),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Icon(Icons.more_horiz, size: 20, color: Colors.white.withAlpha(180)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIGFooter() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
+      child: Row(
+        children: [
+          // Camera icon
+          _igFooterIcon(Icons.camera_alt_outlined),
+          const SizedBox(width: 12),
+          // Message field
+          Expanded(
+            child: Container(
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withAlpha(80)),
+              ),
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.only(left: 14),
+              child: Text(
+                'Send message',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  color: Colors.white.withAlpha(120),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Heart
+          _igFooterIcon(Icons.favorite_border_rounded),
+          const SizedBox(width: 12),
+          // Send
+          _igFooterIcon(Icons.send_outlined),
+        ],
+      ),
+    );
+  }
+
+  Widget _igFooterIcon(IconData icon) {
+    return Icon(icon, size: 22, color: Colors.white.withAlpha(180));
+  }
+
+  // ─── WhatsApp chat bubble mockup elements ─────────────────────────────────
+
+  Widget _buildWAHeader(AppPalette colors) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+      decoration: const BoxDecoration(
+        color: Color(0xFF075E54),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.arrow_back, size: 20, color: Colors.white.withAlpha(200)),
+          const SizedBox(width: 10),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withAlpha(40),
+            ),
+            child: Icon(Icons.person, size: 18, color: Colors.white.withAlpha(200)),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Friend',
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                'online',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  color: Colors.white.withAlpha(180),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Icon(Icons.videocam_outlined, size: 22, color: Colors.white.withAlpha(200)),
+          const SizedBox(width: 16),
+          Icon(Icons.call_outlined, size: 20, color: Colors.white.withAlpha(200)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWAFooter(AppPalette colors) {
+    final timeStr = DateFormat('HH:mm').format(DateTime.now());
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 4, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Timestamp + read receipt
+          Padding(
+            padding: const EdgeInsets.only(right: 4, bottom: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  timeStr,
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    color: const Color(0xFF8696A0),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.done_all, size: 14, color: const Color(0xFF53BDEB)),
+              ],
+            ),
+          ),
+          // Message input bar
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                Icon(Icons.emoji_emotions_outlined, size: 22, color: const Color(0xFF8696A0)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Type a message',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: const Color(0xFF8696A0),
+                    ),
+                  ),
+                ),
+                Icon(Icons.attach_file, size: 20, color: const Color(0xFF8696A0)),
+                const SizedBox(width: 10),
+                Icon(Icons.camera_alt, size: 20, color: const Color(0xFF8696A0)),
+                const SizedBox(width: 12),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -605,61 +863,42 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
     );
   }
 
-  // ─── Action buttons ───────────────────────────────────────────────────────
+  // ─── Share buttons — Instagram + WhatsApp side by side ────────────────────
 
-  Widget _buildActionButtons(AppPalette colors) {
-    final isWindows = !ShareCardRenderer.supportsNativeShare;
-    final shareLabel = isWindows
-        ? (_isSharing ? 'Saving...' : 'Save & Copy Path')
-        : (_isSharing ? 'Sharing...' : 'Share');
-
+  Widget _buildShareButtons(AppPalette colors) {
     return Column(
       children: [
-        // Share / Save+Copy — primary
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: _isSharing ? null : _share,
-            icon: _isSharing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Icon(
-                    isWindows ? Icons.save_alt_rounded : Icons.share_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-            label: Text(
-              shareLabel,
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+        // Two share buttons side by side
+        Row(
+          children: [
+            // Instagram Story button
+            Expanded(
+              child: _buildShareButton(
+                label: 'Instagram',
+                icon: Icons.camera_alt_rounded,
+                isLoading: _isSharingIG,
+                gradient: const [Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF)],
+                onTap: _isSharingIG ? null : _shareToInstagram,
               ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.accent,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              shadowColor: colors.accent.withAlpha(60),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+            const SizedBox(width: 12),
+            // WhatsApp button
+            Expanded(
+              child: _buildShareButton(
+                label: 'WhatsApp',
+                icon: Icons.chat_rounded,
+                isLoading: _isSharingWA,
+                gradient: const [Color(0xFF25D366), Color(0xFF128C7E)],
+                onTap: _isSharingWA ? null : _shareToWhatsApp,
               ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: 10),
-
-        // Save to Gallery
+        const SizedBox(height: 12),
+        // Save image — secondary
         SizedBox(
           width: double.infinity,
-          height: 52,
+          height: 48,
           child: OutlinedButton.icon(
             onPressed: _isSaving ? null : _saveToGallery,
             icon: _isSaving
@@ -675,8 +914,8 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
             label: Text(
               _isSaving ? 'Saving...' : 'Save Image',
               style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
                 color: colors.accent,
               ),
             ),
@@ -688,26 +927,62 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+      ],
+    );
+  }
 
-        // Copy Text
-        SizedBox(
-          width: double.infinity,
-          height: 44,
-          child: TextButton.icon(
-            onPressed: _copyText,
-            icon: Icon(Icons.copy_rounded, size: 18, color: colors.textSecondary),
-            label: Text(
-              'Copy Text',
+  Widget _buildShareButton({
+    required String label,
+    required IconData icon,
+    required bool isLoading,
+    required List<Color> gradient,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: gradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: gradient.first.withAlpha(50),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isLoading)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            else
+              Icon(icon, size: 20, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              isLoading ? 'Sharing...' : label,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: colors.textSecondary,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

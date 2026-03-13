@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -18,7 +21,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -36,6 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Consent (signup only)
   bool _healthConsentGiven = false;
+
+  bool get _isReturningUser =>
+      (_biometricAvailable && _biometricEnabled) ||
+      _lockMethod == 'pin' ||
+      _lockMethod == 'pattern';
 
   @override
   void initState() {
@@ -134,7 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _showError('Please enter your email and password.');
       return;
     }
-    // Only enforce complexity on signup; sign-in should accept any password.
     if (_isSignUp) {
       final pwError = PasswordValidator.validate(password);
       if (pwError != null) {
@@ -209,7 +217,8 @@ class _LoginScreenState extends State<LoginScreen> {
             content: Text('Password reset email sent to $email'),
             backgroundColor: AppColors.of(context).textPrimary,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -233,182 +242,149 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 350),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          transitionBuilder: (child, animation) {
-            final offsetAnimation = Tween<Offset>(
-              begin: const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(animation);
-            return SlideTransition(position: offsetAnimation, child: child);
-          },
-          child: _showEmailForm
-              ? _buildEmailStep(key: const ValueKey('email'))
-              : _buildSocialStep(key: const ValueKey('social')),
-        ),
+      body: Stack(
+        children: [
+          // Gradient background
+          _GradientBackground(colors: colors),
+
+          // Content
+          SafeArea(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final offsetAnimation = Tween<Offset>(
+                  begin: const Offset(1, 0),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child:
+                      SlideTransition(position: offsetAnimation, child: child),
+                );
+              },
+              child: _showEmailForm
+                  ? _buildEmailStep(key: const ValueKey('email'))
+                  : _buildSocialStep(key: const ValueKey('social')),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // ─── Step 1: Social login + branding ───
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Step 1: Social login + branding (or returning-user hero)
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildSocialStep({Key? key}) {
+    final colors = AppColors.of(context);
+
     return SingleChildScrollView(
       key: key,
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 60),
+          const SizedBox(height: 48),
 
-          // App logo
+          // ── Animated logo ──
           Center(
             child: Image.asset(
               'assets/images/logo.png',
               width: 88,
               height: 88,
             ),
-          ),
-          const SizedBox(height: 24),
+          )
+              .animate()
+              .fadeIn(duration: 600.ms, curve: Curves.easeOut)
+              .scale(
+                begin: const Offset(0.7, 0.7),
+                end: const Offset(1, 1),
+                duration: 700.ms,
+                curve: Curves.easeOutBack,
+              ),
+          const SizedBox(height: 20),
 
-          // App name
+          // ── App name ──
           Center(
             child: Text(
               'DearDays',
-              style: GoogleFonts.manrope(
-                fontSize: 34,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 36,
                 fontWeight: FontWeight.bold,
-                color: AppColors.of(context).textPrimary,
+                color: colors.textPrimary,
+                letterSpacing: -0.5,
               ),
             ),
-          ),
+          ).animate().fadeIn(delay: 200.ms, duration: 500.ms).slideY(
+                begin: 0.15,
+                end: 0,
+                delay: 200.ms,
+                duration: 500.ms,
+                curve: Curves.easeOut,
+              ),
           const SizedBox(height: 8),
 
-          // Tagline
+          // ── Tagline ──
           Center(
             child: Text(
               'Your life, your story.',
               style: GoogleFonts.manrope(
-                fontSize: 16,
+                fontSize: 15,
                 fontStyle: FontStyle.italic,
-                color: AppColors.of(context).textSecondary,
+                color: colors.textSecondary,
+                height: 1.5,
               ),
             ),
-          ),
-          const SizedBox(height: 48),
+          ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
 
-          // Continue with Apple
-          _AppleButton(
-            onPressed: _isLoading ? null : _handleAppleSignIn,
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 40),
 
-          // Continue with Google
-          _GoogleButton(
-            onPressed: _isLoading ? null : _handleGoogleSignIn,
-          ),
-          const SizedBox(height: 12),
+          // ── Returning-user quick-unlock hero ──
+          if (_isReturningUser) ...[
+            _buildQuickUnlockHero(colors),
+            const SizedBox(height: 24),
+            _buildDivider(colors, 'OR SIGN IN WITH'),
+            const SizedBox(height: 20),
+          ],
 
-          // Continue with Email
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: _isLoading
-                  ? null
-                  : () => setState(() => _showEmailForm = true),
-              icon: Icon(Icons.mail_outline_rounded,
-                  size: 20, color: AppColors.of(context).textPrimary),
-              label: Text(
-                'Continue with Email',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.of(context).textPrimary,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.of(context).border),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
+          // ── Social login buttons ──
+          _buildSocialButtons(colors),
+
           const SizedBox(height: 24),
 
-          // Inline terms
+          // ── Trust signals ──
+          _buildTrustBadges(colors),
+
+          const SizedBox(height: 20),
+
+          // ── Terms ──
           Center(
             child: Text(
               'By continuing, you agree to our Terms of\nService and Privacy Policy.',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
-                fontSize: 12,
-                color: AppColors.of(context).textSecondary,
+                fontSize: 11,
+                color: colors.textMuted,
                 height: 1.5,
               ),
             ),
           ),
 
-          // Quick-unlock section for returning users
-          if (_biometricAvailable && _biometricEnabled ||
-              _lockMethod == 'pin' ||
-              _lockMethod == 'pattern') ...[
-            const SizedBox(height: 32),
-            Row(
-              children: [
-                Expanded(
-                    child: Divider(color: AppColors.of(context).border, thickness: 1)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'WELCOME BACK',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.of(context).textMuted,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                Expanded(
-                    child: Divider(color: AppColors.of(context).border, thickness: 1)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_biometricAvailable && _biometricEnabled)
-              _QuickUnlockButton(
-                icon: Icons.fingerprint,
-                label: 'Unlock with Face ID / Fingerprint',
-                onPressed: _isLoading ? null : _handleBiometricLogin,
-              ),
-            if (_lockMethod == 'pin')
-              _QuickUnlockButton(
-                icon: Icons.dialpad_rounded,
-                label: 'Unlock with PIN',
-                onPressed: _isLoading ? null : _handlePinLogin,
-              ),
-            if (_lockMethod == 'pattern')
-              _QuickUnlockButton(
-                icon: Icons.pattern_rounded,
-                label: 'Unlock with Pattern',
-                onPressed: _isLoading ? null : _handlePatternLogin,
-              ),
-          ],
-
           if (_isLoading) ...[
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             Center(
               child: SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: AppColors.of(context).accent,
+                  color: colors.accent,
                 ),
               ),
             ),
@@ -420,238 +396,515 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ─── Step 2: Email form ───
+  // ── Quick-unlock hero for returning users ──
+
+  Widget _buildQuickUnlockHero(AppPalette colors) {
+    IconData unlockIcon;
+    String unlockLabel;
+    VoidCallback? unlockAction;
+
+    if (_biometricAvailable && _biometricEnabled) {
+      unlockIcon = Icons.fingerprint;
+      unlockLabel = 'Tap to unlock';
+      unlockAction = _isLoading ? null : _handleBiometricLogin;
+    } else if (_lockMethod == 'pin') {
+      unlockIcon = Icons.dialpad_rounded;
+      unlockLabel = 'Enter PIN to unlock';
+      unlockAction = _isLoading ? null : _handlePinLogin;
+    } else {
+      unlockIcon = Icons.pattern_rounded;
+      unlockLabel = 'Draw pattern to unlock';
+      unlockAction = _isLoading ? null : _handlePatternLogin;
+    }
+
+    return Column(
+      children: [
+        // Large unlock button
+        GestureDetector(
+          onTap: unlockAction,
+          child: Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [colors.accent, colors.accentLight],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.accent.withAlpha(60),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(unlockIcon, size: 40, color: Colors.white),
+          ),
+        )
+            .animate(onPlay: (c) => c.repeat(reverse: true))
+            .shimmer(
+              delay: 1500.ms,
+              duration: 1800.ms,
+              color: Colors.white.withAlpha(40),
+            ),
+        const SizedBox(height: 14),
+        Text(
+          'Welcome back!',
+          style: GoogleFonts.manrope(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          unlockLabel,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            color: colors.textSecondary,
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 400.ms, duration: 500.ms).slideY(
+          begin: 0.2,
+          end: 0,
+          delay: 400.ms,
+          duration: 500.ms,
+          curve: Curves.easeOut,
+        );
+  }
+
+  // ── Social buttons ──
+
+  Widget _buildSocialButtons(AppPalette colors) {
+    return Column(
+      children: [
+        // Icon-only row for Apple + Google
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _SocialIconButton(
+              icon: Icons.apple,
+              iconColor: colors.textPrimary,
+              bgColor: colors.card,
+              borderColor: colors.border,
+              onPressed: _isLoading ? null : _handleAppleSignIn,
+            ),
+            const SizedBox(width: 16),
+            _SocialIconButton(
+              icon: null,
+              googleLogo: true,
+              bgColor: colors.card,
+              borderColor: colors.border,
+              onPressed: _isLoading ? null : _handleGoogleSignIn,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildDivider(colors, 'OR'),
+        const SizedBox(height: 16),
+        // Full-width email button
+        SizedBox(
+          height: 54,
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading
+                ? null
+                : () => setState(() => _showEmailForm = true),
+            icon: Icon(Icons.mail_outline_rounded,
+                size: 20, color: colors.textPrimary),
+            label: Text(
+              'Continue with Email',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: colors.border),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+          ),
+        ),
+      ],
+    )
+        .animate()
+        .fadeIn(
+          delay: _isReturningUser ? 600.ms : 500.ms,
+          duration: 500.ms,
+        )
+        .slideY(
+          begin: 0.15,
+          end: 0,
+          delay: _isReturningUser ? 600.ms : 500.ms,
+          duration: 500.ms,
+          curve: Curves.easeOut,
+        );
+  }
+
+  // ── Trust badges ──
+
+  Widget _buildTrustBadges(AppPalette colors) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _TrustBadge(
+          icon: Icons.lock_outline_rounded,
+          label: 'Encrypted',
+          colors: colors,
+        ),
+        const SizedBox(width: 12),
+        _TrustBadge(
+          icon: Icons.card_giftcard_rounded,
+          label: '7-day free trial',
+          colors: colors,
+          highlighted: true,
+        ),
+        const SizedBox(width: 12),
+        _TrustBadge(
+          icon: Icons.credit_card_off_rounded,
+          label: 'No card needed',
+          colors: colors,
+        ),
+      ],
+    )
+        .animate()
+        .fadeIn(delay: 700.ms, duration: 500.ms);
+  }
+
+  // ── Divider with text ──
+
+  Widget _buildDivider(AppPalette colors, String text) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: colors.border, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            text,
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: colors.textMuted,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: colors.border, thickness: 1)),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Step 2: Email form (glassmorphic card)
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildEmailStep({Key? key}) {
+    final colors = AppColors.of(context);
+
     return SingleChildScrollView(
       key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Back button
           Align(
             alignment: Alignment.centerLeft,
-            child: IconButton(
-              onPressed: _isLoading
+            child: GestureDetector(
+              onTap: _isLoading
                   ? null
                   : () => setState(() => _showEmailForm = false),
-              icon: const Icon(Icons.arrow_back_rounded),
-              color: AppColors.of(context).textPrimary,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.card,
+                  border: Border.all(color: colors.border),
+                ),
+                child: Icon(Icons.arrow_back_rounded,
+                    size: 20, color: colors.textPrimary),
+              ),
             ),
           ),
           const SizedBox(height: 24),
 
           // Heading
           Text(
-            _isSignUp ? 'Create your journal' : 'Welcome back',
-            style: GoogleFonts.manrope(
-              fontSize: 28,
+            _isSignUp ? 'Create your\njournal' : 'Welcome\nback',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 34,
               fontWeight: FontWeight.bold,
-              color: AppColors.of(context).textPrimary,
+              color: colors.textPrimary,
+              height: 1.15,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             _isSignUp
                 ? 'Start capturing your story today.'
                 : 'Pick up where you left off.',
             style: GoogleFonts.manrope(
               fontSize: 15,
-              color: AppColors.of(context).textSecondary,
+              color: colors.textSecondary,
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
-          // Name field (signup only)
-          if (_isSignUp) ...[
-            const _FieldLabel('What should we call you?'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _nameController,
-              textCapitalization: TextCapitalization.words,
-              enabled: !_isLoading,
-              decoration: _inputDecoration(
-                hint: 'Your name (optional)',
-                prefixIcon: Icons.person_outline_rounded,
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-
-          // Email field
-          const _FieldLabel('Email'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            enabled: !_isLoading,
-            decoration: _inputDecoration(
-              hint: 'you@example.com',
-              prefixIcon: Icons.mail_outline_rounded,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Password field
-          const _FieldLabel('Password'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            enabled: !_isLoading,
-            decoration: _inputDecoration(
-              hint: _isSignUp ? 'Create a password (${PasswordValidator.hint})' : 'Enter your password',
-              prefixIcon: Icons.lock_outline_rounded,
-            ).copyWith(
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AppColors.of(context).textMuted,
-                  size: 20,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-          ),
-
-          // Forgot password (login only)
-          if (!_isSignUp) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _isLoading ? null : _handleForgotPassword,
-                child: Text(
-                  'Forgot password?',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.of(context).accent,
+          // ── Glassmorphic form card ──
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: colors.card.withAlpha(200),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: colors.border.withAlpha(150),
                   ),
-                ),
-              ),
-            ),
-          ],
-
-          // Health consent (signup only)
-          if (_isSignUp) ...[
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: _isLoading
-                  ? null
-                  : () =>
-                      setState(() => _healthConsentGiven = !_healthConsentGiven),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: Checkbox(
-                      value: _healthConsentGiven,
-                      onChanged: _isLoading
-                          ? null
-                          : (v) => setState(
-                              () => _healthConsentGiven = v ?? false),
-                      activeColor: AppColors.of(context).accent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      side: BorderSide(color: AppColors.of(context).border, width: 1.5),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.textPrimary.withAlpha(8),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text.rich(
-                        TextSpan(
-                          text: 'I consent to mood & health data processing ',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: AppColors.of(context).textSecondary,
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Name field (signup only)
+                    if (_isSignUp) ...[
+                      TextField(
+                        controller: _nameController,
+                        textCapitalization: TextCapitalization.words,
+                        enabled: !_isLoading,
+                        decoration: _inputDecoration(
+                          label: 'Name',
+                          hint: 'What should we call you? (optional)',
+                          prefixIcon: Icons.person_outline_rounded,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Email field
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      enabled: !_isLoading,
+                      decoration: _inputDecoration(
+                        label: 'Email',
+                        hint: 'you@example.com',
+                        prefixIcon: Icons.mail_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Password field
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      enabled: !_isLoading,
+                      decoration: _inputDecoration(
+                        label: 'Password',
+                        hint: _isSignUp
+                            ? 'Create a password (${PasswordValidator.hint})'
+                            : 'Enter your password',
+                        prefixIcon: Icons.lock_outline_rounded,
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          icon: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              key: ValueKey(_obscurePassword),
+                              color: colors.textMuted,
+                              size: 20,
+                            ),
                           ),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                    ),
+
+                    // Forgot password (login only)
+                    if (!_isSignUp) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed:
+                              _isLoading ? null : _handleForgotPassword,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Forgot password?',
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: colors.accent,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Health consent (signup only)
+                    if (_isSignUp) ...[
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: _isLoading
+                            ? null
+                            : () => setState(() =>
+                                _healthConsentGiven = !_healthConsentGiven),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            TextSpan(
-                              text: '(optional)',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontStyle: FontStyle.italic,
-                                color: AppColors.of(context).textMuted,
+                            SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Checkbox(
+                                value: _healthConsentGiven,
+                                onChanged: _isLoading
+                                    ? null
+                                    : (v) => setState(() =>
+                                        _healthConsentGiven = v ?? false),
+                                activeColor: colors.accent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                side: BorderSide(
+                                    color: colors.border, width: 1.5),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text.rich(
+                                  TextSpan(
+                                    text:
+                                        'I consent to mood & health data processing ',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 13,
+                                      color: colors.textSecondary,
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: '(optional)',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 13,
+                                          fontStyle: FontStyle.italic,
+                                          color: colors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Primary CTA — gradient accent button ──
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _isLoading
+                      ? [colors.accent.withAlpha(128), colors.accentLight.withAlpha(128)]
+                      : [colors.accent, colors.accentLight],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: colors.accent.withAlpha(60),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
-            ),
-          ],
-
-          const SizedBox(height: 28),
-
-          // Primary CTA
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleEmailAuth,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.of(context).textPrimary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                disabledBackgroundColor: AppColors.of(context).accent.withAlpha(128),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handleEmailAuth,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
                 ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        _isSignUp ? 'Create My Journal' : 'Log In',
+                        style: GoogleFonts.manrope(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      _isSignUp ? 'Create My Journal' : 'Log In',
-                      style: GoogleFonts.manrope(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
             ),
           ),
+
           const SizedBox(height: 16),
 
-          // Inline terms / trial info
+          // Trial info (signup only)
           if (_isSignUp) ...[
             Center(
               child: Text(
                 'By signing up, you agree to our Terms of Service\nand Privacy Policy. 7-day free trial, no card required.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  color: AppColors.of(context).textSecondary,
+                  fontSize: 11,
+                  color: colors.textMuted,
                   height: 1.5,
                 ),
               ),
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // Toggle sign-up / sign-in
           Center(
@@ -666,15 +919,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       : "Don't have an account? ",
                   style: GoogleFonts.manrope(
                     fontSize: 14,
-                    color: AppColors.of(context).textSecondary,
+                    color: colors.textSecondary,
                   ),
                   children: [
                     TextSpan(
                       text: _isSignUp ? 'Log in' : 'Sign up',
                       style: GoogleFonts.manrope(
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.of(context).accent,
+                        fontWeight: FontWeight.w700,
+                        color: colors.accent,
                       ),
                     ),
                   ],
@@ -688,161 +941,240 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ─── Helpers ───
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Helpers
+  // ═══════════════════════════════════════════════════════════════════════════
 
   InputDecoration _inputDecoration({
+    required String label,
     required String hint,
     required IconData prefixIcon,
   }) {
+    final colors = AppColors.of(context);
     return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.manrope(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: colors.textSecondary,
+      ),
+      floatingLabelStyle: GoogleFonts.manrope(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: colors.accent,
+      ),
       hintText: hint,
-      hintStyle: GoogleFonts.manrope(color: AppColors.of(context).textMuted, fontSize: 14),
-      prefixIcon: Icon(prefixIcon, size: 20, color: AppColors.of(context).textMuted),
+      hintStyle:
+          GoogleFonts.manrope(color: colors.textMuted, fontSize: 14),
+      prefixIcon:
+          Icon(prefixIcon, size: 20, color: colors.textMuted),
       filled: true,
-      fillColor: AppColors.of(context).card,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      fillColor: colors.bg.withAlpha(180),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColors.of(context).border),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColors.of(context).border),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: AppColors.of(context).accent, width: 2),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: colors.accent, width: 1.5),
       ),
     );
   }
 }
 
-// ─── Field label ───
+// ═════════════════════════════════════════════════════════════════════════════
+// Gradient Background
+// ═════════════════════════════════════════════════════════════════════════════
 
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  const _FieldLabel(this.text);
+class _GradientBackground extends StatelessWidget {
+  final AppPalette colors;
+  const _GradientBackground({required this.colors});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.manrope(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
-        color: AppColors.of(context).textPrimary,
+    return SizedBox.expand(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [0.0, 0.4, 1.0],
+            colors: [
+              colors.accent.withAlpha(25),
+              colors.accentFaint,
+              colors.bg,
+            ],
+          ),
+        ),
+        child: CustomPaint(
+          painter: _OrbPainter(
+            color1: colors.accent.withAlpha(18),
+            color2: colors.accentLight.withAlpha(12),
+          ),
+        ),
       ),
     );
   }
 }
 
-// ─── Apple Sign In Button (follows Apple HIG) ───
+class _OrbPainter extends CustomPainter {
+  final Color color1;
+  final Color color2;
 
-class _AppleButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  const _AppleButton({this.onPressed});
+  _OrbPainter({required this.color1, required this.color2});
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.apple, size: 22, color: Colors.white),
-        label: Text(
-          'Continue with Apple',
-          style: GoogleFonts.manrope(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-          ),
+  void paint(Canvas canvas, Size size) {
+    // Top-right orb
+    final paint1 = Paint()
+      ..shader = RadialGradient(
+        colors: [color1, color1.withAlpha(0)],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width * 0.85, size.height * 0.1),
+          radius: size.width * 0.5,
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.of(context).textPrimary,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+      );
+    canvas.drawCircle(
+      Offset(size.width * 0.85, size.height * 0.1),
+      size.width * 0.5,
+      paint1,
+    );
+
+    // Bottom-left orb
+    final paint2 = Paint()
+      ..shader = RadialGradient(
+        colors: [color2, color2.withAlpha(0)],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width * 0.15, size.height * 0.55),
+          radius: size.width * 0.45,
         ),
-      ),
+      );
+    canvas.drawCircle(
+      Offset(size.width * 0.15, size.height * 0.55),
+      size.width * 0.45,
+      paint2,
     );
   }
-}
-
-// ─── Google Sign In Button ───
-
-class _GoogleButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  const _GoogleButton({this.onPressed});
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Text(
-          'G',
-          style: GoogleFonts.manrope(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF4285F4),
-          ),
-        ),
-        label: Text(
-          'Continue with Google',
-          style: GoogleFonts.manrope(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: AppColors.of(context).textPrimary,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: AppColors.of(context).border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
-    );
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ─── Quick unlock button for returning users ───
+// ═════════════════════════════════════════════════════════════════════════════
+// Social Icon Button (circular)
+// ═════════════════════════════════════════════════════════════════════════════
 
-class _QuickUnlockButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
+class _SocialIconButton extends StatelessWidget {
+  final IconData? icon;
+  final Color? iconColor;
+  final Color bgColor;
+  final Color borderColor;
+  final bool googleLogo;
   final VoidCallback? onPressed;
 
-  const _QuickUnlockButton({
-    required this.icon,
-    required this.label,
+  const _SocialIconButton({
+    this.icon,
+    this.iconColor,
+    required this.bgColor,
+    required this.borderColor,
+    this.googleLogo = false,
     this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 22, color: AppColors.of(context).accent),
-        label: Text(
-          label,
-          style: GoogleFonts.manrope(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: AppColors.of(context).accent,
-          ),
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: bgColor,
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.of(context).textPrimary.withAlpha(8),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.of(context).accent,
-          side: BorderSide(color: AppColors.of(context).accent, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+        child: Center(
+          child: googleLogo
+              ? Text(
+                  'G',
+                  style: GoogleFonts.manrope(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF4285F4),
+                  ),
+                )
+              : Icon(icon, size: 28, color: iconColor),
         ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Trust Badge Pill
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _TrustBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final AppPalette colors;
+  final bool highlighted;
+
+  const _TrustBadge({
+    required this.icon,
+    required this.label,
+    required this.colors,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: highlighted
+            ? colors.accent.withAlpha(15)
+            : colors.card.withAlpha(180),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: highlighted
+              ? colors.accent.withAlpha(40)
+              : colors.border.withAlpha(100),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 13,
+            color: highlighted ? colors.accent : colors.textMuted,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: highlighted ? colors.accent : colors.textMuted,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -133,16 +133,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
 /// Theme color palettes the user can choose from in Settings.
 enum AppThemeColor {
   sereneDuskBlue('Serene Dusk Blue'),
-  warmCream('Warm Cream'),
-  sageGreen('Sage Green'),
-  classicWhite('Classic White'),
-  warmDark('Dark');
+  golden('Golden'),
+  morningSage('Morning Sage'),
+  roseQuartz('Rose Quartz');
 
   const AppThemeColor(this.label);
   final String label;
-
-  /// Whether this palette is inherently dark.
-  bool get isDark => this == warmDark;
 
   /// Light mode palette.
   AppPalette get light {
@@ -152,71 +148,69 @@ enum AppThemeColor {
           bg:             Color(0xFFF8FAFC),
           card:           Color(0xFFFFFFFF),
           navBg:          Color(0xFFFFFFFF),
-          textPrimary:    Color(0xFF0F172A), // Midnight Navy
-          textSecondary:  Color(0xFF64748B), // Secondary Slate
-          textMuted:      Color(0xFF94A3B8), // Light Slate
-          accent:         Color(0xFF195DE6), // Primary Blue
-          accentLight:    Color(0xFF4B7CF3), // Lighter Blue
-          accentFaint:    Color(0xFFF1F5F9), // Soft Indigo
+          textPrimary:    Color(0xFF0F172A),
+          textSecondary:  Color(0xFF64748B),
+          textMuted:      Color(0xFF94A3B8),
+          accent:         Color(0xFF195DE6),
+          accentLight:    Color(0xFF4B7CF3),
+          accentFaint:    Color(0xFFF1F5F9),
           iconActive:     Color(0xFF195DE6),
           iconInactive:   Color(0xFF94A3B8),
-          border:         Color(0xFFE2E8F0), // Cool Gray
+          border:         Color(0xFFE2E8F0),
           highlight:      Color(0xFF195DE6),
           highlightFaint: Color(0xFFF1F5F9),
         );
-      case AppThemeColor.warmCream:
+      case AppThemeColor.golden:
         return const AppPalette(
-          bg: Color(0xFFF8FAFC),
-          card: Color(0xFFFFFFFF),
-          navBg: Color(0xFFFFFFFF),
-          textPrimary: Color(0xFF2C1810),
-          textSecondary: Color(0xFF7A6E64),
-          textMuted: Color(0xFFA89F97),
-          accent: Color(0xFFC49A3C),
-          accentLight: Color(0xFFDDB86A),
-          accentFaint: Color(0xFFFBF3E0),
-          iconActive: Color(0xFF8B6914),
-          iconInactive: Color(0xFFB5AA9E),
-          border: Color(0xFFE8DFD5),
-          highlight: Color(0xFFC49A3C),
-          highlightFaint: Color(0xFFFBF3E0),
+          bg:             Color(0xFFFFFBF5),
+          card:           Color(0xFFFFFFFF),
+          navBg:          Color(0xFFFFFFFF),
+          textPrimary:    Color(0xFF1C1408),
+          textSecondary:  Color(0xFF78684E),
+          textMuted:      Color(0xFFA89878),
+          accent:         Color(0xFFF59E0B),
+          accentLight:    Color(0xFFFBBF24),
+          accentFaint:    Color(0xFFFFF8E1),
+          iconActive:     Color(0xFFD97706),
+          iconInactive:   Color(0xFFB5AA9E),
+          border:         Color(0xFFF0E6D4),
+          highlight:      Color(0xFFF59E0B),
+          highlightFaint: Color(0xFFFFF8E1),
         );
-      case AppThemeColor.sageGreen:
+      case AppThemeColor.morningSage:
         return const AppPalette(
-          bg: Color(0xFFF8FAFC),
-          card: Color(0xFFFFFFFF),
-          navBg: Color(0xFFFFFFFF),
-          textPrimary: Color(0xFF1A2E1A),
-          textSecondary: Color(0xFF5F7A5F),
-          textMuted: Color(0xFF8FA68F),
-          accent: Color(0xFF2D8F5E),
-          accentLight: Color(0xFF5CB88A),
-          accentFaint: Color(0xFFE8F5EC),
-          iconActive: Color(0xFF4A7C59),
-          iconInactive: Color(0xFFA3B8A3),
-          border: Color(0xFFDCE6DC),
-          highlight: Color(0xFF2D8F5E),
-          highlightFaint: Color(0xFFE8F5EC),
+          bg:             Color(0xFFF6FBF8),
+          card:           Color(0xFFFFFFFF),
+          navBg:          Color(0xFFFFFFFF),
+          textPrimary:    Color(0xFF0C1F14),
+          textSecondary:  Color(0xFF4B7A5E),
+          textMuted:      Color(0xFF84AB92),
+          accent:         Color(0xFF10B981),
+          accentLight:    Color(0xFF34D399),
+          accentFaint:    Color(0xFFECFDF5),
+          iconActive:     Color(0xFF059669),
+          iconInactive:   Color(0xFF9CB8A8),
+          border:         Color(0xFFD5EAE0),
+          highlight:      Color(0xFF10B981),
+          highlightFaint: Color(0xFFECFDF5),
         );
-      case AppThemeColor.classicWhite:
+      case AppThemeColor.roseQuartz:
         return const AppPalette(
-          bg: Color(0xFFF8FAFC),
-          card: Color(0xFFFFFFFF),
-          navBg: Color(0xFFFFFFFF),
-          textPrimary: Color(0xFF111111),
-          textSecondary: Color(0xFF6B7280),
-          textMuted: Color(0xFF9CA3AF),
-          accent: Color(0xFF4F46E5),
-          accentLight: Color(0xFFA5B4FC),
-          accentFaint: Color(0xFFEEF2FF),
-          iconActive: Color(0xFF4F46E5),
-          iconInactive: Color(0xFF9CA3AF),
-          border: Color(0xFFE5E7EB),
-          highlight: Color(0xFF4F46E5),
-          highlightFaint: Color(0xFFEEF2FF),
+          bg:             Color(0xFFFDF6F8),
+          card:           Color(0xFFFFFFFF),
+          navBg:          Color(0xFFFFFFFF),
+          textPrimary:    Color(0xFF2D1620),
+          textSecondary:  Color(0xFF8E6478),
+          textMuted:      Color(0xFFB894A4),
+          accent:         Color(0xFFE8729A),
+          accentLight:    Color(0xFFF9A8C9),
+          accentFaint:    Color(0xFFFFF0F5),
+          iconActive:     Color(0xFFD85888),
+          iconInactive:   Color(0xFFC4A8B4),
+          border:         Color(0xFFF2DDE4),
+          highlight:      Color(0xFFE8729A),
+          highlightFaint: Color(0xFFFFF0F5),
         );
-      case AppThemeColor.warmDark:
-        return dark; // Dark palette is the same for both modes
     }
   }
 
@@ -225,88 +219,71 @@ enum AppThemeColor {
     switch (this) {
       case AppThemeColor.sereneDuskBlue:
         return const AppPalette(
-          bg:             Color(0xFF0B1426), // Deep Navy
-          card:           Color(0xFF111D35), // Navy card
+          bg:             Color(0xFF0B1426),
+          card:           Color(0xFF111D35),
           navBg:          Color(0xFF0D1830),
-          textPrimary:    Color(0xFFF1F5F9), // Soft Indigo inverted
+          textPrimary:    Color(0xFFF1F5F9),
           textSecondary:  Color(0xFF94A3B8),
           textMuted:      Color(0xFF475569),
-          accent:         Color(0xFF4B7CF3), // Lighter Blue (readable on dark)
+          accent:         Color(0xFF4B7CF3),
           accentLight:    Color(0xFF195DE6),
-          accentFaint:    Color(0xFF1E2D4F), // Dark blue tint
+          accentFaint:    Color(0xFF1E2D4F),
           iconActive:     Color(0xFF4B7CF3),
           iconInactive:   Color(0xFF475569),
           border:         Color(0xFF1E2D4F),
           highlight:      Color(0xFF4B7CF3),
           highlightFaint: Color(0xFF1E2D4F),
         );
-      case AppThemeColor.warmCream:
+      case AppThemeColor.golden:
         return const AppPalette(
-          bg: Color(0xFF1A1412),
-          card: Color(0xFF2A2220),
-          navBg: Color(0xFF1E1B18),
-          textPrimary: Color(0xFFE8E0D8),
-          textSecondary: Color(0xFFA89F97),
-          textMuted: Color(0xFF6E6560),
-          accent: Color(0xFFDDB86A),
-          accentLight: Color(0xFFC49A3C),
-          accentFaint: Color(0xFF2A2210),
-          iconActive: Color(0xFFDDB86A),
-          iconInactive: Color(0xFF6E6560),
-          border: Color(0xFF3D3228),
-          highlight: Color(0xFFDDB86A),
-          highlightFaint: Color(0xFF2A2210),
+          bg:             Color(0xFF1A1508),
+          card:           Color(0xFF262010),
+          navBg:          Color(0xFF1E1A0C),
+          textPrimary:    Color(0xFFF0E8D8),
+          textSecondary:  Color(0xFFB5A580),
+          textMuted:      Color(0xFF7A6E50),
+          accent:         Color(0xFFFBBF24),
+          accentLight:    Color(0xFFF59E0B),
+          accentFaint:    Color(0xFF2A2410),
+          iconActive:     Color(0xFFFBBF24),
+          iconInactive:   Color(0xFF6E6550),
+          border:         Color(0xFF3D3520),
+          highlight:      Color(0xFFFBBF24),
+          highlightFaint: Color(0xFF2A2410),
         );
-      case AppThemeColor.sageGreen:
+      case AppThemeColor.morningSage:
         return const AppPalette(
-          bg: Color(0xFF121A14),
-          card: Color(0xFF1E2A20),
-          navBg: Color(0xFF1A241C),
-          textPrimary: Color(0xFFD8E8D8),
-          textSecondary: Color(0xFF8FA68F),
-          textMuted: Color(0xFF5A6E5A),
-          accent: Color(0xFF5CB88A),
-          accentLight: Color(0xFF2D8F5E),
-          accentFaint: Color(0xFF142A1A),
-          iconActive: Color(0xFF5CB88A),
-          iconInactive: Color(0xFF5A6E5A),
-          border: Color(0xFF2E3E30),
-          highlight: Color(0xFF5CB88A),
-          highlightFaint: Color(0xFF142A1A),
+          bg:             Color(0xFF0C1A12),
+          card:           Color(0xFF14261C),
+          navBg:          Color(0xFF10201A),
+          textPrimary:    Color(0xFFD8F0E4),
+          textSecondary:  Color(0xFF84AB92),
+          textMuted:      Color(0xFF4D7A5E),
+          accent:         Color(0xFF34D399),
+          accentLight:    Color(0xFF10B981),
+          accentFaint:    Color(0xFF0A2A1A),
+          iconActive:     Color(0xFF34D399),
+          iconInactive:   Color(0xFF4D7A5E),
+          border:         Color(0xFF1E3E2A),
+          highlight:      Color(0xFF34D399),
+          highlightFaint: Color(0xFF0A2A1A),
         );
-      case AppThemeColor.classicWhite:
+      case AppThemeColor.roseQuartz:
         return const AppPalette(
-          bg: Color(0xFF111111),
-          card: Color(0xFF1C1C1C),
-          navBg: Color(0xFF161616),
-          textPrimary: Color(0xFFE8E8E8),
-          textSecondary: Color(0xFFA0A0A0),
-          textMuted: Color(0xFF666666),
-          accent: Color(0xFF818CF8),
-          accentLight: Color(0xFF6366F1),
-          accentFaint: Color(0xFF1E1B4B),
-          iconActive: Color(0xFF818CF8),
-          iconInactive: Color(0xFF666666),
-          border: Color(0xFF2E2E2E),
-          highlight: Color(0xFF818CF8),
-          highlightFaint: Color(0xFF1E1B4B),
-        );
-      case AppThemeColor.warmDark:
-        return const AppPalette(
-          bg: Color(0xFF121212),
-          card: Color(0xFF1E1E1E),
-          navBg: Color(0xFF161616),
-          textPrimary: Color(0xFFE8E8E8),
-          textSecondary: Color(0xFFA0A0A0),
-          textMuted: Color(0xFF666666),
-          accent: Color(0xFFA5B4FC),
-          accentLight: Color(0xFF818CF8),
-          accentFaint: Color(0xFF1E1B4B),
-          iconActive: Color(0xFFA5B4FC),
-          iconInactive: Color(0xFF666666),
-          border: Color(0xFF2A2A2A),
-          highlight: Color(0xFF818CF8),
-          highlightFaint: Color(0xFF1E1B4B),
+          bg:             Color(0xFF1A0E14),
+          card:           Color(0xFF281820),
+          navBg:          Color(0xFF1E1218),
+          textPrimary:    Color(0xFFF0D8E4),
+          textSecondary:  Color(0xFFB894A4),
+          textMuted:      Color(0xFF785060),
+          accent:         Color(0xFFF9A8C9),
+          accentLight:    Color(0xFFE8729A),
+          accentFaint:    Color(0xFF2A1020),
+          iconActive:     Color(0xFFF9A8C9),
+          iconInactive:   Color(0xFF785060),
+          border:         Color(0xFF3E2030),
+          highlight:      Color(0xFFF9A8C9),
+          highlightFaint: Color(0xFF2A1020),
         );
     }
   }
