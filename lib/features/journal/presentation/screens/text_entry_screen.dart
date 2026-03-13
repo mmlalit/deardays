@@ -56,7 +56,6 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   void _refreshPrompts() {
     HapticFeedback.selectionClick();
     setState(() => _promptSeed++);
-    // Also try to fetch a new AI prompt
     ref.invalidate(writingPromptProvider);
   }
 
@@ -125,9 +124,11 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       child: Scaffold(
         backgroundColor: colors.bg,
         resizeToAvoidBottomInset: true,
-        body: _distractionFree
-            ? _buildDistractionFreeBody(colors)
-            : _buildNormalBody(colors),
+        body: SafeArea(
+          child: _distractionFree
+              ? _buildDistractionFreeBody(colors)
+              : _buildNormalBody(colors),
+        ),
       ),
     );
   }
@@ -177,42 +178,39 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   }
 
   Widget _buildMinimalTopBar(AppPalette colors) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: _exitDistractionFree,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.cardBg,
-                ),
-                child: Icon(Icons.arrow_back_rounded, size: 18, color: colors.textSecondary),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _exitDistractionFree,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withAlpha(15),
               ),
+              child: Icon(Icons.arrow_back_rounded, size: 18, color: colors.textPrimary),
             ),
-            const Spacer(),
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() => _distractionFree = false);
-              },
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.accent.withAlpha(20),
-                ),
-                child: Icon(Icons.fullscreen_exit_rounded, size: 18, color: colors.accent),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _distractionFree = false);
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withAlpha(20),
               ),
+              child: Icon(Icons.fullscreen_exit_rounded, size: 18, color: colors.accent),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -225,7 +223,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
         _buildTopBar(colors),
         // Prompts section
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: _buildPromptsSection(colors),
         ),
         // Expanded writing area fills remaining space
@@ -243,60 +241,62 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   // ── Top Bar ───────────────────────────────────────────────────────────────
 
   Widget _buildTopBar(AppPalette colors) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.cardBg,
-                ),
-                child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.border)),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withAlpha(15),
+                border: Border.all(color: colors.border),
+              ),
+              child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'Write Memory',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
               ),
             ),
-            Expanded(
-              child: Text(
-                'Write Memory',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
+          ),
+          // Focus toggle icon
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              if (_wordCount > 0) {
+                setState(() => _distractionFree = true);
+                _focusNode.requestFocus();
+              }
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withAlpha(15),
+                border: Border.all(color: colors.border),
+              ),
+              child: Icon(
+                Icons.fullscreen_rounded,
+                size: 20,
+                color: _wordCount > 0 ? colors.textSecondary : colors.textMuted.withAlpha(80),
               ),
             ),
-            // Focus toggle icon
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                if (_wordCount > 0) {
-                  setState(() => _distractionFree = true);
-                  _focusNode.requestFocus();
-                }
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.cardBg,
-                ),
-                child: Icon(
-                  Icons.fullscreen_rounded,
-                  size: 20,
-                  color: _wordCount > 0 ? colors.textSecondary : colors.textMuted.withAlpha(80),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -322,17 +322,29 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
               ),
             ),
             const Spacer(),
-            // Refresh button
             GestureDetector(
               onTap: _refreshPrompts,
               child: Container(
-                width: 32,
-                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(16),
                   color: colors.accent.withAlpha(15),
                 ),
-                child: Icon(Icons.refresh_rounded, size: 16, color: colors.accent),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh_rounded, size: 14, color: colors.accent),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Shuffle',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: colors.accent,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -360,13 +372,13 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: colors.cardBg,
+                    color: colors.card,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: colors.border),
                     boxShadow: [
                       BoxShadow(
-                        color: colors.textPrimary.withAlpha(8),
-                        blurRadius: 4,
+                        color: colors.textPrimary.withAlpha(12),
+                        blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
                     ],
@@ -395,36 +407,46 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   Widget _buildWritingArea(AppPalette colors) {
     return Container(
       decoration: BoxDecoration(
-        color: colors.cardBg,
+        color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
+        border: Border.all(color: colors.border, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: colors.textPrimary.withAlpha(8),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: TextField(
-        controller: _textController,
-        focusNode: _focusNode,
-        maxLines: null,
-        expands: true,
-        keyboardType: TextInputType.multiline,
-        textCapitalization: TextCapitalization.sentences,
-        textAlignVertical: TextAlignVertical.top,
-        cursorColor: colors.accent,
-        cursorWidth: 2,
-        style: GoogleFonts.manrope(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: colors.textPrimary,
-          height: 1.75,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Write about your day...',
-          hintStyle: GoogleFonts.manrope(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: TextField(
+          controller: _textController,
+          focusNode: _focusNode,
+          maxLines: null,
+          expands: true,
+          keyboardType: TextInputType.multiline,
+          textCapitalization: TextCapitalization.sentences,
+          textAlignVertical: TextAlignVertical.top,
+          cursorColor: colors.accent,
+          cursorWidth: 2,
+          style: GoogleFonts.manrope(
             fontSize: 16,
             fontWeight: FontWeight.w400,
-            color: colors.textMuted,
+            color: colors.textPrimary,
             height: 1.75,
           ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
+          decoration: InputDecoration(
+            hintText: 'Write about your day...',
+            hintStyle: GoogleFonts.manrope(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: colors.textMuted,
+              height: 1.75,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.all(16),
+          ),
         ),
       ),
     );
@@ -433,55 +455,55 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   // ── Bottom Bar ────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar(AppPalette colors) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: colors.highlightFaint,
-                borderRadius: BorderRadius.circular(20),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$_wordCount word${_wordCount == 1 ? '' : 's'}',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w600,
               ),
-              child: Text(
-                '$_wordCount word${_wordCount == 1 ? '' : 's'}',
+            ),
+          ),
+          const Spacer(),
+          SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _goToReview,
+              icon: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+              label: Text(
+                'Continue',
                 style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  color: colors.textMuted,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.white,
+                elevation: 2,
+                shadowColor: colors.accent.withAlpha(60),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
-            const Spacer(),
-            SizedBox(
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: _goToReview,
-                icon: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
-                label: Text(
-                  'Continue',
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.accent,
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shadowColor: colors.accent.withAlpha(60),
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

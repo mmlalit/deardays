@@ -129,100 +129,99 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
         ),
         border: Border(bottom: BorderSide(color: colors.border)),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.cardBg,
-                ),
-                child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // AI avatar
-            Container(
-              width: 38,
-              height: 38,
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [colors.accent, colors.accent.withAlpha(180)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.accent.withAlpha(40),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: colors.accent.withAlpha(15),
+                border: Border.all(color: colors.border),
               ),
-              child: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+              child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Aura',
-                    style: GoogleFonts.manrope(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: colors.textPrimary,
-                      letterSpacing: -0.3,
+          ),
+          const SizedBox(width: 12),
+          // AI avatar
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [colors.accent, colors.accent.withAlpha(180)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.accent.withAlpha(40),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Aura',
+                  style: GoogleFonts.manrope(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: state.isLoading ? Colors.orange : const Color(0xFF4CAF50),
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: state.isLoading ? Colors.orange : const Color(0xFF4CAF50),
-                        ),
+                    const SizedBox(width: 5),
+                    Text(
+                      state.isLoading ? 'Thinking...' : 'Online',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: colors.textMuted,
                       ),
-                      const SizedBox(width: 5),
-                      Text(
-                        state.isLoading ? 'Thinking...' : 'Online',
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: colors.textMuted,
-                        ),
-                      ),
-                      if (hasMood) ...[
-                        const SizedBox(width: 8),
-                        Icon(_moodIcon(moodLabel), size: 14, color: _moodColor(moodLabel)),
-                      ],
+                    ),
+                    if (hasMood) ...[
+                      const SizedBox(width: 8),
+                      Icon(_moodIcon(moodLabel), size: 14, color: _moodColor(moodLabel)),
                     ],
-                  ),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () => _showMoodPicker(),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.cardBg,
+                  ],
                 ),
-                child: Icon(Icons.tune_rounded, size: 20, color: colors.textSecondary),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          GestureDetector(
+            onTap: () => _showMoodPicker(),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.accent.withAlpha(15),
+                border: Border.all(color: colors.border),
+              ),
+              child: Icon(Icons.tune_rounded, size: 20, color: colors.textSecondary),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -472,7 +471,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: colors.cardBg,
+                color: colors.card,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -583,7 +582,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     final hasMessages = state.allMessages.where((m) => m.isUser).isNotEmpty;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(12, 10, 12, MediaQuery.of(context).padding.bottom > 0 ? 8 : 12),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       decoration: BoxDecoration(
         color: colors.bg,
         border: Border(top: BorderSide(color: colors.border)),
@@ -664,7 +663,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: colors.cardBg,
+                    color: colors.card,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: colors.border),
                   ),
