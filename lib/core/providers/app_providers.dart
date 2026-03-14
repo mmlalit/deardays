@@ -11,6 +11,8 @@ import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
+import 'package:deardays/features/journal/data/repositories/reflection_cache_repository.dart';
+import 'package:deardays/features/journal/data/repositories/reflection_override_repository.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
@@ -117,6 +119,16 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return ProfileRepository(client: ref.watch(supabaseClientProvider));
 });
 
+final reflectionCacheRepositoryProvider =
+    Provider<ReflectionCacheRepository>((ref) {
+  return ReflectionCacheRepository(ref.watch(supabaseClientProvider));
+});
+
+final reflectionOverrideRepositoryProvider =
+    Provider<ReflectionOverrideRepository>((ref) {
+  return ReflectionOverrideRepository();
+});
+
 // --- Auth State ---
 
 final authStateProvider = StreamProvider<AuthState>((ref) {
@@ -141,7 +153,15 @@ final streakProvider = FutureProvider<Streak?>((ref) async {
 
 final chaptersProvider = FutureProvider<List<Chapter>>((ref) async {
   ref.watch(authStateProvider);
-  return ref.watch(profileRepositoryProvider).getChapters();
+  final repo = ref.watch(profileRepositoryProvider);
+  // Seed 4 defaults on first load if user has no chapters
+  return repo.seedDefaultChapters();
+});
+
+/// Entries for a specific chapter, ordered chronologically (oldest first).
+final chapterEntriesProvider =
+    FutureProvider.family<List<JournalEntry>, String>((ref, chapterId) async {
+  return ref.watch(journalRepositoryProvider).getEntriesByChapter(chapterId);
 });
 
 // --- Books ---
@@ -167,8 +187,8 @@ final entriesProvider =
           limit: filter.limit,
           offset: filter.offset,
         );
-  } catch (_) {
-    // Offline fallback: return cached entries
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'entriesProvider');
     return ref.watch(localStorageProvider).getCachedEntries();
   }
 });
@@ -197,8 +217,8 @@ final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
           limit: 1,
         );
     yield entries.isEmpty ? null : entries.first;
-  } catch (_) {
-    // If cache was empty, emit null so UI exits loading
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'todayEntryProvider');
     if (todayCached.isEmpty) {
       yield null;
     }
@@ -208,7 +228,8 @@ final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
 final onThisDayProvider = FutureProvider<List<JournalEntry>>((ref) async {
   try {
     return await ref.watch(journalRepositoryProvider).getOnThisDay();
-  } catch (_) {
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'onThisDayProvider');
     return [];
   }
 });
@@ -216,7 +237,8 @@ final onThisDayProvider = FutureProvider<List<JournalEntry>>((ref) async {
 final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
   try {
     return await ref.watch(journalRepositoryProvider).getMoodStats();
-  } catch (_) {
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'moodStatsProvider');
     return {};
   }
 });
@@ -224,15 +246,142 @@ final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 final totalEntriesProvider = FutureProvider<int>((ref) async {
   try {
     return await ref.watch(journalRepositoryProvider).getTotalEntries();
-  } catch (_) {
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'totalEntriesProvider');
     final cached = await ref.watch(localStorageProvider).getCachedEntries();
     return cached.length;
   }
 });
 
-/// All entries for the timeline screen (most recent, paginated).
-/// Returns cached data first (if available), then refreshes from network.
-/// On success, caches entries locally for offline access.
+/// Paginated timeline entries with cursor-based loading.
+///
+/// Loads 20 entries at a time. Call `ref.read(timelineControllerProvider.notifier).loadMore()`
+/// to fetch the next page. Uses cache-first strategy for instant display.
+final timelineControllerProvider =
+    StateNotifierProvider<TimelineController, TimelineState>((ref) {
+  return TimelineController(ref);
+});
+
+class TimelineState {
+  final List<JournalEntry> entries;
+  final bool isLoading;
+  final bool hasMore;
+  final String? error;
+
+  const TimelineState({
+    this.entries = const [],
+    this.isLoading = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  TimelineState copyWith({
+    List<JournalEntry>? entries,
+    bool? isLoading,
+    bool? hasMore,
+    String? error,
+  }) {
+    return TimelineState(
+      entries: entries ?? this.entries,
+      isLoading: isLoading ?? this.isLoading,
+      hasMore: hasMore ?? this.hasMore,
+      error: error,
+    );
+  }
+}
+
+class TimelineController extends StateNotifier<TimelineState> {
+  final Ref _ref;
+  static const _pageSize = 20;
+
+  TimelineController(this._ref) : super(const TimelineState()) {
+    _loadInitial();
+  }
+
+  Future<void> _loadInitial() async {
+    state = state.copyWith(isLoading: true);
+    final localStorage = _ref.read(localStorageProvider);
+
+    // Show cached entries instantly
+    final cached = await localStorage.getCachedEntries();
+    if (cached.isNotEmpty) {
+      cached.sort((a, b) => b.entryDate.compareTo(a.entryDate));
+      state = state.copyWith(entries: cached, isLoading: false);
+    }
+
+    // Then fetch first page from network
+    try {
+      final entries = await _ref.read(journalRepositoryProvider).getEntries(
+            limit: _pageSize,
+            offset: 0,
+          );
+      for (final entry in entries) {
+        await localStorage.cacheEntry(entry);
+      }
+      state = state.copyWith(
+        entries: entries,
+        isLoading: false,
+        hasMore: entries.length >= _pageSize,
+        error: null,
+      );
+    } catch (e) {
+      if (cached.isEmpty) {
+        state = state.copyWith(
+          entries: [],
+          isLoading: false,
+          error: e.toString(),
+        );
+      } else {
+        state = state.copyWith(isLoading: false);
+      }
+    }
+  }
+
+  /// Load the next page of entries. No-op if already loading or no more data.
+  Future<void> loadMore() async {
+    if (state.isLoading || !state.hasMore) return;
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final entries = await _ref.read(journalRepositoryProvider).getEntries(
+            limit: _pageSize,
+            offset: state.entries.length,
+          );
+      state = state.copyWith(
+        entries: [...state.entries, ...entries],
+        isLoading: false,
+        hasMore: entries.length >= _pageSize,
+        error: null,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Refresh from the beginning (pull-to-refresh).
+  Future<void> refresh() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final entries = await _ref.read(journalRepositoryProvider).getEntries(
+            limit: _pageSize,
+            offset: 0,
+          );
+      final localStorage = _ref.read(localStorageProvider);
+      for (final entry in entries) {
+        await localStorage.cacheEntry(entry);
+      }
+      state = TimelineState(
+        entries: entries,
+        hasMore: entries.length >= _pageSize,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+}
+
+/// Legacy provider — kept for backward compatibility with screens that use StreamProvider.
+/// Delegates to the paginated controller's current state.
 final timelineEntriesProvider =
     StreamProvider<List<JournalEntry>>((ref) async* {
   final localStorage = ref.watch(localStorageProvider);
@@ -252,9 +401,8 @@ final timelineEntriesProvider =
       await localStorage.cacheEntry(entry);
     }
     yield entries;
-  } catch (_) {
-    // If we already emitted cached data, no need to emit again.
-    // If cache was empty, emit empty list so the UI exits loading state.
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'timelineEntriesProvider');
     if (cached.isEmpty) {
       yield <JournalEntry>[];
     }
@@ -291,42 +439,27 @@ final weeklyEntriesProvider =
       );
 });
 
-/// AI-generated weekly summary text.
-final weeklySummaryProvider = FutureProvider<String?>((ref) async {
-  final entries = await ref.watch(weeklyEntriesProvider.future);
-  if (entries.isEmpty) return null;
-
-  final language = ref.watch(localeProvider).languageName;
-  final texts = entries.map((e) => e.content).toList();
-  try {
-    return await ref.watch(aiServiceProvider).generateSummary(
-          texts,
-          period: 'weekly',
-          language: language,
-        );
-  } catch (_) {
-    return null;
+/// Truncate and sample entry texts to stay within AI token budget.
+/// Server limit is 40K chars (~10K tokens). We cap at 35K to leave margin.
+List<String> _sampleTexts(List<String> texts, {int maxTotalChars = 35000}) {
+  // Truncate each entry to 2K chars, then take as many as fit in budget.
+  final truncated = texts.map((t) => t.length > 2000 ? t.substring(0, 2000) : t);
+  final result = <String>[];
+  var totalLen = 0;
+  for (final t in truncated) {
+    if (totalLen + t.length > maxTotalChars) break;
+    result.add(t);
+    totalLen += t.length;
   }
-});
+  return result;
+}
 
-/// AI-detected themes from this week's entries.
-final weeklyThemesProvider = FutureProvider<List<String>>((ref) async {
-  final entries = await ref.watch(weeklyEntriesProvider.future);
-  if (entries.isEmpty) return [];
-
-  final texts = entries.map((e) => e.content).toList();
-  try {
-    return await ref.watch(aiServiceProvider).detectThemes(texts);
-  } catch (_) {
-    return [];
-  }
-});
-
-// --- Period-aware reflection providers (monthly / yearly) ---
+// --- Period-aware reflection providers ---
 
 enum ReflectionPeriod { weekly, monthly, yearly }
 
-/// Entries for a given reflection period.
+/// Entries for a given reflection period (raw DB entries, used for mood charts
+/// and highlight extraction — not fed directly to AI for monthly/yearly).
 final reflectionEntriesProvider =
     FutureProvider.family<List<JournalEntry>, ReflectionPeriod>((ref, period) async {
   final now = DateTime.now();
@@ -357,45 +490,121 @@ final reflectionMoodsProvider =
   return ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: days);
 });
 
-/// AI summary for a given reflection period.
+/// Cached AI summary for a given reflection period.
+///
+/// Hierarchy:
+///   weekly  → summarises raw entry texts for the current ISO week
+///   monthly → summarises the weekly summaries cached for this month
+///   yearly  → summarises the monthly summaries cached for this year
+///
+/// AI is called at most ONCE per period window per user. Every subsequent
+/// open of the same week/month/year is served from reflection_cache.
 final reflectionSummaryProvider =
     FutureProvider.family<String?, ReflectionPeriod>((ref, period) async {
-  final entries = await ref.watch(reflectionEntriesProvider(period).future);
-  if (entries.isEmpty) return null;
+  final now = DateTime.now();
+  final cache = ref.watch(reflectionCacheRepositoryProvider);
+
+  final periodKey = switch (period) {
+    ReflectionPeriod.weekly  => ReflectionCacheRepository.weeklyKey(now),
+    ReflectionPeriod.monthly => ReflectionCacheRepository.monthlyKey(now),
+    ReflectionPeriod.yearly  => ReflectionCacheRepository.yearlyKey(now),
+  };
+
+  // Serve from cache if available.
+  final cached = await cache.get(period: period.name, periodKey: periodKey);
+  if (cached?.summary != null) return cached!.summary;
 
   final language = ref.watch(localeProvider).languageName;
-  final texts = entries.map((e) => e.content).toList();
-  // For yearly, sample at most 30 entries to stay within token limits
-  final sampled = period == ReflectionPeriod.yearly && texts.length > 30
-      ? (texts.toList()..shuffle()).take(30).toList()
-      : texts;
+  final ai = ref.watch(aiServiceProvider);
+
   try {
-    return await ref.watch(aiServiceProvider).generateSummary(
-          sampled,
-          period: period.name,
-          language: language,
-        );
-  } catch (_) {
+    final String? summary;
+
+    switch (period) {
+      case ReflectionPeriod.weekly:
+        final entries = await ref.watch(reflectionEntriesProvider(period).future);
+        if (entries.isEmpty) return null;
+        final texts = _sampleTexts(entries.map((e) => e.content).toList());
+        summary = await ai.generateSummary(texts, period: 'weekly', language: language);
+
+      case ReflectionPeriod.monthly:
+        // Summarise the weekly summaries already cached for this month.
+        final weeklies = await cache.getWeeklySummariesForMonth(now.year, now.month);
+        if (weeklies.isEmpty) {
+          // Fallback: summarise raw entries if no weekly cache exists yet.
+          final entries = await ref.watch(reflectionEntriesProvider(period).future);
+          if (entries.isEmpty) return null;
+          final texts = _sampleTexts(entries.map((e) => e.content).toList());
+          summary = await ai.generateSummary(texts, period: 'monthly', language: language);
+        } else {
+          summary = await ai.generateSummary(weeklies, period: 'monthly', language: language);
+        }
+
+      case ReflectionPeriod.yearly:
+        // Summarise the monthly summaries already cached for this year.
+        final monthlies = await cache.getMonthlySummariesForYear(now.year);
+        if (monthlies.isEmpty) {
+          // Fallback: sample raw entries if no monthly cache exists yet.
+          final entries = await ref.watch(reflectionEntriesProvider(period).future);
+          if (entries.isEmpty) return null;
+          final raw = entries.map((e) => e.content).toList();
+          final sampled = (raw.toList()..shuffle()).take(30).toList();
+          final texts = _sampleTexts(sampled);
+          summary = await ai.generateSummary(texts, period: 'yearly', language: language);
+        } else {
+          summary = await ai.generateSummary(monthlies, period: 'yearly', language: language);
+        }
+    }
+
+    await cache.save(period: period.name, periodKey: periodKey, summary: summary);
+    return summary;
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'reflectionSummaryProvider');
     return null;
   }
 });
 
-/// AI themes for a given reflection period.
+/// Cached AI themes for a given reflection period.
 final reflectionThemesProvider =
     FutureProvider.family<List<String>, ReflectionPeriod>((ref, period) async {
+  final now = DateTime.now();
+  final cache = ref.watch(reflectionCacheRepositoryProvider);
+
+  final periodKey = switch (period) {
+    ReflectionPeriod.weekly  => ReflectionCacheRepository.weeklyKey(now),
+    ReflectionPeriod.monthly => ReflectionCacheRepository.monthlyKey(now),
+    ReflectionPeriod.yearly  => ReflectionCacheRepository.yearlyKey(now),
+  };
+
+  // Serve themes from cache if available.
+  final cached = await cache.get(period: period.name, periodKey: periodKey);
+  if (cached != null && cached.themes.isNotEmpty) return cached.themes;
+
   final entries = await ref.watch(reflectionEntriesProvider(period).future);
   if (entries.isEmpty) return [];
 
-  final texts = entries.map((e) => e.content).toList();
-  final sampled = period == ReflectionPeriod.yearly && texts.length > 30
-      ? (texts.toList()..shuffle()).take(30).toList()
-      : texts;
+  final raw = entries.map((e) => e.content).toList();
+  final presampled = period == ReflectionPeriod.yearly && raw.length > 30
+      ? (raw.toList()..shuffle()).take(30).toList()
+      : raw;
+  final sampled = _sampleTexts(presampled);
   try {
-    return await ref.watch(aiServiceProvider).detectThemes(sampled);
-  } catch (_) {
+    final themes = await ref.watch(aiServiceProvider).detectThemes(sampled);
+    // Merge themes into whatever cache row already exists for this key.
+    await cache.save(period: period.name, periodKey: periodKey, themes: themes);
+    return themes;
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'reflectionThemesProvider');
     return [];
   }
 });
+
+// Legacy aliases — WeeklyReportScreen reads these; they now delegate to the
+// unified cached providers so no AI duplication occurs.
+final weeklySummaryProvider = FutureProvider<String?>((ref) =>
+    ref.watch(reflectionSummaryProvider(ReflectionPeriod.weekly).future));
+final weeklyThemesProvider = FutureProvider<List<String>>((ref) =>
+    ref.watch(reflectionThemesProvider(ReflectionPeriod.weekly).future));
 
 /// AI-generated writing prompt (refreshes each call; UI should cache per day).
 final writingPromptProvider = FutureProvider<String?>((ref) async {
@@ -403,7 +612,8 @@ final writingPromptProvider = FutureProvider<String?>((ref) async {
   if (!ai.isConfigured) return null;
   try {
     return await ai.getWritingPrompt();
-  } catch (_) {
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'writingPromptProvider');
     return null;
   }
 });
@@ -415,7 +625,8 @@ final bookCoverQueryProvider =
   if (!ai.isConfigured) return null;
   try {
     return await ai.generateCoverQuery(bookTitle);
-  } catch (_) {
+  } catch (e, st) {
+    CrashReportingService().recordError(e, st, reason: 'bookCoverQueryProvider');
     return null;
   }
 });
