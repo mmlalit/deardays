@@ -57,7 +57,10 @@ END;
 $$;
 
 -- 4. Update the decrypted view to pass through content for client-encrypted rows.
-CREATE OR REPLACE VIEW public.journal_entries_decrypted AS
+-- Must DROP first: CREATE OR REPLACE cannot reorder or insert columns mid-list.
+DROP VIEW IF EXISTS public.journal_entries_decrypted;
+
+CREATE VIEW public.journal_entries_decrypted AS
 SELECT
   id,
   user_id,
@@ -85,13 +88,13 @@ SELECT
     WHEN is_client_encrypted THEN polished_content
     ELSE public.app_decrypt(polished_content)
   END AS polished_content,
-  is_client_encrypted,
-  chapter_id,
   created_at,
-  updated_at
+  updated_at,
+  -- New columns added after existing ones to satisfy CREATE OR REPLACE rules.
+  is_client_encrypted,
+  chapter_id
 FROM public.journal_entries;
 
--- Re-grant (CREATE OR REPLACE drops grants on views in some Postgres versions).
 GRANT SELECT ON public.journal_entries_decrypted TO authenticated;
 
 COMMENT ON COLUMN public.profiles.e2e_enabled IS
