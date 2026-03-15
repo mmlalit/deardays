@@ -4,7 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/login_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/set_passphrase_screen.dart';
+import 'package:deardays/features/auth/presentation/screens/e2e_passphrase_gate_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
+import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/features/journal/presentation/screens/recording_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/processing_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
@@ -28,33 +30,41 @@ import 'package:deardays/features/share/presentation/screens/share_card_screen.d
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 import 'package:deardays/features/book/presentation/screens/book_creation_screen.dart';
 import 'package:deardays/features/book/presentation/screens/book_detail_screen.dart';
+import 'package:deardays/features/book/presentation/screens/chapter_detail_screen.dart';
+import 'package:deardays/features/book/presentation/screens/book_reader_screen.dart';
+import 'package:deardays/features/book/data/models/book_page.dart';
+import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/generated_book.dart';
 import 'package:deardays/core/routing/app_shell.dart';
 import 'package:deardays/features/search/presentation/screens/search_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/weekly_report_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/reflection_screen.dart';
+import 'package:deardays/core/config/supabase_config.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/settings/presentation/screens/backup_restore_screen.dart';
 import 'package:deardays/features/story/presentation/screens/story_viewer_screen.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier() {
-    Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-      notifyListeners();
-    });
+    if (SupabaseConfig.supabaseUrl.isNotEmpty) {
+      Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+        notifyListeners();
+      });
+    }
   }
 }
 
 class AppRouter {
   AppRouter._();
 
-  static const _publicPaths = {'/onboarding', '/login', '/set-passphrase'};
+  static const _publicPaths = {'/onboarding', '/login', '/set-passphrase', '/e2e-gate'};
   static final _authNotifier = _AuthChangeNotifier();
 
   static final router = GoRouter(
     initialLocation: '/onboarding',
     refreshListenable: _authNotifier,
     redirect: (context, state) {
+      if (SupabaseConfig.supabaseUrl.isEmpty) return null;
       final user = Supabase.instance.client.auth.currentUser;
       final isLoggedIn = user != null;
       final currentPath = state.matchedLocation;
@@ -79,7 +89,13 @@ class AppRouter {
       GoRoute(
         path: '/login',
         builder: (context, state) => LoginScreen(
-          onLogin: () => context.go('/home'),
+          onLogin: () => context.go('/e2e-gate'),
+        ),
+      ),
+      GoRoute(
+        path: '/e2e-gate',
+        builder: (context, state) => _E2EGateWidget(
+          onDone: () => context.go('/home'),
         ),
       ),
       GoRoute(
@@ -278,6 +294,129 @@ class AppRouter {
         path: '/story',
         builder: (context, state) => const StoryViewerScreen(),
       ),
+      GoRoute(
+        path: '/chapter/:id',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is! Chapter) {
+            return const HomeScreen();
+          }
+          return ChapterDetailScreen(chapter: extra);
+        },
+      ),
+      GoRoute(
+        path: '/book-reader',
+        builder: (context, state) {
+          final mode = state.extra;
+          return BookReaderScreen(
+            mode: mode is BookMode ? mode : BookMode.stream,
+          );
+        },
+      ),
     ],
   );
+}
+
+/// Checks whether E2E is enabled for the current user. If so, shows the
+/// passphrase gate; otherwise passes straight through to [onDone].
+/// This runs once at login time before the main shell is mounted.
+class _E2EGateWidget extends StatefulWidget {
+  final VoidCallback onDone;
+  const _E2EGateWidget({required this.onDone});
+
+  @override
+  State<_E2EGateWidget> createState() => _E2EGateWidgetState();
+}
+
+class _E2EGateWidgetState extends State<_E2EGateWidget> {
+  bool _checked = false;
+  bool _needsGate = false;
+  String? _salt;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    // If the key is already loaded (e.g. passphrase changed mid-session),
+    // skip the gate.
+    if (EncryptionService().currentKey != null) {
+      widget.onDone();
+      return;
+    }
+
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) {
+        widget.onDone();
+        return;
+      }
+
+      final profile = await client
+          .from('profiles')
+          .select('e2e_enabled, e2e_salt')
+          .eq('id', userId)
+          .maybeSingle();
+
+      final e2eEnabled = (profile?['e2e_enabled'] as bool?) ?? false;
+      final salt = profile?['e2e_salt'] as String?;
+
+      if (!e2eEnabled || salt == null) {
+        if (mounted) widget.onDone();
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _checked = true;
+          _needsGate = true;
+          _salt = salt;
+        });
+      }
+    } catch (_) {
+      // On any error (network, etc.) let the user through without E2E.
+      if (mounted) widget.onDone();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_checked) {
+      // Brief loading state while we fetch the profile.
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_needsGate && _salt != null) {
+      return E2EPassphraseGateScreen(
+        e2eSalt: _salt!,
+        onUnlocked: widget.onDone,
+        onForgot: () async {
+          // Disable E2E and delete encrypted entries, then proceed.
+          final client = Supabase.instance.client;
+          final userId = client.auth.currentUser?.id;
+          if (userId != null) {
+            await client.from('journal_entries')
+                .delete()
+                .eq('user_id', userId)
+                .eq('is_client_encrypted', true);
+            await client.from('profiles').update({
+              'e2e_enabled': false,
+              'e2e_salt': null,
+              'e2e_enabled_at': null,
+            }).eq('id', userId);
+          }
+          if (mounted) widget.onDone();
+        },
+      );
+    }
+
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
 }

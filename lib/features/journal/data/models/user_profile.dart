@@ -21,6 +21,12 @@ class UserProfile {
   final bool doNotSell;
   final DateTime? consentWithdrawnAt;
 
+  // E2E encryption opt-in fields
+  final bool e2eEnabled;
+  final String? e2eSalt;
+  final DateTime? e2eConsentGivenAt;
+  final DateTime? e2eEnabledAt;
+
   const UserProfile({
     required this.id,
     this.displayName,
@@ -41,6 +47,10 @@ class UserProfile {
     this.dateOfBirth,
     this.doNotSell = false,
     this.consentWithdrawnAt,
+    this.e2eEnabled = false,
+    this.e2eSalt,
+    this.e2eConsentGivenAt,
+    this.e2eEnabledAt,
   });
 
   /// Whether the user is still within the free trial period.
@@ -74,6 +84,10 @@ class UserProfile {
     DateTime? dateOfBirth,
     bool? doNotSell,
     DateTime? consentWithdrawnAt,
+    bool? e2eEnabled,
+    String? e2eSalt,
+    DateTime? e2eConsentGivenAt,
+    DateTime? e2eEnabledAt,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -98,6 +112,10 @@ class UserProfile {
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       doNotSell: doNotSell ?? this.doNotSell,
       consentWithdrawnAt: consentWithdrawnAt ?? this.consentWithdrawnAt,
+      e2eEnabled: e2eEnabled ?? this.e2eEnabled,
+      e2eSalt: e2eSalt ?? this.e2eSalt,
+      e2eConsentGivenAt: e2eConsentGivenAt ?? this.e2eConsentGivenAt,
+      e2eEnabledAt: e2eEnabledAt ?? this.e2eEnabledAt,
     );
   }
 
@@ -122,6 +140,10 @@ class UserProfile {
       'date_of_birth': dateOfBirth?.toIso8601String().split('T').first,
       'do_not_sell': doNotSell,
       'consent_withdrawn_at': consentWithdrawnAt?.toIso8601String(),
+      'e2e_enabled': e2eEnabled,
+      'e2e_salt': e2eSalt,
+      'e2e_consent_given_at': e2eConsentGivenAt?.toIso8601String(),
+      'e2e_enabled_at': e2eEnabledAt?.toIso8601String(),
     };
   }
 
@@ -155,6 +177,14 @@ class UserProfile {
       doNotSell: (map['do_not_sell'] as bool?) ?? false,
       consentWithdrawnAt: map['consent_withdrawn_at'] != null
           ? DateTime.parse(map['consent_withdrawn_at'] as String)
+          : null,
+      e2eEnabled: (map['e2e_enabled'] as bool?) ?? false,
+      e2eSalt: map['e2e_salt'] as String?,
+      e2eConsentGivenAt: map['e2e_consent_given_at'] != null
+          ? DateTime.parse(map['e2e_consent_given_at'] as String)
+          : null,
+      e2eEnabledAt: map['e2e_enabled_at'] != null
+          ? DateTime.parse(map['e2e_enabled_at'] as String)
           : null,
     );
   }

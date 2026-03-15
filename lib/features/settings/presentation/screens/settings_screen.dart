@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,7 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
@@ -24,7 +26,9 @@ import 'package:deardays/features/settings/presentation/screens/terms_screen.dar
 import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/e2e_encryption_screen.dart';
 import 'package:deardays/core/widgets/snack_bar_helper.dart';
+import 'package:deardays/core/providers/subscription_providers.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -437,7 +441,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Future<void> _clearReminderTimeFromProfile() async {
-    final profileRepo = ref.read(profileRepositoryProvider);
     final client = ref.read(supabaseClientProvider);
     final userId = client.auth.currentUser?.id;
     if (userId != null) {
@@ -587,72 +590,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Encryption Info
-  // ---------------------------------------------------------------------------
-
-  void _showEncryptionInfo() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.shield_outlined, color: AppColors.of(context).accent, size: 24),
-            const SizedBox(width: 10),
-            Text('Data Encryption',
-                style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _infoRow('Algorithm', 'PGP Symmetric (AES-256)'),
-            _infoRow('Key Storage', 'Supabase Vault'),
-            _infoRow('Scope', 'All journal content columns'),
-            const SizedBox(height: 12),
-            Text(
-              'Your journal content is encrypted server-side using a key stored '
-              'in Supabase Vault. If the database is compromised, content columns '
-              'contain only ciphertext. Data is also encrypted in transit via HTTPS.',
-              style: GoogleFonts.manrope(
-                fontSize: 13, height: 1.5, color: AppColors.of(context).textSecondary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Got it', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(label,
-                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.of(context).textSecondary)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: GoogleFonts.manrope(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.of(context).textPrimary)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
   // Export All Data — polished bottom sheet
   // ---------------------------------------------------------------------------
 
@@ -702,33 +639,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 ),
               ),
               const SizedBox(height: 20),
-              // PDF option
+              // JSON option (only working export)
+              _ExportOptionCard(
+                icon: Icons.data_object_rounded,
+                iconColor: const Color(0xFF3B82F6),
+                label: 'JSON',
+                description: 'Full data backup — all entries & metadata',
+                onTap: () => Navigator.pop(ctx, 'json'),
+                colors: colors,
+              ),
+              const SizedBox(height: 12),
+              // PDF option — coming soon
               _ExportOptionCard(
                 icon: Icons.picture_as_pdf_rounded,
                 iconColor: const Color(0xFFEF4444),
                 label: 'PDF',
                 description: 'Beautiful formatted document',
-                onTap: () => Navigator.pop(ctx, 'pdf'),
+                badge: 'Coming soon',
+                onTap: null,
                 colors: colors,
               ),
               const SizedBox(height: 12),
-              // JSON option
-              _ExportOptionCard(
-                icon: Icons.data_object_rounded,
-                iconColor: const Color(0xFF3B82F6),
-                label: 'JSON',
-                description: 'Raw data backup',
-                onTap: () => Navigator.pop(ctx, 'json'),
-                colors: colors,
-              ),
-              const SizedBox(height: 12),
-              // Plain text option
+              // Plain text option — coming soon
               _ExportOptionCard(
                 icon: Icons.text_snippet_rounded,
                 iconColor: const Color(0xFF10B981),
                 label: 'Plain Text',
                 description: 'Simple text file',
-                onTap: () => Navigator.pop(ctx, 'txt'),
+                badge: 'Coming soon',
+                onTap: null,
                 colors: colors,
               ),
             ],
@@ -774,7 +713,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       AppSnackBar.success(context, 'Exporting your data...');
 
       final journalRepo = ref.read(journalRepositoryProvider);
-      final entries = await journalRepo.getEntries(limit: 10000);
+      // Paginated fetch to avoid OOM on accounts with many entries
+      final entries = <JournalEntry>[];
+      const pageSize = 500;
+      var offset = 0;
+      while (true) {
+        final page = await journalRepo.getEntries(limit: pageSize, offset: offset);
+        entries.addAll(page);
+        if (page.length < pageSize) break;
+        offset += pageSize;
+      }
 
       final exportData = {
         'exported_at': DateTime.now().toUtc().toIso8601String(),
@@ -934,19 +882,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   _buildSectionLabel('Account'),
                   _buildCardGroup(cardColor, [
                     _buildCardRow(
-                      icon: Icons.mail_outlined,
-                      label: 'Email',
+                      icon: Icons.person_outline_rounded,
+                      label: 'Edit Profile',
                       textColor: textColor,
-                      trailing: Text(
-                        Supabase.instance.client.auth.currentUser?.email ?? '',
-                        style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
-                      ),
-                    ),
-                    _buildCardRow(
-                      icon: Icons.lock_outlined,
-                      label: 'Password',
-                      textColor: textColor,
-                      trailing: Text('Change', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: palette.textPrimary)),
+                      trailing: Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.of(context).textMuted),
                       onTap: _changePassword,
                     ),
                     _buildCardRow(
@@ -954,20 +893,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       iconColor: AppColors.of(context).accent,
                       label: 'Subscription',
                       textColor: textColor,
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.of(context).accent.withAlpha(20),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Premium Plan',
-                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.of(context).accent),
-                        ),
-                      ),
+                      trailing: Builder(builder: (_) {
+                        final sub = ref.watch(subscriptionProvider);
+                        final label = sub.isPremium
+                            ? (sub.activePlan == 'yearly' ? 'Premium (Yearly)' : 'Premium')
+                            : 'Free Plan';
+                        final color = sub.isPremium
+                            ? AppColors.of(context).accent
+                            : AppColors.of(context).textMuted;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: color.withAlpha(20),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            label,
+                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                          ),
+                        );
+                      }),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                       ),
+                    ),
+                    _buildCardRow(
+                      icon: Icons.logout_rounded,
+                      iconColor: AppColors.error,
+                      label: 'Sign Out',
+                      textColor: AppColors.error,
+                      trailing: const SizedBox.shrink(),
+                      onTap: _signOut,
                       isLast: true,
                     ),
                   ]),
@@ -1028,7 +984,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('Memoir', style: GoogleFonts.manrope(fontSize: 12, color: subtextColor)),
+                          Text(
+                            () {
+                              final style = ref.watch(profileProvider).valueOrNull?.writingStyle ?? 'memoir';
+                              return style[0].toUpperCase() + style.substring(1);
+                            }(),
+                            style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
+                          ),
                           const SizedBox(width: 4),
                           Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.of(context).textMuted.withAlpha(76)),
                         ],
@@ -1074,67 +1036,66 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   _buildSectionLabel('Privacy & Security'),
                   _buildCardGroup(cardColor, [
                     _buildCardRow(
-                      icon: Icons.fingerprint,
-                      label: 'Biometric Lock',
+                      icon: Icons.lock_outline_rounded,
+                      label: 'App Lock',
                       textColor: textColor,
-                      trailing: _buildCustomToggle(
-                        value: _biometricLockEnabled,
-                        onChanged: _biometricAvailable ? _toggleBiometric : null,
+                      subtitle: _lockMethod == 'none' && !_biometricLockEnabled
+                          ? 'No lock set'
+                          : _biometricLockEnabled
+                              ? 'Biometric'
+                              : _lockMethod == 'pin'
+                                  ? 'PIN active'
+                                  : 'Pattern active',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_lockMethod != 'none' || _biometricLockEnabled)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.of(context).accent.withAlpha(20),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text('Active', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.of(context).accent)),
+                            ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.of(context).textMuted),
+                        ],
                       ),
-                    ),
-                    _buildCardRow(
-                      icon: Icons.dialpad,
-                      label: 'PIN Lock',
-                      textColor: textColor,
-                      trailing: _lockMethod == 'pin'
-                          ? GestureDetector(
-                              onTap: _clearLockMethod,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.of(context).accent.withAlpha(20),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text('Active', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.of(context).accent)),
-                              ),
-                            )
-                          : GestureDetector(
-                              onTap: _setupPin,
-                              child: Text('Set up', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.of(context).accent)),
-                            ),
-                    ),
-                    _buildCardRow(
-                      icon: Icons.pattern,
-                      label: 'Pattern Lock',
-                      textColor: textColor,
-                      trailing: _lockMethod == 'pattern'
-                          ? GestureDetector(
-                              onTap: _clearLockMethod,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.of(context).accent.withAlpha(20),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text('Active', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.of(context).accent)),
-                              ),
-                            )
-                          : GestureDetector(
-                              onTap: _setupPattern,
-                              child: Text('Set up', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.of(context).accent)),
-                            ),
+                      onTap: _showAppLockPicker,
                     ),
                     _buildCardRow(
                       icon: Icons.enhanced_encryption_outlined,
-                      label: 'Encryption Info',
+                      label: 'End-to-End Encryption',
                       textColor: textColor,
-                      trailing: Icon(Icons.info_outline, size: 16, color: AppColors.of(context).textMuted.withAlpha(102)),
-                      onTap: _showEncryptionInfo,
+                      subtitle: ref.watch(profileProvider).valueOrNull?.e2eEnabled == true
+                          ? 'Active — only you can read your entries'
+                          : 'Off — tap to set up',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (ref.watch(profileProvider).valueOrNull?.e2eEnabled == true)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.of(context).accent.withAlpha(20),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text('On', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.of(context).accent)),
+                            ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.of(context).textMuted),
+                        ],
+                      ),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const E2EEncryptionScreen()),
+                      ),
                     ),
                     _buildCardRow(
                       icon: Icons.health_and_safety_outlined,
                       label: 'Mood Data Consent',
                       textColor: textColor,
+                      subtitle: 'Allow mood analytics to improve AI insights',
                       trailing: _buildCustomToggle(value: _healthConsent, onChanged: _toggleHealthConsent),
                       isLast: true,
                     ),
@@ -1155,20 +1116,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       label: 'Export All Data',
                       textColor: textColor,
                       trailing: Text(
-                        'PDF / JSON',
+                        'JSON',
                         style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.of(context).accent),
                       ),
                       onTap: _exportAllData,
-                    ),
-                    _buildCardRow(
-                      icon: Icons.delete_forever,
-                      label: 'Delete Account',
-                      textColor: textColor,
-                      trailing: const SizedBox.shrink(),
-                      onTap: _deleteAccount,
                       isLast: true,
                     ),
                   ]),
+                  const SizedBox(height: 16),
+                  // DELETE ACCOUNT — separated from safe data actions
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GestureDetector(
+                      onTap: _deleteAccount,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withAlpha(10),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.error.withAlpha(50)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.delete_forever_rounded, size: 22, color: AppColors.error),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Delete Account',
+                                      style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
+                                  Text('Permanently erases all your journal data',
+                                      style: GoogleFonts.manrope(fontSize: 11, color: AppColors.error.withAlpha(180))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   // ABOUT
                   _buildSectionLabel('About'),
@@ -1199,30 +1187,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       isLast: true,
                     ),
                   ]),
-                  const SizedBox(height: 24),
-                  // SIGN OUT
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: _signOut,
-                        icon: const Icon(Icons.logout_rounded, size: 18),
-                        label: Text(
-                          'Sign Out',
-                          style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error.withAlpha(68)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 36),
                   _buildFooter(textColor),
                   const SizedBox(height: 32),
@@ -1342,12 +1306,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     ),
                     child: avatarUrl != null && avatarUrl.isNotEmpty
                         ? ClipOval(
-                            child: Image.network(
-                              avatarUrl,
+                            child: CachedNetworkImage(
+                              imageUrl: avatarUrl,
                               width: 90,
                               height: 90,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _buildInitialsCircle(initials),
+                              memCacheWidth: 180,
+                              memCacheHeight: 180,
+                              errorWidget: (_, __, ___) => _buildInitialsCircle(initials),
                             ),
                           )
                         : _buildInitialsCircle(initials),
@@ -1450,6 +1416,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget _buildCardRow({
     IconData? icon,
     required String label,
+    String? subtitle,
     required Widget trailing,
     Color? iconColor,
     Color? labelColor,
@@ -1472,16 +1439,146 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               const SizedBox(width: 12),
             ],
             Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: labelColor ?? textColor ?? AppColors.of(context).textPrimary,
-                ),
-              ),
+              child: subtitle != null
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: labelColor ?? textColor ?? AppColors.of(context).textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            color: AppColors.of(context).textMuted,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      label,
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: labelColor ?? textColor ?? AppColors.of(context).textPrimary,
+                      ),
+                    ),
             ),
             trailing,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // App Lock Picker
+  // ---------------------------------------------------------------------------
+
+  Future<void> _showAppLockPicker() async {
+    final colors = AppColors.of(context);
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('App Lock', style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              const SizedBox(height: 4),
+              Text('Choose how to protect your journal', style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary)),
+              const SizedBox(height: 16),
+              _lockOptionTile(ctx, icon: Icons.lock_open_outlined, label: 'No Lock',
+                  desc: 'Journal opens without authentication',
+                  isActive: _lockMethod == 'none' && !_biometricLockEnabled,
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _clearLockMethod();
+                    if (_biometricLockEnabled) await _toggleBiometric(false);
+                  }, colors: colors),
+              _lockOptionTile(ctx, icon: Icons.dialpad, label: 'PIN',
+                  desc: '4-digit PIN to unlock',
+                  isActive: _lockMethod == 'pin',
+                  onTap: () { Navigator.pop(ctx); _setupPin(); }, colors: colors),
+              _lockOptionTile(ctx, icon: Icons.pattern, label: 'Pattern',
+                  desc: 'Draw a pattern to unlock',
+                  isActive: _lockMethod == 'pattern',
+                  onTap: () { Navigator.pop(ctx); _setupPattern(); }, colors: colors),
+              if (_biometricAvailable)
+                _lockOptionTile(ctx, icon: Icons.fingerprint, label: 'Biometric',
+                    desc: 'Face ID or fingerprint',
+                    isActive: _biometricLockEnabled,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _toggleBiometric(!_biometricLockEnabled);
+                    }, colors: colors),
+              if (!_biometricAvailable)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.fingerprint, size: 20, color: colors.textMuted.withAlpha(100)),
+                      const SizedBox(width: 12),
+                      Text('Biometric not available on this device',
+                          style: GoogleFonts.manrope(fontSize: 13, color: colors.textMuted)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _lockOptionTile(BuildContext ctx, {
+    required IconData icon, required String label, required String desc,
+    required bool isActive, required VoidCallback onTap, required AppPalette colors,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isActive ? colors.accent.withAlpha(15) : colors.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isActive ? colors.accent.withAlpha(80) : colors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: isActive ? colors.accent : colors.textSecondary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600,
+                      color: isActive ? colors.accent : colors.textPrimary)),
+                  Text(desc, style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted)),
+                ],
+              ),
+            ),
+            if (isActive) Icon(Icons.check_circle_rounded, size: 20, color: colors.accent),
           ],
         ),
       ),
@@ -1732,8 +1829,9 @@ class _ExportOptionCard extends StatelessWidget {
   final Color iconColor;
   final String label;
   final String description;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final AppPalette colors;
+  final String? badge;
 
   const _ExportOptionCard({
     required this.icon,
@@ -1742,56 +1840,68 @@ class _ExportOptionCard extends StatelessWidget {
     required this.description,
     required this.onTap,
     required this.colors,
+    this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colors.cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconColor.withAlpha(20),
-                borderRadius: BorderRadius.circular(10),
+    final disabled = onTap == null;
+    return Opacity(
+      opacity: disabled ? 0.55 : 1.0,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colors.cardBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconColor.withAlpha(20),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 22, color: iconColor),
               ),
-              child: Icon(icon, size: 22, color: iconColor),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: colors.textSecondary,
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded, size: 20, color: colors.textMuted),
-          ],
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(badge!, style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: colors.textMuted)),
+                )
+              else
+                Icon(Icons.chevron_right_rounded, size: 20, color: colors.textMuted),
+            ],
+          ),
         ),
       ),
     );
