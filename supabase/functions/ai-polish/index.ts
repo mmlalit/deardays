@@ -12,7 +12,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     const { isPremium, userId } = await getUserTier(authHeader);
 
-    const { text: rawText, style, language } = await req.json();
+    const { text: rawText, style, system_prompt: clientSystemPrompt, language } = await req.json();
 
     if (!rawText || typeof rawText !== "string") {
       return new Response(
@@ -30,19 +30,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const writingStyle = style || "memoir";
-
-    const systemPrompt = [
-      `You are a literary writer crafting a personal ${writingStyle}.`,
+    // Use the client-supplied system prompt if provided (e.g. polishClean for light edits),
+    // otherwise fall back to the built-in memoir rewrite prompt.
+    const systemPrompt = clientSystemPrompt ?? [
+      `You are a literary writer crafting a personal ${style || "memoir"}.`,
       "Transform the raw journal entries below into beautiful, polished prose.",
       "Maintain the original meaning, emotions, and personal details exactly.",
       "Elevate the language while keeping the author's authentic voice.",
       "Use paragraphs to separate distinct ideas or moments.",
       "Do NOT add fictional events, names, or details that weren't in the original.",
       "Do NOT include titles, headers, or meta-commentary — just the prose.",
-      language
-        ? `Write in ${language}.`
-        : "",
+      language ? `Write in ${language}.` : "",
     ]
       .filter(Boolean)
       .join("\n");
