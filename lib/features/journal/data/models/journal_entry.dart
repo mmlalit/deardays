@@ -23,7 +23,18 @@ class JournalEntry {
   final String promptVersion; // tracks which AI prompt version processed this entry
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? chapterId;
   final List<EntryMedia> media;
+
+  // AI-generated semantic metadata (populated asynchronously by ai-tag function)
+  final double? sentimentScore;    // -1.0 to 1.0
+  final String? emotion;           // primary emotion label
+  final List<String> tags;         // topic tags
+  final List<String> people;       // people mentioned
+  final List<String> activities;   // activities described
+  final List<String> extractedLocations; // locations from text
+  final List<String> topics;       // abstract themes
+  final bool tagsGenerated;        // true once ai-tag has run
 
   const JournalEntry({
     required this.id,
@@ -44,9 +55,18 @@ class JournalEntry {
     this.milestoneType,
     this.wordCount = 0,
     this.promptVersion = 'v1',
+    this.chapterId,
     required this.createdAt,
     required this.updatedAt,
     this.media = const [],
+    this.sentimentScore,
+    this.emotion,
+    this.tags = const [],
+    this.people = const [],
+    this.activities = const [],
+    this.extractedLocations = const [],
+    this.topics = const [],
+    this.tagsGenerated = false,
   });
 
   JournalEntry copyWith({
@@ -68,9 +88,18 @@ class JournalEntry {
     String? milestoneType,
     int? wordCount,
     String? promptVersion,
+    String? chapterId,
     DateTime? createdAt,
     DateTime? updatedAt,
     List<EntryMedia>? media,
+    double? sentimentScore,
+    String? emotion,
+    List<String>? tags,
+    List<String>? people,
+    List<String>? activities,
+    List<String>? extractedLocations,
+    List<String>? topics,
+    bool? tagsGenerated,
   }) {
     return JournalEntry(
       id: id ?? this.id,
@@ -91,9 +120,18 @@ class JournalEntry {
       milestoneType: milestoneType ?? this.milestoneType,
       wordCount: wordCount ?? this.wordCount,
       promptVersion: promptVersion ?? this.promptVersion,
+      chapterId: chapterId ?? this.chapterId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       media: media ?? this.media,
+      sentimentScore: sentimentScore ?? this.sentimentScore,
+      emotion: emotion ?? this.emotion,
+      tags: tags ?? this.tags,
+      people: people ?? this.people,
+      activities: activities ?? this.activities,
+      extractedLocations: extractedLocations ?? this.extractedLocations,
+      topics: topics ?? this.topics,
+      tagsGenerated: tagsGenerated ?? this.tagsGenerated,
     );
   }
 
@@ -120,8 +158,11 @@ class JournalEntry {
       'milestone_type': milestoneType,
       'word_count': wordCount,
       'prompt_version': promptVersion,
+      'chapter_id': chapterId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      if (media.isNotEmpty)
+        'entry_media': media.map((m) => m.toMap()).toList(),
     };
   }
 
@@ -146,6 +187,7 @@ class JournalEntry {
       milestoneType: json['milestone_type'] as String?,
       wordCount: (json['word_count'] as num?)?.toInt() ?? 0,
       promptVersion: json['prompt_version'] as String? ?? 'v1',
+      chapterId: json['chapter_id'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       media: (json['entry_media'] as List<dynamic>?)
@@ -177,6 +219,7 @@ class JournalEntry {
       'has_voice': hasVoice,
       'is_ai_polished': isAiPolished,
       'word_count': wordCount,
+      'chapter_id': chapterId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -207,13 +250,28 @@ class JournalEntry {
       milestoneType: map['milestone_type'] as String?,
       wordCount: (map['word_count'] as num?)?.toInt() ?? 0,
       promptVersion: map['prompt_version'] as String? ?? 'v1',
+      chapterId: map['chapter_id'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
       media: (map['entry_media'] as List<dynamic>?)
               ?.map((e) => EntryMedia.fromMap(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      sentimentScore: (map['sentiment_score'] as num?)?.toDouble(),
+      emotion: map['emotion'] as String?,
+      tags: _parseStringList(map['tags']),
+      people: _parseStringList(map['people']),
+      activities: _parseStringList(map['activities']),
+      extractedLocations: _parseStringList(map['extracted_locations']),
+      topics: _parseStringList(map['topics']),
+      tagsGenerated: (map['tags_generated'] as bool?) ?? false,
     );
+  }
+
+  static List<String> _parseStringList(dynamic value) {
+    if (value == null) return const [];
+    if (value is List) return value.map((e) => e.toString()).toList();
+    return const [];
   }
 
   static TimeOfDay? _parseTimeOfDay(String? timeStr) {

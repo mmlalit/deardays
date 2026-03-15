@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -635,27 +636,30 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
     if (photo == null) return const SizedBox.shrink();
 
     if (photo.storagePath.startsWith('http')) {
-      return Image.network(
-        photo.storagePath,
+      return CachedNetworkImage(
+        imageUrl: photo.storagePath,
         fit: BoxFit.cover,
         width: double.infinity,
-        errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+        memCacheWidth: 400,
+        errorWidget: (_, __, ___) => Container(color: colors.highlightFaint),
       );
     }
 
     return FutureBuilder<String>(
       future: Supabase.instance.client.storage
           .from('entry-media')
-          .createSignedUrl(photo.storagePath, 3600),
+          .createSignedUrl(photo.storagePath, 3600)
+          .catchError((_) => ''),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.hasError) {
           return Container(color: colors.highlightFaint);
         }
-        return Image.network(
-          snapshot.data!,
+        return CachedNetworkImage(
+          imageUrl: snapshot.data!,
           fit: BoxFit.cover,
           width: double.infinity,
-          errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+          memCacheWidth: 400,
+          errorWidget: (_, __, ___) => Container(color: colors.highlightFaint),
         );
       },
     );

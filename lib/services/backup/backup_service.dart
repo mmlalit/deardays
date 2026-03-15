@@ -61,14 +61,38 @@ class BackupService {
         return 0;
       }
 
-      // Sync each cached entry to the cloud
+      // Batch-fetch existing cloud entries to avoid N+1 sequential queries.
+      // Process in pages of 500 to avoid oversized payloads.
+      final cloudMap = <String, DateTime>{};
+      const pageSize = 500;
+      for (var offset = 0; offset < cachedEntries.length; offset += pageSize) {
+        final pageIds = cachedEntries
+            .skip(offset)
+            .take(pageSize)
+            .map((e) => e.id)
+            .toList();
+        try {
+          final existing = await repository.getEntries(
+            limit: pageSize,
+            offset: 0,
+            ids: pageIds,
+          );
+          for (final e in existing) {
+            cloudMap[e.id] = e.updatedAt;
+          }
+        } catch (e) {
+          debugPrint('[BackupService] Batch fetch failed at offset $offset: $e');
+        }
+      }
+
+      // Upsert only new or changed entries
       int synced = 0;
       for (final entry in cachedEntries) {
         try {
-          final existing = await repository.getEntry(entry.id);
-          if (existing == null) {
+          final cloudUpdatedAt = cloudMap[entry.id];
+          if (cloudUpdatedAt == null) {
             await repository.createEntry(entry);
-          } else if (entry.updatedAt.isAfter(existing.updatedAt)) {
+          } else if (entry.updatedAt.isAfter(cloudUpdatedAt)) {
             await repository.updateEntry(entry);
           }
           synced++;
@@ -104,25 +128,39 @@ class BackupService {
     debugPrint('[BackupService] Starting restore...');
 
     try {
-      // Fetch all entries from cloud
-      final cloudEntries = await repository.getEntries(limit: 1000);
-
-      if (cloudEntries.isEmpty) {
-        _status = BackupStatus.completed;
-        debugPrint('[BackupService] No entries to restore.');
-        return 0;
-      }
-
-      // Cache each entry locally
+      // Paginated fetch from cloud (500 per page) to avoid OOM on large accounts.
       int restored = 0;
-      for (final entry in cloudEntries) {
-        try {
-          await localStorage.cacheEntry(entry);
-          restored++;
-        } catch (e) {
-          debugPrint(
-              '[BackupService] Failed to cache entry ${entry.id}: $e');
+      const pageSize = 500;
+      var offset = 0;
+      bool hasMore = true;
+
+      while (hasMore) {
+        final page = await repository.getEntries(
+          limit: pageSize,
+          offset: offset,
+        );
+
+        if (page.isEmpty) {
+          if (restored == 0) {
+            _status = BackupStatus.completed;
+            debugPrint('[BackupService] No entries to restore.');
+            return 0;
+          }
+          break;
         }
+
+        for (final entry in page) {
+          try {
+            await localStorage.cacheEntry(entry);
+            restored++;
+          } catch (e) {
+            debugPrint(
+                '[BackupService] Failed to cache entry ${entry.id}: $e');
+          }
+        }
+
+        offset += page.length;
+        hasMore = page.length >= pageSize;
       }
 
       _status = BackupStatus.completed;

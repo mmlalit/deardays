@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:flutter/foundation.dart';
 
+import 'package:deardays/core/config/cdn_config.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
 import 'package:deardays/services/media/image_compressor.dart';
 
@@ -13,6 +14,12 @@ import 'package:deardays/services/media/image_compressor.dart';
 class MediaService {
   static const _bucketName = 'entry-media';
   static const _thumbSuffix = '_thumb';
+
+  /// Maximum file size for photo uploads (10 MB).
+  static const maxPhotoSizeBytes = 10 * 1024 * 1024;
+
+  /// Maximum file size for audio uploads (50 MB).
+  static const maxAudioSizeBytes = 50 * 1024 * 1024;
 
   final SupabaseClient _client;
 
@@ -28,7 +35,16 @@ class MediaService {
     required String filePath,
   }) async {
     final file = File(filePath);
+    final fileSize = await file.length();
+    if (fileSize > maxPhotoSizeBytes) {
+      throw MediaSizeLimitException(
+        'Photo exceeds ${maxPhotoSizeBytes ~/ (1024 * 1024)} MB limit '
+        '(${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB)',
+      );
+    }
     final ext = p.extension(filePath).toLowerCase().replaceAll('.', '');
+    // Normalize jpg → jpeg (Supabase Storage rejects 'image/jpg')
+    final mimeExt = ext == 'jpg' ? 'jpeg' : ext;
     final mediaId = const Uuid().v4();
     final storagePath = '$_userId/$entryId/$mediaId.$ext';
 
@@ -37,7 +53,7 @@ class MediaService {
       storagePath,
       file,
       fileOptions: FileOptions(
-        contentType: 'image/$ext',
+        contentType: 'image/$mimeExt',
         upsert: false,
       ),
     );
@@ -69,6 +85,12 @@ class MediaService {
     required Uint8List bytes,
     String ext = 'jpg',
   }) async {
+    if (bytes.length > maxPhotoSizeBytes) {
+      throw MediaSizeLimitException(
+        'Photo exceeds ${maxPhotoSizeBytes ~/ (1024 * 1024)} MB limit '
+        '(${(bytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)',
+      );
+    }
     // Compress before upload to reduce storage and bandwidth costs
     final compressed = await ImageCompressor.compress(bytes);
 
@@ -137,8 +159,13 @@ class MediaService {
 
   /// Returns the public URL for a thumbnail. Falls back to the original
   /// if the path is already a full URL (demo data).
+  /// When CDN is configured, uses CDN thumbnail transforms for faster delivery.
   String getThumbnailUrl(String storagePath) {
     if (storagePath.startsWith('http')) return storagePath;
+    if (CdnConfig.isEnabled) {
+      final fullUrl = _client.storage.from(_bucketName).getPublicUrl(storagePath);
+      return CdnConfig.thumbnailUrl(fullUrl);
+    }
     return _client.storage.from(_bucketName).getPublicUrl(thumbnailPath(storagePath));
   }
 
@@ -152,9 +179,11 @@ class MediaService {
 
   /// Returns the public URL if the bucket is public, otherwise use signed URL.
   /// If storagePath is already a full URL (e.g. demo data), returns it as-is.
+  /// When CDN is configured, rewrites URL to use CDN edge for lower latency.
   String getPublicUrl(String storagePath) {
     if (storagePath.startsWith('http')) return storagePath;
-    return _client.storage.from(_bucketName).getPublicUrl(storagePath);
+    final url = _client.storage.from(_bucketName).getPublicUrl(storagePath);
+    return CdnConfig.rewriteUrl(url);
   }
 
   /// Deletes a media file from storage and removes the entry_media record.
@@ -190,4 +219,13 @@ class MediaService {
         .eq('entry_id', entryId)
         .eq('user_id', _userId);
   }
+}
+
+/// Thrown when a media file exceeds the allowed size limit.
+class MediaSizeLimitException implements Exception {
+  final String message;
+  const MediaSizeLimitException(this.message);
+
+  @override
+  String toString() => 'MediaSizeLimitException: $message';
 }

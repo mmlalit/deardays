@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -14,11 +15,13 @@ class PostSaveData {
   final String entryId;
   final String title;
   final String content;
+  final String? attachedPhotoPath;
 
   const PostSaveData({
     required this.entryId,
     required this.title,
     required this.content,
+    this.attachedPhotoPath,
   });
 }
 
@@ -34,20 +37,116 @@ class PostSaveScreen extends ConsumerStatefulWidget {
 class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   int _currentStep = 0; // 0 = chapter, 1 = confirmation
   String? _selectedChapterId;
+  bool _isSaving = false;
 
-  void _next() {
-    if (_currentStep == 0 && _selectedChapterId != null) {
-      setState(() => _currentStep = 1);
+  Future<void> _next() async {
+    if (_selectedChapterId == null || _isSaving) return;
+
+    final resolvedData = widget.data ?? ref.read(postSaveDataProvider);
+    final entryId = resolvedData?.entryId;
+    if (entryId != null) {
+      setState(() => _isSaving = true);
+      try {
+        await ref.read(journalRepositoryProvider).updateEntryChapter(
+              entryId,
+              _selectedChapterId!,
+            );
+        // Refresh chapters so entry_count updates
+        ref.invalidate(chaptersProvider);
+        ref.invalidate(chapterEntriesProvider(_selectedChapterId!));
+      } catch (_) {
+        // Non-critical — memory is saved, chapter link is best-effort
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
     }
+
+    if (mounted) setState(() => _currentStep = 1);
   }
 
   void _finish() {
     HapticFeedback.lightImpact();
     ref.read(postSaveDataProvider.notifier).state = null;
-    // Re-invalidate so home screen fetches fresh data
     ref.invalidate(timelineEntriesProvider);
     ref.invalidate(todayEntryProvider);
     context.go('/home');
+  }
+
+  Future<void> _showCreateChapterDialog() async {
+    final controller = TextEditingController();
+    final colors = AppColors.of(context);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'New Chapter',
+          style: GoogleFonts.newsreader(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          style: GoogleFonts.manrope(color: colors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Chapter name',
+            hintStyle: GoogleFonts.manrope(color: colors.textMuted),
+            filled: true,
+            fillColor: colors.bg,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: colors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: colors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: colors.accent),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) Navigator.of(ctx).pop(name);
+            },
+            child: Text('Create', style: GoogleFonts.manrope(color: colors.accent, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty && mounted) {
+      try {
+        final newChapter = await ref
+            .read(profileRepositoryProvider)
+            .createChapter(result);
+        ref.invalidate(chaptersProvider);
+        if (mounted) {
+          setState(() => _selectedChapterId = newChapter.id);
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to create chapter. Try again.')),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -118,14 +217,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _finish,
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Icon(Icons.close_rounded, size: 22, color: colors.textPrimary),
-                    ),
-                  ),
+                  const SizedBox(width: 40),
                 ],
               ),
             ),
@@ -140,7 +232,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Select a chapter to organize this memory.',
+                  'Which chapter does this memory belong to?',
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     color: colors.textSecondary,
@@ -156,42 +248,31 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                       child: CircularProgressIndicator(),
                     ),
                   ),
-                  error: (_, __) => _buildMockChapters(colors),
-                  data: (chapters) {
-                    if (chapters.isEmpty) return _buildMockChapters(colors);
-                    return Column(
-                      children: chapters
-                          .map((c) => _buildChapterCard(c.id, c.title, c.entryCount, colors))
-                          .toList(),
-                    );
-                  },
+                  error: (_, __) => Center(
+                    child: Text(
+                      'Could not load chapters.',
+                      style: GoogleFonts.manrope(color: colors.textMuted),
+                    ),
+                  ),
+                  data: (chapters) => Column(
+                    children: chapters
+                        .map((c) => _buildChapterCard(c.id, c.title, c.entryCount, colors))
+                        .toList(),
+                  ),
                 ),
 
                 const SizedBox(height: 12),
 
                 // Create new chapter
                 GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Create chapter coming soon',
-                          style: GoogleFonts.manrope(fontSize: 13),
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
+                  onTap: _showCreateChapterDialog,
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: colors.card,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: colors.accent.withAlpha(80),
-                      ),
+                      border: Border.all(color: colors.accent.withAlpha(80)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -215,24 +296,8 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
           ),
         ),
 
-        // Bottom bar with Next button
         _buildBottomBar(colors),
       ],
-    );
-  }
-
-  Widget _buildMockChapters(AppPalette colors) {
-    final mockChapters = [
-      ('ch-travel', 'Travel & Adventures', 12),
-      ('ch-family', 'Family Moments', 8),
-      ('ch-growth', 'Personal Growth', 5),
-      ('ch-career', 'Career Milestones', 6),
-    ];
-
-    return Column(
-      children: mockChapters
-          .map((c) => _buildChapterCard(c.$1, c.$2, c.$3, colors))
-          .toList(),
     );
   }
 
@@ -242,9 +307,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        setState(() {
-          _selectedChapterId = isSelected ? null : id;
-        });
+        setState(() => _selectedChapterId = isSelected ? null : id);
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -290,10 +353,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                   const SizedBox(height: 2),
                   Text(
                     '$entryCount ${entryCount == 1 ? 'memory' : 'memories'}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: colors.textMuted,
-                    ),
+                    style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
                   ),
                 ],
               ),
@@ -326,14 +386,11 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     'Select a chapter to continue',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: colors.textMuted,
-                    ),
+                    style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
                   ),
                 ),
               GestureDetector(
-                onTap: hasSelection ? _next : null,
+                onTap: hasSelection && !_isSaving ? _next : null,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   width: double.infinity,
@@ -342,24 +399,20 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                     color: hasSelection ? colors.accent : colors.accent.withAlpha(60),
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: hasSelection
-                        ? [
-                            BoxShadow(
-                              color: colors.accent.withAlpha(50),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
+                        ? [BoxShadow(color: colors.accent.withAlpha(50), blurRadius: 12, offset: const Offset(0, 4))]
                         : [],
                   ),
-                  child: Text(
-                    'Continue',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: hasSelection ? Colors.white : Colors.white.withAlpha(120),
-                    ),
-                  ),
+                  child: _isSaving
+                      ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
+                      : Text(
+                          'Continue',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: hasSelection ? Colors.white : Colors.white.withAlpha(120),
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -374,16 +427,15 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildConfirmationScreen(AppPalette colors) {
+    final resolvedData = widget.data ?? ref.read(postSaveDataProvider);
+    final photoPath = resolvedData?.attachedPhotoPath;
     return Container(
       key: const ValueKey('confirmation'),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            colors.accentFaint,
-            colors.bg,
-          ],
+          colors: [colors.accentFaint, colors.bg],
         ),
       ),
       child: SafeArea(
@@ -393,7 +445,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
             children: [
               const SizedBox(height: 40),
 
-              _buildPhotoCardSection(colors),
+              _buildPhotoCardSection(colors, photoPath: photoPath),
 
               const SizedBox(height: 36),
 
@@ -413,7 +465,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  'Your memory has been safely preserved. It\'s ready whenever you wish to revisit it.',
+                  'Your memory has been preserved and added to its chapter. Revisit it anytime.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.manrope(
                     fontSize: 14,
@@ -439,28 +491,19 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                     color: colors.accent,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
-                      BoxShadow(
-                        color: colors.accent.withAlpha(50),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
+                      BoxShadow(color: colors.accent.withAlpha(50), blurRadius: 12, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: Text(
-                    'View Memory',
+                    'View on Timeline',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                    style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // Secondary buttons
               Row(
                 children: [
                   Expanded(
@@ -481,13 +524,9 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                           border: Border.all(color: colors.border),
                         ),
                         child: Text(
-                          'Record Another',
+                          'Add Another',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textPrimary,
-                          ),
+                          style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
                         ),
                       ),
                     ),
@@ -495,11 +534,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        ref.read(postSaveDataProvider.notifier).state = null;
-                        context.go('/timeline');
-                      },
+                      onTap: _finish,
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
@@ -508,13 +543,9 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                           border: Border.all(color: colors.border),
                         ),
                         child: Text(
-                          'Go to Timeline',
+                          'Go Home',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textPrimary,
-                          ),
+                          style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
                         ),
                       ),
                     ),
@@ -530,11 +561,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Tilted photo card with floating decorations
-  // ---------------------------------------------------------------------------
-
-  Widget _buildPhotoCardSection(AppPalette colors) {
+  Widget _buildPhotoCardSection(AppPalette colors, {String? photoPath}) {
     return SizedBox(
       height: 220,
       child: Stack(
@@ -551,25 +578,30 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: colors.border, width: 4),
                 boxShadow: [
-                  BoxShadow(
-                    color: colors.textPrimary.withAlpha(20),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
+                  BoxShadow(color: colors.textPrimary.withAlpha(20), blurRadius: 20, offset: const Offset(0, 8)),
                 ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  color: colors.accentFaint,
-                  child: Center(
-                    child: Icon(
-                      Icons.landscape_rounded,
-                      size: 48,
-                      color: colors.accent.withAlpha(120),
-                    ),
-                  ),
-                ),
+                child: photoPath != null
+                    ? Image.file(
+                        File(photoPath),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: colors.accentFaint,
+                          child: Center(
+                            child: Icon(Icons.landscape_rounded, size: 48, color: colors.accent.withAlpha(120)),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: colors.accentFaint,
+                        child: Center(
+                          child: Icon(Icons.landscape_rounded, size: 48, color: colors.accent.withAlpha(120)),
+                        ),
+                      ),
               ),
             ),
           ),
@@ -583,13 +615,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                 shape: BoxShape.circle,
                 color: colors.card,
                 border: Border.all(color: colors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.textPrimary.withAlpha(10),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                boxShadow: [BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2))],
               ),
               child: Icon(Icons.favorite_rounded, size: 18, color: colors.accent),
             ),
@@ -604,13 +630,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                 shape: BoxShape.circle,
                 color: colors.card,
                 border: Border.all(color: colors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.textPrimary.withAlpha(10),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                boxShadow: [BoxShadow(color: colors.textPrimary.withAlpha(10), blurRadius: 8, offset: const Offset(0, 2))],
               ),
               child: Icon(Icons.auto_awesome_rounded, size: 16, color: colors.accent),
             ),

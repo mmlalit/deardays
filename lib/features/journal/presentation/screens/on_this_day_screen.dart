@@ -1,4 +1,6 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -74,16 +76,23 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               .inFilter('entry_id', entriesWithPhotos.map((e) => e.id).toList())
               .eq('media_type', 'photo');
 
-          for (final row in (mediaRows as List<dynamic>)) {
-            final map = row as Map<String, dynamic>;
-            final entryId = map['entry_id'] as String;
-            final storagePath = map['storage_path'] as String;
-            if (!_photoUrls.containsKey(entryId)) {
-              try {
-                final url = await _mediaService.getSignedUrl(storagePath);
-                _photoUrls[entryId] = url;
-              } catch (_) {}
+          // Fetch signed URLs in parallel instead of sequentially
+          final mediaList = (mediaRows as List<dynamic>)
+              .map((r) => r as Map<String, dynamic>)
+              .where((m) => !_photoUrls.containsKey(m['entry_id']))
+              .toList();
+          final futures = mediaList.map((map) async {
+            try {
+              final url = await _mediaService
+                  .getSignedUrl(map['storage_path'] as String);
+              return MapEntry(map['entry_id'] as String, url);
+            } catch (_) {
+              return null;
             }
+          });
+          final results = await Future.wait(futures);
+          for (final result in results) {
+            if (result != null) _photoUrls[result.key] = result.value;
           }
         } catch (_) {
           // Media fetch failed — entries still show with placeholder
@@ -545,10 +554,12 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               AspectRatio(
                 aspectRatio: 4 / 3,
                 child: photoUrl != null
-                    ? Image.network(
-                        photoUrl,
+                    ? CachedNetworkImage(
+                        imageUrl: photoUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _photoPlaceholder(),
+                        memCacheWidth: 600,
+                        memCacheHeight: 450,
+                        errorWidget: (_, __, ___) => _photoPlaceholder(),
                       )
                     : _photoPlaceholder(),
               ),
@@ -652,27 +663,48 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Read Full Entry button
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: OutlinedButton(
-                    onPressed: () => _showFullEntry(context, entry),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: colors.accent.withAlpha(76)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                // Action row — Read + Share
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 44,
+                        child: OutlinedButton(
+                          onPressed: () => _showFullEntry(context, entry),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: colors.accent.withAlpha(76)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Read Full Entry',
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.accent,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    child: Text(
-                      'Read Full Entry',
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: colors.accent,
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      height: 44,
+                      width: 44,
+                      child: OutlinedButton(
+                        onPressed: () => context.push('/share-card', extra: entry),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: BorderSide(color: colors.accent.withAlpha(76)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Icon(Icons.share_rounded, size: 18, color: colors.accent),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -890,33 +922,61 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
 
   Widget _buildBottomPrompt() {
     final colors = AppColors.of(context);
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-        decoration: BoxDecoration(
-          color: colors.accent.withAlpha(13),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.accent.withAlpha(102)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.auto_awesome,
-              size: 36,
-              color: colors.accent,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'That\u2019s all the memories for today.\nMake a new one?',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                                height: 1.5,
-                color: colors.textPrimary.withAlpha(153),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () => context.push('/write'),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+          decoration: BoxDecoration(
+            color: colors.accent.withAlpha(13),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.accent.withAlpha(102)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 36,
+                color: colors.accent,
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                'That\u2019s all the memories for today.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: colors.textPrimary.withAlpha(153),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_rounded, size: 16, color: colors.bg),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Make a new one',
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: colors.bg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

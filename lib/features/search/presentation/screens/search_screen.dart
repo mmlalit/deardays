@@ -12,7 +12,10 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/services/search/search_service.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 
-/// Universal search screen for searching across all journal entries.
+/// Universal search screen.
+/// - Keyword search: instant, client-side (SearchService)
+/// - AI memory search: backend-powered via /memory-search edge function
+///   which does rule-based parsing + SQL filter + vector reranking + Gemini summary
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
@@ -33,6 +36,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _isAiSearching = false;
   String? _aiAnswer;
   List<JournalEntry> _aiReferencedEntries = [];
+  List<String> _followUpQuestions = [];
   bool _showAiSuggestion = false;
 
   @override
@@ -68,15 +72,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _results = _searchService.search(query, entries);
       _hasSearched = query.trim().isNotEmpty;
       _showAiSuggestion = isQ && query.trim().length > 5;
-      // Clear previous AI answer when query changes
       if (!_isAiSearching) {
         _aiAnswer = null;
         _aiReferencedEntries = [];
+        _followUpQuestions = [];
       }
     });
   }
 
-  Future<void> _performAiSearch(List<JournalEntry> entries) async {
+  /// Smart AI search: calls /memory-search edge function (server-side).
+  /// Returns entry IDs, then loads those entries from the repository.
+  Future<void> _performAiSearch() async {
     final query = _controller.text.trim();
     if (query.isEmpty || !_aiService.isConfigured) return;
 
@@ -84,37 +90,34 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _isAiSearching = true;
       _aiAnswer = null;
       _aiReferencedEntries = [];
+      _followUpQuestions = [];
       _showAiSuggestion = false;
     });
 
-    // Build compact summaries: [index] date | mood | first 100 chars
-    final summaries = <String>[];
-    for (int i = 0; i < entries.length; i++) {
-      final e = entries[i];
-      final date = DateFormat('yyyy-MM-dd').format(e.entryDate);
-      final mood = e.mood ?? 'unknown';
-      final snippet = e.content.replaceAll('\n', ' ');
-      final truncated = snippet.length > 150 ? snippet.substring(0, 150) : snippet;
-      final location = e.locationName != null ? ' | ${e.locationName}' : '';
-      summaries.add('[$i] $date | $mood$location | $truncated');
-    }
-
     try {
       final language = ref.read(localeProvider).languageName;
-      final result = await _aiService.memorySearch(
-        question: query,
-        entrySummaries: summaries,
-        language: language,
+
+      final result = await _aiService.smartMemorySearch(
+        query: query,
+        language: language != 'English' ? language : null,
       );
 
       final answer = result['answer'] as String? ?? '';
-      final indices = result['entryIndices'] as List<int>? ?? [];
+      final entryIds = result['entryIds'] as List<String>? ?? [];
+      final followUps = result['followUpQuestions'] as List<String>? ?? [];
 
-      // Map indices back to entries
-      final referenced = <JournalEntry>[];
-      for (final idx in indices) {
-        if (idx >= 0 && idx < entries.length) {
-          referenced.add(entries[idx]);
+      // Load the matched entries from the repository
+      List<JournalEntry> referenced = [];
+      if (entryIds.isNotEmpty) {
+        try {
+          final repo = ref.read(journalRepositoryProvider);
+          referenced = await repo.getEntriesByIds(entryIds);
+        } catch (_) {
+          // Fall back to timeline entries if repository fetch fails
+          final allEntries = ref.read(timelineEntriesProvider).valueOrNull ?? [];
+          referenced = allEntries
+              .where((e) => entryIds.contains(e.id))
+              .toList();
         }
       }
 
@@ -122,6 +125,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         setState(() {
           _aiAnswer = answer;
           _aiReferencedEntries = referenced;
+          _followUpQuestions = followUps;
           _isAiSearching = false;
         });
       }
@@ -130,6 +134,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         setState(() {
           _aiAnswer = "I couldn't search your memories right now. Try again later.";
           _aiReferencedEntries = [];
+          _followUpQuestions = [];
           _isAiSearching = false;
         });
       }
@@ -164,7 +169,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildSearchBar(AppPalette colors, AsyncValue<List<JournalEntry>> entriesAsync) {
+  Widget _buildSearchBar(
+      AppPalette colors, AsyncValue<List<JournalEntry>> entriesAsync) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
       decoration: BoxDecoration(
@@ -190,15 +196,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 controller: _controller,
                 focusNode: _focusNode,
                 onChanged: (_) {
-                  entriesAsync.whenData((entries) => _performSearch(entries));
+                  entriesAsync.whenData(_performSearch);
                 },
                 onSubmitted: (_) {
-                  // On Enter, trigger AI search if it looks like a question
-                  entriesAsync.whenData((entries) {
-                    if (_isQuestion(_controller.text)) {
-                      _performAiSearch(entries);
-                    }
-                  });
+                  if (_isQuestion(_controller.text)) {
+                    _performAiSearch();
+                  }
                 },
                 style: GoogleFonts.manrope(
                   fontSize: 15,
@@ -223,6 +226,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               _hasSearched = false;
                               _aiAnswer = null;
                               _aiReferencedEntries = [];
+                              _followUpQuestions = [];
                               _showAiSuggestion = false;
                               _isAiSearching = false;
                             });
@@ -245,18 +249,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     if (!_hasSearched) {
       return _buildRecentSearches(colors, entries);
     }
-
-    // AI is currently searching
     if (_isAiSearching) {
       return _buildAiLoading(colors);
     }
-
-    // AI answer is available — show it
     if (_aiAnswer != null) {
       return _buildAiResults(colors, entries);
     }
-
-    // Regular keyword search results
     return _buildKeywordResults(colors, entries);
   }
 
@@ -264,9 +262,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // "Ask AI" suggestion banner
         if (_showAiSuggestion && _aiService.isConfigured)
-          _buildAiSuggestionBanner(colors, entries),
+          _buildAiSuggestionBanner(colors),
         if (_results.isEmpty)
           Expanded(child: _buildEmptyResults(colors))
         else
@@ -286,9 +283,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 itemCount: _results.length,
-                separatorBuilder: (_, __) => Divider(
-                    height: 1, color: colors.border.withAlpha(80)),
-                itemBuilder: (_, i) => _buildResultCard(colors, _results[i], entries),
+                separatorBuilder: (_, __) =>
+                    Divider(height: 1, color: colors.border.withAlpha(80)),
+                itemBuilder: (_, i) =>
+                    _buildResultCard(colors, _results[i], entries),
               ),
             ),
           ],
@@ -296,9 +294,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildAiSuggestionBanner(AppPalette colors, List<JournalEntry> entries) {
+  Widget _buildAiSuggestionBanner(AppPalette colors) {
     return GestureDetector(
-      onTap: () => _performAiSearch(entries),
+      onTap: _performAiSearch,
       child: Container(
         margin: const EdgeInsets.fromLTRB(20, 12, 20, 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -314,8 +312,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ),
         child: Row(
           children: [
-            Icon(Icons.auto_awesome_rounded,
-                size: 20, color: colors.accent),
+            Icon(Icons.auto_awesome_rounded, size: 20, color: colors.accent),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -359,7 +356,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'AI is reading through your journal',
+            'AI is searching across your journal',
             style: GoogleFonts.manrope(
               fontSize: 12,
               color: colors.textMuted,
@@ -434,11 +431,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          ..._aiReferencedEntries.map((entry) => _buildReferencedEntry(
-                colors, entry, allEntries)),
+          ..._aiReferencedEntries.map(
+              (entry) => _buildReferencedEntry(colors, entry, allEntries)),
         ],
 
-        // Also show keyword results below if any
+        // Follow-up questions
+        if (_followUpQuestions.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(
+            'EXPLORE FURTHER',
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: colors.textMuted,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ..._followUpQuestions.map((q) => _buildFollowUpChip(colors, q)),
+        ],
+
+        // Keyword matches below AI results
         if (_results.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text(
@@ -451,10 +464,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          ..._results.take(5).map((r) =>
-              _buildResultCard(colors, r, allEntries)),
+          ..._results.take(5).map((r) => _buildResultCard(colors, r, allEntries)),
         ],
       ],
+    );
+  }
+
+  Widget _buildFollowUpChip(AppPalette colors, String question) {
+    return GestureDetector(
+      onTap: () {
+        _controller.text = question;
+        _performAiSearch();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 13, color: colors.accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                question,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -467,11 +513,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return InkWell(
       onTap: () {
         final idx = allEntries.indexWhere((e) => e.id == entry.id);
-        context.push('/memory', extra: MemoryDetailArgs(
-          entry: entry,
-          allEntries: allEntries,
-          initialIndex: idx >= 0 ? idx : 0,
-        ));
+        context.push('/memory',
+            extra: MemoryDetailArgs(
+              entry: entry,
+              allEntries: allEntries,
+              initialIndex: idx >= 0 ? idx : 0,
+            ));
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -521,8 +568,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 20, color: colors.textMuted),
+            Icon(Icons.chevron_right_rounded, size: 20, color: colors.textMuted),
           ],
         ),
       ),
@@ -532,7 +578,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildRecentSearches(AppPalette colors, List<JournalEntry> entries) {
     final recent = _searchService.recentSearches;
 
-    // Example AI questions
     final aiExamples = [
       'When was the last time I felt proud?',
       'What made me happiest this month?',
@@ -589,7 +634,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       onTap: () {
                         _controller.text = example;
                         _performSearch(entries);
-                        _performAiSearch(entries);
+                        _performAiSearch();
                       },
                       child: Container(
                         width: double.infinity,
@@ -652,8 +697,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           const SizedBox(height: 12),
           ...recent.map((query) => ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading:
-                    Icon(Icons.history_rounded, size: 20, color: colors.textMuted),
+                leading: Icon(Icons.history_rounded,
+                    size: 20, color: colors.textMuted),
                 title: Text(query,
                     style: GoogleFonts.manrope(
                         fontSize: 14, color: colors.textPrimary)),
@@ -706,18 +751,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return InkWell(
       onTap: () {
         final idx = allEntries.indexWhere((e) => e.id == entry.id);
-        context.push('/memory', extra: MemoryDetailArgs(
-          entry: entry,
-          allEntries: allEntries,
-          initialIndex: idx >= 0 ? idx : 0,
-        ));
+        context.push('/memory',
+            extra: MemoryDetailArgs(
+              entry: entry,
+              allEntries: allEntries,
+              initialIndex: idx >= 0 ? idx : 0,
+            ));
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mood emoji badge
             Container(
               width: 40,
               height: 40,
@@ -730,7 +775,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
             const SizedBox(width: 14),
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

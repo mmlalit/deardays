@@ -1,12 +1,16 @@
 import 'package:flutter/foundation.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
-/// Lightweight analytics service for tracking user behavior and feature usage.
+/// Analytics service backed by PostHog for production event tracking.
 ///
-/// Events are logged locally in debug mode and can be forwarded to a backend
-/// analytics endpoint (Firebase Analytics, Mixpanel, etc.) in production.
+/// Configure via dart-define:
+/// ```bash
+/// flutter run \
+///   --dart-define=POSTHOG_API_KEY=phc_xxx \
+///   --dart-define=POSTHOG_HOST=https://us.i.posthog.com
+/// ```
 ///
-/// All events are typed via [AnalyticsEvent] constants to prevent typos
-/// and ensure consistency across the codebase.
+/// When no API key is configured, events are logged locally only (debug mode).
 class AnalyticsService {
   AnalyticsService._internal();
 
@@ -21,7 +25,8 @@ class AnalyticsService {
 
   String? _userId;
 
-  // In-memory event buffer for the current session
+  // In-memory event buffer (capped to prevent unbounded growth in long sessions).
+  static const int _maxEvents = 10000;
   final List<TrackedEvent> _events = [];
   List<TrackedEvent> get events => List.unmodifiable(_events);
 
@@ -29,19 +34,36 @@ class AnalyticsService {
   final Map<String, String> _userProperties = {};
   Map<String, String> get userProperties => Map.unmodifiable(_userProperties);
 
-  // Backend endpoint for analytics (configured via dart-define)
-  static const String _analyticsEndpoint = String.fromEnvironment(
-    'ANALYTICS_URL',
+  // PostHog configuration (via dart-define)
+  static const String _postHogApiKey = String.fromEnvironment(
+    'POSTHOG_API_KEY',
     defaultValue: '',
   );
 
-  bool get isConfigured => _analyticsEndpoint.isNotEmpty;
+  static const String _postHogHost = String.fromEnvironment(
+    'POSTHOG_HOST',
+    defaultValue: 'https://us.i.posthog.com',
+  );
 
-  /// Initializes the analytics service.
+  bool get isConfigured => _postHogApiKey.isNotEmpty;
+
+  Posthog? _posthog;
+
+  /// Initializes the analytics service and PostHog SDK.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
-    debugPrint('[AnalyticsService] Initialized.');
+
+    if (isConfigured && !kDebugMode) {
+      final config = PostHogConfig(_postHogApiKey);
+      config.host = _postHogHost;
+      config.captureApplicationLifecycleEvents = true;
+      config.debug = kDebugMode;
+      await Posthog().setup(config);
+      _posthog = Posthog();
+    }
+
+    debugPrint('[AnalyticsService] Initialized. PostHog: ${isConfigured ? "enabled" : "disabled (no key)"}');
   }
 
   /// Sets the current user for analytics attribution.
@@ -51,6 +73,12 @@ class AnalyticsService {
       _userProperties.addAll(properties);
     }
     track(AnalyticsEvent.userIdentified, properties: {'user_id': userId});
+
+    // Identify in PostHog
+    _posthog?.identify(
+      userId: userId,
+      userProperties: properties,
+    );
   }
 
   /// Clears user identity (e.g., on logout).
@@ -58,11 +86,13 @@ class AnalyticsService {
     _userId = null;
     _userProperties.clear();
     track(AnalyticsEvent.userLoggedOut);
+    _posthog?.reset();
   }
 
   /// Sets a user property that persists across all future events.
   void setUserProperty(String key, String value) {
     _userProperties[key] = value;
+    _posthog?.identify(userId: _userId ?? 'anonymous', userPropertiesSetOnce: {key: value});
   }
 
   /// Tracks a single event with optional properties.
@@ -78,6 +108,10 @@ class AnalyticsService {
     );
 
     _events.add(event);
+    // Evict oldest events if buffer exceeds cap
+    if (_events.length > _maxEvents) {
+      _events.removeRange(0, _events.length - _maxEvents);
+    }
 
     if (kDebugMode) {
       debugPrint(
@@ -86,7 +120,11 @@ class AnalyticsService {
       );
     }
 
-    // In production with a configured endpoint, this would batch and POST events.
+    // Send to PostHog
+    _posthog?.capture(
+      eventName: eventName,
+      properties: properties,
+    );
   }
 
   /// Tracks the start of a timed event. Call [endTimedEvent] to record duration.
@@ -111,6 +149,24 @@ class AnalyticsService {
   /// Tracks a screen view.
   void trackScreen(String screenName) {
     track(AnalyticsEvent.screenView, properties: {'screen': screenName});
+    _posthog?.screen(screenName: screenName);
+  }
+
+  /// Checks if a feature flag is enabled (PostHog feature flags).
+  Future<bool> isFeatureEnabled(String flagKey) async {
+    if (_posthog == null) return false;
+    return await _posthog!.isFeatureEnabled(flagKey);
+  }
+
+  /// Gets a feature flag value (for multivariate flags).
+  Future<dynamic> getFeatureFlagValue(String flagKey) async {
+    if (_posthog == null) return null;
+    return await _posthog!.getFeatureFlag(flagKey);
+  }
+
+  /// Reloads feature flags from PostHog.
+  Future<void> reloadFeatureFlags() async {
+    await _posthog?.reloadFeatureFlags();
   }
 
   /// Clears all stored events.
@@ -173,6 +229,12 @@ abstract class AnalyticsEvent {
   static const backupCompleted = 'backup_completed';
   static const restoreStarted = 'restore_started';
   static const restoreCompleted = 'restore_completed';
+
+  // Sync
+  static const syncCompleted = 'sync_completed';
+  static const syncFailed = 'sync_failed';
+  static const conflictDetected = 'conflict_detected';
+  static const conflictResolved = 'conflict_resolved';
 }
 
 /// A single tracked analytics event.

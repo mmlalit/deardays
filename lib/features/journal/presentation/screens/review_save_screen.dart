@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +24,7 @@ import 'package:deardays/services/sync/sync_operation.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/services/location/location_service.dart';
+import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 
 /// Data passed between RecordingScreen → ProcessingScreen → ReviewSaveScreen.
 class ReviewData {
@@ -86,13 +87,16 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   late final TextEditingController _titleEditController;
   bool _isEditingTitle = false;
 
-  // View toggle: 0 = AI Story, 1 = Clean Original, 2 = Raw Words
-  int _activeTab = 0;
+  // View toggle: 0 = Original, 1 = Polished, 2 = Story
+  int _viewMode = 0;
+  String? _selectedMood;
 
   // Save state
   bool _isSaving = false;
+  bool _isUploadingPhoto = false;
   String? _attachedPhotoPath;
   String? _locationName;
+  String? _selectedChapterId;
   final List<String> _tags = [];
   final _locationService = LocationService();
   final _tagController = TextEditingController();
@@ -107,6 +111,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     _attachedPhotoPath = widget.data.attachedPhotoPath;
     _locationName = widget.data.locationName;
     _titleEditController = TextEditingController();
+    _selectedMood = widget.data.mood;
 
     _shimmerController = AnimationController(
       vsync: this,
@@ -124,11 +129,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       _polishedText = widget.data.polishedText;
       _generatedTitle = widget.data.generatedTitle ?? _generateFallbackTitle();
       _titleEditController.text = _generatedTitle!;
-      _activeTab = 0; // Show story tab by default
     } else if (widget.data.polishWithAI) {
       _polishText();
     } else {
-      _activeTab = 2; // Show original/raw text by default
       _generateTitleOnly();
     }
   }
@@ -218,8 +221,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           _isPolishing = false;
           _polishError = 'AI polishing failed. You can save your original text.';
           _polishProgress = 0.0;
-          // Default to cleaned text if available, otherwise raw
-          _activeTab = _cleanedText != null ? 1 : 2;
         });
       }
     }
@@ -246,212 +247,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     return '$timeOfDay, ${months[now.month - 1]} ${now.day}';
   }
 
-  Future<void> _pickPhoto() async {
-    await _pickPhotoFromGallery();
-  }
-
-  void _showSaveConfirmation() {
-    HapticFeedback.lightImpact();
-    final colors = AppColors.of(context);
-    final title = _generatedTitle ?? _generateFallbackTitle();
-    final content = _cleanedText ?? widget.data.rawText;
-    final preview = content.length > 120 ? '${content.substring(0, 120)}...' : content;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: colors.textPrimary.withAlpha(25),
-              blurRadius: 24,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.textMuted.withAlpha(60),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Header
-            Text(
-              'Save this memory?',
-              style: GoogleFonts.manrope(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Memory card preview
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colors.bg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: colors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Photo + title row
-                  Row(
-                    children: [
-                      if (_attachedPhotoPath != null) ...[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.file(
-                            File(_attachedPhotoPath!),
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.manrope(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Content preview
-                  Text(
-                    preview,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: colors.textSecondary,
-                      height: 1.5,
-                    ),
-                  ),
-                  // Tags
-                  if (_tags.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: _tags.map((tag) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: colors.accent.withAlpha(20),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '#$tag',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colors.accent,
-                          ),
-                        ),
-                      )).toList(),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(),
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: colors.bg,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Go back',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      _saveEntry();
-                    },
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: colors.accent,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors.accent.withAlpha(60),
-                            blurRadius: 12,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Looks good, save!',
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _saveEntry() async {
     HapticFeedback.mediumImpact();
     setState(() => _isSaving = true);
@@ -471,7 +266,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         content: content,
         rawContent: widget.data.rawText,
         polishedContent: polishedContent,
-        mood: widget.data.mood,
+        mood: _selectedMood,
         entryDate: now,
         entryTime: TimeOfDay.fromDateTime(now),
         isAiPolished: _polishedText != null,
@@ -479,6 +274,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         hasPhoto: _attachedPhotoPath != null,
         hasVoice: widget.data.isVoice,
         wordCount: content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length,
+        chapterId: _selectedChapterId,
         createdAt: now,
         updatedAt: now,
       );
@@ -494,15 +290,25 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         debugPrint('[SAVE] Online save FAILED: $networkError — saving offline');
         // Network failed — save locally and queue for sync
         await LocalStorageService().cacheEntry(entry);
-        await SyncQueue().enqueue(SyncOperation(
+        await SyncQueue().enqueue(SyncOperation.create(
           id: entry.id,
           type: SyncOperationType.create,
           tableName: 'journal_entries',
           payload: entry.toSupabaseMap(),
-          createdAt: now,
         ));
         saved = entry;
         savedOffline = true;
+      }
+
+      // Fire-and-forget: tag entry with semantic metadata (never blocks save)
+      if (!savedOffline) {
+        final contentToTag = _cleanedText ?? entry.content;
+        unawaited(
+          MemoryTaggingService().tagEntry(
+            entryId: saved.id,
+            content: contentToTag,
+          ),
+        );
       }
 
       // Auto-create book if none exists (skip when offline)
@@ -517,6 +323,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
       // Upload photo if attached (skip when offline — photo syncs on reconnect)
       if (_attachedPhotoPath != null && !savedOffline) {
+        if (mounted) setState(() => _isUploadingPhoto = true);
         try {
           await _mediaService.uploadPhoto(
             entryId: saved.id,
@@ -524,6 +331,16 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           );
         } catch (e) {
           debugPrint('[ReviewSaveScreen] Photo upload failed: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Photo could not be uploaded. The entry was saved without it.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isUploadingPhoto = false);
         }
       }
 
@@ -570,14 +387,12 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
       debugPrint('[SAVE] Post-save: mounted=$mounted, savedOffline=$savedOffline');
       if (mounted) {
+        ref.invalidate(todayEntryProvider);
+        ref.invalidate(timelineEntriesProvider);
+        ref.invalidate(booksProvider);
+
         if (savedOffline) {
           debugPrint('[SAVE] Taking OFFLINE path → /home');
-          // Invalidate providers so home screen refreshes
-          ref.invalidate(todayEntryProvider);
-          ref.invalidate(timelineEntriesProvider);
-          ref.invalidate(booksProvider);
-
-          // Show offline-save confirmation instead of full success overlay
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text(
@@ -591,37 +406,17 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               ),
             ),
           );
-          // Navigate back to home
           if (mounted) context.go('/home');
         } else {
-          // Navigate to post-save confirmation screen.
-          // Store data in provider so it survives go_router refreshes
-          // (Supabase DB writes trigger onAuthStateChange which causes
-          // go_router to rebuild and lose route `extra` data).
-          if (mounted) {
-            final title = _generatedTitle ?? _generateFallbackTitle();
-            final entryContent = _cleanedText ?? widget.data.rawText;
-            final entryId = saved.id;
-
-            final postSaveData = PostSaveData(
-              entryId: entryId,
-              title: title,
-              content: entryContent,
-            );
-
-            // Store in provider (survives router refresh)
-            ref.read(postSaveDataProvider.notifier).state = postSaveData;
-
-            // Invalidate data providers so home/timeline refresh later
-            ref.invalidate(todayEntryProvider);
-            ref.invalidate(timelineEntriesProvider);
-            ref.invalidate(booksProvider);
-
-            // Navigate to post-save
-            debugPrint('[SAVE] Taking ONLINE path → navigating to /post-save');
-            if (mounted) context.go('/post-save');
-            debugPrint('[SAVE] context.go(/post-save) called');
-          }
+          debugPrint('[SAVE] Taking ONLINE path → /post-save');
+          final postSaveData = PostSaveData(
+            entryId: saved.id,
+            title: _generatedTitle ?? _generateFallbackTitle(),
+            content: _cleanedText ?? widget.data.rawText,
+            attachedPhotoPath: _attachedPhotoPath,
+          );
+          ref.read(postSaveDataProvider.notifier).state = postSaveData;
+          if (mounted) context.go('/post-save');
         }
       }
     } catch (e, stack) {
@@ -661,11 +456,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                   // Title + date section
                   _buildTitleSection(colors),
 
-                  // Tags & location (top for visibility)
+                  // Tags & location
                   _buildMetadataRow(colors),
-
-                  // Tab bar: Audio | Transcript | Story
-                  _buildTabBar(colors),
 
                   // AI progress indicator
                   if (_isPolishing) ...[
@@ -673,37 +465,41 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                     const SizedBox(height: 16),
                     _buildShimmerPlaceholders(),
                   ],
-                  // Content views
+
+                  // Content
                   if (!_isPolishing) ...[
-                    if (_polishedText != null || _cleanedText != null) ...[
-                      const SizedBox(height: 8),
-                    ] else if (!widget.data.isVoice) ...[
+                    if (_polishedText == null && _cleanedText == null && !widget.data.isVoice) ...[
                       const SizedBox(height: 8),
                       _buildAIPolishButton(),
-                      const SizedBox(height: 8),
-                    ] else ...[
-                      const SizedBox(height: 8),
                     ],
                     if (_polishError != null) ...[
+                      const SizedBox(height: 8),
                       _buildErrorState(),
-                      const SizedBox(height: 24),
                     ],
+                    // Voice audio player (always shown for voice entries)
+                    if (widget.data.isVoice) ...[
+                      const SizedBox(height: 8),
+                      _buildAudioCard(colors),
+                    ],
+                    // View tabs: Original / Polished / Story
+                    if (_cleanedText != null || _polishedText != null) ...[
+                      const SizedBox(height: 12),
+                      _buildViewTabs(colors),
+                    ],
+                    const SizedBox(height: 8),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
-                      child: _activeTab == 2 && widget.data.isVoice
-                          ? _buildAudioView()
-                          : _activeTab == 0 && _polishedText != null
-                              ? _buildPolishedView()
-                              : _activeTab == 1 && _cleanedText != null
-                                  ? _buildCleanedView()
-                                  : _buildOriginalView(),
+                      child: _viewMode == 2 && _polishedText != null
+                          ? _buildPolishedView()
+                          : _viewMode == 1 && _cleanedText != null
+                              ? _buildCleanedView()
+                              : _buildOriginalView(),
                     ),
                   ],
                 ],
               ),
             ),
           ),
-          // Bottom dual button bar
           _buildBottomBar(),
         ],
       ),
@@ -818,6 +614,36 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               ),
             ),
           ),
+
+          // Photo upload progress overlay
+          if (_isUploadingPhoto)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withAlpha(120),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Uploading photo...',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -921,15 +747,17 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   void _showPhotoConfirmation(bool success) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(success ? 'Photo added successfully!' : 'Could not add photo. Please try again.'),
-        backgroundColor: success ? AppColors.of(context).accent : AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not add photo. Please try again.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Widget _fallbackBannerBg(AppPalette colors) {
@@ -1102,76 +930,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       ),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // ---------------------------------------------------------------------------
-  // Tab Bar — Story | Transcript | Audio
-  // ---------------------------------------------------------------------------
-
-  Widget _buildTabBar(AppPalette colors) {
-    final tabs = widget.data.isVoice
-        ? [
-            (icon: Icons.graphic_eq_rounded, label: 'AUDIO', index: 2),
-            (icon: Icons.description_rounded, label: 'TRANSCRIPT', index: 1),
-            (icon: Icons.auto_stories_rounded, label: 'STORY', index: 0),
-          ]
-        : [
-            (icon: Icons.article_rounded, label: 'ORIGINAL', index: 2),
-            (icon: Icons.auto_fix_high_rounded, label: 'POLISHED', index: 1),
-            (icon: Icons.auto_stories_rounded, label: 'STORY', index: 0),
-          ];
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: Row(
-        children: tabs.map((tab) {
-          final isActive = _activeTab == tab.index;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _activeTab = tab.index),
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: isActive ? colors.accent : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      tab.icon,
-                      size: 22,
-                      color: isActive ? colors.accent : colors.textMuted,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tab.label,
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: isActive ? colors.accent : colors.textMuted,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  // Keep legacy method for any callers
-  Widget _buildViewToggle() => _buildTabBar(AppColors.of(context));
 
   // ---------------------------------------------------------------------------
   // Title + Date Section
@@ -1366,155 +1124,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Audio Player View (shown on AUDIO tab when voice entry)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildAudioView() {
-    final colors = AppColors.of(context);
-    final hasAudio = widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty;
-    final transcript = widget.data.rawText.trim();
-
-    return _buildContentCard(
-      key: const ValueKey('audio'),
-      colors: colors,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Audio player section
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colors.accent.withAlpha(13),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.accent.withAlpha(30)),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    // Play button (visual — audio playback is platform-dependent)
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: colors.accent,
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors.accent.withAlpha(60),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.play_arrow_rounded, size: 28, color: Colors.white),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Voice Recording',
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          // Waveform placeholder bar
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(3),
-                            child: SizedBox(
-                              height: 24,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: List.generate(20, (i) {
-                                  final h = 6.0 + (i % 5) * 3.0 + (i % 3) * 2.0;
-                                  return Expanded(
-                                    child: Container(
-                                      height: h.clamp(6.0, 20.0),
-                                      margin: const EdgeInsets.symmetric(horizontal: 1),
-                                      decoration: BoxDecoration(
-                                        color: colors.accent.withAlpha(80),
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (!hasAudio) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    'Audio playback not available',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // Raw transcript section
-          if (transcript.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Icon(Icons.description_rounded, size: 16, color: colors.textMuted),
-                const SizedBox(width: 6),
-                Text(
-                  'RAW TRANSCRIPT',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textMuted,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...transcript
-                .split('\n')
-                .where((p) => p.trim().isNotEmpty)
-                .map((p) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        p,
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                          color: colors.textPrimary.withAlpha(200),
-                          height: 1.7,
-                        ),
-                      ),
-                    )),
-          ] else ...[
-            const SizedBox(height: 16),
-            Text(
-              'No transcript available for this recording.',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: colors.textMuted,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildContentCard({required AppPalette colors, required Widget child, Key? key}) {
     return Container(
       key: key,
@@ -1593,7 +1202,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 isActive: _tags.isNotEmpty,
                 onTap: _showTagsSheet,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               _actionPill(
                 icon: Icons.location_on_outlined,
                 label: _locationName ?? 'Add location',
@@ -1627,6 +1236,146 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 ),
               )).toList(),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mood Selector
+  // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // View Tabs: Original | Polished | Story
+  // ---------------------------------------------------------------------------
+
+  Widget _buildViewTabs(AppPalette colors) {
+    final tabs = <({int index, String label, IconData? icon})>[
+      (index: 0, label: 'Original', icon: null),
+      if (_cleanedText != null) (index: 1, label: 'Polished', icon: null),
+      if (_polishedText != null) (index: 2, label: 'Story', icon: Icons.auto_awesome),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: tabs.map((tab) {
+            final isActive = _viewMode == tab.index;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _viewMode = tab.index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: isActive ? colors.accent : Colors.transparent,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (tab.icon != null) ...[
+                        Icon(
+                          tab.icon,
+                          size: 11,
+                          color: isActive ? Colors.white : colors.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        tab.label,
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          color: isActive ? Colors.white : colors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Audio Card (inline, for voice entries)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAudioCard(AppPalette colors) {
+    final hasAudio = widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.accent.withAlpha(13),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.accent.withAlpha(30)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors.accent,
+              boxShadow: [
+                BoxShadow(
+                  color: colors.accent.withAlpha(60),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.play_arrow_rounded, size: 24, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Voice Recording',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: List.generate(20, (i) {
+                    final h = 4.0 + (i % 5) * 3.0 + (i % 3) * 2.0;
+                    return Expanded(
+                      child: Container(
+                        height: h.clamp(4.0, 18.0),
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        decoration: BoxDecoration(
+                          color: colors.accent.withAlpha(120),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+          if (!hasAudio) ...[
+            const SizedBox(width: 8),
+            Icon(Icons.info_outline, size: 16, color: colors.textMuted),
           ],
         ],
       ),
@@ -1833,17 +1582,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               // Edit Story button
               Expanded(
                 child: GestureDetector(
-                  onTap: () {
-                    final displayText = _polishedText ?? _cleanedText ?? widget.data.rawText;
-                    context.push('/edit-memory', extra: ReviewData(
-                      rawText: displayText,
-                      isVoice: widget.data.isVoice,
-                      audioPath: widget.data.audioPath,
-                      attachedPhotoPath: _attachedPhotoPath,
-                      mood: widget.data.mood,
-                      locationName: _locationName,
-                    ));
-                  },
+                  onTap: () => context.pop(),
                   child: Container(
                     height: 56,
                     decoration: BoxDecoration(
@@ -1857,7 +1596,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                         Icon(Icons.edit_note_rounded, size: 20, color: colors.textPrimary),
                         const SizedBox(width: 6),
                         Text(
-                          'Edit Story',
+                          'Edit',
                           style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -1870,11 +1609,11 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              // Save to Vault button
+              // Save Memory button — direct save, no confirmation sheet
               Expanded(
                 flex: 2,
                 child: GestureDetector(
-                  onTap: (_isSaving || _isPolishing) ? null : _showSaveConfirmation,
+                  onTap: (_isSaving || _isPolishing) ? null : _saveEntry,
                   child: Container(
                     height: 56,
                     decoration: BoxDecoration(

@@ -27,6 +27,7 @@ import 'package:deardays/services/analytics/analytics_service.dart';
 import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 import 'package:deardays/services/ai/mood_detection_service.dart';
 import 'package:deardays/services/ai/highlight_service.dart';
+import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 
 // Re-export SyncStatus so widgets can import from app_providers
@@ -103,6 +104,10 @@ final highlightServiceProvider = Provider<HighlightService>((ref) {
 
 final aiCreditServiceProvider = Provider<AiCreditService>((ref) {
   return AiCreditService();
+});
+
+final memoryTaggingServiceProvider = Provider<MemoryTaggingService>((ref) {
+  return MemoryTaggingService();
 });
 
 final offlineAiQueueProvider = Provider<OfflineAiQueue>((ref) {

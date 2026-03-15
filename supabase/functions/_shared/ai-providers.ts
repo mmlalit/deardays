@@ -1,82 +1,178 @@
 // ---------------------------------------------------------------------------
-// Gemini 2.5 Flash
+// Configurable AI provider layer
+//
+// Set these Supabase secrets to control which model is used:
+//
+//   AI_PROVIDER      = "openai" | "gemini" | "claude"   (default: "openai")
+//   AI_MODEL         = e.g. "gpt-4o-mini", "gemini-2.5-flash", "claude-haiku-4-5-20251001"
+//   AI_EMBED_MODEL   = e.g. "text-embedding-3-small", "text-embedding-004"
+//
+// All edge functions call the generic generate() / chat() / embed() exports.
+// Switching provider = update one secret + redeploy. No code changes needed.
 // ---------------------------------------------------------------------------
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const AI_PROVIDER   = (Deno.env.get("AI_PROVIDER")    ?? "openai").toLowerCase();
+const AI_MODEL      = Deno.env.get("AI_MODEL")         ?? "gpt-4o-mini";
+const AI_EMBED_MODEL = Deno.env.get("AI_EMBED_MODEL")  ?? "text-embedding-3-small";
 
-export async function geminiGenerate(
+// ---------------------------------------------------------------------------
+// Public API — use these in all edge functions
+// ---------------------------------------------------------------------------
+
+/// Single-turn generation (structured tasks: tagging, polish, prompts, summaries)
+export async function generate(
   prompt: string,
   systemPrompt?: string,
 ): Promise<string> {
-  const apiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
-  const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  if (AI_PROVIDER === "gemini") return _geminiGenerate(prompt, systemPrompt);
+  if (AI_PROVIDER === "claude") return _claudeGenerate(prompt, systemPrompt);
+  return _openaiGenerate(prompt, systemPrompt);
+}
 
+/// Multi-turn conversation (check-in chat, memory search summary)
+export async function chat(
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt?: string,
+): Promise<string> {
+  if (AI_PROVIDER === "gemini") return _geminiChat(messages, systemPrompt);
+  if (AI_PROVIDER === "claude") return _claudeGenerate(
+    messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+    systemPrompt,
+  );
+  return _openaiChat(messages, systemPrompt);
+}
+
+/// Semantic embedding for vector search
+export async function embed(text: string): Promise<number[]> {
+  if (AI_PROVIDER === "gemini") return _geminiEmbed(text);
+  return _openaiEmbed(text);
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI
+// ---------------------------------------------------------------------------
+
+async function _openaiCall(
+  messages: Array<{ role: string; content: string }>,
+): Promise<string> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model: AI_MODEL, messages, temperature: 0.3 }),
+  });
+  if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+async function _openaiGenerate(prompt: string, systemPrompt?: string): Promise<string> {
+  const messages: Array<{ role: string; content: string }> = [];
+  if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
+  messages.push({ role: "user", content: prompt });
+  return _openaiCall(messages);
+}
+
+async function _openaiChat(
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt?: string,
+): Promise<string> {
+  const full: Array<{ role: string; content: string }> = [];
+  if (systemPrompt) full.push({ role: "system", content: systemPrompt });
+  for (const m of messages) {
+    full.push({ role: m.role === "assistant" ? "assistant" : "user", content: m.content });
+  }
+  return _openaiCall(full);
+}
+
+async function _openaiEmbed(text: string): Promise<number[]> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
+  const res = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model: AI_EMBED_MODEL, input: text }),
+  });
+  if (!res.ok) throw new Error(`OpenAI embed error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const values = data.data?.[0]?.embedding as number[] | undefined;
+  if (!values?.length) throw new Error("OpenAI embed: empty response");
+  return values;
+}
+
+// ---------------------------------------------------------------------------
+// Gemini
+// ---------------------------------------------------------------------------
+
+async function _geminiGenerate(prompt: string, systemPrompt?: string): Promise<string> {
+  const apiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent?key=${apiKey}`;
   const body: Record<string, unknown> = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
   };
-  if (systemPrompt) {
-    body.system_instruction = { parts: [{ text: systemPrompt }] };
-  }
-
+  if (systemPrompt) body.system_instruction = { parts: [{ text: systemPrompt }] };
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini error ${res.status}: ${err}`);
-  }
-
+  if (!res.ok) throw new Error(`Gemini error ${res.status}: ${await res.text()}`);
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-export async function geminiChat(
+async function _geminiChat(
   messages: Array<{ role: string; content: string }>,
   systemPrompt?: string,
 ): Promise<string> {
   const apiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
-  const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-  const contents = messages.map((m) => ({
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent?key=${apiKey}`;
+  const contents = messages.map(m => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
-
   const body: Record<string, unknown> = { contents };
-  if (systemPrompt) {
-    body.system_instruction = { parts: [{ text: systemPrompt }] };
-  }
-
+  if (systemPrompt) body.system_instruction = { parts: [{ text: systemPrompt }] };
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini error ${res.status}: ${err}`);
-  }
-
+  if (!res.ok) throw new Error(`Gemini error ${res.status}: ${await res.text()}`);
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
+async function _geminiEmbed(text: string): Promise<number[]> {
+  const apiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
+  const embedModel = AI_EMBED_MODEL || "text-embedding-004";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${embedModel}:embedContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: `models/${embedModel}`,
+      content: { parts: [{ text }] },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini embed error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const values = data.embedding?.values as number[] | undefined;
+  if (!values?.length) throw new Error("Gemini embed: empty response");
+  return values;
+}
+
 // ---------------------------------------------------------------------------
-// Claude Sonnet 4.6 (paid polish only)
+// Claude
 // ---------------------------------------------------------------------------
 
-export async function claudeGenerate(
-  prompt: string,
-  systemPrompt?: string,
-): Promise<string> {
+async function _claudeGenerate(prompt: string, systemPrompt?: string): Promise<string> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -85,24 +181,19 @@ export async function claudeGenerate(
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6-20250514",
+      model: AI_MODEL,
       max_tokens: 4096,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: "user", content: prompt }],
     }),
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Claude error ${res.status}: ${err}`);
-  }
-
+  if (!res.ok) throw new Error(`Claude error ${res.status}: ${await res.text()}`);
   const data = await res.json();
   return data.content?.[0]?.text ?? "";
 }
 
 // ---------------------------------------------------------------------------
-// OpenAI Whisper (paid transcription only)
+// OpenAI Whisper — transcription always uses OpenAI regardless of AI_PROVIDER
 // ---------------------------------------------------------------------------
 
 export async function whisperTranscribe(
@@ -110,25 +201,15 @@ export async function whisperTranscribe(
   filename: string,
 ): Promise<string> {
   const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-
   const formData = new FormData();
   formData.append("file", new Blob([audioData]), filename);
   formData.append("model", "whisper-1");
-
-  const res = await fetch(
-    "https://api.openai.com/v1/audio/transcriptions",
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: formData,
-    },
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Whisper error ${res.status}: ${err}`);
-  }
-
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Whisper error ${res.status}: ${await res.text()}`);
   const data = await res.json();
   return data.text ?? "";
 }

@@ -72,6 +72,13 @@ dependencies:
   purchases_flutter: ^8.5.0
   purchases_ui_flutter: ^8.5.0
 
+  # Observability
+  sentry_flutter: ^8.12.0
+  posthog_flutter: ^4.7.1
+
+  # Connectivity (platform-native)
+  connectivity_plus: ^6.1.1
+
   # Icons
   cupertino_icons: ^1.0.8
 

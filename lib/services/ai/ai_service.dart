@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 
 import 'dart:convert';
@@ -83,17 +84,21 @@ class AiService {
 
   late final Dio _dio;
 
-  // In-memory cache for deterministic AI responses (cover queries, share summaries).
-  // Avoids redundant API calls for the same input within the same session.
-  // Max 100 entries to prevent unbounded growth.
+  // LRU cache for deterministic AI responses (cover queries, share summaries).
+  // LinkedHashMap maintains insertion order → O(1) eviction of oldest entry.
   static const int _maxCacheSize = 100;
-  final Map<String, String> _responseCache = {};
+  final LinkedHashMap<String, String> _responseCache = LinkedHashMap();
 
-  String? _getCached(String key) => _responseCache[key];
+  String? _getCached(String key) {
+    final value = _responseCache.remove(key);
+    if (value != null) _responseCache[key] = value; // move to end (most recent)
+    return value;
+  }
 
   void _putCache(String key, String value) {
+    _responseCache.remove(key); // remove if exists to refresh position
     if (_responseCache.length >= _maxCacheSize) {
-      _responseCache.remove(_responseCache.keys.first);
+      _responseCache.remove(_responseCache.keys.first); // O(1) eviction
     }
     _responseCache[key] = value;
   }
@@ -472,6 +477,61 @@ class AiService {
       }
     } on DioException catch (e) {
       throw _handleDioError(e, 'analyzeEntries');
+    }
+  }
+
+  /// Sends a journal entry to the ai-tag edge function for async semantic tagging.
+  /// Called fire-and-forget after online save. Updates DB directly — no return value.
+  Future<void> tagEntry({
+    required String entryId,
+    required String content,
+  }) async {
+    _ensureConfigured('tagEntry');
+    try {
+      await _dio.post<void>(
+        '/ai-tag',
+        data: {'entry_id': entryId, 'content': content},
+        options: Options(receiveTimeout: const Duration(seconds: 30)),
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'tagEntry');
+    }
+  }
+
+  /// Smart memory search: calls the memory-search edge function which does
+  /// rule-based query parsing + SQL filter + optional vector reranking + AI summary.
+  ///
+  /// Returns a map with:
+  /// - `answer` (String): AI-generated natural language answer
+  /// - `entryIds` (List of String): IDs of relevant entries
+  /// - `followUpQuestions` (List of String): suggested follow-up queries
+  Future<Map<String, dynamic>> smartMemorySearch({
+    required String query,
+    String? language,
+  }) async {
+    _ensureConfigured('smartMemorySearch');
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/memory-search',
+        data: {
+          'query': query,
+          if (language != null) 'language': language,
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 30)),
+      );
+
+      final data = response.data;
+      if (data == null) throw AiServiceException('Empty response from /memory-search');
+
+      return {
+        'answer': data['answer'] as String? ?? '',
+        'entryIds': List<String>.from(data['entry_ids'] as List? ?? []),
+        'followUpQuestions': List<String>.from(
+          data['follow_up_questions'] as List? ?? [],
+        ),
+      };
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'smartMemorySearch');
     }
   }
 

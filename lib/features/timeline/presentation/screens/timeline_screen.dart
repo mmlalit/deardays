@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -103,23 +104,15 @@ void showMemoryContextMenu(
               icon: Icons.bookmark_add_outlined,
               label: 'Add to Chapter',
               colors: colors,
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Feature coming soon')),
-                );
-              },
+              disabled: true,
+              onTap: () {},
             ),
             _ContextMenuOption(
               icon: Icons.lock_outline_rounded,
               label: 'Mark as Private',
               colors: colors,
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Entry marked as private')),
-                );
-              },
+              disabled: true,
+              onTap: () {},
             ),
             Divider(color: colors.border, height: 1),
             _ContextMenuOption(
@@ -129,7 +122,19 @@ void showMemoryContextMenu(
               isDestructive: true,
               onTap: () {
                 Navigator.pop(sheetCtx);
-                _confirmDeleteFromMenu(context, colors, onDelete);
+                onDelete?.call();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Memory deleted'),
+                    behavior: SnackBarBehavior.floating,
+                    action: SnackBarAction(
+                      label: 'Undo',
+                      onPressed: () {
+                        // Undo not yet wired — placeholder for future implementation
+                      },
+                    ),
+                  ),
+                );
               },
             ),
 
@@ -173,44 +178,13 @@ String _contextMenuTitle(JournalEntry entry) {
   return entry.content.length > 50 ? '${entry.content.substring(0, 50)}...' : entry.content;
 }
 
-void _confirmDeleteFromMenu(BuildContext context, AppPalette colors, VoidCallback? onDelete) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      backgroundColor: colors.bg,
-      title: Text(
-        'Delete Memory?',
-        style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: colors.textPrimary),
-      ),
-      content: Text(
-        'This memory will be permanently deleted and cannot be undone.',
-        style: GoogleFonts.manrope(color: colors.textSecondary),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textSecondary)),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            onDelete?.call();
-          },
-          child: Text(
-            'Delete',
-            style: GoogleFonts.manrope(color: const Color(0xFFEF4444), fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 class _ContextMenuOption extends StatelessWidget {
   final IconData icon;
   final String label;
   final AppPalette colors;
   final bool isDestructive;
+  final bool disabled;
   final VoidCallback onTap;
 
   const _ContextMenuOption({
@@ -219,30 +193,56 @@ class _ContextMenuOption extends StatelessWidget {
     required this.colors,
     required this.onTap,
     this.isDestructive = false,
+    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = isDestructive ? const Color(0xFFEF4444) : colors.textPrimary;
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        height: 56,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(width: 16),
-              Text(
-                label,
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: color,
+    final color = disabled
+        ? colors.textMuted
+        : isDestructive
+            ? const Color(0xFFEF4444)
+            : colors.textPrimary;
+    return Opacity(
+      opacity: disabled ? 0.5 : 1.0,
+      child: GestureDetector(
+        onTap: disabled ? null : onTap,
+        child: SizedBox(
+          height: 56,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                if (disabled)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: colors.border,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Soon',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textMuted,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -262,7 +262,18 @@ class TimelineScreen extends ConsumerStatefulWidget {
 }
 
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
-  String? _categoryFilter; // null = All
+  String? _categoryFilter;
+  bool _isMonthly = false;
+  bool _searchActive = false;
+  String _searchQuery = '';
+  String? _moodFilter;
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   static const _categories = [
     (null, 'All Memories'),
@@ -286,6 +297,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         loading: () => _buildSkeleton(colors),
         error: (_, __) => _buildError(colors),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/write'),
+        backgroundColor: colors.accent,
+        elevation: 4,
+        child: Icon(Icons.edit_rounded, color: colors.bg, size: 22),
+      ),
     );
   }
 
@@ -307,6 +324,18 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     if (_categoryFilter != null) {
       filtered = filtered.where((e) => _primaryCategory(e) == _categoryFilter).toList();
     }
+    if (_moodFilter != null) {
+      filtered = filtered.where((e) => e.mood == _moodFilter).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((e) =>
+        e.content.toLowerCase().contains(q) ||
+        (e.polishedContent?.toLowerCase().contains(q) ?? false) ||
+        e.tags.any((t) => t.toLowerCase().contains(q)) ||
+        (e.locationName?.toLowerCase().contains(q) ?? false)
+      ).toList();
+    }
 
     final totalMemories = entries.length;
     final chapters = entries.map((e) => '${e.entryDate.year}-${e.entryDate.month}').toSet().length;
@@ -324,13 +353,21 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               _buildWeeklySummaryCard(colors),
               const SizedBox(height: 20),
               _buildFilterChips(colors),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              _buildViewControlsRow(colors),
+              if (_searchActive) ...[
+                _buildSearchBar(colors),
+                _buildMoodFilterChips(colors),
+                const SizedBox(height: 4),
+              ],
             ],
           ),
         ),
 
         if (filtered.isEmpty)
           SliverToBoxAdapter(child: _buildEmptyState(colors))
+        else if (_isMonthly)
+          _buildMonthlySliver(filtered, colors)
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
@@ -689,12 +726,14 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               colors: colors,
             );
           }
-          return _buildCardRow(
-            item.entry!,
-            isCurrentYear: item.entry!.entryDate.year == mostRecentYear,
-            isLast: item.isLast,
-            colors: colors,
-            cardWidget: _buildCardForType(item.entry!, entries, colors),
+          return RepaintBoundary(
+            child: _buildCardRow(
+              item.entry!,
+              isCurrentYear: item.entry!.entryDate.year == mostRecentYear,
+              isLast: item.isLast,
+              colors: colors,
+              cardWidget: _buildCardForType(item.entry!, entries, colors),
+            ),
           );
         },
         childCount: items.length,
@@ -1021,45 +1060,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   Widget _buildCardPhoto(String storagePath, AppPalette colors) {
-    final mediaService = ref.read(mediaServiceProvider);
-    return FutureBuilder<String>(
-      future: mediaService.getSignedUrl(storagePath),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            height: 140,
-            width: double.infinity,
-            color: colors.accentFaint,
-            child: Center(
-              child: SizedBox(
-                width: 20, height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2, color: colors.textMuted,
-                ),
-              ),
-            ),
-          );
-        }
-        if (!snapshot.hasData || snapshot.hasError) {
-          return Container(
-            height: 100,
-            color: colors.accentFaint,
-            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
-          );
-        }
-        return Image.network(
-          snapshot.data!,
-          height: 140,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            height: 100,
-            color: colors.accentFaint,
-            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
-          ),
-        );
-      },
-    );
+    return _TimelineCardPhoto(storagePath: storagePath, colors: colors);
   }
 
   Widget _buildVoiceIndicator(AppPalette colors) {
@@ -1097,6 +1098,263 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               fontSize: 10,
               fontWeight: FontWeight.w500,
               color: colors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // View Controls: Toggle + Search icon
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildViewControlsRow(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: [
+          // Segmented toggle: Timeline | Monthly
+          Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: colors.cardBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: colors.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _viewToggleTab(Icons.timeline_rounded, 'Timeline', isMonthly: false, colors: colors),
+                _viewToggleTab(Icons.calendar_view_month_rounded, 'Monthly', isMonthly: true, colors: colors),
+              ],
+            ),
+          ),
+          const Spacer(),
+          // Search toggle
+          GestureDetector(
+            onTap: () => setState(() {
+              _searchActive = !_searchActive;
+              if (!_searchActive) {
+                _searchController.clear();
+                _searchQuery = '';
+                _moodFilter = null;
+              }
+            }),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _searchActive ? colors.accent : colors.cardBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _searchActive ? colors.accent : colors.border),
+              ),
+              child: Icon(
+                _searchActive ? Icons.close_rounded : Icons.search_rounded,
+                size: 18,
+                color: _searchActive ? Colors.white : colors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _viewToggleTab(IconData icon, String label, {required bool isMonthly, required AppPalette colors}) {
+    final isActive = _isMonthly == isMonthly;
+    return GestureDetector(
+      onTap: () => setState(() => _isMonthly = isMonthly),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? colors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isActive ? Colors.white : colors.textSecondary),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isActive ? Colors.white : colors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 12),
+            Icon(Icons.search_rounded, size: 18, color: colors.textMuted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Search memories…',
+                  hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              ),
+            ),
+            if (_searchQuery.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Icon(Icons.cancel_rounded, size: 16, color: colors.textMuted),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoodFilterChips(AppPalette colors) {
+    const moods = [
+      (null, 'All'),
+      ('great', '😄 Great'),
+      ('good', '😊 Good'),
+      ('okay', '😐 Okay'),
+      ('low', '😔 Low'),
+      ('tough', '😞 Tough'),
+    ];
+    const moodColors = {
+      'great': Color(0xFF10B981),
+      'good': Color(0xFF3B82F6),
+      'okay': Color(0xFFF59E0B),
+      'low': Color(0xFFF97316),
+      'tough': Color(0xFFEF4444),
+    };
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: moods.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final (mood, label) = moods[i];
+          final isActive = _moodFilter == mood;
+          final activeColor = mood != null ? moodColors[mood]! : colors.accent;
+          return GestureDetector(
+            onTap: () => setState(() => _moodFilter = mood),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: isActive ? activeColor : colors.cardBg,
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: isActive ? activeColor : colors.border),
+              ),
+              child: Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.white : colors.textSecondary,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Monthly View Sliver
+  // ─────────────────────────────────────────────────────────────────────────
+
+  SliverPadding _buildMonthlySliver(List<JournalEntry> entries, AppPalette colors) {
+    final grouped = <String, List<JournalEntry>>{};
+    for (final e in entries) {
+      final key = '${e.entryDate.year}-${e.entryDate.month.toString().padLeft(2, '0')}';
+      grouped.putIfAbsent(key, () => []).add(e);
+    }
+    final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    final items = <Widget>[];
+    for (final key in keys) {
+      final monthEntries = grouped[key]!;
+      final parts = key.split('-');
+      final date = DateTime(int.parse(parts[0]), int.parse(parts[1]));
+      items.add(_buildMonthHeader(date, monthEntries.length, colors));
+      for (final entry in monthEntries) {
+        items.add(Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildCardForType(entry, entries, colors),
+        ));
+      }
+      items.add(const SizedBox(height: 8));
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => items[i],
+          childCount: items.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthHeader(DateTime date, int count, AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 10),
+      child: Row(
+        children: [
+          Text(
+            DateFormat('MMMM yyyy').format(date),
+            style: GoogleFonts.newsreader(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(18),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$count',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: colors.accent,
+              ),
             ),
           ),
         ],
@@ -1651,6 +1909,98 @@ class _MoodCalendarSheetState extends State<_MoodCalendarSheet> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Timeline item model
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Card photo widget — StatefulWidget so the signed-URL future is created once
+// in initState and not recreated on every parent rebuild.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TimelineCardPhoto extends ConsumerStatefulWidget {
+  const _TimelineCardPhoto({
+    required this.storagePath,
+    required this.colors,
+  });
+
+  final String storagePath;
+  final AppPalette colors;
+
+  @override
+  ConsumerState<_TimelineCardPhoto> createState() => _TimelineCardPhotoState();
+}
+
+class _TimelineCardPhotoState extends ConsumerState<_TimelineCardPhoto> {
+  late Future<String> _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = _fetchUrl();
+  }
+
+  @override
+  void didUpdateWidget(_TimelineCardPhoto oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.storagePath != widget.storagePath) {
+      _urlFuture = _fetchUrl();
+    }
+  }
+
+  Future<String> _fetchUrl() async {
+    if (widget.storagePath.startsWith('http')) return widget.storagePath;
+    try {
+      return await ref.read(mediaServiceProvider).getSignedUrl(widget.storagePath);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    return FutureBuilder<String>(
+      future: _urlFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 140,
+            width: double.infinity,
+            color: colors.accentFaint,
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colors.textMuted,
+                ),
+              ),
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.hasError || snapshot.data!.isEmpty) {
+          return Container(
+            height: 100,
+            color: colors.accentFaint,
+            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
+          );
+        }
+        return CachedNetworkImage(
+          imageUrl: snapshot.data!,
+          height: 140,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          memCacheWidth: 600,
+          memCacheHeight: 280,
+          errorWidget: (_, __, ___) => Container(
+            height: 100,
+            color: colors.accentFaint,
+            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
+          ),
+        );
+      },
+    );
+  }
+}
 
 class _TimelineItem {
   final bool isYearHeader;

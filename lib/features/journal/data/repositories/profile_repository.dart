@@ -65,4 +65,39 @@ class ProfileRepository {
         .map((row) => Chapter.fromMap(row as Map<String, dynamic>))
         .toList();
   }
+
+  /// Creates a new chapter with the next available chapter_number.
+  Future<Chapter> createChapter(String title) async {
+    // Get the current max chapter_number
+    final existing = await getChapters();
+    final nextNumber = existing.isEmpty
+        ? 1
+        : existing.map((c) => c.chapterNumber).reduce((a, b) => a > b ? a : b) + 1;
+
+    final now = DateTime.now().toUtc();
+    final response = await _client
+        .from('chapters')
+        .insert({
+          'user_id': _userId,
+          'title': title,
+          'chapter_number': nextNumber,
+          'start_date': now.toIso8601String().split('T').first,
+          'entry_count': 0,
+        })
+        .select()
+        .single();
+
+    return Chapter.fromMap(response);
+  }
+
+  /// Seeds 4 default chapters if user has none. Returns existing or new chapters.
+  Future<List<Chapter>> seedDefaultChapters() async {
+    final existing = await getChapters();
+    if (existing.isNotEmpty) return existing;
+
+    // Call the RPC which inserts defaults only if user has 0 chapters
+    await _client.rpc('seed_default_chapters', params: {'p_user_id': _userId});
+
+    return getChapters();
+  }
 }

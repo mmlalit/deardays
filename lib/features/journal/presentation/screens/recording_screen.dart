@@ -29,7 +29,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
   bool _isPaused = false;
   int _elapsedSeconds = 0;
   Timer? _timer;
-  String? _recordingPath;
 
   final AudioRecorder _audioRecorder = AudioRecorder();
 
@@ -147,7 +146,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
           setState(() {
             _isRecording = true;
             _isPaused = false;
-            _recordingPath = path;
             _elapsedSeconds = 0;
           });
           _startTimer();
@@ -289,7 +287,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
       if (mounted) {
         setState(() {
           _isRecording = false;
-          _recordingPath = path;
         });
         context.pushReplacement('/processing', extra: ReviewData(
           rawText: transcript,

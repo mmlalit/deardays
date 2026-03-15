@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +35,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   late PageController _pageController;
   late int _currentIndex;
   late List<JournalEntry> _entries;
+  bool _showSwipeHint = false;
 
   @override
   void initState() {
@@ -47,6 +49,13 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       _currentIndex = 0;
     }
     _pageController = PageController(initialPage: _currentIndex);
+
+    if (_entries.length > 1) {
+      _showSwipeHint = true;
+      Future.delayed(const Duration(milliseconds: 2500), () {
+        if (mounted) setState(() => _showSwipeHint = false);
+      });
+    }
   }
 
   @override
@@ -147,6 +156,40 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
             child: _entries.length <= 10
                 ? _buildDotIndicator(colors)
                 : _buildTextIndicator(colors),
+          ),
+
+          // Swipe hint overlay — fades out after ~2.5s
+          AnimatedOpacity(
+            opacity: _showSwipeHint ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 600),
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colors.textPrimary.withAlpha(180),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.chevron_left_rounded, size: 20, color: colors.bg),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Swipe to navigate',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colors.bg,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(Icons.chevron_right_rounded, size: 20, color: colors.bg),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -357,12 +400,14 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       final mediaService = ref.read(mediaServiceProvider);
       final storagePath = photoMedia.first.storagePath;
       if (storagePath.startsWith('http')) {
-        return Image.network(
-          storagePath,
+        return CachedNetworkImage(
+          imageUrl: storagePath,
           height: 240,
           width: double.infinity,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
+          memCacheWidth: 800,
+          memCacheHeight: 480,
+          errorWidget: (_, __, ___) => _buildGradientBanner(colors),
         );
       }
       return FutureBuilder<String>(
@@ -371,12 +416,14 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           if (!snapshot.hasData || snapshot.hasError) {
             return _buildGradientBanner(colors);
           }
-          return Image.network(
-            snapshot.data!,
+          return CachedNetworkImage(
+            imageUrl: snapshot.data!,
             height: 240,
             width: double.infinity,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _buildGradientBanner(colors),
+            memCacheWidth: 800,
+            memCacheHeight: 480,
+            errorWidget: (_, __, ___) => _buildGradientBanner(colors),
           );
         },
       );

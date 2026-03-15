@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -152,12 +153,14 @@ class MilestoneCard extends StatelessWidget {
               if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
                 return _buildPhotoPlaceholder();
               }
-              return Image.network(
-                snapshot.data!,
+              return CachedNetworkImage(
+                imageUrl: snapshot.data!,
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildPhotoPlaceholder(),
+                memCacheWidth: 600,
+                memCacheHeight: 360,
+                errorWidget: (_, __, ___) => _buildPhotoPlaceholder(),
               );
             },
           )

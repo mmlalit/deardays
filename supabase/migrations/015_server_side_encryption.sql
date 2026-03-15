@@ -109,10 +109,10 @@ BEGIN
   -- We use a simple length + prefix heuristic: pgp_sym_encrypt output is always
   -- longer than ~100 chars even for short input, and raw journal text is stored
   -- directly. To be safe, we always re-encrypt on every write.
-  NEW.encrypted_content := public.app_encrypt(NEW.encrypted_content);
+  NEW.content := public.app_encrypt(NEW.content);
 
-  IF NEW.encrypted_raw_content IS NOT NULL THEN
-    NEW.encrypted_raw_content := public.app_encrypt(NEW.encrypted_raw_content);
+  IF NEW.raw_content IS NOT NULL THEN
+    NEW.raw_content := public.app_encrypt(NEW.raw_content);
   END IF;
 
   IF NEW.polished_content IS NOT NULL THEN
@@ -124,7 +124,7 @@ END;
 $$;
 
 CREATE TRIGGER trg_encrypt_journal_content
-  BEFORE INSERT OR UPDATE OF encrypted_content, encrypted_raw_content, polished_content
+  BEFORE INSERT OR UPDATE OF content, raw_content, polished_content
   ON public.journal_entries
   FOR EACH ROW
   EXECUTE FUNCTION public.encrypt_journal_content();
@@ -137,8 +137,8 @@ CREATE OR REPLACE VIEW public.journal_entries_decrypted AS
 SELECT
   id,
   user_id,
-  public.app_decrypt(encrypted_content) AS encrypted_content,
-  public.app_decrypt(encrypted_raw_content) AS encrypted_raw_content,
+  public.app_decrypt(content) AS content,
+  public.app_decrypt(raw_content) AS raw_content,
   mood,
   entry_date,
   entry_time,

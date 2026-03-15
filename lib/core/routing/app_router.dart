@@ -180,11 +180,11 @@ class AppRouter {
       GoRoute(
         path: '/edit-memory',
         builder: (context, state) {
-          final data = state.extra;
-          if (data is! ReviewData) {
-            return const HomeScreen();
+          final extra = state.extra;
+          if (extra is JournalEntry) {
+            return EditMemoryScreen(entry: extra);
           }
-          return EditMemoryScreen(data: data);
+          return const HomeScreen();
         },
       ),
       GoRoute(

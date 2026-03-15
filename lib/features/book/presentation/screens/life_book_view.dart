@@ -433,7 +433,6 @@ class LifeBookView extends ConsumerWidget {
     if (paragraphs.isEmpty) return const SizedBox.shrink();
 
     return Builder(builder: (context) {
-      final colors = AppColors.of(context);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

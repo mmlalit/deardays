@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -205,12 +206,14 @@ class PhotoCollageCard extends StatelessWidget {
         if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
           return _photoPlaceholder();
         }
-        return Image.network(
-          snapshot.data!,
+        return CachedNetworkImage(
+          imageUrl: snapshot.data!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => _photoPlaceholder(),
+          memCacheWidth: 400,
+          memCacheHeight: 400,
+          errorWidget: (_, __, ___) => _photoPlaceholder(),
         );
       },
     );

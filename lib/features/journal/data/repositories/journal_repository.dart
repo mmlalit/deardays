@@ -295,6 +295,13 @@ class JournalRepository {
     });
   }
 
+  /// Fetches multiple entries by ID list (used by smart memory search to load
+  /// entries returned by the memory-search edge function).
+  Future<List<JournalEntry>> getEntriesByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    return getEntries(ids: ids, limit: ids.length);
+  }
+
   /// Returns the total number of journal entries for the current user.
   Future<int> getTotalEntries() async {
     return _network.query(() async {

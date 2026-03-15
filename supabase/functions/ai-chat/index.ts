@@ -1,7 +1,7 @@
 import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { geminiChat } from "../_shared/ai-providers.ts";
+import { chat } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const systemPrompt = parts.join("\n");
-    const text = await geminiChat(messages, systemPrompt);
+    const text = await chat(messages, systemPrompt);
 
     return new Response(
       JSON.stringify({ text }),

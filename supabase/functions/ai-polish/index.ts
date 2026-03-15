@@ -1,10 +1,7 @@
 import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import {
-  claudeGenerate,
-  geminiGenerate,
-} from "../_shared/ai-providers.ts";
+import { generate } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -50,13 +47,7 @@ Deno.serve(async (req: Request) => {
       .filter(Boolean)
       .join("\n");
 
-    let text: string;
-
-    if (isPremium) {
-      text = await claudeGenerate(rawText, systemPrompt);
-    } else {
-      text = await geminiGenerate(rawText, systemPrompt);
-    }
+    const text = await generate(rawText, systemPrompt);
 
     return new Response(
       JSON.stringify({ text }),

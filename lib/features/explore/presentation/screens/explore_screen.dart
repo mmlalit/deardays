@@ -1,5 +1,5 @@
-import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,8 +14,6 @@ import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
 import 'package:deardays/features/timeline/presentation/widgets/on_this_day_card.dart';
-import 'package:deardays/features/story/data/models/life_story.dart';
-import 'package:deardays/features/story/presentation/providers/story_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category definitions for keyword matching
@@ -186,39 +184,37 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               ),
               const Spacer(),
               GestureDetector(
-                onTap: () => HapticFeedback.selectionClick(),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: colors.cardBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Icon(Icons.notifications_outlined, size: 20, color: colors.textPrimary),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [colors.accent, colors.accentLight],
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    'A',
-                    style: GoogleFonts.manrope(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
+                onTap: () => context.push('/settings'),
+                child: Builder(
+                  builder: (_) {
+                    final profile = ref.watch(profileProvider).valueOrNull;
+                    final initial = (profile?.displayName?.isNotEmpty == true
+                            ? profile!.displayName![0]
+                            : Supabase.instance.client.auth.currentUser?.email?[0] ?? 'A')
+                        .toUpperCase();
+                    return Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [colors.accent, colors.accentLight],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          initial,
+                          style: GoogleFonts.manrope(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -624,127 +620,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     }
   }
 
-  Widget _buildStoryBanner(AppPalette colors) {
-    final storyState = ref.watch(storyProvider);
-
-    // Trigger availability check on first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (storyState.status == StoryStatus.notEnoughData && storyState.entriesNeeded == 5) {
-        ref.read(storyProvider.notifier).checkAvailability();
-      }
-    });
-
-    final bool isReady = storyState.status == StoryStatus.ready ||
-        storyState.status == StoryStatus.available;
-    final bool isGenerating = storyState.status == StoryStatus.generating;
-    final bool notEnough = storyState.status == StoryStatus.notEnoughData;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: GestureDetector(
-        onTap: isReady || isGenerating
-            ? () => context.push('/story')
-            : null,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colors.accent.withAlpha(30),
-                colors.accent.withAlpha(10),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colors.accent.withAlpha(40),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: colors.accent.withAlpha(30),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: colors.accent,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your AI Life Story',
-                      style: GoogleFonts.newsreader(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isGenerating
-                          ? 'Generating your story...'
-                          : isReady
-                              ? 'Your weekly story is ready!'
-                              : notEnough
-                                  ? '${storyState.entriesNeeded} more entries needed this week'
-                                  : 'Write more to unlock your story',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isReady)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: colors.accent,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'View',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                )
-              else if (isGenerating)
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(colors.accent),
-                    value: storyState.progress,
-                  ),
-                )
-              else
-                Icon(
-                  Icons.lock_outline_rounded,
-                  color: colors.textSecondary.withAlpha(100),
-                  size: 20,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildOverview(List<JournalEntry> entries, AppPalette colors) {
     final happiest = entries
         .where((e) => e.mood == 'great' || e.mood == 'good')
@@ -770,16 +645,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
       children: [
-        // ── AI Life Story banner ──
-        _buildStoryBanner(colors),
-
-        // ── Surprise Me button ──
-        if (entries.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: _buildSurpriseMe(entries, colors),
-          ),
-
         // ── On This Day ──
         if (onThisDayEntries.isNotEmpty) ...[
           Padding(
@@ -859,51 +724,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         if (happiest.isEmpty && familyEntries.isEmpty && travelEntries.isEmpty)
           _buildEmptyState(colors),
       ],
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Surprise Me button (Feature 4)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildSurpriseMe(List<JournalEntry> entries, AppPalette colors) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        final random = entries[Random().nextInt(entries.length)];
-        context.push('/memory', extra: random);
-      },
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [colors.accent.withAlpha(180), colors.accentLight],
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: colors.accent.withAlpha(60),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.shuffle_rounded, size: 20, color: Colors.white),
-            const SizedBox(width: 10),
-            Text(
-              '✨ Surprise Me',
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1636,29 +1456,34 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
     // If storagePath is already a full URL (demo data), use directly
     if (photo.storagePath.startsWith('http')) {
-      return Image.network(
-        photo.storagePath,
+      return CachedNetworkImage(
+        imageUrl: photo.storagePath,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+        memCacheWidth: 400,
+        memCacheHeight: 400,
+        errorWidget: (_, __, ___) => Container(color: colors.highlightFaint),
       );
     }
 
     return FutureBuilder<String>(
       future: Supabase.instance.client.storage
           .from('entry-media')
-          .createSignedUrl(photo.storagePath, 3600),
+          .createSignedUrl(photo.storagePath, 3600)
+          .catchError((_) => ''),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.hasError) {
           return Container(color: colors.highlightFaint);
         }
-        return Image.network(
-          snapshot.data!,
+        return CachedNetworkImage(
+          imageUrl: snapshot.data!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => Container(color: colors.highlightFaint),
+          memCacheWidth: 400,
+          memCacheHeight: 400,
+          errorWidget: (_, __, ___) => Container(color: colors.highlightFaint),
         );
       },
     );

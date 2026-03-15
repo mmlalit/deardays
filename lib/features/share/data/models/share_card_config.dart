@@ -2,38 +2,46 @@ import 'package:flutter/material.dart';
 
 /// Target social platform for the share card.
 enum SharePlatform {
-  instagram('Instagram Story', 1080, 1920, Icons.camera_alt_rounded),
-  whatsapp('WhatsApp', 1080, 1080, Icons.chat_rounded);
+  instagram('Instagram Story', Icons.camera_alt_rounded, 9, 16),
+  whatsapp('WhatsApp Status', Icons.chat_rounded, 1, 1),
+  memoryCard('Memory Card', Icons.photo_album_rounded, 4, 5);
 
-  const SharePlatform(this.label, this.width, this.height, this.icon);
+  const SharePlatform(this.label, this.icon, this._wRatio, this._hRatio);
 
   final String label;
-  final int width;
-  final int height;
   final IconData icon;
+  final int _wRatio;
+  final int _hRatio;
 
   /// Aspect ratio (width / height).
-  double get aspectRatio => width / height;
+  double get aspectRatio => _wRatio / _hRatio;
 
-  /// Preview width scaled down to fit on screen (logical pixels).
-  double get previewWidth {
+  /// Render dimensions in logical pixels.
+  /// At pixelRatio 3.0, renderWidth = 360 → 1080px output.
+  double get renderWidth => 360;
+  double get renderHeight => renderWidth / aspectRatio;
+
+  /// Display dimensions on screen (inside phone mockup / card frame).
+  double get displayWidth {
     switch (this) {
       case SharePlatform.instagram:
-        return 280;
+        return 220;
       case SharePlatform.whatsapp:
-        return 300;
+        return 220;
+      case SharePlatform.memoryCard:
+        return 200;
     }
   }
 
-  double get previewHeight => previewWidth / aspectRatio;
+  double get displayHeight => displayWidth / aspectRatio;
 }
 
-/// Visual style for the share card.
+/// Visual style / template for the share card.
 enum CardStyle {
   minimal,
-  vibrant,
+  scrapbook,
   dark,
-  nature,
+  classic,
 }
 
 class ShareCardConfig {

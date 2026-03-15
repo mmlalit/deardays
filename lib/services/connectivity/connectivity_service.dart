@@ -1,12 +1,23 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
-/// Monitors network connectivity by periodically checking reachability.
+/// Monitors network connectivity using platform-native APIs (connectivity_plus)
+/// with a fallback reachability check against the app's own Supabase endpoint.
 ///
-/// On Windows desktop, `connectivity_plus` is unreliable so we use a simple
-/// periodic HTTP HEAD check instead.
+/// Previous implementation polled google.com every 30s which:
+/// - Fails in China (Google is blocked)
+/// - Wastes battery with unnecessary network calls
+/// - Could get rate-limited at scale
+///
+/// New approach:
+/// 1. Platform events from connectivity_plus (instant, zero-cost)
+/// 2. On state change, verify actual reachability with a DNS lookup
+///    against the configured Supabase host (not google.com)
+/// 3. Periodic fallback check every 60s (reduced from 30s) as a safety net
 class ConnectivityService {
   ConnectivityService._internal();
 
@@ -15,12 +26,33 @@ class ConnectivityService {
   factory ConnectivityService() => _instance;
 
   final _controller = StreamController<bool>.broadcast();
-  Timer? _pollTimer;
+  Timer? _fallbackTimer;
+  StreamSubscription<List<ConnectivityResult>>? _platformSub;
   bool _isOnline = true;
   bool _initialized = false;
+  final _rng = Random();
 
-  static const _pollInterval = Duration(seconds: 30);
+  /// Base fallback poll interval — actual interval adds ±25% jitter to
+  /// prevent thundering-herd DNS spikes at scale.
+  static const _fallbackBaseSeconds = 60;
   static const _checkTimeout = Duration(seconds: 5);
+
+  // ignore: prefer_const_declarations
+
+  /// The host to check for actual internet reachability.
+  /// Uses the app's own Supabase domain so it works in every country.
+  static const String _reachabilityHost = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: '',
+  );
+
+  /// Extract hostname from URL for DNS lookup.
+  String get _host {
+    final raw = _reachabilityHost;
+    if (raw.startsWith('https://')) return raw.substring(8).split('/').first;
+    if (raw.startsWith('http://')) return raw.substring(7).split('/').first;
+    return raw.split('/').first;
+  }
 
   /// Whether the device is currently online.
   bool get isOnline => _isOnline;
@@ -28,7 +60,7 @@ class ConnectivityService {
   /// Stream of connectivity changes.
   Stream<bool> get onlineStatus => _controller.stream;
 
-  /// Initialize the service and start polling.
+  /// Initialize the service using platform-native connectivity detection.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -36,21 +68,49 @@ class ConnectivityService {
     // Initial check
     await _check();
 
-    // Start periodic polling
-    _pollTimer = Timer.periodic(_pollInterval, (_) => _check());
+    // Listen for platform connectivity events (instant, no polling)
+    _platformSub = Connectivity().onConnectivityChanged.listen((results) {
+      final hasConnection = results.any((r) => r != ConnectivityResult.none);
+      if (hasConnection) {
+        // Platform says connected — verify with DNS lookup
+        _check();
+      } else {
+        // Platform says disconnected — trust it immediately
+        _setOnline(false);
+      }
+    });
+
+    // Fallback check with jitter to prevent thundering-herd at scale
+    _scheduleFallback();
 
     if (kDebugMode) {
-      debugPrint('[ConnectivityService] Initialized. Online: $_isOnline');
+      debugPrint('[ConnectivityService] Initialized (platform-native). Online: $_isOnline');
     }
+  }
+
+  /// Schedule the next fallback check with ±25% jitter.
+  void _scheduleFallback() {
+    final jitter = (_fallbackBaseSeconds * 0.25 * (2 * _rng.nextDouble() - 1)).round();
+    final seconds = _fallbackBaseSeconds + jitter; // 45–75s
+    _fallbackTimer = Timer(Duration(seconds: seconds), () async {
+      await _check();
+      _scheduleFallback();
+    });
   }
 
   /// Force an immediate connectivity check.
   Future<bool> checkNow() => _check();
 
   Future<bool> _check() async {
+    // No Supabase URL configured (dev/demo mode) — assume online.
+    if (_host.isEmpty) {
+      _setOnline(true);
+      return true;
+    }
+
     final wasOnline = _isOnline;
     try {
-      final result = await InternetAddress.lookup('google.com')
+      final result = await InternetAddress.lookup(_host)
           .timeout(_checkTimeout);
       _isOnline = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
     } on SocketException catch (_) {
@@ -70,9 +130,20 @@ class ConnectivityService {
     return _isOnline;
   }
 
-  /// Stop polling. Call on app shutdown if needed.
+  void _setOnline(bool online) {
+    if (_isOnline != online) {
+      _isOnline = online;
+      _controller.add(_isOnline);
+      if (kDebugMode) {
+        debugPrint('[ConnectivityService] Status changed: $_isOnline');
+      }
+    }
+  }
+
+  /// Stop monitoring. Call on app shutdown if needed.
   void dispose() {
-    _pollTimer?.cancel();
+    _fallbackTimer?.cancel();
+    _platformSub?.cancel();
     _controller.close();
   }
 }

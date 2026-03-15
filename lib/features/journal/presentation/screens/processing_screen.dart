@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/ai/ai_stream_service.dart';
 import 'package:deardays/services/ai/ai_credit_service.dart';
 import 'package:deardays/services/ai/offline_ai_queue.dart';
 
@@ -24,6 +26,7 @@ class ProcessingScreen extends StatefulWidget {
 class _ProcessingScreenState extends State<ProcessingScreen>
     with TickerProviderStateMixin {
   final _aiService = AiService();
+  final _streamService = AiStreamService();
   final _creditService = AiCreditService();
   final _offlineQueue = OfflineAiQueue();
 
@@ -69,15 +72,12 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   Future<void> _runProcessing() async {
     // ── Step 1: Transcribe voice ──────────────────────────────────────────
     _setStep(0, 'active');
-    await _animateProgress(0, 0.0, 0.3, duration: const Duration(milliseconds: 200));
 
     String transcript = '';
     try {
       if (widget.data.rawText.isNotEmpty) {
-        // Use on-device live transcript when available (free)
         transcript = widget.data.rawText;
       } else if (widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty) {
-        // Fall back to cloud transcription — check credits first
         if (_creditService.canUse(AiOperation.transcription)) {
           _creditService.consume(AiOperation.transcription);
           transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
@@ -89,7 +89,6 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       transcript = widget.data.rawText;
     }
 
-    // If no transcript was produced at all, show error and go back
     if (transcript.trim().isEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -106,71 +105,77 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     }
 
     if (!mounted) return;
-    await _animateProgress(0, 0.3, 1.0, duration: const Duration(milliseconds: 300));
     _setStep(0, 'done');
 
-    // ── Step 2: Local analysis (instant, free, no network) ────────────────
+    // ── Step 2: Local analysis (instant, no network) ──────────────────────
     _setStep(1, 'active');
-    await _animateProgress(1, 0.0, 0.3, duration: const Duration(milliseconds: 150));
-
-    // Run on-device mood detection, title extraction, highlight extraction
     _localResult = _offlineQueue.analyzeLocally(transcript);
-
     if (!mounted) return;
-    await _animateProgress(1, 0.3, 1.0, duration: const Duration(milliseconds: 250));
     _setStep(1, 'done');
 
-    // ── Step 3: Server AI polish — light polish (grammar/spelling) ────────
+    // ── Steps 3 + 4: Launch ALL server calls in parallel immediately ──────
+    // lightPolish, polishNarrative, and generateTitle all start at the same
+    // time. lightPolish is faster (~1-2s); narrative is slower (~3-5s).
+    // By starting together the total wait = max(both) instead of sum(both).
+
+    final canPolish = _creditService.canUse(AiOperation.polish);
+    if (canPolish) _creditService.consume(AiOperation.polish);
+
+    final lightPolishFuture = canPolish
+        ? _aiService.lightPolish(transcript).catchError((_) {
+            _offlineQueue.enqueue(AiQueueItem(
+              entryId: 'pending_${DateTime.now().millisecondsSinceEpoch}',
+              text: transcript,
+              operation: QueueOperation.lightPolish,
+              createdAt: DateTime.now(),
+            ));
+            return transcript;
+          })
+        : Future.value(transcript);
+
+    // Narrative runs directly on transcript — the updated prompt handles
+    // any grammar issues itself, so we don't need to wait for lightPolish.
+    final useStreaming = _streamService.isConfigured &&
+        FeatureFlags().isEnabledSync(Feature.aiStreaming);
+
+    final narrativeFuture = useStreaming
+        ? (() async {
+            final buffer = StringBuffer();
+            await for (final chunk in _streamService.streamNarrative(transcript)) {
+              buffer.write(chunk);
+            }
+            return buffer.toString().trim();
+          })().catchError((_) => '')
+        : _aiService
+            .polishNarrative(transcript, style: 'memoir')
+            .catchError((_) => '');
+
+    final titleFuture =
+        _aiService.generateTitle(transcript).catchError((_) => '');
+
+    // ── Step 3: Await lightPolish (shorter) ───────────────────────────────
     _setStep(2, 'active');
-    await _animateProgress(2, 0.0, 0.2, duration: const Duration(milliseconds: 150));
-
-    String cleanedText = transcript;
-    try {
-      if (_creditService.canUse(AiOperation.polish)) {
-        _creditService.consume(AiOperation.polish);
-        cleanedText = await _aiService.lightPolish(transcript);
-      }
-    } catch (_) {
-      _offlineQueue.enqueue(AiQueueItem(
-        entryId: 'pending_${DateTime.now().millisecondsSinceEpoch}',
-        text: transcript,
-        operation: QueueOperation.lightPolish,
-        createdAt: DateTime.now(),
-      ));
-      cleanedText = transcript;
-    }
-
+    final cleanedText = await lightPolishFuture;
     if (!mounted) return;
-    await _animateProgress(2, 0.2, 1.0, duration: const Duration(milliseconds: 300));
     _setStep(2, 'done');
 
-    // ── Step 4: Full narrative polish + dedicated title generation ─────────
+    // ── Step 4: Await narrative + title (already running) ─────────────────
     _setStep(3, 'active');
-    await _animateProgress(3, 0.0, 0.1, duration: const Duration(milliseconds: 100));
+    final narrativeRaw = await narrativeFuture;
+    String? polishedText = narrativeRaw.trim().isEmpty ? null : narrativeRaw.trim();
+    String generatedTitle = await titleFuture;
 
-    String? polishedText;
-    String? generatedTitle;
-    try {
-      // Run polish and title generation in parallel
-      final results = await Future.wait([
-        _aiService.polishNarrative(cleanedText, style: 'memoir'),
-        _aiService.generateTitle(cleanedText).catchError((_) => ''),
-      ]);
-
-      polishedText = results[0].trim();
-      generatedTitle = results[1].isNotEmpty ? results[1] : null;
-
-      // Strip any leading markdown header from polished text
-      final lines = polishedText.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    // Strip any leading markdown header from polished text
+    if (polishedText != null) {
+      final lines =
+          polishedText.split('\n').where((l) => l.trim().isNotEmpty).toList();
       if (lines.length > 1 && lines.first.startsWith('#')) {
         polishedText = lines.skip(1).join('\n\n').trim();
       }
-    } catch (_) {
-      polishedText = null;
     }
 
     // Fallback title if AI title generation failed
-    if (generatedTitle == null || generatedTitle.isEmpty) {
+    if (generatedTitle.isEmpty) {
       final match = RegExp(r'^(.{5,40}[.!?])').firstMatch(cleanedText.trim());
       if (match != null) {
         generatedTitle = match.group(1)!.replaceAll(RegExp(r'[.!?]$'), '').trim();
@@ -181,11 +186,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     }
 
     if (!mounted) return;
-    await _animateProgress(3, 0.1, 1.0, duration: const Duration(milliseconds: 400));
     _setStep(3, 'done');
-
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
 
     context.pushReplacement('/review', extra: ReviewData(
       rawText: transcript,
@@ -201,16 +202,11 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   }
 
   void _setStep(int index, String state) {
-    if (mounted) setState(() => _stepStates[index] = state);
-  }
-
-  Future<void> _animateProgress(int index, double from, double to, {required Duration duration}) async {
-    const steps = 10;
-    final increment = (to - from) / steps;
-    final stepDuration = Duration(milliseconds: duration.inMilliseconds ~/ steps);
-    for (int i = 1; i <= steps; i++) {
-      await Future.delayed(stepDuration);
-      if (mounted) setState(() => _stepProgress[index] = from + increment * i);
+    if (mounted) {
+      setState(() {
+        _stepStates[index] = state;
+        if (state == 'done') _stepProgress[index] = 1.0;
+      });
     }
   }
 

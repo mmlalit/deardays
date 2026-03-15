@@ -18,71 +18,69 @@ class TextEntryScreen extends ConsumerStatefulWidget {
 }
 
 class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
-  final TextEditingController _textController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-
-  // Distraction-free mode state
+  final _textController = TextEditingController();
+  final _focusNode = FocusNode();
   bool _distractionFree = false;
-
-  // Prompt shuffle state
+  bool _promptsExpanded = true;
   int _promptSeed = 0;
 
   static const _allPrompts = [
-    'What made you smile?',
-    'Who were you with?',
-    'A challenge you faced',
-    'Something new you learned',
-    'Best part of today',
-    'What are you grateful?',
-    'A calm moment today',
-    'What surprised you?',
-    'Something you accomplished',
-    'A memorable conversation',
-    'What would you change?',
-    'A small joy noticed',
+    (Icons.sentiment_satisfied_rounded, 'What made you smile today?'),
+    (Icons.group_rounded, 'Who were you with today?'),
+    (Icons.psychology_rounded, 'Something new you learned'),
+    (Icons.emoji_events_rounded, 'A challenge you faced'),
+    (Icons.favorite_rounded, 'What are you grateful for?'),
+    (Icons.wb_sunny_rounded, 'Best part of today'),
+    (Icons.restaurant_rounded, 'A meal you enjoyed'),
+    (Icons.local_florist_rounded, 'Something beautiful you saw'),
+    (Icons.lightbulb_rounded, 'An idea that excited you'),
+    (Icons.chat_bubble_rounded, 'A memorable conversation'),
+    (Icons.star_rounded, 'Something you accomplished'),
+    (Icons.bedtime_rounded, 'A calm moment today'),
   ];
 
-  List<String> get _visiblePrompts {
-    final aiPrompt = ref.read(writingPromptProvider).valueOrNull;
+  List<(IconData, String)> get _visiblePrompts {
     final rng = Random(_promptSeed);
-    final shuffled = List<String>.from(_allPrompts)..shuffle(rng);
-    final picked = shuffled.take(5).toList();
-    if (aiPrompt != null) {
-      picked.insert(0, aiPrompt);
-    }
-    return picked;
+    final shuffled = List<(IconData, String)>.from(_allPrompts)..shuffle(rng);
+    return shuffled.take(3).toList();
+  }
+
+  String get _formattedDate {
+    final now = DateTime.now();
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
+  }
+
+  int get _wordCount {
+    final text = _textController.text.trim();
+    if (text.isEmpty) return 0;
+    return text.split(RegExp(r'\s+')).length;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _textController.addListener(() => setState(() {}));
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus && _promptsExpanded) {
+        setState(() => _promptsExpanded = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _refreshPrompts() {
     HapticFeedback.selectionClick();
     setState(() => _promptSeed++);
     ref.invalidate(writingPromptProvider);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _textController.addListener(_onTextChanged);
-    _focusNode.addListener(_onFocusChanged);
-  }
-
-  void _onTextChanged() {
-    setState(() {});
-  }
-
-  void _onFocusChanged() {
-    if (!_focusNode.hasFocus && _distractionFree) {
-      setState(() => _distractionFree = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    _textController.removeListener(_onTextChanged);
-    _focusNode.removeListener(_onFocusChanged);
-    _textController.dispose();
-    _focusNode.dispose();
-    super.dispose();
   }
 
   void _goToReview() {
@@ -94,15 +92,15 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       );
       return;
     }
-    context.push('/processing', extra: ReviewData(
-      rawText: text,
-    ));
+    context.push('/processing', extra: ReviewData(rawText: text));
   }
 
-  int get _wordCount {
-    final text = _textController.text.trim();
-    if (text.isEmpty) return 0;
-    return text.split(RegExp(r'\s+')).length;
+  void _toggleDistractionFree() {
+    HapticFeedback.selectionClick();
+    if (_wordCount > 0) {
+      setState(() => _distractionFree = true);
+      _focusNode.requestFocus();
+    }
   }
 
   void _exitDistractionFree() {
@@ -110,16 +108,30 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     _focusNode.unfocus();
   }
 
+  Widget _iconBtn(IconData icon, AppPalette colors, VoidCallback onTap,
+      {Color? iconColor}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: colors.card,
+          border: Border.all(color: colors.border),
+        ),
+        child: Icon(icon, size: 18, color: iconColor ?? colors.textSecondary),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-
     return PopScope(
       canPop: !_distractionFree,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _distractionFree) {
-          _exitDistractionFree();
-        }
+        if (!didPop && _distractionFree) _exitDistractionFree();
       },
       child: Scaffold(
         backgroundColor: colors.bg,
@@ -133,332 +145,264 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     );
   }
 
-  // ── Distraction-free layout ───────────────────────────────────────────────
-
-  Widget _buildDistractionFreeBody(AppPalette colors) {
-    return Column(
-      children: [
-        _buildMinimalTopBar(colors),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: TextField(
-              controller: _textController,
-              focusNode: _focusNode,
-              maxLines: null,
-              expands: true,
-              keyboardType: TextInputType.multiline,
-              textCapitalization: TextCapitalization.sentences,
-              textAlignVertical: TextAlignVertical.top,
-              cursorColor: colors.accent,
-              cursorWidth: 2,
-              style: GoogleFonts.manrope(
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-                color: colors.textPrimary,
-                height: 1.75,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Write about your day...',
-                hintStyle: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  color: colors.textMuted,
-                  height: 1.75,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-        ),
-        _buildBottomBar(colors),
-      ],
-    );
-  }
-
-  Widget _buildMinimalTopBar(AppPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: _exitDistractionFree,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent.withAlpha(15),
-              ),
-              child: Icon(Icons.arrow_back_rounded, size: 18, color: colors.textPrimary),
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _distractionFree = false);
-            },
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent.withAlpha(20),
-              ),
-              child: Icon(Icons.fullscreen_exit_rounded, size: 18, color: colors.accent),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Normal layout ─────────────────────────────────────────────────────────
+  // ── Normal body ───────────────────────────────────────────────────────────
 
   Widget _buildNormalBody(AppPalette colors) {
     return Column(
       children: [
         _buildTopBar(colors),
-        const SizedBox(height: 8),
-        // Prompts section
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: _buildPromptsSection(colors),
-        ),
-        // Expanded writing area fills remaining space
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: _buildWritingArea(colors),
-          ),
-        ),
+        _buildPromptsArea(colors),
+        Expanded(child: _buildWritingArea(colors)),
         _buildBottomBar(colors),
       ],
     );
   }
 
-  // ── Top Bar ───────────────────────────────────────────────────────────────
-
   Widget _buildTopBar(AppPalette colors) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: colors.border)),
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent.withAlpha(15),
-                border: Border.all(color: colors.border),
-              ),
-              child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
-            ),
-          ),
+          _iconBtn(Icons.arrow_back_rounded, colors,
+              () => Navigator.of(context).maybePop()),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              'Write Memory',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Write',
+                  style: GoogleFonts.manrope(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Text(
+                  _formattedDate,
+                  style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+                ),
+              ],
             ),
           ),
-          // Focus toggle icon
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              if (_wordCount > 0) {
-                setState(() => _distractionFree = true);
-                _focusNode.requestFocus();
-              }
-            },
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent.withAlpha(15),
-                border: Border.all(color: colors.border),
-              ),
-              child: Icon(
-                Icons.fullscreen_rounded,
-                size: 20,
-                color: _wordCount > 0 ? colors.textSecondary : colors.textMuted.withAlpha(80),
-              ),
-            ),
+          _iconBtn(
+            Icons.fullscreen_rounded,
+            colors,
+            _toggleDistractionFree,
+            iconColor: _wordCount > 0
+                ? colors.textSecondary
+                : colors.textMuted.withAlpha(60),
           ),
+          const SizedBox(width: 8),
+          _iconBtn(Icons.more_horiz_rounded, colors, _showOptionsMenu),
         ],
       ),
     );
   }
 
-  // ── Prompts Section ───────────────────────────────────────────────────────
+  // ── Prompts area ──────────────────────────────────────────────────────────
 
-  Widget _buildPromptsSection(AppPalette colors) {
-    final prompts = _visiblePrompts;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.lightbulb_rounded, size: 16, color: colors.accent),
-            const SizedBox(width: 6),
-            Text(
-              'NEED A PROMPT?',
-              style: GoogleFonts.manrope(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: colors.textMuted,
-                letterSpacing: 2,
+  Widget _buildPromptsArea(AppPalette colors) {
+    if (!_promptsExpanded) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _promptsExpanded = true);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(12),
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-            const Spacer(),
-            GestureDetector(
-              onTap: _refreshPrompts,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: colors.accent.withAlpha(15),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.refresh_rounded, size: 14, color: colors.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Shuffle',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: colors.accent,
-                      ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lightbulb_rounded, size: 13, color: colors.accent),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Prompts',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colors.accent,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.keyboard_arrow_down_rounded, size: 14,
+                      color: colors.accent),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: prompts.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, i) {
-              return GestureDetector(
-                onTap: () {
-                  final current = _textController.text;
-                  final prompt = prompts[i];
-                  _textController.text = current.isEmpty
-                      ? prompt
-                      : '$current\n$prompt';
-                  _textController.selection = TextSelection.collapsed(
-                    offset: _textController.text.length,
-                  );
-                  _focusNode.requestFocus();
-                },
+      );
+    }
+
+    final prompts = _visiblePrompts;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lightbulb_rounded, size: 14, color: colors.accent),
+              const SizedBox(width: 6),
+              Text(
+                'Need a spark?',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textMuted,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: _refreshPrompts,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: colors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.textPrimary.withAlpha(12),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                    color: colors.accent.withAlpha(12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.refresh_rounded, size: 12, color: colors.accent),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Shuffle',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: colors.accent,
+                        ),
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: Text(
-                      prompts[i],
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: colors.textSecondary,
-                      ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _promptsExpanded = false);
+                },
+                child: Icon(Icons.keyboard_arrow_up_rounded, size: 18,
+                    color: colors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...prompts.map((prompt) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    final current = _textController.text;
+                    _textController.text = current.isEmpty
+                        ? prompt.$2
+                        : '$current\n${prompt.$2}';
+                    _textController.selection = TextSelection.collapsed(
+                        offset: _textController.text.length);
+                    _focusNode.requestFocus();
+                    setState(() => _promptsExpanded = false);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: colors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: colors.accent.withAlpha(15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(prompt.$1, size: 15, color: colors.accent),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            prompt.$2,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 12,
+                            color: colors.textMuted),
+                      ],
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Writing Area ──────────────────────────────────────────────────────────
-
-  Widget _buildWritingArea(AppPalette colors) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.accent.withAlpha(40), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: colors.textPrimary.withAlpha(15),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
+              )),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: TextField(
-          controller: _textController,
-          focusNode: _focusNode,
-          maxLines: null,
-          expands: true,
-          keyboardType: TextInputType.multiline,
-          textCapitalization: TextCapitalization.sentences,
-          textAlignVertical: TextAlignVertical.top,
-          cursorColor: colors.accent,
-          cursorWidth: 2,
-          style: GoogleFonts.manrope(
+    );
+  }
+
+  // ── Writing area — clean canvas, no border ────────────────────────────────
+
+  Widget _buildWritingArea(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: TextField(
+        controller: _textController,
+        focusNode: _focusNode,
+        maxLines: null,
+        expands: true,
+        keyboardType: TextInputType.multiline,
+        textCapitalization: TextCapitalization.sentences,
+        textAlignVertical: TextAlignVertical.top,
+        cursorColor: colors.accent,
+        cursorWidth: 2,
+        style: GoogleFonts.manrope(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: colors.textPrimary,
+          height: 1.75,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Start writing...',
+          hintStyle: GoogleFonts.manrope(
             fontSize: 16,
             fontWeight: FontWeight.w400,
-            color: colors.textPrimary,
+            color: colors.textMuted.withAlpha(120),
             height: 1.75,
           ),
-          decoration: InputDecoration(
-            hintText: 'Write about your day...',
-            hintStyle: GoogleFonts.manrope(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: colors.textMuted,
-              height: 1.75,
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.all(16),
-          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.only(top: 4),
         ),
       ),
     );
   }
 
-  // ── Bottom Bar ────────────────────────────────────────────────────────────
+  // ── Bottom bar ────────────────────────────────────────────────────────────
 
   Widget _buildBottomBar(AppPalette colors) {
+    final enabled = _wordCount >= 5;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
       decoration: BoxDecoration(
+        color: colors.bg,
         border: Border(top: BorderSide(color: colors.border)),
       ),
       child: Row(
@@ -480,6 +424,124 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
           ),
           const Spacer(),
           GestureDetector(
+            onTap: enabled ? _goToReview : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(
+                color: enabled ? colors.accent : colors.accent.withAlpha(60),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: enabled
+                    ? [
+                        BoxShadow(
+                          color: colors.accent.withAlpha(60),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        )
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Continue',
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 17, color: Colors.white),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Distraction-free body ─────────────────────────────────────────────────
+
+  Widget _buildDistractionFreeBody(AppPalette colors) {
+    return Column(
+      children: [
+        _buildDistractionFreeTopBar(colors),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: TextField(
+              controller: _textController,
+              focusNode: _focusNode,
+              maxLines: null,
+              expands: true,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              textAlignVertical: TextAlignVertical.top,
+              cursorColor: colors.accent,
+              cursorWidth: 2,
+              style: GoogleFonts.manrope(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: colors.textPrimary,
+                height: 1.75,
+              ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ),
+        _buildDistractionFreeBottomBar(colors),
+      ],
+    );
+  }
+
+  Widget _buildDistractionFreeTopBar(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      child: Row(
+        children: [
+          _iconBtn(Icons.arrow_back_rounded, colors, _exitDistractionFree),
+          const Spacer(),
+          Text(
+            '$_wordCount word${_wordCount == 1 ? '' : 's'}',
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              color: colors.textMuted,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 12),
+          _iconBtn(
+            Icons.fullscreen_exit_rounded,
+            colors,
+            () {
+              HapticFeedback.selectionClick();
+              setState(() => _distractionFree = false);
+            },
+            iconColor: colors.accent,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDistractionFreeBottomBar(AppPalette colors) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.border.withAlpha(60))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          GestureDetector(
             onTap: _goToReview,
             child: Container(
               height: 48,
@@ -498,8 +560,6 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
-                  const SizedBox(width: 8),
                   Text(
                     'Continue',
                     style: GoogleFonts.manrope(
@@ -508,11 +568,79 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
                       color: Colors.white,
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 17, color: Colors.white),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Options menu ──────────────────────────────────────────────────────────
+
+  void _showOptionsMenu() {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Icon(Icons.delete_outline_rounded,
+                  color: colors.textSecondary),
+              title: Text(
+                'Clear text',
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                if (_textController.text.isNotEmpty) {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('Clear text?'),
+                      content: const Text(
+                          "This will erase everything you've written."),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _textController.clear();
+                            setState(() => _promptsExpanded = true);
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('Clear'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

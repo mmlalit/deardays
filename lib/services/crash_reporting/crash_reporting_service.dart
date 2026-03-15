@@ -2,17 +2,17 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:sentry_flutter/sentry_flutter.dart' as sentry;
 
-/// Crash reporting and error tracking service.
+/// Crash reporting and error tracking service backed by Sentry.
 ///
-/// In production, this captures unhandled exceptions, Flutter framework errors,
-/// and breadcrumbs, then sends them to a configurable backend (Sentry, Crashlytics,
-/// or custom endpoint). In debug mode, errors are printed to the console only.
+/// In production, captures unhandled exceptions, Flutter framework errors,
+/// and breadcrumbs, then sends them to Sentry. In debug mode, errors are
+/// printed to the console only.
 ///
-/// Usage:
-/// ```dart
-/// await CrashReportingService().init();
+/// Configure via dart-define:
+/// ```bash
+/// flutter run --dart-define=SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
 /// ```
 class CrashReportingService {
   CrashReportingService._internal();
@@ -31,7 +31,7 @@ class CrashReportingService {
   final Map<String, String> _userContext = {};
 
   // Breadcrumb trail for debugging context
-  static const int _maxBreadcrumbs = 50;
+  static const int _maxBreadcrumbs = 200;
   final List<Breadcrumb> _breadcrumbs = [];
   List<Breadcrumb> get breadcrumbs => List.unmodifiable(_breadcrumbs);
 
@@ -39,16 +39,19 @@ class CrashReportingService {
   final List<CrashReport> _reports = [];
   List<CrashReport> get reports => List.unmodifiable(_reports);
 
-  // Endpoint for crash reports (configured via dart-define)
-  static const String _reportEndpoint = String.fromEnvironment(
-    'CRASH_REPORT_URL',
+  // Sentry DSN (configured via dart-define)
+  static const String _sentryDsn = String.fromEnvironment(
+    'SENTRY_DSN',
     defaultValue: '',
   );
 
-  bool get isConfigured => _reportEndpoint.isNotEmpty;
+  bool get isConfigured => _sentryDsn.isNotEmpty;
 
   /// Initializes crash reporting by hooking into Flutter's error handlers
   /// and Dart's zone/isolate error streams.
+  ///
+  /// When Sentry DSN is configured, initializes the Sentry SDK which handles
+  /// all error capture automatically. Otherwise falls back to local logging.
   Future<void> init() async {
     if (_initialized) return;
 
@@ -68,22 +71,49 @@ class CrashReportingService {
     }).sendPort);
 
     _initialized = true;
-    debugPrint('[CrashReportingService] Initialized.');
+    debugPrint('[CrashReportingService] Initialized. Sentry: ${isConfigured ? "enabled" : "disabled (no DSN)"}');
   }
 
-  /// Wraps [runApp] in an error-capturing zone.
+  /// Initializes Sentry and runs the app inside its error-capturing zone.
   ///
   /// Call this instead of `runApp()` directly:
   /// ```dart
-  /// CrashReportingService().runGuarded(() => runApp(const MyApp()));
+  /// CrashReportingService().runGuarded(() async {
+  ///   // ... init services ...
+  ///   runApp(const MyApp());
+  /// });
   /// ```
   void runGuarded(VoidCallback appRunner) {
-    runZonedGuarded(
-      appRunner,
-      (error, stackTrace) {
-        recordError(error, stackTrace, reason: 'Unhandled zone error');
-      },
-    );
+    if (isConfigured && !kDebugMode) {
+      // In production with Sentry configured, use Sentry's zone guard
+      sentry.SentryFlutter.init(
+        (options) {
+          options.dsn = _sentryDsn;
+          options.tracesSampleRate = 0.2; // 20% of transactions
+          options.profilesSampleRate = 0.1; // 10% of profiled transactions
+          options.attachScreenshot = true;
+          options.maxBreadcrumbs = _maxBreadcrumbs;
+          options.sendDefaultPii = false; // Don't send PII
+          options.environment = kDebugMode ? 'development' : 'production';
+        },
+        appRunner: () {
+          runZonedGuarded(
+            appRunner,
+            (error, stackTrace) {
+              recordError(error, stackTrace, reason: 'Unhandled zone error');
+            },
+          );
+        },
+      );
+    } else {
+      // In debug mode or without Sentry, use simple zone guard
+      runZonedGuarded(
+        appRunner,
+        (error, stackTrace) {
+          recordError(error, stackTrace, reason: 'Unhandled zone error');
+        },
+      );
+    }
   }
 
   /// Sets the current user for crash reports.
@@ -95,12 +125,27 @@ class CrashReportingService {
         ..addAll(context);
     }
     addBreadcrumb('User identified', data: {'user_id': userId});
+
+    // Set Sentry user
+    if (isConfigured) {
+      sentry.Sentry.configureScope((scope) {
+        scope.setUser(sentry.SentryUser(id: userId));
+        if (context != null) {
+          for (final entry in context.entries) {
+            scope.setTag(entry.key, entry.value);
+          }
+        }
+      });
+    }
   }
 
   /// Clears user info (e.g., on logout).
   void clearUser() {
     _userId = null;
     _userContext.clear();
+    if (isConfigured) {
+      sentry.Sentry.configureScope((scope) => scope.setUser(null));
+    }
   }
 
   /// Adds a breadcrumb to the trail for debugging context.
@@ -113,6 +158,15 @@ class CrashReportingService {
     _breadcrumbs.add(crumb);
     if (_breadcrumbs.length > _maxBreadcrumbs) {
       _breadcrumbs.removeAt(0);
+    }
+
+    // Also add to Sentry
+    if (isConfigured) {
+      sentry.Sentry.addBreadcrumb(sentry.Breadcrumb(
+        message: message,
+        data: data ?? const {},
+        timestamp: DateTime.now(),
+      ));
     }
   }
 
@@ -142,8 +196,21 @@ class CrashReportingService {
       debugPrint('[CrashReportingService] Stack: $stackTrace');
     }
 
-    // In production with a configured endpoint, this would POST the report.
-    // For now, we log and store locally.
+    // Send to Sentry in production
+    if (isConfigured && !kDebugMode) {
+      sentry.Sentry.captureException(
+        error,
+        stackTrace: stackTrace,
+        withScope: (scope) {
+          if (reason != null) scope.setTag('reason', reason);
+          if (extras != null) {
+            for (final entry in extras.entries) {
+              scope.setTag(entry.key, entry.value);
+            }
+          }
+        },
+      );
+    }
   }
 
   /// Records a Flutter framework error.

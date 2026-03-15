@@ -8,8 +8,12 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
-import 'package:deardays/features/book/data/models/book.dart';
-import 'package:deardays/features/book/data/services/book_generator_service.dart';
+import 'package:deardays/features/journal/data/models/chapter.dart';
+import 'package:deardays/features/book/data/models/book_page.dart';
+
+// Hero cover image — warm, cinematic life-journey feel
+const _heroCoverUrl =
+    'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&h=450&fit=crop';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -19,21 +23,26 @@ class LibraryScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
+  bool _searchActive = false;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final booksAsync = ref.watch(booksProvider);
+    final chaptersAsync = ref.watch(chaptersProvider);
     final colors = AppColors.of(context);
 
     return Scaffold(
       backgroundColor: colors.bg,
       body: SafeArea(
-        child: booksAsync.when(
-          data: (books) => _buildContent(context, books),
+        child: chaptersAsync.when(
+          data: (chapters) => _buildContent(context, chapters),
           loading: () => _buildLoadingContent(context),
           error: (_, __) => _buildContent(context, []),
         ),
@@ -41,55 +50,102 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildContent(BuildContext context, List<Book> books) {
-    final showSamples = books.isEmpty;
+  List<Chapter> _filterChapters(List<Chapter> chapters) {
+    if (_searchQuery.isEmpty) return chapters;
+    final q = _searchQuery.toLowerCase();
+    return chapters.where((c) => c.title.toLowerCase().contains(q)).toList();
+  }
 
+  Widget _buildContent(BuildContext context, List<Chapter> chapters) {
+    final filtered = _filterChapters(chapters);
     return CustomScrollView(
       slivers: [
-        // Header
         SliverToBoxAdapter(child: _buildHeader(context)),
-        // AI Insight Card
-        SliverToBoxAdapter(child: _buildAiInsightCard(context, books.length)),
-        // Section Title
-        SliverToBoxAdapter(child: _buildSectionTitle(context)),
-        // Book Grid — show sample chapters in demo mode or for first-time users
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              childAspectRatio: 0.68,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                if (showSamples) {
-                  return _buildSampleChapterCard(context, _sampleChapters[index]);
-                }
-                return _buildBookCard(context, books[index]);
-              },
-              childCount: showSamples ? _sampleChapters.length : books.length,
+        if (!_searchActive) ...[
+          SliverToBoxAdapter(child: _buildHeroCard(context)),
+          SliverToBoxAdapter(child: _buildSectionTitle(context, chapters.length)),
+        ],
+        if (filtered.isEmpty)
+          SliverToBoxAdapter(child: _buildEmptyState(context))
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.05,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildChapterCard(context, filtered[index]),
+                childCount: filtered.length,
+              ),
             ),
           ),
-        ),
-        // Create Book Button
-        SliverToBoxAdapter(child: _buildCreateBookButton(context)),
-        // Bottom spacing for nav bar
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
 
+  // ── Header ────────────────────────────────────────────────────────────────
+
   Widget _buildHeader(BuildContext context) {
     final colors = AppColors.of(context);
 
+    if (_searchActive) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.border),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Search chapters...',
+                    hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
+                    prefixIcon: Icon(Icons.search, size: 18, color: colors.textMuted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                    isDense: true,
+                  ),
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => setState(() {
+                _searchActive = false;
+                _searchQuery = '';
+                _searchController.clear();
+              }),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.accent,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+      padding: const EdgeInsets.fromLTRB(16, 14, 8, 0),
       child: Row(
         children: [
-          Icon(Icons.auto_awesome, color: colors.accent, size: 22),
-          const SizedBox(width: 8),
           Text(
             'Chapters',
             style: GoogleFonts.newsreader(
@@ -100,168 +156,34 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
           const Spacer(),
           IconButton(
-            onPressed: () {},
-            tooltip: 'Search',
+            onPressed: () => setState(() => _searchActive = true),
+            tooltip: 'Search chapters',
             icon: Icon(Icons.search, color: colors.textSecondary, size: 22),
-          ),
-          IconButton(
-            onPressed: () {},
-            tooltip: 'More options',
-            icon: Icon(Icons.more_vert, color: colors.textSecondary, size: 22),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAiInsightCard(BuildContext context, int bookCount) {
+  // ── Hero card (replaces 3 dark book-mode cards) ───────────────────────────
+
+  Widget _buildHeroCard(BuildContext context) {
+    final colors = AppColors.of(context);
     final entriesAsync = ref.watch(timelineEntriesProvider);
     final memoryCount = entriesAsync.valueOrNull?.length ?? 0;
-    final chapterCount = bookCount > 0 ? bookCount : 0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF3B4FE8), Color(0xFF5B6CF9)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon + Title
-            Row(
-              children: [
-                const Text('📖', style: TextStyle(fontSize: 28)),
-                const SizedBox(width: 10),
-                Text(
-                  'My Life Book',
-                  style: GoogleFonts.newsreader(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Subtitle
-            Text(
-              'Read your entire life story chapter by chapter in one place.',
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                color: Colors.white,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 14),
-            // Stats
-            Text(
-              '$memoryCount MEMORIES • $chapterCount CHAPTERS',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 18),
-            // Start Reading button
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () {
-                  final entriesAsync = ref.read(timelineEntriesProvider);
-                  final entries = entriesAsync.valueOrNull ?? [];
-                  if (entries.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No memories yet. Start recording to build your book!')),
-                    );
-                    return;
-                  }
-                  final book = BookGeneratorService().generateAutoBook(
-                    allEntries: entries,
-                    author: 'You',
-                  );
-                  context.push('/book-detail', extra: book);
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF3B4FE8),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Start Reading',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF3B4FE8),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context) {
-    final colors = AppColors.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Your Life Stories',
-              style: GoogleFonts.newsreader(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
-          ),
-          Text(
-            'View all',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: colors.accent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookCard(BuildContext context, Book book) {
-    final colors = AppColors.of(context);
-    final visual = ChapterVisual.forTitle(book.title);
-    // Use AI-generated cover query for subtitle when no custom subtitle exists
-    final coverQuery = ref.watch(bookCoverQueryProvider(book.title)).valueOrNull;
-
-    return GestureDetector(
-      onTap: () => context.push('/book/${book.id}'),
-      child: Container(
         decoration: BoxDecoration(
           color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.accent.withAlpha(13)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
           boxShadow: [
             BoxShadow(
-              color: colors.textPrimary.withAlpha(15),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
+              color: colors.textPrimary.withAlpha(12),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -269,60 +191,124 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cover image: user photo → stock photo → gradient fallback
+            // 16:9 cover photo
             AspectRatio(
-              aspectRatio: 1.0,
-              child: _buildCoverImage(book, visual),
-            ),
-            // Info section
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      book.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.newsreader(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _subtitleForBook(book, aiCoverQuery: coverQuery),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.newsreader(
-                        fontSize: 12,
-                                                color: colors.textMuted,
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Icon(Icons.auto_stories, size: 14, color: colors.accent),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            _formatDateRange(book),
-                            style: GoogleFonts.manrope(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: colors.textMuted,
-                              letterSpacing: 1.5,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              aspectRatio: 16 / 9,
+              child: CachedNetworkImage(
+                imageUrl: _heroCoverUrl,
+                fit: BoxFit.cover,
+                memCacheWidth: 800,
+                placeholder: (_, __) => Container(
+                  color: const Color(0xFF1E3A5F),
+                  child: const Center(
+                    child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
+                  ),
                 ),
+                errorWidget: (_, __, ___) => Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
+                  ),
+                ),
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Label
+                  Text(
+                    'FEATURED COLLECTION',
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                      color: colors.accent,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Title
+                  Text(
+                    'Continue Your Journey',
+                    style: GoogleFonts.newsreader(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Memory count
+                  Text(
+                    '$memoryCount ${memoryCount == 1 ? 'memory' : 'memories'} across your lifetime',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Primary button — full width
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          context.push('/book-reader', extra: BookMode.stream),
+                      icon: const Icon(Icons.menu_book_rounded, size: 17),
+                      label: Text(
+                        'Read Autobiography',
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.accent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Secondary buttons — side by side
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SecondaryButton(
+                          icon: Icons.timeline,
+                          label: 'By Timeline',
+                          onTap: () => context.push(
+                              '/book-reader', extra: BookMode.byTime),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _SecondaryButton(
+                          icon: Icons.auto_awesome,
+                          label: 'By Chapter',
+                          onTap: () => context.push(
+                              '/book-reader', extra: BookMode.byChapter),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -331,85 +317,233 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  /// 3-tier cover: user-uploaded → stock photo → gradient fallback.
-  Widget _buildCoverImage(Book book, ChapterVisual visual) {
-    final imageUrl = book.coverImageUrl ?? visual.stockImageUrl;
-    if (imageUrl != null) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => _buildGradientCover(visual),
-        errorWidget: (_, __, ___) => _buildGradientCover(visual),
-      );
-    }
-    return _buildGradientCover(visual);
-  }
+  // ── Section title ─────────────────────────────────────────────────────────
 
-  Widget _buildGradientCover(ChapterVisual visual) {
-    return Container(
-      decoration: BoxDecoration(gradient: visual.gradient),
-      child: Center(
-        child: Icon(
-          visual.icon,
-          color: Colors.white.withAlpha(180),
-          size: 40,
-        ),
-      ),
-    );
-  }
+  Widget _buildSectionTitle(BuildContext context, int chapterCount) {
+    final colors = AppColors.of(context);
 
-  Widget _buildCreateBookButton(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: GestureDetector(
-        onTap: () => context.push('/book-create'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3B4FE8), Color(0xFF5B6CF9)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.menu_book_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Create a Book',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+      padding: const EdgeInsets.fromLTRB(16, 28, 16, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              'Life Chapters',
+              style: GoogleFonts.newsreader(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
               ),
-            ],
+            ),
           ),
+          if (chapterCount > 0)
+            Text(
+              '$chapterCount ${chapterCount == 1 ? 'chapter' : 'chapters'}',
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: colors.textMuted,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Chapter card (icon badge + title + count) ─────────────────────────────
+
+  Widget _buildChapterCard(BuildContext context, Chapter chapter) {
+    final colors = AppColors.of(context);
+    final visual = ChapterVisual.forTitle(chapter.title);
+
+    return GestureDetector(
+      onTap: () => context.push('/chapter/${chapter.id}', extra: chapter),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: colors.textPrimary.withAlpha(10),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Colored icon badge
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: visual.primary.withAlpha(28),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                visual.icon,
+                color: visual.primary,
+                size: 22,
+              ),
+            ),
+            const Spacer(),
+            // Chapter title
+            Text(
+              chapter.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.newsreader(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Memory count
+            Text(
+              chapter.entryCount == 0
+                  ? 'No memories yet'
+                  : '${chapter.entryCount} ${chapter.entryCount == 1 ? 'memory' : 'memories'}',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: colors.textMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+
+  Widget _buildEmptyState(BuildContext context) {
+    final colors = AppColors.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 32, 32, 0),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.menu_book_rounded, size: 48, color: colors.textMuted),
+            const SizedBox(height: 12),
+            Text(
+              'No chapters yet',
+              style: GoogleFonts.newsreader(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Start recording memories to create your first chapter.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                color: colors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Loading skeleton ──────────────────────────────────────────────────────
 
   Widget _buildLoadingContent(BuildContext context) {
+    final colors = AppColors.of(context);
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _buildHeader(context)),
-        SliverToBoxAdapter(child: _buildAiInsightCard(context, 0)),
-        SliverToBoxAdapter(child: _buildSectionTitle(context)),
+        // Hero skeleton
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.border),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Container(color: colors.border.withAlpha(80)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SkeletonBox(width: 120, height: 10),
+                        const SizedBox(height: 10),
+                        const SkeletonBox(width: 200, height: 20),
+                        const SizedBox(height: 8),
+                        const SkeletonBox(width: 160, height: 12),
+                        const SizedBox(height: 16),
+                        Container(
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: colors.border.withAlpha(80),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: colors.border.withAlpha(60),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Container(
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: colors.border.withAlpha(60),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(child: _buildSectionTitle(context, 0)),
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              childAspectRatio: 0.68,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.05,
             ),
             delegate: SliverChildBuilderDelegate(
-              (_, __) => _buildSkeletonCard(context),
+              (_, __) => _buildSkeletonChapterCard(context),
               childCount: 4,
             ),
           ),
@@ -418,340 +552,75 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildSkeletonCard(BuildContext context) {
+  Widget _buildSkeletonChapterCard(BuildContext context) {
     final colors = AppColors.of(context);
     return Container(
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.accent.withAlpha(13)),
+        border: Border.all(color: colors.border),
       ),
-      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AspectRatio(
-            aspectRatio: 1.0,
-            child: Container(color: colors.border.withAlpha(80)),
-          ),
-          const Expanded(
-            child: Padding(
-              padding: EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SkeletonBox(width: 100, height: 14),
-                  SizedBox(height: 8),
-                  SkeletonBox(width: 70, height: 10),
-                ],
-              ),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: colors.border.withAlpha(80),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
+          const Spacer(),
+          const SkeletonBox(width: 80, height: 14),
+          const SizedBox(height: 6),
+          const SkeletonBox(width: 55, height: 10),
         ],
       ),
     );
   }
+}
 
-  /// Default sample chapters shown to first-time users.
-  static const _sampleChapters = [
-    _SampleChapter('Family Life', 'The bonds that shape us'),
-    _SampleChapter('Travel & Adventures', 'Exploring the unknown'),
-    _SampleChapter('Career & Growth', 'Building a legacy'),
-    _SampleChapter('Personal Wellness', 'Becoming your best self'),
-    _SampleChapter('Love & Relationships', 'Hearts that hold us'),
-  ];
+// ─────────────────────────────────────────────────────────────────────────────
+// Secondary outline button used in hero card
+// ─────────────────────────────────────────────────────────────────────────────
 
-  Widget _buildSampleChapterCard(BuildContext context, _SampleChapter sample) {
+class _SecondaryButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SecondaryButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    final visual = ChapterVisual.forTitle(sample.title);
 
-    return GestureDetector(
-      onTap: () => _showSampleChapterSheet(context, sample),
-      child: Opacity(
-      opacity: 0.85,
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.accent.withAlpha(13)),
-          boxShadow: [
-            BoxShadow(
-              color: colors.textPrimary.withAlpha(15),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cover image from stock photos
-            AspectRatio(
-              aspectRatio: 1.0,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (visual.stockImageUrl != null)
-                    CachedNetworkImage(
-                      imageUrl: visual.stockImageUrl!,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => _buildGradientCover(visual),
-                      errorWidget: (_, __, ___) => _buildGradientCover(visual),
-                    )
-                  else
-                    _buildGradientCover(visual),
-                  // SAMPLE badge
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(120),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'SAMPLE',
-                        style: GoogleFonts.manrope(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Info section
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      sample.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.newsreader(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sample.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.newsreader(
-                        fontSize: 12,
-                                                color: colors.textMuted,
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Icon(Icons.auto_stories, size: 14, color: colors.accent),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Start recording',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colors.accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-    );
-  }
-
-  void _showSampleChapterSheet(BuildContext context, _SampleChapter sample) {
-    final colors = AppColors.of(context);
-    final visual = ChapterVisual.forTitle(sample.title);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.card,
-      isDismissible: true,
-      enableDrag: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Close button row
-              Align(
-                alignment: Alignment.topRight,
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(ctx),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: colors.textMuted.withAlpha(30),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.close, size: 18, color: colors.textSecondary),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      gradient: visual.gradient,
-                    ),
-                    child: Icon(visual.icon, color: Colors.white.withAlpha(200), size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sample.title,
-                          style: GoogleFonts.newsreader(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          sample.subtitle,
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colors.accentFaint,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Start recording memories to fill this chapter with your personal stories.',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: colors.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Three inline action buttons in a row
-              Row(
-                children: [
-                  Expanded(
-                    child: _sheetActionButton(
-                      ctx: ctx,
-                      context: context,
-                      icon: Icons.mic_rounded,
-                      label: 'Record',
-                      colors: colors,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        context.push('/record');
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _sheetActionButton(
-                      ctx: ctx,
-                      context: context,
-                      icon: Icons.edit_rounded,
-                      label: 'Write',
-                      colors: colors,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        context.push('/write');
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _sheetActionButton(
-                      ctx: ctx,
-                      context: context,
-                      icon: Icons.chat_rounded,
-                      label: 'Chat',
-                      colors: colors,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        // Chat entry — reuse write for now
-                        context.push('/write');
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sheetActionButton({
-    required BuildContext ctx,
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required AppPalette colors,
-    required VoidCallback onTap,
-  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        height: 38,
         decoration: BoxDecoration(
-          color: colors.accentFaint,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.accent.withAlpha(30)),
+          color: colors.bg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.border),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 24, color: colors.accent),
-            const SizedBox(height: 6),
+            Icon(icon, size: 15, color: colors.textSecondary),
+            const SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: colors.accent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: colors.textSecondary,
               ),
             ),
           ],
@@ -759,39 +628,4 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
     );
   }
-
-  String _subtitleForBook(Book book, {String? aiCoverQuery}) {
-    // Use AI-generated evocative phrase when available
-    if (aiCoverQuery != null && aiCoverQuery.isNotEmpty) return aiCoverQuery;
-    final lower = book.title.toLowerCase();
-    if (lower.contains('family')) return 'The bonds that shape us';
-    if (lower.contains('travel') || lower.contains('adventure')) return 'Exploring the unknown';
-    if (lower.contains('career') || lower.contains('work')) return 'Building a legacy';
-    if (lower.contains('growth') || lower.contains('self')) return 'Becoming your best self';
-    if (lower.contains('love') || lower.contains('romance')) return 'Stories of the heart';
-    if (lower.contains('friend')) return 'Shared moments & laughter';
-    return _formatDateRange(book);
-  }
-
-  String _formatDateRange(Book book) {
-    final start = '${_shortMonth(book.startDate.month)} ${book.startDate.year}';
-    if (book.endDate == null) return '$start - Present';
-    final end = '${_shortMonth(book.endDate!.month)} ${book.endDate!.year}';
-    if (start == end) return start;
-    return '$start - $end';
-  }
-
-  String _shortMonth(int month) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return months[month - 1];
-  }
-}
-
-class _SampleChapter {
-  final String title;
-  final String subtitle;
-  const _SampleChapter(this.title, this.subtitle);
 }

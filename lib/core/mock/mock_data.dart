@@ -27,10 +27,10 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2026, 3, 5),
     updatedAt: DateTime(2026, 3, 5),
     media: [
-      EntryMedia(id: 'media-001', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/bali_1.jpg', sortOrder: 0, createdAt: DateTime(2026, 3, 5)),
-      EntryMedia(id: 'media-002', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/bali_2.jpg', sortOrder: 1, createdAt: DateTime(2026, 3, 5)),
-      EntryMedia(id: 'media-003', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/bali_3.jpg', sortOrder: 2, createdAt: DateTime(2026, 3, 5)),
-      EntryMedia(id: 'media-004', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/bali_4.jpg', sortOrder: 3, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-001', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_1.jpg', sortOrder: 0, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-002', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_2.jpg', sortOrder: 1, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-003', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_3.jpg', sortOrder: 2, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-004', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_4.jpg', sortOrder: 3, createdAt: DateTime(2026, 3, 5)),
     ],
   ),
 
@@ -51,7 +51,7 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2026, 2, 18),
     updatedAt: DateTime(2026, 2, 18),
     media: [
-      EntryMedia(id: 'media-005', entryId: 'mock-002', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/birthday_1.jpg', sortOrder: 0, createdAt: DateTime(2026, 2, 18)),
+      EntryMedia(id: 'media-005', entryId: 'mock-002', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/birthday_1.jpg', sortOrder: 0, createdAt: DateTime(2026, 2, 18)),
     ],
   ),
 
@@ -118,9 +118,9 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2025, 12, 27),
     updatedAt: DateTime(2025, 12, 27),
     media: [
-      EntryMedia(id: 'media-006', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/goa_1.jpg', sortOrder: 0, createdAt: DateTime(2025, 12, 27)),
-      EntryMedia(id: 'media-007', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/goa_2.jpg', sortOrder: 1, createdAt: DateTime(2025, 12, 27)),
-      EntryMedia(id: 'media-008', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/goa_3.jpg', sortOrder: 2, createdAt: DateTime(2025, 12, 27)),
+      EntryMedia(id: 'media-006', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/goa_1.jpg', sortOrder: 0, createdAt: DateTime(2025, 12, 27)),
+      EntryMedia(id: 'media-007', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/goa_2.jpg', sortOrder: 1, createdAt: DateTime(2025, 12, 27)),
+      EntryMedia(id: 'media-008', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/goa_3.jpg', sortOrder: 2, createdAt: DateTime(2025, 12, 27)),
     ],
   ),
 
@@ -154,7 +154,7 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2025, 6, 9),
     updatedAt: DateTime(2025, 6, 9),
     media: [
-      EntryMedia(id: 'media-009', entryId: 'mock-008', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/school_1.jpg', sortOrder: 0, createdAt: DateTime(2025, 6, 9)),
+      EntryMedia(id: 'media-009', entryId: 'mock-008', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/school_1.jpg', sortOrder: 0, createdAt: DateTime(2025, 6, 9)),
     ],
   ),
 
@@ -234,8 +234,8 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2024, 11, 8),
     updatedAt: DateTime(2024, 11, 8),
     media: [
-      EntryMedia(id: 'media-010', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/japan_1.jpg', sortOrder: 0, createdAt: DateTime(2024, 11, 8)),
-      EntryMedia(id: 'media-011', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'mock/photos/japan_2.jpg', sortOrder: 1, createdAt: DateTime(2024, 11, 8)),
+      EntryMedia(id: 'media-010', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/japan_1.jpg', sortOrder: 0, createdAt: DateTime(2024, 11, 8)),
+      EntryMedia(id: 'media-011', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/japan_2.jpg', sortOrder: 1, createdAt: DateTime(2024, 11, 8)),
     ],
   ),
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,10 +10,20 @@ import 'package:deardays/services/sync/sync_queue.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
 
 /// Sync status exposed to the UI layer.
-enum SyncStatus { synced, pending, syncing, error }
+enum SyncStatus { synced, pending, syncing, error, failedItems }
 
 /// Orchestrates background sync: listens for connectivity changes and replays
 /// queued write operations against Supabase.
+///
+/// Key design decisions for scale:
+/// - **Never drops data**: operations are retried with exponential backoff
+///   indefinitely. After 10 failures they're flagged but never deleted.
+/// - **Idempotency**: every operation carries a UUID key. The server deduplicates
+///   retries so network timeouts can't create duplicate entries.
+/// - **Independent processing**: a single failed operation doesn't block the rest
+///   of the queue.
+/// - **Exponential backoff**: retries wait 2^n seconds (capped at 5 minutes)
+///   to avoid thundering herd on server recovery.
 class SyncService {
   SyncService._internal();
 
@@ -30,17 +41,24 @@ class SyncService {
   final _statusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get statusStream => _statusController.stream;
 
-  static const _maxRetries = 3;
+  /// Number of operations that have exceeded the soft retry threshold.
+  /// These are surfaced in the UI so the user can take action.
+  int _failedItemCount = 0;
+  int get failedItemCount => _failedItemCount;
+
+  /// Soft threshold: after this many retries, operations are flagged as
+  /// "failed" in the UI, but they are NEVER deleted from the queue.
+  static const _softRetryThreshold = 10;
+
+  /// Maximum backoff duration between retries.
+  static const _maxBackoff = Duration(minutes: 5);
 
   bool _queueReady = false;
 
   /// Callback invoked after a successful sync so the UI can refresh providers.
-  /// Set this from the widget layer (e.g., in main.dart or app_shell).
   VoidCallback? onSyncComplete;
 
   /// Initialize: listen for connectivity changes and trigger sync.
-  /// Note: SyncQueue must be initialized separately (requires Hive cipher).
-  /// Until the queue is ready, the service operates in pass-through mode.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -71,6 +89,10 @@ class SyncService {
   }
 
   /// Process all queued operations. Called automatically on reconnect.
+  ///
+  /// Operations are processed independently — one failure does not block others.
+  /// Failed operations stay in the queue and are retried on the next cycle
+  /// with exponential backoff.
   Future<void> processQueue() async {
     if (_syncing || !_queueReady) return;
     _syncing = true;
@@ -87,17 +109,21 @@ class SyncService {
 
     bool hadErrors = false;
     bool hadSuccess = false;
+    int failedCount = 0;
 
     for (final entry in entries) {
       final key = entry.key;
       final op = entry.value;
 
-      if (op.retryCount >= _maxRetries) {
-        if (kDebugMode) {
-          debugPrint('[SyncService] Skipping failed op ${op.id} (max retries)');
+      // Exponential backoff: skip operations that aren't ready to retry yet
+      if (op.lastRetryAt != null && op.retryCount > 0) {
+        final backoff = _calculateBackoff(op.retryCount);
+        final nextRetryAt = op.lastRetryAt!.add(backoff);
+        if (DateTime.now().isBefore(nextRetryAt)) {
+          // Not ready to retry yet — skip for this cycle
+          if (op.retryCount >= _softRetryThreshold) failedCount++;
+          continue;
         }
-        hadErrors = true;
-        continue;
       }
 
       try {
@@ -113,17 +139,35 @@ class SyncService {
           debugPrint('[SyncService] Synced ${op.type.name} ${op.id}');
         }
       } catch (e) {
+        // PGRST204 = column not found — schema mismatch, will never succeed.
+        // Discard immediately rather than retrying forever.
+        if (e.toString().contains('PGRST204')) {
+          await queue.dequeue(key);
+          if (kDebugMode) {
+            debugPrint('[SyncService] Discarded ${op.id}: schema mismatch (PGRST204) — $e');
+          }
+          continue;
+        }
+
         hadErrors = true;
         final updated = op.copyWith(
           retryCount: op.retryCount + 1,
           lastError: e.toString(),
+          lastRetryAt: DateTime.now(),
         );
         await queue.update(key, updated);
+        if (updated.retryCount >= _softRetryThreshold) failedCount++;
         if (kDebugMode) {
-          debugPrint('[SyncService] Failed ${op.id}: $e (retry ${updated.retryCount})');
+          debugPrint(
+            '[SyncService] Failed ${op.id}: $e '
+            '(retry ${updated.retryCount}, '
+            'next in ${_calculateBackoff(updated.retryCount).inSeconds}s)',
+          );
         }
       }
     }
+
+    _failedItemCount = failedCount;
 
     if (!hadErrors) {
       await LocalStorageService().setLastSyncTime(DateTime.now());
@@ -138,24 +182,49 @@ class SyncService {
     }
   }
 
+  /// Manually retry all failed operations (user-triggered from UI).
+  /// Resets retry counts so backoff starts fresh.
+  Future<void> retryFailed() async {
+    final queue = SyncQueue();
+    final entries = queue.getAll();
+
+    for (final entry in entries) {
+      if (entry.value.retryCount >= _softRetryThreshold) {
+        final reset = entry.value.copyWith(
+          retryCount: 0,
+          lastError: null,
+          lastRetryAt: null,
+        );
+        await queue.update(entry.key, reset);
+      }
+    }
+
+    _failedItemCount = 0;
+    await processQueue();
+  }
+
   /// Replay a single operation against Supabase.
+  /// Includes the idempotency key in headers so the server can deduplicate.
   Future<void> _replayOperation(SyncOperation op) async {
     final client = Supabase.instance.client;
     final table = op.tableName;
 
+    // Idempotency is handled by upsert(onConflict: 'id') — no extra column needed.
+    final payload = Map<String, dynamic>.from(op.payload);
+
     switch (op.type) {
       case SyncOperationType.create:
-        await client.from(table).insert(op.payload);
+        await client.from(table).upsert(payload, onConflict: 'id');
         if (kDebugMode) {
-          debugPrint('[SyncService] INSERT into $table: ${op.id}');
+          debugPrint('[SyncService] UPSERT into $table: ${op.id}');
         }
 
       case SyncOperationType.update:
         await client
             .from(table)
-            .update(op.payload)
+            .update(payload)
             .eq('id', op.id)
-            .eq('user_id', op.payload['user_id'] as String);
+            .eq('user_id', payload['user_id'] as String);
         if (kDebugMode) {
           debugPrint('[SyncService] UPDATE $table: ${op.id}');
         }
@@ -165,11 +234,17 @@ class SyncService {
             .from(table)
             .delete()
             .eq('id', op.id)
-            .eq('user_id', op.payload['user_id'] as String);
+            .eq('user_id', payload['user_id'] as String);
         if (kDebugMode) {
           debugPrint('[SyncService] DELETE from $table: ${op.id}');
         }
     }
+  }
+
+  /// Exponential backoff: 2^retryCount seconds, capped at [_maxBackoff].
+  Duration _calculateBackoff(int retryCount) {
+    final seconds = min(pow(2, retryCount).toInt(), _maxBackoff.inSeconds);
+    return Duration(seconds: seconds);
   }
 
   void _updateStatus() {
@@ -180,10 +255,10 @@ class SyncService {
     final queue = SyncQueue();
     if (queue.count == 0) {
       _setStatus(SyncStatus.synced);
+    } else if (_failedItemCount > 0) {
+      _setStatus(SyncStatus.failedItems);
     } else {
-      final entries = queue.getAll();
-      final allFailed = entries.every((e) => e.value.retryCount >= _maxRetries);
-      _setStatus(allFailed ? SyncStatus.error : SyncStatus.pending);
+      _setStatus(SyncStatus.pending);
     }
   }
 

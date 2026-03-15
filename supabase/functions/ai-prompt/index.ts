@@ -1,7 +1,7 @@
 import { corsHeaders, shortCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { geminiGenerate } from "../_shared/ai-providers.ts";
+import { generate } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -29,7 +29,7 @@ Deno.serve(async (req: Request) => {
       "Return ONLY the prompt text — no quotes, no labels, no explanation.",
     ].join("\n");
 
-    const text = await geminiGenerate(
+    const text = await generate(
       "Give me a journaling prompt for today.",
       systemPrompt,
     );

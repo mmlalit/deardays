@@ -10,6 +10,7 @@ import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/data/repositories/checkin_repository.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/ai/ai_stream_service.dart';
 import 'package:deardays/services/ai/ai_prompts.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
@@ -23,6 +24,7 @@ class CheckInState {
   final List<ConversationSection> sections;
   final bool isFirstCheckInToday;
   final bool isLoading;
+  final bool isStreaming;
   final String? error;
   final DateTime loadedDate;
 
@@ -31,6 +33,7 @@ class CheckInState {
     this.sections = const [],
     this.isFirstCheckInToday = true,
     this.isLoading = false,
+    this.isStreaming = false,
     this.error,
     DateTime? loadedDate,
   }) : loadedDate = loadedDate ?? DateTime.now();
@@ -47,6 +50,7 @@ class CheckInState {
     List<ConversationSection>? sections,
     bool? isFirstCheckInToday,
     bool? isLoading,
+    bool? isStreaming,
     String? error,
     DateTime? loadedDate,
   }) {
@@ -55,6 +59,7 @@ class CheckInState {
       sections: sections ?? this.sections,
       isFirstCheckInToday: isFirstCheckInToday ?? this.isFirstCheckInToday,
       isLoading: isLoading ?? this.isLoading,
+      isStreaming: isStreaming ?? this.isStreaming,
       error: error,
       loadedDate: loadedDate ?? this.loadedDate,
     );
@@ -97,6 +102,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   final AiService _aiService;
+  final _streamService = AiStreamService();
   final String? language;
   final CheckInRepository? repository;
   static const _uuid = Uuid();
@@ -226,6 +232,12 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     await _loadTodayData();
   }
 
+  /// Resets in-memory state to empty without touching Hive — used so the
+  /// chat screen always opens fresh while history remains accessible.
+  void startFresh() {
+    state = CheckInState();
+  }
+
   static Future<List<DateTime>> getAvailableDates() async {
     final box = await _openBox();
     final keys = box.keys.cast<String>().toList();
@@ -320,6 +332,16 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   Future<void> sendMessage(String text, {bool isVoice = false}) async {
     if (text.trim().isEmpty) return;
 
+    // Auto-create a section if none exists (chat opened without mood selection)
+    if (state.sections.isEmpty) {
+      final section = ConversationSection(
+        id: _uuid.v4(),
+        startTime: DateTime.now(),
+        mood: state.currentMood,
+      );
+      state = state.copyWith(sections: [section]);
+    }
+
     // Add user message
     final userMsg = ChatMessage(
       id: _uuid.v4(),
@@ -331,28 +353,40 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     _addMessageToActiveSection(userMsg);
     state = state.copyWith(isLoading: true, error: null);
 
-    // Build conversation history for AI
+    // Build conversation history — cap at last 8 messages to reduce TTFB
     final activeMessages = state.activeSection?.messages ?? [];
-    final history = activeMessages.map((m) {
-      return {
-        'role': m.isUser ? 'user' : 'assistant',
-        'content': m.text,
-      };
-    }).toList();
+    final recent = activeMessages.length > 8
+        ? activeMessages.sublist(activeMessages.length - 8)
+        : activeMessages;
+    final history = recent
+        .map((m) => {'role': m.isUser ? 'user' : 'assistant', 'content': m.text})
+        .toList();
 
+    // Place empty AI message immediately — will fill token-by-token
+    final aiMsgId = _uuid.v4();
+    _addAiMessage('', id: aiMsgId);
+
+    final buffer = StringBuffer();
     try {
-      final reply = await _aiService.chat(
+      await for (final chunk in _streamService.streamChat(
         messages: history,
         mood: state.currentMood,
         isFirstCheckIn: state.sections.length == 1,
         language: language,
-      );
-      _addAiMessage(reply);
-      state = state.copyWith(isLoading: false);
-      await _persist();
-    } catch (e) {
-      _addAiMessage('I hear you. Tell me more about that.');
-      state = state.copyWith(isLoading: false);
+      )) {
+        buffer.write(chunk);
+        // First chunk: hide typing indicator, show streaming text
+        if (state.isLoading) {
+          state = state.copyWith(isLoading: false, isStreaming: true);
+        }
+        _updateStreamingMessage(aiMsgId, buffer.toString());
+      }
+    } catch (_) {
+      if (buffer.isEmpty) {
+        _updateStreamingMessage(aiMsgId, 'I hear you. Tell me more about that.');
+      }
+    } finally {
+      state = state.copyWith(isLoading: false, isStreaming: false);
       await _persist();
     }
   }
@@ -383,14 +417,34 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
 
   // ── Helpers ─────────────────────────────────────────────────────────
 
-  void _addAiMessage(String text) {
+  void _addAiMessage(String text, {String? id}) {
     final msg = ChatMessage(
-      id: _uuid.v4(),
+      id: id ?? _uuid.v4(),
       text: text,
       isUser: false,
       timestamp: DateTime.now(),
     );
     _addMessageToActiveSection(msg);
+  }
+
+  /// Replaces the text of an existing message in-place (used during streaming).
+  void _updateStreamingMessage(String messageId, String newText) {
+    if (state.sections.isEmpty) return;
+    final updatedSections = [...state.sections];
+    final lastSection = updatedSections.last;
+    final updatedMessages = lastSection.messages.map((msg) {
+      if (msg.id != messageId) return msg;
+      return ChatMessage(
+        id: msg.id,
+        text: newText,
+        isUser: msg.isUser,
+        timestamp: msg.timestamp,
+        isVoice: msg.isVoice,
+      );
+    }).toList();
+    updatedSections[updatedSections.length - 1] =
+        lastSection.copyWith(messages: updatedMessages);
+    state = state.copyWith(sections: updatedSections);
   }
 
   void _addMessageToActiveSection(ChatMessage msg) {

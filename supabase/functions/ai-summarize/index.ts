@@ -1,7 +1,7 @@
 import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { geminiGenerate } from "../_shared/ai-providers.ts";
+import { generate } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
       .map((e: string, i: number) => `Entry ${i + 1}:\n${e}`)
       .join("\n\n");
 
-    const text = await geminiGenerate(prompt, systemPrompt);
+    const text = await generate(prompt, systemPrompt);
 
     return new Response(
       JSON.stringify({ text }),

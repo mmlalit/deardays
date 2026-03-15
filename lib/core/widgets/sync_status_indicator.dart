@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/services/sync/sync_service.dart';
 
 /// Small sync status pill shown in the top-right of the app shell.
 class SyncStatusIndicator extends ConsumerStatefulWidget {
@@ -78,6 +79,14 @@ class _SyncStatusIndicatorState extends ConsumerState<SyncStatusIndicator>
             icon: Icons.error_outline_rounded,
             pulse: false,
           );
+        case SyncStatus.failedItems:
+          final count = SyncService().failedItemCount;
+          display = _StatusDisplay(
+            color: AppColors.moodTough,
+            label: '$count Failed',
+            icon: Icons.warning_amber_rounded,
+            pulse: false,
+          );
       }
     }
 
@@ -140,7 +149,11 @@ class _SyncStatusIndicatorState extends ConsumerState<SyncStatusIndicator>
             SyncStatus.syncing => 'Syncing your changes now...',
             SyncStatus.error =>
               'Some changes failed to sync. They will retry automatically.',
+            SyncStatus.failedItems =>
+              '${SyncService().failedItemCount} items failed after multiple retries. Tap Retry to try again.',
           };
+
+    final showRetry = isOnline && status == SyncStatus.failedItems;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -149,7 +162,13 @@ class _SyncStatusIndicatorState extends ConsumerState<SyncStatusIndicator>
           style: GoogleFonts.manrope(fontSize: 13),
         ),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 4),
+        action: showRetry
+            ? SnackBarAction(
+                label: 'Retry',
+                onPressed: () => SyncService().retryFailed(),
+              )
+            : null,
       ),
     );
   }

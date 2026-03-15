@@ -1,78 +1,281 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/services/location/location_service.dart';
+import 'package:deardays/services/media/media_service.dart';
 
-/// Dedicated edit screen for memory content, tags, people, location.
-/// Receives the [ReviewData] and returns updated data on save via GoRouter.
-class EditMemoryScreen extends StatefulWidget {
-  final ReviewData data;
-  const EditMemoryScreen({super.key, required this.data});
+// ---------------------------------------------------------------------------
+// Entry point — accepts a saved JournalEntry from timeline / detail screen.
+// ---------------------------------------------------------------------------
+
+class EditMemoryScreen extends ConsumerStatefulWidget {
+  final JournalEntry entry;
+
+  const EditMemoryScreen({super.key, required this.entry});
 
   @override
-  State<EditMemoryScreen> createState() => _EditMemoryScreenState();
+  ConsumerState<EditMemoryScreen> createState() => _EditMemoryScreenState();
 }
 
-class _EditMemoryScreenState extends State<EditMemoryScreen> {
+class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
+  // ── repository / services ─────────────────────────────────────────────────
+  late final JournalRepository _repository = JournalRepository(
+    client: Supabase.instance.client,
+  );
+  late final MediaService _mediaService = MediaService(
+    client: Supabase.instance.client,
+  );
+  final _locationService = LocationService();
+  final _imagePicker = ImagePicker();
+
+  // ── story controllers ─────────────────────────────────────────────────────
   late final TextEditingController _titleController;
   late final TextEditingController _storyController;
-  final _imagePicker = ImagePicker();
-  String? _attachedPhotoPath;
+  late final TextEditingController _originalController;
 
-  final List<String> _tags = [];
+  // ── edit-original mode ────────────────────────────────────────────────────
+  bool _editingOriginal = false;
+
+  // ── metadata state ────────────────────────────────────────────────────────
+  String? _selectedMood;
+  String? _locationName;
+  late DateTime _entryDate;
+  TimeOfDay? _entryTime;
+
+  // ── tags ──────────────────────────────────────────────────────────────────
+  late List<String> _tags;
   final _tagController = TextEditingController();
-  final _focusTag = FocusNode();
 
-  static const List<String> _suggestedTags = [
+  // ── photo ─────────────────────────────────────────────────────────────────
+  /// Local file path if user picked a new photo this session.
+  String? _newPhotoPath;
+
+  /// Resolved URL of the existing remote photo (lazy-loaded once).
+  String? _existingPhotoUrl;
+  bool _removePhoto = false;
+
+  // ── save state ────────────────────────────────────────────────────────────
+  bool _isSaving = false;
+
+  // ── mood options ──────────────────────────────────────────────────────────
+  static const _moods = [
+    ('great', '😄', 'Great'),
+    ('good', '🙂', 'Good'),
+    ('okay', '😐', 'Okay'),
+    ('low', '😔', 'Low'),
+    ('tough', '😢', 'Tough'),
+  ];
+
+  static const _suggestedTags = [
     'Family', 'Travel', 'Work', 'Friends', 'Nature',
     'Food', 'Health', 'Gratitude', 'Achievement', 'Funny',
   ];
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Init / Dispose
+  // ─────────────────────────────────────────────────────────────────────────
+
   @override
   void initState() {
     super.initState();
+    final e = widget.entry;
 
-    // Extract title from rawText first line if it looks like a title
-    final lines = widget.data.rawText.split('\n').where((l) => l.trim().isNotEmpty).toList();
-    final firstLine = lines.isNotEmpty ? lines.first : '';
-    final bodyText = lines.length > 1 ? lines.skip(1).join('\n').trim() : widget.data.rawText;
+    // Parse polished content: stored as "title\n\nbody"
+    final pc = e.polishedContent ?? '';
+    final pcLines = pc.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final hasTitle = pcLines.length > 1;
+    final parsedTitle = hasTitle ? pcLines.first : '';
+    final parsedBody = hasTitle
+        ? pcLines.skip(1).join('\n\n').trim()
+        : pc.trim();
 
-    _attachedPhotoPath = widget.data.attachedPhotoPath;
+    _titleController = TextEditingController(text: parsedTitle);
+    _storyController = TextEditingController(text: parsedBody.isEmpty ? (e.content) : parsedBody);
+    _originalController = TextEditingController(text: e.rawContent ?? e.content);
 
-    _titleController = TextEditingController(
-      text: (firstLine.length < 80 && lines.length > 1) ? firstLine : '',
-    );
-    _storyController = TextEditingController(
-      text: (firstLine.length < 80 && lines.length > 1) ? bodyText : widget.data.rawText,
-    );
+    _selectedMood = e.mood;
+    _locationName = e.locationName;
+    _entryDate = e.entryDate;
+    _entryTime = e.entryTime;
+    _tags = List.from(e.tags);
+
+    // Load photo URL if entry has media
+    _loadExistingPhoto();
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _storyController.dispose();
+    _originalController.dispose();
     _tagController.dispose();
-    _focusTag.dispose();
     super.dispose();
   }
 
-  void _addTag(String tag) {
-    final trimmed = tag.trim();
-    if (trimmed.isNotEmpty && !_tags.contains(trimmed)) {
-      setState(() => _tags.add(trimmed));
+  Future<void> _loadExistingPhoto() async {
+    final photo = widget.entry.media
+        .where((m) => m.mediaType == 'photo')
+        .firstOrNull;
+    if (photo == null) return;
+    try {
+      final url = photo.storagePath.startsWith('http')
+          ? photo.storagePath
+          : await _mediaService.getSignedUrl(photo.storagePath);
+      if (mounted) setState(() => _existingPhotoUrl = url);
+    } catch (_) {}
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Save
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _saveChanges() async {
+    if (_isSaving) return;
+    HapticFeedback.mediumImpact();
+    setState(() => _isSaving = true);
+
+    try {
+      final title = _titleController.text.trim();
+      final body = _storyController.text.trim();
+
+      // Rebuild polishedContent: "title\n\nbody" (same format as ProcessingScreen)
+      String? polishedContent;
+      if (title.isNotEmpty || body.isNotEmpty) {
+        polishedContent = title.isNotEmpty ? '$title\n\n$body' : body;
+      }
+
+      // Rebuild word count from content (cleaned text)
+      final content = widget.entry.content;
+      final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+
+      final updated = widget.entry.copyWith(
+        polishedContent: polishedContent,
+        mood: _selectedMood,
+        locationName: _locationName,
+        entryDate: _entryDate,
+        entryTime: _entryTime,
+        wordCount: wordCount,
+        tags: _tags,
+        hasPhoto: _newPhotoPath != null ||
+            (!_removePhoto && widget.entry.hasPhoto),
+        updatedAt: DateTime.now().toUtc(),
+      );
+
+      final saved = await _repository.updateEntry(updated);
+
+      // Upload new photo if selected
+      if (_newPhotoPath != null) {
+        try {
+          await _mediaService.uploadPhoto(
+            entryId: saved.id,
+            filePath: _newPhotoPath!,
+          );
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Entry saved but photo upload failed.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }
+
+      if (mounted) {
+        ref.invalidate(timelineEntriesProvider);
+        ref.invalidate(todayEntryProvider);
+        context.pop(saved);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not save: $e'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
-    _tagController.clear();
   }
 
-  void _removeTag(String tag) {
-    setState(() => _tags.remove(tag));
+  // ─────────────────────────────────────────────────────────────────────────
+  // Re-process (Edit Original path)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _confirmReprocess() {
+    final colors = AppColors.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Regenerate Story?',
+          style: GoogleFonts.manrope(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+          ),
+        ),
+        content: Text(
+          'Saving your edited original text will create a new AI-polished story. Your current story will be replaced.',
+          style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style: GoogleFonts.manrope(color: colors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _goToReprocess();
+            },
+            child: Text('Re-process',
+                style: GoogleFonts.manrope(
+                    color: colors.accent, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
-  void _showPhotoOptions(BuildContext context) {
+  void _goToReprocess() {
+    final newText = _originalController.text.trim();
+    if (newText.isEmpty) return;
+    context.push('/processing',
+        extra: ReviewData(
+          rawText: newText,
+          isVoice: widget.entry.hasVoice,
+          mood: _selectedMood,
+          locationName: _locationName,
+          attachedPhotoPath: _newPhotoPath,
+        ));
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Photo actions
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _showPhotoOptions() {
     final colors = AppColors.of(context);
     showModalBottomSheet(
       context: context,
@@ -86,8 +289,7 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
           children: [
             const SizedBox(height: 8),
             Container(
-              width: 40,
-              height: 4,
+              width: 40, height: 4,
               decoration: BoxDecoration(
                 color: colors.textMuted.withAlpha(60),
                 borderRadius: BorderRadius.circular(2),
@@ -96,43 +298,34 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
             const SizedBox(height: 16),
             ListTile(
               leading: Icon(Icons.photo_library_rounded, color: colors.accent),
-              title: Text(
-                'Upload Photo',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
-                ),
-              ),
-              subtitle: Text(
-                'Choose from your gallery',
-                style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickFromGallery();
-              },
+              title: Text('Choose from gallery',
+                  style: GoogleFonts.manrope(
+                      fontSize: 15, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+              onTap: () { Navigator.pop(ctx); _pickFromGallery(); },
             ),
             ListTile(
               leading: Icon(Icons.camera_alt_rounded, color: colors.accent),
-              title: Text(
-                'Take Photo',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
-                ),
-              ),
-              subtitle: Text(
-                'Use your camera',
-                style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _takePhoto();
-              },
+              title: Text('Take a photo',
+                  style: GoogleFonts.manrope(
+                      fontSize: 15, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+              onTap: () { Navigator.pop(ctx); _takePhoto(); },
             ),
-            const SizedBox(height: 12),
+            if (_newPhotoPath != null ||
+                (_existingPhotoUrl != null && !_removePhoto))
+              ListTile(
+                leading: Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                title: Text('Remove photo',
+                    style: GoogleFonts.manrope(
+                        fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _newPhotoPath = null;
+                    _removePhoto = true;
+                  });
+                },
+              ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -142,65 +335,294 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
   Future<void> _pickFromGallery() async {
     try {
       final picked = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 75,
-      );
+          source: ImageSource.gallery, maxWidth: 1920, imageQuality: 75);
       if (picked != null && mounted) {
-        setState(() => _attachedPhotoPath = picked.path);
+        setState(() { _newPhotoPath = picked.path; _removePhoto = false; });
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not access photo gallery.')),
-        );
-      }
-    }
+    } catch (_) {}
   }
 
   Future<void> _takePhoto() async {
     try {
       final picked = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 75,
-      );
+          source: ImageSource.camera, maxWidth: 1920, imageQuality: 75);
       if (picked != null && mounted) {
-        setState(() => _attachedPhotoPath = picked.path);
+        setState(() { _newPhotoPath = picked.path; _removePhoto = false; });
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not access camera.')),
-        );
-      }
-    }
+    } catch (_) {}
   }
 
-  void _saveChanges() {
-    HapticFeedback.mediumImpact();
-    final title = _titleController.text.trim();
-    final body = _storyController.text.trim();
-    final combined = title.isNotEmpty ? '$title\n\n$body' : body;
+  // ─────────────────────────────────────────────────────────────────────────
+  // Location
+  // ─────────────────────────────────────────────────────────────────────────
 
-    // Pop back to review screen with updated data
-    context.pop(ReviewData(
-      rawText: combined,
-      isVoice: widget.data.isVoice,
-      audioPath: widget.data.audioPath,
-      attachedPhotoPath: _attachedPhotoPath,
-      mood: widget.data.mood,
-      locationName: widget.data.locationName,
-      polishWithAI: false,
-    ));
+  Future<void> _editLocation() async {
+    final colors = AppColors.of(context);
+    final controller = TextEditingController(text: _locationName ?? '');
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Location',
+                style: GoogleFonts.manrope(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: GoogleFonts.manrope(
+                  fontSize: 15, color: colors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Enter location name...',
+                hintStyle:
+                    GoogleFonts.manrope(color: colors.textMuted),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.border)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        BorderSide(color: colors.accent, width: 1.5)),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      final loc =
+                          await _locationService.getCurrentLocation();
+                      if (loc?.locationName != null && mounted) {
+                        setState(
+                            () => _locationName = loc!.locationName);
+                      }
+                    } catch (_) {}
+                  },
+                  icon: Icon(Icons.my_location_rounded,
+                      size: 16, color: colors.accent),
+                  label: Text('Use current location',
+                      style: GoogleFonts.manrope(
+                          fontSize: 13, color: colors.accent)),
+                ),
+                const Spacer(),
+                if (_locationName != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _locationName = null);
+                      Navigator.pop(ctx);
+                    },
+                    child: Text('Clear',
+                        style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            color: colors.textSecondary)),
+                  ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    final v = controller.text.trim();
+                    setState(
+                        () => _locationName = v.isEmpty ? null : v);
+                    Navigator.pop(ctx);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.accent,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                  child: Text('Save',
+                      style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Date / Time
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _entryDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.light(
+              primary: AppColors.of(context).accent),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) setState(() => _entryDate = picked);
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _entryTime ?? TimeOfDay.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.light(
+              primary: AppColors.of(context).accent),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) setState(() => _entryTime = picked);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Tags
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _showTagSheet() {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tags',
+                  style: GoogleFonts.manrope(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _tagController,
+                autofocus: false,
+                style: GoogleFonts.manrope(
+                    fontSize: 15, color: colors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Type a tag and press enter...',
+                  hintStyle:
+                      GoogleFonts.manrope(color: colors.textMuted),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.check_rounded,
+                        color: colors.accent),
+                    onPressed: () {
+                      final t = _tagController.text.trim();
+                      if (t.isNotEmpty && !_tags.contains(t)) {
+                        setState(() => _tags.add(t));
+                        setSheet(() {});
+                      }
+                      _tagController.clear();
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.border)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                          color: colors.accent, width: 1.5)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                ),
+                onSubmitted: (v) {
+                  final t = v.trim();
+                  if (t.isNotEmpty && !_tags.contains(t)) {
+                    setState(() => _tags.add(t));
+                    setSheet(() {});
+                  }
+                  _tagController.clear();
+                },
+              ),
+              const SizedBox(height: 16),
+              Text('Suggestions',
+                  style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textMuted)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _suggestedTags.map((t) {
+                  final active = _tags.contains(t);
+                  return GestureDetector(
+                    onTap: () {
+                      if (active) {
+                        setState(() => _tags.remove(t));
+                      } else {
+                        setState(() => _tags.add(t));
+                      }
+                      setSheet(() {});
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? colors.accent
+                            : colors.accentFaint,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: active
+                                ? colors.accent
+                                : colors.border),
+                      ),
+                      child: Text(t,
+                          style: GoogleFonts.manrope(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: active
+                                  ? Colors.white
+                                  : colors.textPrimary)),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Build
+  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-
     return Scaffold(
       backgroundColor: colors.bg,
       body: Column(
@@ -208,51 +630,57 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
           _buildTopBar(colors),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+              padding: const EdgeInsets.only(bottom: 40),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Photo section
-                  _buildPhotoSection(colors),
+                  // Photo
+                  _buildPhotoBanner(colors),
+
                   const SizedBox(height: 24),
 
-                  // Title field
-                  _buildFieldLabel('Title', colors),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _titleController,
-                    hint: 'Give your memory a title',
-                    maxLines: 1,
-                    colors: colors,
-                  ),
+                  // ── STORY section ──────────────────────────────────────
+                  _sectionLabel('STORY', colors),
+                  const SizedBox(height: 12),
+                  _buildTitleField(colors),
+                  const SizedBox(height: 12),
+                  _editingOriginal
+                      ? _buildOriginalEditor(colors)
+                      : _buildStoryEditor(colors),
+                  const SizedBox(height: 12),
+                  _buildEditOriginalButton(colors),
+
+                  const SizedBox(height: 28),
+                  Divider(color: colors.border, indent: 20, endIndent: 20),
                   const SizedBox(height: 20),
 
-                  // Story field
-                  _buildFieldLabel('Story', colors),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _storyController,
-                    hint: 'Write your memory here...',
-                    maxLines: 8,
-                    colors: colors,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Metadata row
-                  _buildMetadataRow(colors),
-                  const SizedBox(height: 24),
-
-                  // Tags
-                  _buildFieldLabel('Tags', colors),
+                  // ── MOOD section ───────────────────────────────────────
+                  _sectionLabel('MOOD', colors),
                   const SizedBox(height: 12),
-                  _buildTagsSection(colors),
+                  _buildMoodSelector(colors),
+
+                  const SizedBox(height: 24),
+                  Divider(color: colors.border, indent: 20, endIndent: 20),
+                  const SizedBox(height: 20),
+
+                  // ── DETAILS section ────────────────────────────────────
+                  _sectionLabel('DETAILS', colors),
+                  const SizedBox(height: 12),
+                  _buildDetailRow(colors),
+
+                  const SizedBox(height: 24),
+                  Divider(color: colors.border, indent: 20, endIndent: 20),
+                  const SizedBox(height: 20),
+
+                  // ── TAGS section ───────────────────────────────────────
+                  _sectionLabel('TAGS', colors),
+                  const SizedBox(height: 12),
+                  _buildTagsRow(colors),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ),
-
-          // Bottom bar
-          _buildBottomBar(colors),
         ],
       ),
     );
@@ -281,10 +709,11 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
                   height: 38,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: colors.accentFaint,
+                    color: colors.cardBg,
                     border: Border.all(color: colors.border),
                   ),
-                  child: Icon(Icons.close_rounded, size: 18, color: colors.textPrimary),
+                  child: Icon(Icons.close_rounded,
+                      size: 18, color: colors.textPrimary),
                 ),
               ),
               Expanded(
@@ -300,15 +729,25 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: _saveChanges,
-                child: Container(
+                onTap: _isSaving ? null : _saveChanges,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: colors.accent,
+                    color: _isSaving
+                        ? colors.accent.withAlpha(100)
+                        : colors.accent,
                   ),
-                  child: const Icon(Icons.check_rounded, size: 20, color: Colors.white),
+                  child: _isSaving
+                      ? Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.check_rounded,
+                          size: 20, color: Colors.white),
                 ),
               ),
             ],
@@ -319,76 +758,81 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Photo Section
+  // Photo Banner
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildPhotoSection(AppPalette colors) {
+  Widget _buildPhotoBanner(AppPalette colors) {
+    final hasPhoto = _newPhotoPath != null ||
+        (_existingPhotoUrl != null && !_removePhoto);
+
     return GestureDetector(
-      onTap: () => _showPhotoOptions(context),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+      onTap: _showPhotoOptions,
+      child: SizedBox(
+        height: 220,
+        width: double.infinity,
         child: Stack(
+          fit: StackFit.expand,
           children: [
-            if (_attachedPhotoPath != null)
-              Image.asset(
-                _attachedPhotoPath!,
+            // Background
+            if (_newPhotoPath != null)
+              Image.file(File(_newPhotoPath!),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _photoBg(colors))
+            else if (_existingPhotoUrl != null && !_removePhoto)
+              CachedNetworkImage(
+                imageUrl: _existingPhotoUrl!,
                 fit: BoxFit.cover,
-                width: double.infinity,
-                height: 180,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [colors.accent, colors.accentLight],
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(Icons.image_outlined, size: 48, color: Colors.white.withAlpha(120)),
-                  ),
-                ),
+                placeholder: (_, __) => _photoBg(colors),
+                errorWidget: (_, __, ___) => _photoBg(colors),
               )
             else
-              Container(
-                height: 180,
-                width: double.infinity,
+              _photoBg(colors),
+
+            // Gradient overlay
+            Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [colors.accent, colors.accentLight],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withAlpha(120)],
+                    stops: const [0.5, 1.0],
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              ),
+            ),
+
+            // Edit badge
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(120),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.add_a_photo_rounded, size: 40, color: Colors.white.withAlpha(180)),
-                    const SizedBox(height: 8),
+                    Icon(
+                      hasPhoto
+                          ? Icons.edit_rounded
+                          : Icons.add_a_photo_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 5),
                     Text(
-                      'Tap to add a photo',
+                      hasPhoto ? 'Change photo' : 'Add photo',
                       style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withAlpha(180),
-                      ),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white),
                     ),
                   ],
                 ),
-              ),
-            Positioned(
-              right: 12,
-              bottom: 12,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(color: colors.border),
-                ),
-                child: Icon(Icons.camera_alt_outlined, size: 18, color: colors.textSecondary),
               ),
             ),
           ],
@@ -397,251 +841,380 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Field Label
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildFieldLabel(String label, AppPalette colors) {
-    return Text(
-      label,
-      style: GoogleFonts.manrope(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: colors.textSecondary,
-        letterSpacing: 0.5,
+  Widget _photoBg(AppPalette colors) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.accent.withAlpha(60),
+            colors.accentLight.withAlpha(40)
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(Icons.add_a_photo_rounded,
+            size: 40, color: colors.textMuted),
       ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Text Field
+  // Story Section
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required int maxLines,
-    required AppPalette colors,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.border),
-      ),
+  Widget _buildTitleField(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        minLines: maxLines == 1 ? 1 : 4,
-        style: GoogleFonts.manrope(
-          fontSize: 15,
+        controller: _titleController,
+        maxLines: 1,
+        style: GoogleFonts.newsreader(
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
           color: colors.textPrimary,
-          height: 1.6,
         ),
         decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: GoogleFonts.manrope(
-            fontSize: 15,
-            color: colors.textMuted,
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintText: 'Title',
+          hintStyle: GoogleFonts.newsreader(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: colors.textMuted),
           border: InputBorder.none,
-          filled: false,
+          contentPadding: EdgeInsets.zero,
         ),
         textCapitalization: TextCapitalization.sentences,
       ),
     );
   }
 
+  Widget _buildStoryEditor(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: TextField(
+          controller: _storyController,
+          maxLines: null,
+          minLines: 6,
+          style: GoogleFonts.newsreader(
+            fontSize: 16,
+            fontWeight: FontWeight.w300,
+            color: colors.textPrimary,
+            height: 1.75,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Your polished story...',
+            hintStyle: GoogleFonts.newsreader(
+                fontSize: 16,
+                fontWeight: FontWeight.w300,
+                color: colors.textMuted),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.all(16),
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOriginalEditor(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(15),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+              border: Border.all(color: colors.accent.withAlpha(40)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.edit_note_rounded,
+                    size: 15, color: colors.accent),
+                const SizedBox(width: 6),
+                Text(
+                  'Editing original text — save to re-process with AI',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: colors.accent,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () =>
+                      setState(() => _editingOriginal = false),
+                  child: Icon(Icons.close_rounded,
+                      size: 15, color: colors.accent),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(12)),
+              border: Border.all(color: colors.accent.withAlpha(40)),
+            ),
+            child: TextField(
+              controller: _originalController,
+              maxLines: null,
+              minLines: 6,
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                color: colors.textPrimary,
+                height: 1.65,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Your original words...',
+                hintStyle: GoogleFonts.manrope(
+                    fontSize: 15, color: colors.textMuted),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(16),
+              ),
+              textCapitalization: TextCapitalization.sentences,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _confirmReprocess,
+              icon: const Icon(Icons.auto_awesome_rounded,
+                  size: 16, color: Colors.white),
+              label: Text(
+                'Save & Re-generate Story',
+                style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditOriginalButton(AppPalette colors) {
+    if (_editingOriginal) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: () => setState(() => _editingOriginal = true),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: colors.cardBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: colors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.edit_rounded,
+                  size: 14, color: colors.textMuted),
+              const SizedBox(width: 6),
+              Text(
+                'Edit original text',
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.warning_amber_rounded,
+                  size: 13, color: colors.textMuted.withAlpha(150)),
+              const SizedBox(width: 4),
+              Text(
+                'replaces story',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
-  // Metadata Row (People | Location | Date)
+  // Mood Selector
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildMetadataRow(AppPalette colors) {
-    final items = [
-      (Icons.person_add_alt_rounded, 'PEOPLE'),
-      (Icons.location_on_outlined, 'LOCATION'),
-      (Icons.calendar_today_outlined, 'DATE'),
-    ];
-
-    return Row(
-      children: items.map((item) => Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: GestureDetector(
-            onTap: () {},
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+  Widget _buildMoodSelector(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: _moods.map((mood) {
+          final isSelected = _selectedMood == mood.$1;
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(
+                  () => _selectedMood = isSelected ? null : mood.$1);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: colors.accentFaint,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: colors.border),
+                color: isSelected
+                    ? colors.accent.withAlpha(20)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color:
+                      isSelected ? colors.accent : colors.border,
+                  width: isSelected ? 1.5 : 1,
+                ),
               ),
               child: Column(
                 children: [
-                  Icon(item.$1, size: 20, color: colors.accent),
+                  Text(mood.$2,
+                      style: const TextStyle(fontSize: 22)),
                   const SizedBox(height: 4),
                   Text(
-                    item.$2,
+                    mood.$3,
                     style: GoogleFonts.manrope(
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: colors.textSecondary,
-                      letterSpacing: 0.8,
+                      color: isSelected
+                          ? colors.accent
+                          : colors.textMuted,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      )).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Tags Section
+  // Details Row (location, date, time)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildTagsSection(AppPalette colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Active tags
-        if (_tags.isNotEmpty) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _tags.map((tag) => _buildTagChip(tag, isActive: true, colors: colors)).toList()
-              ..add(_buildAddTagChip(colors)),
+  Widget _buildDetailRow(AppPalette colors) {
+    final months = ['Jan','Feb','Mar','Apr','May','Jun',
+        'Jul','Aug','Sep','Oct','Nov','Dec'];
+    final dateStr =
+        '${months[_entryDate.month - 1]} ${_entryDate.day}, ${_entryDate.year}';
+    final timeStr = _entryTime != null
+        ? _entryTime!.format(context)
+        : 'Set time';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          _detailTile(
+            icon: Icons.location_on_outlined,
+            label: 'Location',
+            value: _locationName ?? 'Add location',
+            hasValue: _locationName != null,
+            colors: colors,
+            onTap: _editLocation,
           ),
-          const SizedBox(height: 16),
-        ] else ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildAddTagChip(colors),
-              ..._suggestedTags.take(5).map((t) => _buildTagChip(t, isActive: false, colors: colors)),
-            ],
+          const SizedBox(height: 8),
+          _detailTile(
+            icon: Icons.calendar_today_outlined,
+            label: 'Date',
+            value: dateStr,
+            hasValue: true,
+            colors: colors,
+            onTap: _pickDate,
+          ),
+          const SizedBox(height: 8),
+          _detailTile(
+            icon: Icons.access_time_rounded,
+            label: 'Time',
+            value: timeStr,
+            hasValue: _entryTime != null,
+            colors: colors,
+            onTap: _pickTime,
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildTagChip(String tag, {required bool isActive, required AppPalette colors}) {
-    return GestureDetector(
-      onTap: isActive ? () => _removeTag(tag) : () => _addTag(tag),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: isActive ? colors.accent : colors.accentFaint,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isActive ? colors.accent : colors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              tag,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isActive ? Colors.white : colors.textPrimary,
-              ),
-            ),
-            if (isActive) ...[
-              const SizedBox(width: 4),
-              Icon(Icons.close_rounded, size: 14, color: Colors.white.withAlpha(200)),
-            ],
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildAddTagChip(AppPalette colors) {
+  Widget _detailTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool hasValue,
+    required AppPalette colors,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
-      onTap: () {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: colors.bg,
-          isScrollControlled: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (_) => Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _tagController,
-                  focusNode: _focusTag,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'Type a tag...',
-                    hintStyle: GoogleFonts.manrope(color: colors.textMuted),
-                    suffixIcon: IconButton(
-                      icon: Icon(Icons.check_rounded, color: colors.accent),
-                      onPressed: () {
-                        _addTag(_tagController.text);
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
-                  onSubmitted: (v) {
-                    _addTag(v);
-                    Navigator.pop(context);
-                  },
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _suggestedTags.map((t) => GestureDetector(
-                    onTap: () {
-                      _addTag(t);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: colors.accentFaint,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Text(t, style: GoogleFonts.manrope(fontSize: 13, color: colors.textPrimary)),
-                    ),
-                  )).toList(),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.border, style: BorderStyle.solid),
+          color: colors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add_rounded, size: 14, color: colors.textSecondary),
-            const SizedBox(width: 4),
-            Text(
-              'ADD TAG',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: colors.textSecondary,
-                letterSpacing: 0.5,
+            Icon(icon,
+                size: 18,
+                color:
+                    hasValue ? colors.accent : colors.textMuted),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textMuted,
+                        letterSpacing: 0.4,
+                      )),
+                  const SizedBox(height: 2),
+                  Text(value,
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: hasValue
+                            ? colors.textPrimary
+                            : colors.textMuted,
+                      )),
+                ],
               ),
             ),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: colors.textMuted),
           ],
         ),
       ),
@@ -649,57 +1222,86 @@ class _EditMemoryScreenState extends State<EditMemoryScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Bottom Bar
+  // Tags Row
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildBottomBar(AppPalette colors) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.bg,
-        border: Border(top: BorderSide(color: colors.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _saveChanges,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    elevation: 0,
+  Widget _buildTagsRow(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          // Existing tags
+          ..._tags.map((t) => GestureDetector(
+                onTap: () => setState(() => _tags.remove(t)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    'Save Changes',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(t,
+                          style: GoogleFonts.manrope(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white)),
+                      const SizedBox(width: 4),
+                      Icon(Icons.close_rounded,
+                          size: 13,
+                          color: Colors.white.withAlpha(200)),
+                    ],
                   ),
                 ),
+              )),
+          // Add button
+          GestureDetector(
+            onTap: _showTagSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: colors.border),
               ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () => context.pop(),
-                child: Text(
-                  'Discard Changes',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: colors.textSecondary,
-                  ),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded,
+                      size: 14, color: colors.textSecondary),
+                  const SizedBox(width: 4),
+                  Text('Add tag',
+                      style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textSecondary)),
+                ],
               ),
-            ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Section Label
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String label, AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Text(
+        label,
+        style: GoogleFonts.manrope(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: colors.textMuted,
+          letterSpacing: 1.4,
         ),
       ),
     );

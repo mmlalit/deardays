@@ -8,118 +8,89 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class MyLifeBookScreen extends StatefulWidget {
+class MyLifeBookScreen extends ConsumerStatefulWidget {
   const MyLifeBookScreen({super.key});
 
   @override
-  State<MyLifeBookScreen> createState() => _MyLifeBookScreenState();
+  ConsumerState<MyLifeBookScreen> createState() => _MyLifeBookScreenState();
 }
 
-class _MyLifeBookScreenState extends State<MyLifeBookScreen>
+class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
     with TickerProviderStateMixin {
   int _activeChapterIndex = 0;
   final _scrollController = ScrollController();
+  List<_Chapter> _chapters = const [];
 
-  // ── Demo chapters (6 chapters, 45 memories total) ──────────────────────────
+  // ── Map real Chapter + JournalEntry data to display model ──────────────────
 
-  static const _chapters = [
-    _Chapter(
-      number: '01',
-      title: 'New Year Beginnings',
-      subtitle: 'FRESH STARTS',
-      monthYear: 'January 2026',
-      entryCount: 9,
-      mood: 'Hopeful',
-      moodColor: Color(0xFF4ADE80),
-      body:
-          'It arrived quietly — January, carrying the clean smell of cold air and new resolve. I stood at the window with my coffee, watching frost trace patterns on the glass, and felt the peculiar lightness that comes with a blank calendar.\n\n'
-          'Resolutions feel different this year. Less a list of improvements, more a gentle promise: to notice more, to hold things lightly, to let the days accumulate into something that matters.\n\n'
-          'My mother called in the evening. We talked for an hour about nothing in particular — recipes, the neighbor\'s new dog, a film she had seen twice. When I hung up I realized I was smiling.',
-      photoUrl:
-          'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=800&fit=crop',
-      photoCaption: 'January light through the kitchen window.',
-    ),
-    _Chapter(
-      number: '02',
-      title: 'Love & Connection',
-      subtitle: 'HEARTS THAT HOLD US',
-      monthYear: 'February 2026',
-      entryCount: 6,
-      mood: 'Warm',
-      moodColor: Color(0xFFF472B6),
-      body:
-          'February has always felt like an invitation to slow down and look at the people around me. Not the grand declarations — though those have their place — but the small, everyday proofs of love that are too easy to rush past.\n\n'
-          'This morning my partner left a cup of tea on my desk before I was even awake. The cup was exactly right: not too hot, the way I like it. That small act felt like a whole conversation.\n\n'
-          'We walked through the botanical gardens in the afternoon, coats pulled tight against the wind. The rose bushes were bare and knotted, but somehow beautiful for it.',
-      photoUrl: null,
-      photoCaption: null,
-    ),
-    _Chapter(
-      number: '03',
-      title: 'Family Life',
-      subtitle: 'THE EARLY FOUNDATIONS',
-      monthYear: 'March 2026',
-      entryCount: 12,
-      mood: 'Serene',
-      moodColor: Color(0xFF6B8CFF),
-      body:
-          'It began in a small house with a blue door. The smell of cedarwood and morning coffee is my earliest anchor to this world. My father used to say that a house isn\'t built of wood and stone, but of the echoes of the laughter that rings within its walls.\n\n'
-          'I remember the sunlight streaming through the kitchen window, hitting the linoleum floor in perfect geometric shapes. I would sit there for hours, watching dust motes dance in the light, feeling the immense safety of a world that hadn\'t yet grown beyond our backyard fence.\n\n'
-          'Mother was the quiet architect of our daily rituals. The way she folded the laundry, with a precision that seemed almost sacred, taught me my first lesson in mindfulness. Every crease was a silent testament to her care for us.',
-      photoUrl:
-          'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&fit=crop',
-      photoCaption: 'Morning rituals and the scent of fresh coffee.',
-    ),
-    _Chapter(
-      number: '04',
-      title: 'Spring Blooms',
-      subtitle: 'NEW BEGINNINGS',
-      monthYear: 'April 2026',
-      entryCount: 8,
-      mood: 'Joyful',
-      moodColor: Color(0xFFFBBF24),
-      body:
-          'April arrived like a quiet apology from winter. The cherry blossoms came first, carpeting the sidewalks in pale pink. I found myself walking slower these days, noticing things I had always overlooked — the particular shade of green in fresh leaves, the way early morning mist lingers over the park before the city wakes.\n\n'
-          'There\'s something about spring that makes you want to start again. I decided to write more, to capture these small moments before they dissolve into the rhythm of ordinary days. The garden is coming back to life.',
-      photoUrl:
-          'https://images.unsplash.com/photo-1490750967868-88df5691cc51?w=800&fit=crop',
-      photoCaption: 'Cherry blossoms on the walk to work.',
-    ),
-    _Chapter(
-      number: '05',
-      title: 'Growth & Change',
-      subtitle: 'BECOMING',
-      monthYear: 'May 2026',
-      entryCount: 5,
-      mood: 'Reflective',
-      moodColor: Color(0xFFA78BFA),
-      body:
-          'May is the month I turned thirty-one. Unremarkable by most measures, and yet I spent the better part of a week thinking about growth — the kind that doesn\'t announce itself but shows up one day in the choices you make without having to think.\n\n'
-          'I said no to something that would have taken six months and left me depleted. I said yes to an afternoon hike with no purpose beyond being outside. Both decisions felt right in a way that surprised me.',
-      photoUrl: null,
-      photoCaption: null,
-    ),
-    _Chapter(
-      number: '06',
-      title: 'Summer Adventures',
-      subtitle: 'EXPLORING THE UNKNOWN',
-      monthYear: 'June 2026',
-      entryCount: 5,
-      mood: 'Excited',
-      moodColor: Color(0xFFFB923C),
-      body:
-          'The trip north was decided on a Thursday evening. By Saturday morning we were on the road, the city dissolving behind us into farmland and then forest. There is a particular kind of freedom in movement — the way the world reorganizes itself when you change your position in it.\n\n'
-          'We stopped at a roadside diner where the pie was exceptional and the coffee was not. We didn\'t care. Everything tastes better when you\'re going somewhere.',
-      photoUrl:
-          'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800&fit=crop',
-      photoCaption: 'The open road heading north, early morning.',
-    ),
-  ];
+  static const _moodColors = {
+    'great': Color(0xFF4ADE80),
+    'good': Color(0xFF6B8CFF),
+    'okay': Color(0xFFFBBF24),
+    'low': Color(0xFFA78BFA),
+    'tough': Color(0xFFF472B6),
+  };
+
+  String _dominantMood(List<JournalEntry> entries) {
+    final counts = <String, int>{};
+    for (final e in entries) {
+      if (e.mood != null) counts[e.mood!] = (counts[e.mood!] ?? 0) + 1;
+    }
+    if (counts.isEmpty) return 'Reflective';
+    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+  }
+
+  String _chapterSubtitle(String title) {
+    final words = title.trim().toUpperCase().split(' ');
+    return words.take(3).join(' · ');
+  }
+
+  String _buildBody(List<JournalEntry> entries) {
+    if (entries.isEmpty) return 'No entries in this chapter yet.';
+    // Prefer polished content; fall back to plain content
+    final paragraphs = entries.take(3).map((e) {
+      final text = e.polishedContent ?? e.content;
+      // Take first 300 chars of each entry
+      return text.length > 300 ? '${text.substring(0, 300)}…' : text;
+    }).toList();
+    return paragraphs.join('\n\n');
+  }
+
+  List<_Chapter> _buildChapters() {
+    final chaptersAsync = ref.watch(chaptersProvider);
+    return chaptersAsync.valueOrNull?.asMap().entries.map((e) {
+      final idx = e.key;
+      final chapter = e.value;
+      final entriesAsync = ref.watch(chapterEntriesProvider(chapter.id));
+      final entries = entriesAsync.valueOrNull ?? const <JournalEntry>[];
+      final mood = _dominantMood(entries);
+      final moodColor = _moodColors[mood] ?? const Color(0xFF6B8CFF);
+      final months = ['January','February','March','April','May','June',
+          'July','August','September','October','November','December'];
+      final d = chapter.startDate;
+      final monthYear = '${months[d.month - 1]} ${d.year}';
+      return _Chapter(
+        number: (idx + 1).toString().padLeft(2, '0'),
+        title: chapter.title,
+        subtitle: _chapterSubtitle(chapter.title),
+        monthYear: monthYear,
+        entryCount: entries.isNotEmpty ? entries.length : chapter.entryCount,
+        mood: mood[0].toUpperCase() + mood.substring(1),
+        moodColor: moodColor,
+        body: _buildBody(entries),
+        photoUrl: null,
+        photoCaption: null,
+      );
+    }).toList() ?? const [];
+  }
 
   @override
   void dispose() {
@@ -148,6 +119,72 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Populate _chapters from providers (ref.watch calls must happen in build)
+    _chapters = _buildChapters();
+    // Clamp active index to valid range after data changes
+    if (_chapters.isNotEmpty && _activeChapterIndex >= _chapters.length) {
+      _activeChapterIndex = _chapters.length - 1;
+    }
+
+    final chaptersLoading = ref.watch(chaptersProvider).isLoading;
+
+    if (chaptersLoading && _chapters.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: CustomScrollView(
+          slivers: [
+            _buildHeader(context),
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_chapters.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: CustomScrollView(
+          slivers: [
+            _buildHeader(context),
+            SliverFillRemaining(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.menu_book_rounded, size: 56, color: Color(0xFF195DE6)),
+                      const SizedBox(height: 20),
+                      Text(
+                        'No chapters yet',
+                        style: GoogleFonts.newsreader(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Start writing memories and organize them into chapters in the Library tab.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          color: const Color(0xFF64748B),
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: Stack(
@@ -323,6 +360,8 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
                 imageUrl:
                     'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=900&fit=crop',
                 fit: BoxFit.cover,
+                memCacheWidth: 900,
+                memCacheHeight: 540,
                 errorWidget: (_, __, ___) =>
                     Container(color: const Color(0xFF1E293B)),
               ),
@@ -400,7 +439,7 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
                     ),
                     const SizedBox(height: 7),
                     Text(
-                      '${_chapters.length - 2} CHAPTERS REMAINING',
+                      '${(_chapters.length - _activeChapterIndex - 1).clamp(0, _chapters.length)} CHAPTERS REMAINING',
                       style: GoogleFonts.manrope(
                         fontSize: 9,
                         letterSpacing: 1.5,
@@ -648,6 +687,8 @@ class _MyLifeBookScreenState extends State<MyLifeBookScreen>
                   child: CachedNetworkImage(
                     imageUrl: ch.photoUrl!,
                     fit: BoxFit.cover,
+                    memCacheWidth: 600,
+                    memCacheHeight: 360,
                     errorWidget: (_, __, ___) => Container(
                       height: 180,
                       color: const Color(0xFFE2E8F0),

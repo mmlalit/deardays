@@ -14,6 +14,11 @@ class SyncQueue {
   factory SyncQueue() => _instance;
 
   static const String _boxName = 'sync_queue';
+
+  /// Maximum queue size — prevents unbounded Hive box growth. Oldest
+  /// successfully-retried items are compacted before this limit bites, but if
+  /// the device stays offline for a very long time, we cap to prevent disk bloat.
+  static const int maxQueueSize = 10000;
   Box<String>? _box;
 
   /// Open the Hive box. Call after `Hive.initFlutter()`.
@@ -31,8 +36,20 @@ class SyncQueue {
   }
 
   /// Enqueue a new sync operation (FIFO — key is timestamp + id).
+  ///
+  /// If the queue has reached [maxQueueSize], the oldest operation is evicted
+  /// to make room. This prevents unbounded disk growth on devices that stay
+  /// offline for extended periods.
   Future<void> enqueue(SyncOperation op) async {
     _ensureOpen();
+    // Evict oldest if at capacity
+    if (_box!.length >= maxQueueSize) {
+      final oldestKey = (_box!.keys.cast<String>().toList()..sort()).first;
+      await _box!.delete(oldestKey);
+      if (kDebugMode) {
+        debugPrint('[SyncQueue] Queue full ($maxQueueSize). Evicted $oldestKey');
+      }
+    }
     final key = '${op.createdAt.millisecondsSinceEpoch}_${op.id}';
     await _box!.put(key, jsonEncode(op.toJson()));
     if (kDebugMode) {

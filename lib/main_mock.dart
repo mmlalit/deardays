@@ -9,7 +9,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:deardays/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -153,7 +152,7 @@ final _mockRouter = GoRouter(
     GoRoute(path: '/processing', builder: (_, s) => ProcessingScreen(data: s.extra as ReviewData)),
     GoRoute(path: '/write', builder: (_, __) => const TextEntryScreen()),
     GoRoute(path: '/review', builder: (_, s) => ReviewSaveScreen(data: s.extra as ReviewData)),
-    GoRoute(path: '/edit-memory', builder: (_, s) => EditMemoryScreen(data: s.extra as ReviewData)),
+    GoRoute(path: '/edit-memory', builder: (_, s) => EditMemoryScreen(entry: s.extra as JournalEntry)),
     GoRoute(path: '/paywall', builder: (_, __) => const PaywallScreen()),
     GoRoute(path: '/on-this-day', builder: (_, __) => const OnThisDayScreen()),
     GoRoute(path: '/export', builder: (_, __) => const ExportScreen()),

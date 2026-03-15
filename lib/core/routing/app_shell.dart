@@ -20,22 +20,21 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
   bool _prefetched = false;
-  Timer? _refreshTimer;
+  DateTime? _lastRefresh;
 
-  /// How often to refresh cached data while the app is in the foreground.
-  static const _refreshInterval = Duration(minutes: 5);
+  /// Minimum gap between lifecycle-triggered refreshes. Prevents rapid
+  /// invalidation if the user toggles between apps quickly.
+  static const _refreshCooldown = Duration(minutes: 2);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _prefetchData();
-    _startPeriodicRefresh();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -43,11 +42,13 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // App came back to foreground — refresh data
-      _invalidateAndRefresh();
-      _startPeriodicRefresh();
-    } else if (state == AppLifecycleState.paused) {
-      _refreshTimer?.cancel();
+      // Refresh only if enough time has passed since the last refresh.
+      final now = DateTime.now();
+      if (_lastRefresh == null ||
+          now.difference(_lastRefresh!) >= _refreshCooldown) {
+        _invalidateAndRefresh();
+        _lastRefresh = now;
+      }
     }
   }
 
@@ -95,13 +96,6 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     ref.read(booksProvider.future).ignore();
     ref.read(weeklyMoodsProvider.future).ignore();
     ref.read(onThisDayProvider.future).ignore();
-  }
-
-  void _startPeriodicRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
-      _invalidateAndRefresh();
-    });
   }
 
   int _currentIndex(BuildContext context) {

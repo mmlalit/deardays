@@ -16,13 +16,13 @@ class RevenueCatConfig {
   /// RevenueCat Apple (iOS/macOS) API key.
   static const String appleApiKey = String.fromEnvironment(
     'REVENUECAT_APPLE_KEY',
-    defaultValue: 'test_GsZqCoFxaPAFzMScpUepQASHVNU',
+    defaultValue: '',
   );
 
   /// RevenueCat Google (Android) API key.
   static const String googleApiKey = String.fromEnvironment(
     'REVENUECAT_GOOGLE_KEY',
-    defaultValue: 'test_GsZqCoFxaPAFzMScpUepQASHVNU',
+    defaultValue: '',
   );
 
   // ---------------------------------------------------------------------------

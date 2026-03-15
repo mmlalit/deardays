@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
@@ -18,6 +19,7 @@ import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart'
     show showMemoryContextMenu;
+import 'package:deardays/core/widgets/force_update_dialog.dart';
 
 // ── Dynamic mood responses (hardcoded, no AI call) ──────────────────────────
 
@@ -132,6 +134,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final colors = AppColors.of(context);
     final profileAsync = ref.watch(profileProvider);
     final entriesAsync = ref.watch(timelineEntriesProvider);
+
+    // ── Force-update check (runs once per app session) ───────────────────────
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) ForceUpdateDialog.showIfNeeded(context);
+    });
+
     // ── Milestone celebration overlay ────────────────────────────────────────
     ref.listen<AsyncValue<Streak?>>(streakProvider, (previous, next) {
       final streak = next.valueOrNull;
@@ -168,11 +176,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               weekSummary: 'You had a $topMood week',
               memoriesCount: moods.length,
               topMood: topMood,
-            );
+            ).catchError((_) {
+              // NotificationService may not be initialized (e.g. in tests).
+            });
       }
     });
 
-    final user = Supabase.instance.client.auth.currentUser;
+    User? user;
+    try {
+      user = Supabase.instance.client.auth.currentUser;
+    } catch (_) {
+      // Supabase not initialized (e.g. in tests).
+    }
     final displayName = profileAsync.valueOrNull?.displayName ??
         user?.userMetadata?['display_name'] as String? ??
         user?.email?.split('@').first ??
@@ -1781,18 +1796,26 @@ class _NetworkImage extends StatelessWidget {
     final colors = AppColors.of(context);
     // If already an HTTP URL (demo data), use directly
     if (storagePath.startsWith('http')) {
-      return Image.network(
-        storagePath,
+      return CachedNetworkImage(
+        imageUrl: storagePath,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) => _GradientBanner(colors: colors),
+        memCacheWidth: 600,
+        memCacheHeight: 400,
+        errorWidget: (_, __, ___) => _GradientBanner(colors: colors),
       );
     }
     // Use signed URL for private bucket storage
-    final future = Supabase.instance.client.storage
-        .from('entry-media')
-        .createSignedUrl(storagePath, 3600);
+    late final Future<String> future;
+    try {
+      future = Supabase.instance.client.storage
+          .from('entry-media')
+          .createSignedUrl(storagePath, 3600)
+          .catchError((_) => '');
+    } catch (_) {
+      future = Future.value('');
+    }
     return FutureBuilder<String>(
       future: future,
       builder: (context, snapshot) {
@@ -1809,15 +1832,17 @@ class _NetworkImage extends StatelessWidget {
             ),
           );
         }
-        if (!snapshot.hasData || snapshot.hasError) {
+        if (!snapshot.hasData || snapshot.hasError || snapshot.data!.isEmpty) {
           return _GradientBanner(colors: colors);
         }
-        return Image.network(
-          snapshot.data!,
+        return CachedNetworkImage(
+          imageUrl: snapshot.data!,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => _GradientBanner(colors: colors),
+          memCacheWidth: 600,
+          memCacheHeight: 400,
+          errorWidget: (_, __, ___) => _GradientBanner(colors: colors),
         );
       },
     );

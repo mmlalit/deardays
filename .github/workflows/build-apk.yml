@@ -60,7 +60,16 @@ jobs:
         run: flutter pub get
 
       - name: Build APK (release)
-        run: flutter build apk --release --dart-define=AI_API_URL=${{ secrets.AI_API_URL }}
+        run: >
+          flutter build apk --release
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          --dart-define=AI_API_URL=${{ secrets.AI_API_URL }}
+          --dart-define=REVENUECAT_GOOGLE_KEY=${{ secrets.REVENUECAT_GOOGLE_KEY }}
+          --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          --dart-define=POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}
+          --dart-define=POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
+          --dart-define=CDN_BASE_URL=${{ secrets.CDN_BASE_URL }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

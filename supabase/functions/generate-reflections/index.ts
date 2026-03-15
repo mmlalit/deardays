@@ -17,7 +17,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { geminiGenerate } from "../_shared/ai-providers.ts";
+import { generate } from "../_shared/ai-providers.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -100,8 +100,8 @@ async function generateForUser(
 
   // Generate summary and themes in parallel to halve latency.
   const [summary, themesRaw] = await Promise.all([
-    geminiGenerate(prompt, summaryPrompt(period)),
-    geminiGenerate(prompt, themesPrompt()),
+    generate(prompt, summaryPrompt(period)),
+    generate(prompt, themesPrompt()),
   ]);
 
   let themes: string[] = [];

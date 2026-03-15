@@ -156,8 +156,6 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
     final timeStr = DateFormat('h:mm a').format(section.startTime);
     final userMessages = section.messages.where((m) => m.isUser).toList();
     final messageCount = section.messages.length;
-    final wordCount = userMessages.fold<int>(
-        0, (sum, m) => sum + m.text.split(' ').length);
 
     // Generate a title from the first user message
     String title;
@@ -276,8 +274,6 @@ class _ConversationsViewState extends ConsumerState<ConversationsView> {
   // -- Conversation Detail (book-style reading view) --------------------
 
   Widget _buildConversationDetail(ConversationSection section) {
-    final userMessages = section.messages.where((m) => m.isUser).toList();
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
