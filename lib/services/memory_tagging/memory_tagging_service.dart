@@ -15,14 +15,21 @@ class MemoryTaggingService {
 
   final _aiService = AiService();
 
+  // In-memory set of entry IDs tagged this session — prevents double-calls
+  // when the same entry is saved or navigated to multiple times.
+  final _taggedThisSession = <String>{};
+
   /// Sends the entry content to the ai-tag edge function for async tagging.
   /// This method returns immediately — the HTTP call happens in the background.
+  /// No-ops if the entry was already tagged this session.
   Future<void> tagEntry({
     required String entryId,
     required String content,
   }) async {
     if (!_aiService.isConfigured) return;
     if (content.trim().isEmpty) return;
+    if (_taggedThisSession.contains(entryId)) return; // session dedup
+    _taggedThisSession.add(entryId);
 
     try {
       await _aiService.tagEntry(entryId: entryId, content: content);
@@ -30,7 +37,9 @@ class MemoryTaggingService {
         debugPrint('[MemoryTaggingService] Tagged entry $entryId');
       }
     } catch (e) {
-      // Non-fatal: tagging failure does NOT affect the saved entry
+      // Non-fatal: tagging failure does NOT affect the saved entry.
+      // Remove from set so a retry is possible on next app session.
+      _taggedThisSession.remove(entryId);
       if (kDebugMode) {
         debugPrint('[MemoryTaggingService] Tagging failed for $entryId: $e');
       }

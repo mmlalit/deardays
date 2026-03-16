@@ -319,11 +319,13 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           return;
         }
 
-        // Fire-and-forget side effects (never block the save)
-        unawaited(MemoryTaggingService().tagEntry(
-          entryId: saved.id,
-          content: _cleanedText ?? entry.content,
-        ));
+        // Fire-and-forget tagging — skip if already tagged (prevents double-call on retry).
+        if (!saved.tagsGenerated) {
+          unawaited(MemoryTaggingService().tagEntry(
+            entryId: saved.id,
+            content: _cleanedText ?? entry.content,
+          ));
+        }
 
         try {
           final profile = await ref.read(profileProvider.future);

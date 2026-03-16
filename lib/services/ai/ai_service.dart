@@ -1,11 +1,13 @@
+import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
-import 'dart:convert';
-
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide MultipartFile;
 
 import 'package:deardays/services/ai/ai_prompts.dart';
@@ -84,10 +86,19 @@ class AiService {
 
   late final Dio _dio;
 
-  // LRU cache for deterministic AI responses (cover queries, share summaries).
+  // In-memory LRU cache for deterministic AI responses (share summaries).
   // LinkedHashMap maintains insertion order → O(1) eviction of oldest entry.
   static const int _maxCacheSize = 100;
   final LinkedHashMap<String, String> _responseCache = LinkedHashMap();
+
+  // Persistent Hive box for cover query results (survives app restarts).
+  // Opened via initCoverCache() at startup.
+  Box<String>? _coverCacheBox;
+
+  /// Opens the persistent cover-query cache. Call once at app startup.
+  Future<void> initCoverCache() async {
+    _coverCacheBox = await Hive.openBox<String>('ai_cover_cache');
+  }
 
   String? _getCached(String key) {
     final value = _responseCache.remove(key);
@@ -102,6 +113,10 @@ class AiService {
     }
     _responseCache[key] = value;
   }
+
+  /// Stable 8-char hex hash of a string — safe across app restarts (unlike hashCode).
+  static String _stableHash(String text) =>
+      md5.convert(utf8.encode(text)).toString().substring(0, 8);
 
   static const String _apiBaseUrl = String.fromEnvironment(
     'AI_API_URL',
@@ -327,8 +342,11 @@ class AiService {
   Future<String> generateCoverQuery(String bookTitle) async {
     _ensureConfigured('generateCoverQuery');
 
-    // Cover queries are deterministic for the same title — use cache
+    // Cover queries are deterministic for the same title.
+    // Check persistent Hive cache first (survives restarts), then in-memory LRU.
     final cacheKey = 'cover:${bookTitle.toLowerCase().trim()}';
+    final persistent = _coverCacheBox?.get(cacheKey);
+    if (persistent != null) return persistent;
     final cached = _getCached(cacheKey);
     if (cached != null) return cached;
 
@@ -353,6 +371,7 @@ class AiService {
       );
       final result = _extractText(response).trim();
       _putCache(cacheKey, result);
+      unawaited(_coverCacheBox?.put(cacheKey, result)); // persist across restarts
       return result;
     } on DioException catch (e) {
       throw _handleDioError(e, 'generateCoverQuery');
@@ -368,8 +387,8 @@ class AiService {
   }) async {
     _ensureConfigured('generateShareSummary');
 
-    // Cache share summaries — same entry text + language = same result
-    final cacheKey = 'share:${language ?? ""}:${entryText.hashCode}';
+    // Cache share summaries — stable MD5 hash so cache survives app restarts.
+    final cacheKey = 'share:${language ?? ""}:${_stableHash(entryText)}';
     final cached = _getCached(cacheKey);
     if (cached != null) return cached;
 

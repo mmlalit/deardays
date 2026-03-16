@@ -152,22 +152,33 @@ async function runWeekly(now: Date): Promise<number> {
     (r: { user_id: string }) => !cachedIds.has(r.user_id),
   );
 
+  // Process all pending users in parallel (capped at 10 concurrent to avoid
+  // overwhelming the AI provider and Supabase connection pool).
+  const BATCH = 10;
   let count = 0;
-  for (const { user_id } of pending) {
-    const { data: entries } = await supabase
-      .from("journal_entries")
-      .select("content, polished_content")
-      .eq("user_id", user_id)
-      .gte("entry_date", since.toISOString().split("T")[0])
-      .lte("entry_date", now.toISOString().split("T")[0])
-      .limit(50);
+  for (let i = 0; i < pending.length; i += BATCH) {
+    const batch = pending.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(async ({ user_id }: { user_id: string }) => {
+        // Fetch only the most recent 20 entries — beyond that the summary
+        // quality plateaus while token cost grows linearly.
+        const { data: entries } = await supabase
+          .from("journal_entries")
+          .select("content, polished_content")
+          .eq("user_id", user_id)
+          .gte("entry_date", since.toISOString().split("T")[0])
+          .lte("entry_date", now.toISOString().split("T")[0])
+          .order("entry_date", { ascending: false })
+          .limit(20);
 
-    const texts = (entries ?? []).map(
-      (e: { content: string; polished_content: string | null }) =>
-        e.polished_content ?? e.content,
+        const texts = (entries ?? []).map(
+          (e: { content: string; polished_content: string | null }) =>
+            e.polished_content ?? e.content,
+        );
+        await generateForUser(user_id, "weekly", periodKey, texts);
+      }),
     );
-    await generateForUser(user_id, "weekly", periodKey, texts);
-    count++;
+    count += results.filter((r) => r.status === "fulfilled").length;
   }
   return count;
 }
@@ -212,11 +223,20 @@ async function runMonthly(now: Date): Promise<number> {
     (existing ?? []).map((r: { user_id: string }) => r.user_id),
   );
 
+  const pendingMonthly = [...byUser.entries()].filter(
+    ([userId]) => !cachedIds.has(userId),
+  );
+
+  const BATCH = 10;
   let count = 0;
-  for (const [userId, summaries] of byUser) {
-    if (cachedIds.has(userId)) continue;
-    await generateForUser(userId, "monthly", periodKey, summaries);
-    count++;
+  for (let i = 0; i < pendingMonthly.length; i += BATCH) {
+    const batch = pendingMonthly.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(([userId, summaries]) =>
+        generateForUser(userId, "monthly", periodKey, summaries)
+      ),
+    );
+    count += results.filter((r) => r.status === "fulfilled").length;
   }
   return count;
 }
@@ -256,11 +276,20 @@ async function runYearly(now: Date): Promise<number> {
     (existing ?? []).map((r: { user_id: string }) => r.user_id),
   );
 
+  const pendingYearly = [...byUser.entries()].filter(
+    ([userId]) => !cachedIds.has(userId),
+  );
+
+  const BATCH = 10;
   let count = 0;
-  for (const [userId, summaries] of byUser) {
-    if (cachedIds.has(userId)) continue;
-    await generateForUser(userId, "yearly", periodKey, summaries);
-    count++;
+  for (let i = 0; i < pendingYearly.length; i += BATCH) {
+    const batch = pendingYearly.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(([userId, summaries]) =>
+        generateForUser(userId, "yearly", periodKey, summaries)
+      ),
+    );
+    count += results.filter((r) => r.status === "fulfilled").length;
   }
   return count;
 }

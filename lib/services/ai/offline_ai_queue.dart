@@ -190,6 +190,30 @@ class OfflineAiQueue {
     return _box!.length;
   }
 
+  /// Removes queue items older than [maxAge] that were never processed.
+  /// Call at startup to prevent unbounded disk growth from stalled entries.
+  Future<int> pruneStale({Duration maxAge = const Duration(days: 30)}) async {
+    _ensureOpen();
+    final cutoff = DateTime.now().subtract(maxAge);
+    final toDelete = <String>[];
+    for (final key in _box!.keys.cast<String>()) {
+      try {
+        final json = jsonDecode(_box!.get(key)!) as Map<String, dynamic>;
+        final created = DateTime.parse(json['created_at'] as String);
+        if (created.isBefore(cutoff)) toDelete.add(key);
+      } catch (_) {
+        toDelete.add(key); // malformed — remove
+      }
+    }
+    for (final key in toDelete) {
+      await _box!.delete(key);
+    }
+    if (kDebugMode && toDelete.isNotEmpty) {
+      debugPrint('[OfflineAiQueue] Pruned ${toDelete.length} stale items');
+    }
+    return toDelete.length;
+  }
+
   /// Clear all pending items (for testing / account switch).
   Future<void> clear() async {
     _ensureOpen();

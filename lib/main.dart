@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:deardays/l10n/app_localizations.dart';
@@ -16,6 +18,7 @@ import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 import 'package:deardays/services/analytics/analytics_service.dart';
 import 'package:deardays/services/backup/backup_service.dart';
 import 'package:deardays/services/ai/ai_credit_service.dart';
+import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/services/ai/offline_ai_queue.dart';
 import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -61,12 +64,14 @@ void main() async {
       ConnectivityService().init(),
       BackupService().init(),
       AiCreditService().init(),
+      AiService().initCoverCache(),
       OfflineAiQueue().init(),
       FeatureFlags().init(),
       VersionCheckService().check(),
     ]);
 
     // ── Phase 3: Wire up sync (depends on connectivity) ─────────────────────
+    unawaited(OfflineAiQueue().pruneStale()); // non-blocking housekeeping
     await SyncService().init();
     SyncService().enableQueue();
 

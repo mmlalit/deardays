@@ -97,11 +97,11 @@ class StoryGenerationService {
     );
     _credits.consume(AiOperation.summary);
 
-    // Extract theme (fire-and-forget on failure)
+    // Extract theme from the generated story (much shorter than re-sending raw entries).
     String? theme;
     try {
       if (_credits.canUse(AiOperation.themes)) {
-        theme = await _ai.extractStoryTheme(dailyTexts);
+        theme = await _ai.extractStoryTheme([story]);
         _credits.consume(AiOperation.themes);
       }
     } catch (e) {
@@ -189,7 +189,7 @@ class StoryGenerationService {
     String? theme;
     try {
       if (_credits.canUse(AiOperation.themes)) {
-        theme = await _ai.extractStoryTheme(weeklyStories);
+        theme = await _ai.extractStoryTheme([story]);
         _credits.consume(AiOperation.themes);
       }
     } catch (_) {}
@@ -262,7 +262,7 @@ class StoryGenerationService {
     String? theme;
     try {
       if (_credits.canUse(AiOperation.themes)) {
-        theme = await _ai.extractStoryTheme(monthlyTexts);
+        theme = await _ai.extractStoryTheme([story]);
         _credits.consume(AiOperation.themes);
       }
     } catch (_) {}
