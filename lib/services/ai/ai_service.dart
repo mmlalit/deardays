@@ -587,6 +587,176 @@ class AiService {
   }
 
   // ---------------------------------------------------------------------------
+  // Hierarchical story generation
+  // ---------------------------------------------------------------------------
+
+  /// Builds a metadata prefix from entry metadata to improve AI arc quality.
+  /// Costs ~20 extra tokens but significantly improves narrative coherence.
+  String _buildMetadataContext({
+    required List<String> tags,
+    required List<String> people,
+    required List<String> moods,
+  }) {
+    final lines = <String>[];
+    if (tags.isNotEmpty) lines.add('Themes: ${tags.take(5).join(', ')}');
+    if (people.isNotEmpty) lines.add('People mentioned: ${people.take(5).join(', ')}');
+    if (moods.isNotEmpty) lines.add('Mood range: ${moods.join(', ')}');
+    return lines.join('\n');
+  }
+
+  /// Generates a weekly story from daily story texts.
+  Future<String> generateWeeklyStory(
+    List<String> dailyStories, {
+    List<String> tags = const [],
+    List<String> people = const [],
+    List<String> moods = const [],
+    String? language,
+  }) async {
+    _ensureConfigured('generateWeeklyStory');
+    final metadata = _buildMetadataContext(tags: tags, people: people, moods: moods);
+    final numbered = dailyStories
+        .asMap()
+        .entries
+        .map((e) => 'Day ${e.key + 1}:\n${e.value}')
+        .join('\n\n');
+    final input = [if (metadata.isNotEmpty) metadata, numbered].join('\n\n');
+
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-polish',
+        data: {
+          'text': input,
+          'style': 'weekly_story',
+          'system_prompt': AiPrompts.weeklyStory(language: language),
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 45)),
+      );
+      return _extractText(response);
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'generateWeeklyStory');
+    }
+  }
+
+  /// Generates a monthly story from weekly story texts.
+  Future<String> generateMonthlyStory(
+    List<String> weeklyStories, {
+    List<String> tags = const [],
+    List<String> people = const [],
+    List<String> moods = const [],
+    String? language,
+  }) async {
+    _ensureConfigured('generateMonthlyStory');
+    final metadata = _buildMetadataContext(tags: tags, people: people, moods: moods);
+    final numbered = weeklyStories
+        .asMap()
+        .entries
+        .map((e) => 'Week ${e.key + 1}:\n${e.value}')
+        .join('\n\n');
+    final input = [if (metadata.isNotEmpty) metadata, numbered].join('\n\n');
+
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-polish',
+        data: {
+          'text': input,
+          'style': 'monthly_story',
+          'system_prompt': AiPrompts.monthlyStory(language: language),
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 45)),
+      );
+      return _extractText(response);
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'generateMonthlyStory');
+    }
+  }
+
+  /// Generates a yearly story from monthly story texts.
+  Future<String> generateYearlyStory(
+    List<String> monthlyStories, {
+    List<String> tags = const [],
+    List<String> people = const [],
+    List<String> moods = const [],
+    String? language,
+  }) async {
+    _ensureConfigured('generateYearlyStory');
+    final metadata = _buildMetadataContext(tags: tags, people: people, moods: moods);
+    final numbered = monthlyStories
+        .asMap()
+        .entries
+        .map((e) => 'Month ${e.key + 1}:\n${e.value}')
+        .join('\n\n');
+    final input = [if (metadata.isNotEmpty) metadata, numbered].join('\n\n');
+
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-polish',
+        data: {
+          'text': input,
+          'style': 'yearly_story',
+          'system_prompt': AiPrompts.yearlyStory(language: language),
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
+      );
+      return _extractText(response);
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'generateYearlyStory');
+    }
+  }
+
+  /// Generates the lifetime story from yearly story texts + key moments.
+  Future<String> generateLifetimeStory(
+    List<String> yearlyStories, {
+    List<String> keyMomentTexts = const [],
+    String? language,
+  }) async {
+    _ensureConfigured('generateLifetimeStory');
+    final yearsPart = yearlyStories
+        .asMap()
+        .entries
+        .map((e) => 'Year ${e.key + 1}:\n${e.value}')
+        .join('\n\n');
+    final momentsPart = keyMomentTexts.isNotEmpty
+        ? '\n\nKey moments:\n${keyMomentTexts.map((m) => '• $m').join('\n')}'
+        : '';
+    final input = yearsPart + momentsPart;
+
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-polish',
+        data: {
+          'text': input,
+          'style': 'lifetime_story',
+          'system_prompt': AiPrompts.lifetimeStory(language: language),
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 90)),
+      );
+      return _extractText(response);
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'generateLifetimeStory');
+    }
+  }
+
+  /// Extracts a 1–3 word theme from a list of story texts.
+  Future<String> extractStoryTheme(List<String> texts) async {
+    _ensureConfigured('extractStoryTheme');
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-chat',
+        data: {
+          'messages': [
+            {'role': 'system', 'content': AiPrompts.storyThemeExtraction},
+            {'role': 'user', 'content': texts.join('\n\n---\n\n')},
+          ],
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 15)),
+      );
+      return _extractText(response).trim();
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'extractStoryTheme');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 

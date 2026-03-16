@@ -11,6 +11,8 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/presentation/providers/life_book_provider.dart';
+import 'package:deardays/features/story/data/models/story_node.dart';
+import 'package:deardays/features/story/presentation/providers/story_provider.dart';
 
 class MyStoryScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -28,7 +30,18 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
   bool _isFullscreen = false;
   bool _showOriginalInBook = false;
 
+  /// null = Daily (existing page book), non-null = hierarchical level
+  StoryLevelType? _hierarchyLevel;
+
   static const _styles = ['Memoir', 'Diary', 'Letter', 'Poetic'];
+
+  static const _levelLabels = {
+    null: 'Daily',
+    StoryLevelType.weekly: 'Weekly',
+    StoryLevelType.monthly: 'Monthly',
+    StoryLevelType.yearly: 'Yearly',
+    StoryLevelType.lifetime: 'Lifetime',
+  };
 
   @override
   void initState() {
@@ -141,6 +154,12 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
       body: Column(
         children: [
           _buildTopNav(context, book),
+          _buildLevelSelector(),
+          // ── Hierarchical view ──────────────────────────────────────────
+          if (_hierarchyLevel != null) ...[
+            Expanded(child: _buildHierarchicalView(context)),
+          ] else ...[
+          // ── Original daily page book ───────────────────────────────────
           // Page counter with arrows
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -219,6 +238,7 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
           ),
           // Bottom bar
           _buildBottomBar(context, state),
+          ], // end else (daily view)
         ],
       ),
     );
@@ -237,6 +257,611 @@ class _MyStoryScreenState extends ConsumerState<MyStoryScreen> {
         }
         count++;
       }
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Level selector
+  // ──────────────────────────────────────────────
+
+  Widget _buildLevelSelector() {
+    final colors = AppColors.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.accent.withAlpha(20))),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _levelLabels.entries.map((entry) {
+            final isActive = _hierarchyLevel == entry.key;
+            return GestureDetector(
+              onTap: () => setState(() => _hierarchyLevel = entry.key),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isActive ? colors.accent : colors.accent.withAlpha(13),
+                  borderRadius: BorderRadius.circular(9999),
+                ),
+                child: Text(
+                  entry.value,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isActive ? Colors.white : colors.accent,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Hierarchical view (Weekly / Monthly / Yearly / Lifetime)
+  // ──────────────────────────────────────────────
+
+  Widget _buildHierarchicalView(BuildContext context) {
+    final level = _hierarchyLevel!;
+    final hState = ref.watch(hierarchicalBookProvider);
+    final colors = AppColors.of(context); // AppPalette
+
+    if (level == StoryLevelType.lifetime) {
+      return _buildLifetimeView(context, hState);
+    }
+
+    final nodes = hState.nodesForLevel(level);
+
+    // Derive available periods from LifeBook chapters as scaffold
+    final lifeBookState = ref.watch(lifeBookProvider);
+    final periods = _periodsForLevel(level, lifeBookState);
+
+    if (periods.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            'Add some check-ins or entries first.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        if (hState.error != null)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withAlpha(20),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(hState.error!,
+                      style: GoogleFonts.manrope(fontSize: 12, color: Colors.red)),
+                ),
+                GestureDetector(
+                  onTap: () => ref.read(hierarchicalBookProvider.notifier).clearError(),
+                  child: const Icon(Icons.close, size: 16, color: Colors.red),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: periods.length,
+            itemBuilder: (context, index) {
+              final period = periods[index];
+              final nodeId = _nodeIdForPeriod(level, period);
+              final node = nodes.where((n) => n.id == nodeId).firstOrNull;
+              final isGenerating = hState.generatingId == nodeId;
+              return _buildPeriodCard(
+                context,
+                level: level,
+                period: period,
+                node: node,
+                isGenerating: isGenerating,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPeriodCard(
+    BuildContext context, {
+    required StoryLevelType level,
+    required _StoryPeriod period,
+    required StoryNode? node,
+    required bool isGenerating,
+  }) {
+    final colors = AppColors.of(context);
+    final isGenerated = node?.isGenerated ?? false;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.accent.withAlpha(isGenerated ? 30 : 15)),
+        boxShadow: [
+          BoxShadow(color: colors.textPrimary.withAlpha(6), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        period.label,
+                        style: GoogleFonts.manrope(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      if (node?.theme != null) ...[
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colors.accent.withAlpha(20),
+                            borderRadius: BorderRadius.circular(9999),
+                          ),
+                          child: Text(
+                            node!.theme!,
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: colors.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (isGenerating)
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+                    ),
+                  )
+                else if (isGenerated)
+                  GestureDetector(
+                    onTap: () => _regeneratePeriod(level, period),
+                    child: Icon(Icons.refresh_rounded, size: 18, color: colors.textSecondary),
+                  )
+                else
+                  GestureDetector(
+                    onTap: () => _generatePeriod(level, period),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        borderRadius: BorderRadius.circular(9999),
+                      ),
+                      child: Text(
+                        'Generate',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Story preview / body
+          if (isGenerated && node?.generatedStory != null) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Text(
+                node!.generatedStory!,
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  color: colors.textPrimary.withAlpha(204),
+                  height: 1.65,
+                ),
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Read more button
+            GestureDetector(
+              onTap: () => _showFullStory(context, period.label, node.generatedStory!, node.theme),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: colors.accent.withAlpha(20))),
+                ),
+                child: Text(
+                  'Read full story',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colors.accent,
+                  ),
+                ),
+              ),
+            ),
+          ] else if (!isGenerating) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+              child: Text(
+                'Tap Generate to create this story.',
+                style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary),
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+              child: Text(
+                'Writing your story…',
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLifetimeView(BuildContext context, HierarchicalBookState hState) {
+    final colors = AppColors.of(context);
+    final node = hState.lifetimeNode;
+    final isGenerating = hState.generatingId == StoryNode.lifetimeKey;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hState.error != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(hState.error!,
+                        style: GoogleFonts.manrope(fontSize: 12, color: Colors.red)),
+                  ),
+                  GestureDetector(
+                    onTap: () => ref.read(hierarchicalBookProvider.notifier).clearError(),
+                    child: const Icon(Icons.close, size: 16, color: Colors.red),
+                  ),
+                ],
+              ),
+            ),
+          // Header
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your Life Story',
+                      style: GoogleFonts.manrope(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    if (node?.generatedAt != null)
+                      Text(
+                        'Updated ${DateFormat('MMM d, yyyy').format(node!.generatedAt!)}',
+                        style: GoogleFonts.manrope(fontSize: 11, color: colors.textSecondary),
+                      ),
+                  ],
+                ),
+              ),
+              if (node?.isGenerated == true && !isGenerating)
+                GestureDetector(
+                  onTap: () => ref.read(hierarchicalBookProvider.notifier).regenerateLifetime(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: colors.accent.withAlpha(60)),
+                      borderRadius: BorderRadius.circular(9999),
+                    ),
+                    child: Text(
+                      'Regenerate',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: colors.accent,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Story card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border(left: BorderSide(color: colors.accent.withAlpha(80), width: 3)),
+              boxShadow: [
+                BoxShadow(color: colors.textPrimary.withAlpha(8), blurRadius: 12, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: isGenerating
+                ? Column(
+                    children: [
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Writing your life story…\nThis may take a moment.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: colors.textSecondary,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  )
+                : node?.isGenerated == true
+                    ? Text(
+                        node!.generatedStory!,
+                        style: GoogleFonts.manrope(
+                          fontSize: 16,
+                          color: colors.textPrimary.withAlpha(220),
+                          height: 1.75,
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          Icon(Icons.auto_stories_rounded, size: 40, color: colors.accent.withAlpha(60)),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Your lifetime story synthesises all your yearly stories into one continuous narrative.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              color: colors.textSecondary,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Generate yearly stories first, then tap below.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+                          ),
+                          const SizedBox(height: 20),
+                          GestureDetector(
+                            onTap: () => ref.read(hierarchicalBookProvider.notifier).generateLifetime(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: colors.accent,
+                                borderRadius: BorderRadius.circular(9999),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colors.accent.withAlpha(60),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                'Generate Lifetime Story',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullStory(BuildContext context, String title, String story, String? theme) {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.textMuted.withAlpha(60),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: GoogleFonts.manrope(
+                                fontSize: 17, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        if (theme != null)
+                          Text(theme,
+                              style: GoogleFonts.manrope(
+                                  fontSize: 12, color: colors.accent, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: Icon(Icons.close, color: colors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  story,
+                  style: GoogleFonts.manrope(
+                    fontSize: 16,
+                    color: colors.textPrimary.withAlpha(220),
+                    height: 1.75,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Period helpers ──────────────────────────────────────────────────────
+
+  List<_StoryPeriod> _periodsForLevel(StoryLevelType level, LifeBookState lifeBookState) {
+    if (lifeBookState.chapters.isEmpty) return [];
+
+    final allDates = lifeBookState.chapters
+        .expand((ch) => ch.entries.map((e) => e.date))
+        .toList()
+      ..sort();
+    if (allDates.isEmpty) return [];
+
+    final earliest = allDates.first;
+    final latest = allDates.last;
+    final periods = <_StoryPeriod>[];
+
+    if (level == StoryLevelType.weekly) {
+      var week = StoryNode.weekStart(earliest);
+      final lastWeek = StoryNode.weekStart(latest);
+      while (!week.isAfter(lastWeek)) {
+        final end = week.add(const Duration(days: 6));
+        final label = 'Week of ${DateFormat('MMM d, yyyy').format(week)}';
+        periods.add(_StoryPeriod(weekDate: week, label: label, start: week, end: end));
+        week = week.add(const Duration(days: 7));
+      }
+    } else if (level == StoryLevelType.monthly) {
+      var month = DateTime(earliest.year, earliest.month);
+      final lastMonth = DateTime(latest.year, latest.month);
+      while (!month.isAfter(lastMonth)) {
+        final label = DateFormat('MMMM yyyy').format(month);
+        final end = DateTime(month.year, month.month + 1, 0);
+        periods.add(_StoryPeriod(year: month.year, month: month.month, label: label, start: month, end: end));
+        month = DateTime(month.year, month.month + 1);
+      }
+    } else if (level == StoryLevelType.yearly) {
+      for (var year = earliest.year; year <= latest.year; year++) {
+        periods.add(_StoryPeriod(year: year, label: '$year', start: DateTime(year, 1, 1), end: DateTime(year, 12, 31)));
+      }
+    }
+
+    return periods.reversed.toList(); // newest first
+  }
+
+  String _nodeIdForPeriod(StoryLevelType level, _StoryPeriod period) {
+    return switch (level) {
+      StoryLevelType.weekly =>
+        StoryNode.weekKey(period.weekDate!.year, StoryNode.isoWeekNumber(period.weekDate!)),
+      StoryLevelType.monthly => StoryNode.monthKey(period.year!, period.month!),
+      StoryLevelType.yearly => StoryNode.yearKey(period.year!),
+      _ => '',
+    };
+  }
+
+  void _generatePeriod(StoryLevelType level, _StoryPeriod period) {
+    final notifier = ref.read(hierarchicalBookProvider.notifier);
+    switch (level) {
+      case StoryLevelType.weekly:
+        notifier.generateWeekly(period.weekDate!);
+      case StoryLevelType.monthly:
+        notifier.generateMonthly(period.year!, period.month!);
+      case StoryLevelType.yearly:
+        notifier.generateYearly(period.year!);
+      default:
+        break;
+    }
+  }
+
+  void _regeneratePeriod(StoryLevelType level, _StoryPeriod period) {
+    final notifier = ref.read(hierarchicalBookProvider.notifier);
+    switch (level) {
+      case StoryLevelType.weekly:
+        notifier.regenerateWeekly(period.weekDate!);
+      case StoryLevelType.monthly:
+        notifier.regenerateMonthly(period.year!, period.month!);
+      case StoryLevelType.yearly:
+        notifier.regenerateYearly(period.year!);
+      default:
+        break;
     }
   }
 
@@ -1018,4 +1643,32 @@ class _PageFoldPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _PageFoldPainter oldDelegate) => oldDelegate.color != color;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: represents a time period in the hierarchical view
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StoryPeriod {
+  final String label;
+  final DateTime start;
+  final DateTime end;
+
+  /// Set for weekly periods (the Monday of the ISO week).
+  final DateTime? weekDate;
+
+  /// Set for monthly and yearly periods.
+  final int? year;
+
+  /// Set for monthly periods.
+  final int? month;
+
+  const _StoryPeriod({
+    required this.label,
+    required this.start,
+    required this.end,
+    this.weekDate,
+    this.year,
+    this.month,
+  });
 }
