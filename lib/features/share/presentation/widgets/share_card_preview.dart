@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -126,6 +128,25 @@ double _hPadding(SharePlatform platform) {
   }
 }
 
+/// Displays a photo from either a network URL or a local file path.
+Widget _photoImage(
+  String url, {
+  BoxFit fit = BoxFit.cover,
+  Alignment alignment = Alignment.center,
+  int? memCacheWidth,
+}) {
+  if (url.startsWith('http')) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: fit,
+      alignment: alignment,
+      memCacheWidth: memCacheWidth,
+      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+    );
+  }
+  return Image.file(File(url), fit: fit, alignment: alignment);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal — full-bleed photo + gradient overlay; clean white text
 // ─────────────────────────────────────────────────────────────────────────────
@@ -154,12 +175,7 @@ class _MinimalCard extends StatelessWidget {
         children: [
           // Full-bleed photo background
           if (config.photoUrl != null)
-            CachedNetworkImage(
-              imageUrl: config.photoUrl!,
-              fit: BoxFit.cover,
-              memCacheWidth: 1080,
-              errorWidget: (_, __, ___) => _buildFallbackBg(),
-            )
+            _photoImage(config.photoUrl!, memCacheWidth: 1080, alignment: config.photoAlignment)
           else
             _buildFallbackBg(),
 
@@ -343,21 +359,7 @@ class _ScrapbookCard extends StatelessWidget {
                       if (config.photoUrl != null)
                         SizedBox(
                           height: platform == SharePlatform.instagram ? 160 : 100,
-                          child: CachedNetworkImage(
-                            imageUrl: config.photoUrl!,
-                            fit: BoxFit.cover,
-                            memCacheWidth: 720,
-                            errorWidget: (_, __, ___) => Container(
-                              color: const Color(0xFFF0E6D4),
-                              child: Center(
-                                child: Icon(
-                                  Icons.image_outlined,
-                                  color: inkMid.withAlpha(100),
-                                  size: 32,
-                                ),
-                              ),
-                            ),
-                          ),
+                          child: _photoImage(config.photoUrl!, memCacheWidth: 720, alignment: config.photoAlignment),
                         ),
 
                       // Text content
@@ -517,12 +519,7 @@ class _DarkCard extends StatelessWidget {
                   Color(0xD00D0D0D),
                   BlendMode.srcOver,
                 ),
-                child: CachedNetworkImage(
-                  imageUrl: config.photoUrl!,
-                  fit: BoxFit.cover,
-                  memCacheWidth: 1080,
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                ),
+                child: _photoImage(config.photoUrl!, memCacheWidth: 1080, alignment: config.photoAlignment),
               ),
             ),
 
@@ -670,21 +667,7 @@ class _ClassicCard extends StatelessWidget {
               if (hasPhoto)
                 SizedBox(
                   height: photoH,
-                  child: CachedNetworkImage(
-                    imageUrl: config.photoUrl!,
-                    fit: BoxFit.cover,
-                    memCacheWidth: 1080,
-                    errorWidget: (_, __, ___) => Container(
-                      color: const Color(0xFFF0EDE8),
-                      child: Center(
-                        child: Icon(
-                          Icons.image_outlined,
-                          color: inkLight,
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: _photoImage(config.photoUrl!, memCacheWidth: 1080, alignment: config.photoAlignment),
                 ),
 
               // Text content

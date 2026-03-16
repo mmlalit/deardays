@@ -64,7 +64,15 @@ class Chapter {
       endDate: map['end_date'] != null
           ? DateTime.parse(map['end_date'] as String)
           : null,
-      entryCount: (map['entry_count'] as num?)?.toInt() ?? 0,
+      entryCount: (() {
+        // Prefer live count from embedded journal_entries relation, fall back
+        // to the stale cached column when the relation is not present.
+        final embedded = map['journal_entries'];
+        if (embedded is List && embedded.isNotEmpty) {
+          return (embedded.first['count'] as num?)?.toInt() ?? 0;
+        }
+        return (map['entry_count'] as num?)?.toInt() ?? 0;
+      })(),
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }

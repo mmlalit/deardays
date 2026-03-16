@@ -791,7 +791,10 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       children: [
         // Edit Memory — full-width accent, rounded-xl
         GestureDetector(
-          onTap: () => HapticFeedback.mediumImpact(),
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            context.push('/edit-memory', extra: widget.entry);
+          },
           child: Container(
             width: double.infinity,
             height: 56,

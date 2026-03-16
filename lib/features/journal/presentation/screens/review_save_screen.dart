@@ -89,7 +89,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   bool _isEditingTitle = false;
 
   // View toggle: 0 = Original, 1 = Polished, 2 = Story
-  int _viewMode = 0;
+  // Default to 1 so the user immediately sees the grammar/spelling-fixed text.
+  // Display logic falls back to Original automatically if cleanedText is null.
+  int _viewMode = 1;
   String? _selectedMood;
 
   // Save state
@@ -1222,70 +1224,64 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildViewTabs(AppPalette colors) {
-    final tabs = <({int index, String label, IconData? icon})>[
-      (index: 0, label: 'Original', icon: null),
-      if (_cleanedText != null) (index: 1, label: 'Polished', icon: null),
-      if (_polishedText != null) (index: 2, label: 'Story', icon: Icons.auto_awesome),
+    final tabs = <({int index, String label, IconData icon})>[
+      (index: 0, label: 'ORIGINAL', icon: Icons.mic_rounded),
+      if (_cleanedText != null) (index: 1, label: 'POLISHED', icon: Icons.auto_fix_high_rounded),
+      if (_polishedText != null) (index: 2, label: 'STORY', icon: Icons.menu_book_rounded),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: colors.cardBg,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
           children: tabs.map((tab) {
             final isActive = _viewMode == tab.index;
             return Expanded(
               child: GestureDetector(
                 onTap: () => setState(() => _viewMode = tab.index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isActive ? colors.accent : Colors.transparent,
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: isActive
-                        ? [
-                            BoxShadow(
-                              color: colors.accent.withAlpha(60),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (tab.icon != null) ...[
-                        Icon(
-                          tab.icon,
-                          size: 12,
-                          color: isActive ? Colors.white : colors.textMuted,
-                        ),
-                        const SizedBox(width: 5),
-                      ],
-                      Text(
-                        tab.label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 13,
-                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive ? Colors.white : colors.textMuted,
-                        ),
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: Icon(
+                        tab.icon,
+                        key: ValueKey('${tab.index}_$isActive'),
+                        size: 20,
+                        color: isActive ? colors.accent : colors.textMuted,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      tab.label,
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        color: isActive ? colors.accent : colors.textMuted,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Sliding underline indicator
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeInOut,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: isActive ? colors.accent : Colors.transparent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
           }).toList(),
         ),
-      ),
+        Divider(height: 1, thickness: 1, color: colors.border),
+      ],
     );
   }
 

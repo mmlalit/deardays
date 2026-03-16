@@ -76,6 +76,9 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     String transcript = '';
     try {
       if (widget.data.rawText.isNotEmpty) {
+        // Text entry — no network needed, but show the step for at least 350ms
+        // so the user sees it animate before it completes.
+        await Future.delayed(const Duration(milliseconds: 350));
         transcript = widget.data.rawText;
       } else if (widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty) {
         if (_creditService.canUse(AiOperation.transcription)) {
@@ -109,6 +112,8 @@ class _ProcessingScreenState extends State<ProcessingScreen>
 
     // ── Step 2: Local analysis (instant, no network) ──────────────────────
     _setStep(1, 'active');
+    // Small delay so the user sees this step become active before it finishes.
+    await Future.delayed(const Duration(milliseconds: 300));
     _localResult = _offlineQueue.analyzeLocally(transcript);
     if (!mounted) return;
     _setStep(1, 'done');

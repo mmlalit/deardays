@@ -25,7 +25,7 @@ enum SharePlatform {
   double get displayWidth {
     switch (this) {
       case SharePlatform.instagram:
-        return 220;
+        return 248;
       case SharePlatform.whatsapp:
         return 220;
       case SharePlatform.memoryCard:
@@ -52,6 +52,7 @@ class ShareCardConfig {
   final bool showDate;
   final bool showMood;
   final bool showLocation;
+  final Alignment photoAlignment;
 
   const ShareCardConfig({
     this.platform = SharePlatform.instagram,
@@ -61,6 +62,7 @@ class ShareCardConfig {
     this.showDate = true,
     this.showMood = true,
     this.showLocation = false,
+    this.photoAlignment = Alignment.center,
   });
 
   ShareCardConfig copyWith({
@@ -71,6 +73,7 @@ class ShareCardConfig {
     bool? showDate,
     bool? showMood,
     bool? showLocation,
+    Alignment? photoAlignment,
   }) {
     return ShareCardConfig(
       platform: platform ?? this.platform,
@@ -80,6 +83,7 @@ class ShareCardConfig {
       showDate: showDate ?? this.showDate,
       showMood: showMood ?? this.showMood,
       showLocation: showLocation ?? this.showLocation,
+      photoAlignment: photoAlignment ?? this.photoAlignment,
     );
   }
 }

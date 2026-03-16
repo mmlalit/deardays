@@ -638,113 +638,128 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Combined Controls Row: [Toggle] [scrollable chips→] [🔍] [⚙]
+  // Controls: Row 1 — [View by toggle] + [🔍] [⚙]
+  //           Row 2 — full-width scrollable category chips
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildControlsRow(AppPalette colors) {
     final hasMoodFilter = _moodFilter != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left: Timeline / Monthly segmented toggle
-          Container(
-            height: 36,
-            decoration: BoxDecoration(
-              color: colors.cardBg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: colors.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _viewToggleTab(Icons.timeline_rounded, 'Timeline', isMonthly: false, colors: colors),
-                _viewToggleTab(Icons.calendar_view_month_rounded, 'Monthly', isMonthly: true, colors: colors),
-              ],
-            ),
+          // ── Row 1: View by toggle + action icons ──────────────────────────
+          Row(
+            children: [
+              // "View by" label
+              Text(
+                'View by',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textMuted,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Timeline / Monthly segmented toggle
+              Container(
+                height: 34,
+                decoration: BoxDecoration(
+                  color: colors.cardBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _viewToggleTab(Icons.timeline_rounded, 'Timeline', isMonthly: false, colors: colors),
+                    _viewToggleTab(Icons.calendar_view_month_rounded, 'Monthly', isMonthly: true, colors: colors),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              // Search toggle
+              GestureDetector(
+                onTap: () => setState(() {
+                  _searchActive = !_searchActive;
+                  if (!_searchActive) {
+                    _searchController.clear();
+                    _searchQuery = '';
+                  }
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _searchActive ? colors.accent : colors.cardBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _searchActive ? colors.accent : colors.border),
+                  ),
+                  child: Icon(
+                    _searchActive ? Icons.close_rounded : Icons.search_rounded,
+                    size: 18,
+                    color: _searchActive ? Colors.white : colors.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Mood filter button
+              GestureDetector(
+                onTap: () => _showMoodFilterSheet(colors),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: hasMoodFilter ? colors.accent : colors.cardBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
+                  ),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    size: 18,
+                    color: hasMoodFilter ? Colors.white : colors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          // Center: horizontally scrollable category chips
-          Expanded(
-            child: SingleChildScrollView(
+          const SizedBox(height: 10),
+          // ── Row 2: full-width category chips ──────────────────────────────
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _categories.map((cat) {
-                  final (category, label) = cat;
-                  final isActive = _categoryFilter == category;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _categoryFilter = category),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isActive ? colors.accent : colors.cardBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isActive ? colors.accent : colors.border,
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isActive ? Colors.white : colors.textSecondary,
-                          ),
-                        ),
+              itemCount: _categories.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (_, i) {
+                final (category, label) = _categories[i];
+                final isActive = _categoryFilter == category;
+                return GestureDetector(
+                  onTap: () => setState(() => _categoryFilter = category),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isActive ? colors.accent : colors.cardBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isActive ? colors.accent : colors.border,
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          // Search toggle
-          GestureDetector(
-            onTap: () => setState(() {
-              _searchActive = !_searchActive;
-              if (!_searchActive) {
-                _searchController.clear();
-                _searchQuery = '';
-              }
-            }),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: _searchActive ? colors.accent : colors.cardBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _searchActive ? colors.accent : colors.border),
-              ),
-              child: Icon(
-                _searchActive ? Icons.close_rounded : Icons.search_rounded,
-                size: 18,
-                color: _searchActive ? Colors.white : colors.textSecondary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          // Mood filter button — highlights when a mood filter is active
-          GestureDetector(
-            onTap: () => _showMoodFilterSheet(colors),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: hasMoodFilter ? colors.accent : colors.cardBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
-              ),
-              child: Icon(
-                Icons.tune_rounded,
-                size: 18,
-                color: hasMoodFilter ? Colors.white : colors.textSecondary,
-              ),
+                    child: Text(
+                      label,
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isActive ? Colors.white : colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],

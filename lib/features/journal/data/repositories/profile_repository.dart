@@ -54,10 +54,12 @@ class ProfileRepository {
   }
 
   /// Fetches all chapters for the current user, ordered by chapter number.
+  /// Uses embedded count so entry_count reflects actual DB rows, not the
+  /// stale cached column (which is never updated by the client).
   Future<List<Chapter>> getChapters() async {
     final response = await _client
         .from('chapters')
-        .select()
+        .select('*, journal_entries(count)')
         .eq('user_id', _userId)
         .order('chapter_number', ascending: true);
 

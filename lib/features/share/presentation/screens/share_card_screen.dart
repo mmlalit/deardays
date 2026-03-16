@@ -12,6 +12,11 @@ import 'package:deardays/features/share/presentation/widgets/share_card_preview.
 import 'package:deardays/features/share/services/share_card_renderer.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
+
 class ShareCardScreen extends ConsumerStatefulWidget {
   final JournalEntry entry;
 
@@ -28,6 +33,10 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
   bool _isLoadingAi = false;
   bool _isSaving = false;
   bool _isSharing = false;
+
+  // Photo pan/reposition tracking
+  Offset _photoGestureStart = Offset.zero;
+  Alignment _photoAlignStart = Alignment.center;
 
   @override
   void initState() {
@@ -108,11 +117,6 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
     setState(() => _config = _config.copyWith(platform: platform));
   }
 
-  void _selectStyle(CardStyle style) {
-    HapticFeedback.lightImpact();
-    setState(() => _config = _config.copyWith(style: style));
-  }
-
   Future<void> _share() async {
     setState(() => _isSharing = true);
     try {
@@ -164,6 +168,358 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
     }
   }
 
+  Future<void> _replacePhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (picked != null && mounted) {
+      setState(() => _config = _config.copyWith(photoUrl: picked.path));
+    }
+  }
+
+  // ─── Edit Card sheet ──────────────────────────────────────────────────────
+
+  void _showEditSheet() {
+    final colors = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (sheetCtx, sheetSetState) {
+          void refresh() {
+            setState(() {});
+            sheetSetState(() {});
+          }
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.90,
+            ),
+            decoration: BoxDecoration(
+              color: colors.bg,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                // Sheet header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 8, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Edit Card',
+                        style: GoogleFonts.manrope(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.of(sheetCtx).pop(),
+                        child: Text(
+                          'Done',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: colors.accent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, color: colors.border),
+                // Scrollable content
+                Flexible(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [
+                      const SizedBox(height: 20),
+
+                      // ── Photo ──
+                      _sheetLabel('PHOTO', colors),
+                      const SizedBox(height: 12),
+                      if (_config.photoUrl != null) ...[
+                        _buildPhotoAdjuster(colors, refresh),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _sheetOutlineButton(
+                                icon: Icons.photo_library_outlined,
+                                label: 'Replace',
+                                color: colors.accent,
+                                borderColor: colors.border,
+                                onTap: () async {
+                                  await _replacePhoto();
+                                  refresh();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _sheetOutlineButton(
+                                icon: Icons.hide_image_outlined,
+                                label: 'Remove',
+                                color: AppColors.error,
+                                borderColor: colors.border,
+                                onTap: () {
+                                  setState(() => _config = _config.copyWith(photoUrl: null));
+                                  sheetSetState(() {});
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else
+                        _sheetOutlineButton(
+                          icon: Icons.add_photo_alternate_outlined,
+                          label: 'Add Photo',
+                          color: colors.accent,
+                          borderColor: colors.accent,
+                          onTap: () async {
+                            await _replacePhoto();
+                            refresh();
+                          },
+                        ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Caption ──
+                      _buildCaptionSection(colors),
+
+                      const SizedBox(height: 24),
+
+                      // ── Style ──
+                      _sheetLabel('STYLE', colors),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: CardStyle.values.map((style) {
+                          final isActive = _config.style == style;
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                setState(() => _config = _config.copyWith(style: style));
+                                sheetSetState(() {});
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                margin: const EdgeInsets.symmetric(horizontal: 3),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isActive ? colors.accentFaint : colors.cardBg,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isActive ? colors.accent : colors.border,
+                                    width: isActive ? 2 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    _buildStyleThumb(style, isActive),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _styleName(style),
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 10,
+                                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                                        color: isActive ? colors.accent : colors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Show on card ──
+                      _sheetLabel('SHOW ON CARD', colors),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildChip('Date', _config.showDate, colors, (v) {
+                            setState(() => _config = _config.copyWith(showDate: v));
+                            sheetSetState(() {});
+                          }),
+                          _buildChip('Mood', _config.showMood, colors, (v) {
+                            setState(() => _config = _config.copyWith(showMood: v));
+                            sheetSetState(() {});
+                          }),
+                          if (widget.entry.locationName != null)
+                            _buildChip('Location', _config.showLocation, colors, (v) {
+                              setState(() => _config = _config.copyWith(showLocation: v));
+                              sheetSetState(() {});
+                            }),
+                        ],
+                      ),
+
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _sheetLabel(String text, AppPalette colors) {
+    return Text(
+      text,
+      style: GoogleFonts.manrope(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: colors.textMuted,
+        letterSpacing: 1.2,
+      ),
+    );
+  }
+
+  Widget _sheetOutlineButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color borderColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoAdjuster(AppPalette colors, VoidCallback refresh) {
+    final photoUrl = _config.photoUrl!;
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            width: 180,
+            height: 180,
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colors.border),
+            ),
+            child: GestureDetector(
+              onPanStart: (d) {
+                _photoGestureStart = d.localPosition;
+                _photoAlignStart = _config.photoAlignment;
+              },
+              onPanUpdate: (d) {
+                final delta = d.localPosition - _photoGestureStart;
+                // 90 px = half of 180px box = 1 alignment unit
+                final nx = (_photoAlignStart.x - delta.dx / 90.0).clamp(-1.0, 1.0);
+                final ny = (_photoAlignStart.y - delta.dy / 90.0).clamp(-1.0, 1.0);
+                setState(() => _config = _config.copyWith(photoAlignment: Alignment(nx, ny)));
+                refresh();
+              },
+              child: photoUrl.startsWith('http')
+                  ? CachedNetworkImage(
+                      imageUrl: photoUrl,
+                      fit: BoxFit.cover,
+                      alignment: _config.photoAlignment,
+                    )
+                  : Image.file(
+                      File(photoUrl),
+                      fit: BoxFit.cover,
+                      alignment: _config.photoAlignment,
+                    ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.open_with_rounded, size: 13, color: colors.textMuted),
+              const SizedBox(width: 4),
+              Text(
+                'Drag to reposition',
+                style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditCardButton(AppPalette colors) {
+    return GestureDetector(
+      onTap: _showEditSheet,
+      child: Container(
+        width: double.infinity,
+        height: 48,
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.tune_rounded, size: 18, color: colors.textPrimary),
+            const SizedBox(width: 8),
+            Text(
+              'Edit Card',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -184,13 +540,9 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
                     _buildPlatformTabs(colors),
                     const SizedBox(height: 20),
                     Center(child: _buildPreviewArea(colors)),
+                    const SizedBox(height: 16),
+                    _buildEditCardButton(colors),
                     const SizedBox(height: 24),
-                    _buildCaptionSection(colors),
-                    const SizedBox(height: 20),
-                    _buildStyleSelector(colors),
-                    const SizedBox(height: 20),
-                    _buildToggleChips(colors),
-                    const SizedBox(height: 28),
                     _buildActionButtons(colors),
                     const SizedBox(height: 32),
                   ],
@@ -664,63 +1016,6 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
     );
   }
 
-  // ─── Style selector ───────────────────────────────────────────────────────
-
-  Widget _buildStyleSelector(AppPalette colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'STYLE',
-          style: GoogleFonts.manrope(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: colors.textMuted,
-            letterSpacing: 1.2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: CardStyle.values.map((style) {
-            final isActive = _config.style == style;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => _selectStyle(style),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isActive ? colors.accentFaint : colors.cardBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isActive ? colors.accent : colors.border,
-                      width: isActive ? 2 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildStyleThumb(style, isActive),
-                      const SizedBox(height: 6),
-                      Text(
-                        _styleName(style),
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive ? colors.accent : colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
   Widget _buildStyleThumb(CardStyle style, bool isActive) {
     const double size = 28;
     switch (style) {
@@ -812,27 +1107,6 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
       case CardStyle.classic:
         return 'Classic';
     }
-  }
-
-  // ─── Toggle chips ─────────────────────────────────────────────────────────
-
-  Widget _buildToggleChips(AppPalette colors) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _buildChip('Date', _config.showDate, colors, (v) {
-          setState(() => _config = _config.copyWith(showDate: v));
-        }),
-        _buildChip('Mood', _config.showMood, colors, (v) {
-          setState(() => _config = _config.copyWith(showMood: v));
-        }),
-        if (widget.entry.locationName != null)
-          _buildChip('Location', _config.showLocation, colors, (v) {
-            setState(() => _config = _config.copyWith(showLocation: v));
-          }),
-      ],
-    );
   }
 
   Widget _buildChip(
