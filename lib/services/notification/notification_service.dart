@@ -249,6 +249,46 @@ class NotificationService {
   static const _weeklyRecapId = 1003;
   static const _onThisDayId = 1004;
   static const _streakReminderId = 1005;
+  static const _writingPromptId = 1006;
+  static const _storyReadyId = 1007;
+
+  // Guard: show On This Day at most once per app session per day.
+  DateTime? _onThisDayShownDate;
+
+  // ── Writing prompts ────────────────────────────────────────────────────────
+
+  static const _writingPrompts = [
+    'What surprised you today?',
+    'Who made you smile this week?',
+    'What are you avoiding thinking about?',
+    '3 words for today — go.',
+    'What did you learn today?',
+    'What do you wish you had said?',
+    'Describe today in one colour.',
+    'What small thing went right today?',
+    'What would your future self want to remember?',
+    'What made you feel alive recently?',
+    'What are you grateful for right now?',
+    'What is weighing on you?',
+    'Describe a moment from today in detail.',
+    'What conversation is still on your mind?',
+    'What do you keep putting off?',
+    'If today were a chapter title, what would it be?',
+    'What are you looking forward to?',
+    'What would you do differently today?',
+    'Who influenced you this week without knowing it?',
+    'What does "enough" look like for you right now?',
+    'What emotion is loudest today?',
+    'Write about a door you opened — or closed — recently.',
+    'What have you been too hard on yourself about?',
+    'What are you proud of that nobody knows?',
+    'What is something simple that made today better?',
+    'Describe the last time you felt truly present.',
+    'What are you afraid to write down?',
+    'What does your body need right now?',
+    'One thing you want to remember from this week.',
+    'What would you tell a friend who felt exactly like you do today?',
+  ];
 
   /// Schedule a weekly recap notification every Sunday evening at 7pm.
   Future<void> scheduleWeeklyRecap({
@@ -329,6 +369,116 @@ class NotificationService {
     debugPrint('[NotificationService] On This Day: $yearsAgo years ago.');
   }
 
+  /// Schedules a rotating daily writing prompt at [time].
+  ///
+  /// Uses day-of-year modulo the prompt bank so the prompt is deterministic
+  /// for a given date (same day always picks same prompt).
+  Future<void> scheduleWritingPrompt(TimeOfDay time) async {
+    _ensureInitialized();
+    await _plugin.cancel(_writingPromptId);
+
+    final dayOfYear = _dayOfYear(DateTime.now());
+    final prompt = _writingPrompts[dayOfYear % _writingPrompts.length];
+
+    final scheduledTime = _nextInstanceOfTime(time);
+
+    await _plugin.zonedSchedule(
+      _writingPromptId,
+      '✍️ Today\'s prompt',
+      prompt,
+      scheduledTime,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
+          styleInformation: BigTextStyleInformation(prompt, contentTitle: '✍️ Today\'s prompt'),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: 'writing_prompt',
+    );
+
+    debugPrint('[NotificationService] Writing prompt scheduled: "$prompt"');
+  }
+
+  /// Shows an immediate notification when a story is ready.
+  ///
+  /// [period] is "weekly", "monthly", or "yearly".
+  /// [entryCount] is how many entries were used.
+  Future<void> showStoryReadyNotification({
+    required String period,
+    required int entryCount,
+  }) async {
+    _ensureInitialized();
+
+    final titles = {
+      'weekly': 'Your week is a story now 📖',
+      'monthly': 'Your monthly chapter is written 📚',
+      'yearly': 'Your year in review is ready ✨',
+    };
+    final bodies = {
+      'weekly': entryCount > 0
+          ? '$entryCount entries. Your weekly reflection is ready to read.'
+          : 'Your weekly reflection is ready to read.',
+      'monthly': entryCount > 0
+          ? '$entryCount entries captured this month. Tap to read your story.'
+          : 'Your monthly story is ready to read.',
+      'yearly': 'A full year of memories. Tap to read your life in review.',
+    };
+
+    final title = titles[period] ?? 'Your story is ready 📖';
+    final body = bodies[period] ?? 'Tap to read your reflection.';
+
+    await _plugin.show(
+      _storyReadyId,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
+          styleInformation: BigTextStyleInformation(body, contentTitle: title),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      payload: 'story_ready_$period',
+    );
+
+    debugPrint('[NotificationService] Story ready notification: $period ($entryCount entries)');
+  }
+
+  /// Shows the On This Day notification with a real entry excerpt.
+  /// Guards against showing more than once per calendar day.
+  Future<void> maybeShowOnThisDay({
+    required String entryExcerpt,
+    required int yearsAgo,
+  }) async {
+    final today = DateTime.now();
+    if (_onThisDayShownDate != null &&
+        _onThisDayShownDate!.year == today.year &&
+        _onThisDayShownDate!.month == today.month &&
+        _onThisDayShownDate!.day == today.day) {
+      return; // already shown today
+    }
+    _onThisDayShownDate = today;
+    await showOnThisDayNotification(
+      entryExcerpt: entryExcerpt,
+      yearsAgo: yearsAgo,
+    );
+  }
+
   /// Schedules a daily "On This Day" check at 8am.
   Future<void> scheduleOnThisDayCheck() async {
     _ensureInitialized();
@@ -358,6 +508,18 @@ class NotificationService {
     );
 
     debugPrint('[NotificationService] On This Day check scheduled for 8am daily.');
+  }
+
+  /// Cancels the daily writing prompt notification.
+  Future<void> cancelWritingPrompt() async {
+    _ensureInitialized();
+    await _plugin.cancel(_writingPromptId);
+  }
+
+  /// Cancels any pending streak-at-risk reminder (call after entry saved).
+  Future<void> cancelStreakReminder() async {
+    _ensureInitialized();
+    await _plugin.cancel(_streakReminderId);
   }
 
   /// Schedule streak-at-risk notification at 9pm.
@@ -419,6 +581,9 @@ class NotificationService {
     }
     return scheduled;
   }
+
+  static int _dayOfYear(DateTime date) =>
+      date.difference(DateTime(date.year, 1, 1)).inDays;
 
   void _ensureInitialized() {
     if (!_initialized) {

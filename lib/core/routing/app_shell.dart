@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/services/sync/sync_service.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 
@@ -34,6 +35,59 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SyncService().onSyncComplete = _onSyncComplete;
     _prefetchData();
+    _scheduleEngagementNotifications();
+  }
+
+  /// Wires smart engagement notifications:
+  ///   • On This Day — shows once per day when past entries exist.
+  ///   • Streak at Risk — schedules 9 PM reminder if no entry today and streak > 0;
+  ///     cancels it immediately when the user writes.
+  void _scheduleEngagementNotifications() {
+    // On This Day — fires when onThisDayProvider resolves with entries.
+    ref.listenManual<AsyncValue<List<dynamic>>>(
+      onThisDayProvider,
+      (_, next) {
+        final entries = next.valueOrNull;
+        if (entries == null || entries.isEmpty) return;
+        final first = entries.first;
+        // Compute years ago from the entry date.
+        final entryDate = (first.entryDate as DateTime?) ?? DateTime.now();
+        final yearsAgo = DateTime.now().year - entryDate.year;
+        if (yearsAgo <= 0) return;
+        final excerpt = (first.polishedContent as String?)?.trim().isNotEmpty == true
+            ? first.polishedContent as String
+            : first.content as String;
+        NotificationService().maybeShowOnThisDay(
+          entryExcerpt: excerpt,
+          yearsAgo: yearsAgo,
+        ).ignore();
+      },
+      fireImmediately: true,
+    );
+
+    // Streak at Risk — cancel reminder when user has written today,
+    // schedule it when they haven't (and have an active streak).
+    ref.listenManual<AsyncValue<dynamic>>(
+      todayEntryProvider,
+      (_, next) {
+        final entry = next.valueOrNull;
+        if (entry != null) {
+          // User wrote today — cancel any pending reminder.
+          NotificationService().cancelStreakReminder().ignore();
+        } else if (next.hasValue) {
+          // Provider resolved with null: no entry today.
+          // Schedule the reminder using the current streak from streakProvider.
+          final streak = ref.read(streakProvider).valueOrNull;
+          final current = streak?.currentStreak ?? 0;
+          if (current > 0) {
+            NotificationService()
+                .scheduleStreakReminder(currentStreak: current)
+                .ignore();
+          }
+        }
+      },
+      fireImmediately: true,
+    );
   }
 
   @override

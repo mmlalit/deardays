@@ -381,15 +381,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     try {
       if (value) {
-        // Enable: schedule notification and save time to profile
-        await NotificationService().scheduleDailyReminder(_reminderTime);
+        // Enable: schedule daily reminder + morning writing prompt
+        await Future.wait([
+          NotificationService().scheduleDailyReminder(_reminderTime),
+          NotificationService().scheduleWritingPrompt(
+            const TimeOfDay(hour: 9, minute: 0),
+          ),
+        ]);
         await _saveReminderTimeToProfile(_reminderTime);
         if (mounted) {
           AppSnackBar.success(context, 'Daily reminder set for ${_reminderTime.format(context)}');
         }
       } else {
-        // Disable: cancel notification and clear time from profile
-        await NotificationService().cancelReminder();
+        // Disable: cancel both notifications and clear time from profile
+        await Future.wait([
+          NotificationService().cancelReminder(),
+          NotificationService().cancelWritingPrompt(),
+        ]);
         await _clearReminderTimeFromProfile();
         if (mounted) {
           AppSnackBar.success(context, 'Daily reminder turned off');

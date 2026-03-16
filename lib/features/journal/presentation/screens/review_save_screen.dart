@@ -26,6 +26,7 @@ import 'package:deardays/features/journal/data/repositories/profile_repository.d
 import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 /// Data passed between RecordingScreen → ProcessingScreen → ReviewSaveScreen.
 class ReviewData {
@@ -360,8 +361,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           final streak = await profileRepo.getStreak();
           if (streak != null) {
             if (NotificationService.isStreakMilestone(streak.currentStreak)) {
-              await NotificationService().showStreakNotification(streak.currentStreak);
+              // Check user preference before firing (fixes toggle being ignored).
+              final box = await Hive.openBox('settings');
+              final milestonesEnabled = box.get('streak_milestones_enabled') as bool? ?? true;
+              if (milestonesEnabled) {
+                await NotificationService().showStreakNotification(streak.currentStreak);
+              }
             }
+            // Cancel streak-at-risk reminder — user wrote today.
+            NotificationService().cancelStreakReminder().ignore();
             final profile = await profileRepo.getProfile();
             if (profile?.reminderTime != null) {
               final parts = profile!.reminderTime!.split(':');

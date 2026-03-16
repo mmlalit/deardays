@@ -9,6 +9,7 @@ import 'package:deardays/features/story/data/models/story_node.dart';
 import 'package:deardays/features/story/data/repositories/story_node_repository.dart';
 import 'package:deardays/features/story/data/services/story_generation_service.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/notification/notification_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State
@@ -128,6 +129,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
         language: language,
       );
       _upsertNode(node);
+      NotificationService().showStoryReadyNotification(
+        period: 'weekly',
+        entryCount: entries.length,
+      ).ignore();
     } on AiServiceException catch (e) {
       state = state.copyWith(clearGenerating: true, error: e.message);
     } catch (_) {
@@ -170,6 +175,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
       );
       _upsertNode(node);
       await _loadCached(); // refresh newly generated weekly nodes
+      NotificationService().showStoryReadyNotification(
+        period: 'monthly',
+        entryCount: allMonthEntries.length,
+      ).ignore();
     } on AiServiceException catch (e) {
       state = state.copyWith(clearGenerating: true, error: e.message);
     } catch (_) {
@@ -203,6 +212,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
         language: language,
       );
       _upsertNode(node);
+      NotificationService().showStoryReadyNotification(
+        period: 'yearly',
+        entryCount: allYearEntries.length,
+      ).ignore();
     } on AiServiceException catch (e) {
       state = state.copyWith(clearGenerating: true, error: e.message);
     } catch (_) {
