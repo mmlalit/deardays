@@ -121,8 +121,11 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     final canPolish = _creditService.canUse(AiOperation.polish);
     if (canPolish) _creditService.consume(AiOperation.polish);
 
+    String? aiError;
+
     final lightPolishFuture = canPolish
-        ? _aiService.lightPolish(transcript).catchError((_) {
+        ? _aiService.lightPolish(transcript).catchError((e) {
+            aiError = e.toString();
             _offlineQueue.enqueue(AiQueueItem(
               entryId: 'pending_${DateTime.now().millisecondsSinceEpoch}',
               text: transcript,
@@ -148,10 +151,16 @@ class _ProcessingScreenState extends State<ProcessingScreen>
           })().catchError((_) => '')
         : _aiService
             .polishNarrative(transcript, style: 'memoir')
-            .catchError((_) => '');
+            .catchError((e) {
+              aiError ??= e.toString();
+              return '';
+            });
 
     final titleFuture =
-        _aiService.generateTitle(transcript).catchError((_) => '');
+        _aiService.generateTitle(transcript).catchError((e) {
+          aiError ??= e.toString();
+          return '';
+        });
 
     // ── Step 3: Await lightPolish (shorter) ───────────────────────────────
     _setStep(2, 'active');
@@ -187,6 +196,19 @@ class _ProcessingScreenState extends State<ProcessingScreen>
 
     if (!mounted) return;
     _setStep(3, 'done');
+
+    // Show AI error as a dismissible banner so the user knows what failed
+    if (aiError != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('AI error: $aiError', style: const TextStyle(fontSize: 12)),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(label: 'Dismiss', textColor: Colors.white, onPressed: () {}),
+        ),
+      );
+    }
 
     context.pushReplacement('/review', extra: ReviewData(
       rawText: transcript,

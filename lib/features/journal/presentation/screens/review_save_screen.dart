@@ -25,6 +25,7 @@ import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
+import 'package:deardays/services/connectivity/connectivity_service.dart';
 
 /// Data passed between RecordingScreen → ProcessingScreen → ReviewSaveScreen.
 class ReviewData {
@@ -97,6 +98,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   String? _attachedPhotoPath;
   String? _locationName;
   String? _selectedChapterId;
+  String? _saveError;
   final List<String> _tags = [];
   final _locationService = LocationService();
   final _tagController = TextEditingController();
@@ -249,16 +251,19 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   Future<void> _saveEntry() async {
     HapticFeedback.mediumImpact();
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _saveError = null;
+    });
 
     try {
       final now = DateTime.now().toUtc();
-      // content = light-polished (or raw if polish failed)
       final content = _cleanedText ?? widget.data.rawText;
-      // polishedContent = full AI literary narrative
       final polishedContent = _polishedText != null
           ? '${_generatedTitle ?? ''}\n\n$_polishedText'
           : null;
+
+      final isOnline = ConnectivityService().isOnline;
 
       final entry = JournalEntry(
         id: const Uuid().v4(),
@@ -271,24 +276,22 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         entryTime: TimeOfDay.fromDateTime(now),
         isAiPolished: _polishedText != null,
         locationName: _locationName,
-        hasPhoto: _attachedPhotoPath != null,
+        // hasPhoto only true when online — photo upload happens immediately after
+        hasPhoto: _attachedPhotoPath != null && isOnline,
         hasVoice: widget.data.isVoice,
         wordCount: content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length,
         chapterId: _selectedChapterId,
+        tags: _tags,
         createdAt: now,
         updatedAt: now,
       );
 
-      JournalEntry saved;
       bool savedOffline = false;
+      JournalEntry saved;
 
-      try {
-        debugPrint('[SAVE] Attempting online save...');
-        saved = await _repository.createEntry(entry);
-        debugPrint('[SAVE] Online save SUCCESS');
-      } catch (networkError) {
-        debugPrint('[SAVE] Online save FAILED: $networkError — saving offline');
-        // Network failed — save locally and queue for sync
+      if (!isOnline) {
+        // ── Offline path ────────────────────────────────────────────────────
+        debugPrint('[SAVE] Device offline — saving to local cache + SyncQueue');
         await LocalStorageService().cacheEntry(entry);
         await SyncQueue().enqueue(SyncOperation.create(
           id: entry.id,
@@ -298,77 +301,69 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         ));
         saved = entry;
         savedOffline = true;
-      }
+      } else {
+        // ── Online path ─────────────────────────────────────────────────────
+        try {
+          debugPrint('[SAVE] Online — attempting Supabase save...');
+          saved = await _repository.createEntry(entry);
+          debugPrint('[SAVE] Supabase save SUCCESS');
+        } catch (e) {
+          // Server / auth / validation error — surface to user for retry.
+          // Do NOT silently fall back to offline: the failure cause may mean
+          // the queued operation would also fail on retry.
+          debugPrint('[SAVE] Supabase save FAILED: $e');
+          final msg = e.toString();
+          setState(() => _saveError = msg.length > 100 ? '${msg.substring(0, 100)}…' : msg);
+          return;
+        }
 
-      // Fire-and-forget: tag entry with semantic metadata (never blocks save)
-      if (!savedOffline) {
-        final contentToTag = _cleanedText ?? entry.content;
-        unawaited(
-          MemoryTaggingService().tagEntry(
-            entryId: saved.id,
-            content: contentToTag,
-          ),
-        );
-      }
+        // Fire-and-forget side effects (never block the save)
+        unawaited(MemoryTaggingService().tagEntry(
+          entryId: saved.id,
+          content: _cleanedText ?? entry.content,
+        ));
 
-      // Auto-create book if none exists (skip when offline)
-      if (!savedOffline) {
         try {
           final profile = await ref.read(profileProvider.future);
           final organization = profile?.bookOrganization ?? 'yearly';
-          final bookRepo = ref.read(bookRepositoryProvider);
-          await bookRepo.ensureDefaultBook(organization);
+          await ref.read(bookRepositoryProvider).ensureDefaultBook(organization);
         } catch (_) {}
-      }
 
-      // Upload photo if attached (skip when offline — photo syncs on reconnect)
-      if (_attachedPhotoPath != null && !savedOffline) {
-        if (mounted) setState(() => _isUploadingPhoto = true);
-        try {
-          await _mediaService.uploadPhoto(
-            entryId: saved.id,
-            filePath: _attachedPhotoPath!,
-          );
-        } catch (e) {
-          debugPrint('[ReviewSaveScreen] Photo upload failed: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Photo could not be uploaded. The entry was saved without it.'),
-                behavior: SnackBarBehavior.floating,
-              ),
+        if (_attachedPhotoPath != null) {
+          if (mounted) setState(() => _isUploadingPhoto = true);
+          try {
+            await _mediaService.uploadPhoto(
+              entryId: saved.id,
+              filePath: _attachedPhotoPath!,
             );
-          }
-        } finally {
-          if (mounted) setState(() => _isUploadingPhoto = false);
-        }
-      }
-
-      // Check streak: show milestone notification + update daily reminder
-      if (!savedOffline) {
-        try {
-          final profileRepo = ProfileRepository(
-            client: Supabase.instance.client,
-          );
-          final streak = await profileRepo.getStreak();
-          if (streak != null) {
-            // Show milestone celebration if applicable
-            if (NotificationService.isStreakMilestone(streak.currentStreak)) {
-              await NotificationService().showStreakNotification(
-                streak.currentStreak,
+          } catch (e) {
+            debugPrint('[ReviewSaveScreen] Photo upload failed: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Photo could not be uploaded. The entry was saved without it.'),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             }
-            // Re-schedule daily reminder with updated streak count
+          } finally {
+            if (mounted) setState(() => _isUploadingPhoto = false);
+          }
+        }
+
+        try {
+          final profileRepo = ProfileRepository(client: Supabase.instance.client);
+          final streak = await profileRepo.getStreak();
+          if (streak != null) {
+            if (NotificationService.isStreakMilestone(streak.currentStreak)) {
+              await NotificationService().showStreakNotification(streak.currentStreak);
+            }
             final profile = await profileRepo.getProfile();
             if (profile?.reminderTime != null) {
               final parts = profile!.reminderTime!.split(':');
               if (parts.length >= 2) {
-                final time = TimeOfDay(
-                  hour: int.parse(parts[0]),
-                  minute: int.parse(parts[1]),
-                );
                 await NotificationService().scheduleDailyReminder(
-                  time,
+                  TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
                   streak: streak.currentStreak,
                 );
               }
@@ -377,7 +372,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         } catch (_) {}
       }
 
-      // Clean up temporary audio recording file after successful save.
+      // ── Cleanup + navigation (both paths) ──────────────────────────────────
       if (widget.data.audioPath != null) {
         try {
           final audioFile = File(widget.data.audioPath!);
@@ -385,50 +380,26 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         } catch (_) {}
       }
 
-      debugPrint('[SAVE] Post-save: mounted=$mounted, savedOffline=$savedOffline');
       if (mounted) {
         ref.invalidate(todayEntryProvider);
         ref.invalidate(timelineEntriesProvider);
         ref.invalidate(booksProvider);
 
-        if (savedOffline) {
-          debugPrint('[SAVE] Taking OFFLINE path → /home');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Saved offline. Will sync when you reconnect.',
-                style: TextStyle(color: Colors.white),
-              ),
-              backgroundColor: AppColors.of(context).accent,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-          if (mounted) context.go('/home');
-        } else {
-          debugPrint('[SAVE] Taking ONLINE path → /post-save');
-          final postSaveData = PostSaveData(
-            entryId: saved.id,
-            title: _generatedTitle ?? _generateFallbackTitle(),
-            content: _cleanedText ?? widget.data.rawText,
-            attachedPhotoPath: _attachedPhotoPath,
-          );
-          ref.read(postSaveDataProvider.notifier).state = postSaveData;
-          if (mounted) context.go('/post-save');
-        }
+        final postSaveData = PostSaveData(
+          entryId: saved.id,
+          title: _generatedTitle ?? _generateFallbackTitle(),
+          content: _cleanedText ?? widget.data.rawText,
+          attachedPhotoPath: _attachedPhotoPath,
+          savedOffline: savedOffline,
+        );
+        ref.read(postSaveDataProvider.notifier).state = postSaveData;
+        context.go('/post-save');
       }
     } catch (e, stack) {
-      debugPrint('[SAVE] OUTER CATCH: $e');
-      debugPrint('[SAVE] Stack: $stack');
+      debugPrint('[SAVE] OUTER CATCH: $e\n$stack');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        final msg = e.toString();
+        setState(() => _saveError = msg.length > 100 ? '${msg.substring(0, 100)}…' : msg);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -1263,7 +1234,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         height: 48,
         decoration: BoxDecoration(
           color: colors.cardBg,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(100),
           border: Border.all(color: colors.border),
         ),
         child: Row(
@@ -1273,11 +1244,20 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               child: GestureDetector(
                 onTap: () => setState(() => _viewMode = tab.index),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  margin: const EdgeInsets.all(3),
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: isActive ? colors.accent : Colors.transparent,
-                    borderRadius: BorderRadius.circular(7),
+                    borderRadius: BorderRadius.circular(100),
+                    boxShadow: isActive
+                        ? [
+                            BoxShadow(
+                              color: colors.accent.withAlpha(60),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1285,15 +1265,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                       if (tab.icon != null) ...[
                         Icon(
                           tab.icon,
-                          size: 11,
+                          size: 12,
                           color: isActive ? Colors.white : colors.textMuted,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 5),
                       ],
                       Text(
                         tab.label,
                         style: GoogleFonts.manrope(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                           color: isActive ? Colors.white : colors.textMuted,
                         ),
@@ -1577,83 +1557,104 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Edit Story button
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => context.pop(),
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: colors.cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.edit_note_rounded, size: 20, color: colors.textPrimary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Edit',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                          ),
+              if (_saveError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 16, color: AppColors.error),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _saveError!,
+                          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.error),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Save Memory button — direct save, no confirmation sheet
-              Expanded(
-                flex: 2,
-                child: GestureDetector(
-                  onTap: (_isSaving || _isPolishing) ? null : _saveEntry,
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: (_isSaving || _isPolishing)
-                          ? colors.accent.withAlpha(120)
-                          : colors.accent,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: (_isSaving || _isPolishing)
-                          ? []
-                          : [
-                              BoxShadow(
-                                color: colors.accent.withAlpha(70),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
+              Row(
+                children: [
+                  // Edit Story button
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => context.pop(),
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: colors.cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.edit_note_rounded, size: 20, color: colors.textPrimary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Edit',
+                              style: GoogleFonts.manrope(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: colors.textPrimary,
                               ),
-                            ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _isSaving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.bookmark_added_rounded, size: 20, color: Colors.white),
-                        const SizedBox(width: 6),
-                        Text(
-                          _isSaving ? 'Saving...' : 'Save Memory',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  // Save Memory button — direct save, no confirmation sheet
+                  Expanded(
+                    flex: 2,
+                    child: GestureDetector(
+                      onTap: (_isSaving || _isPolishing) ? null : _saveEntry,
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: (_isSaving || _isPolishing)
+                              ? colors.accent.withAlpha(120)
+                              : colors.accent,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: (_isSaving || _isPolishing)
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color: colors.accent.withAlpha(70),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.bookmark_added_rounded, size: 20, color: Colors.white),
+                            const SizedBox(width: 6),
+                            Text(
+                              _isSaving ? 'Saving...' : 'Save Memory',
+                              style: GoogleFonts.manrope(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -20,32 +20,37 @@ void main() {
       expect(find.byType(CheckInScreen), findsOneWidget);
     });
 
-    testWidgets('shows mood selection prompt', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.textContaining('feeling today'), findsOneWidget);
-    });
-
-    testWidgets('shows mood options', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('Great'), findsOneWidget);
-      expect(find.text('Good'), findsOneWidget);
-      expect(find.text('Okay'), findsOneWidget);
-      expect(find.text('Low'), findsOneWidget);
-      expect(find.text('Tough'), findsOneWidget);
-    });
-
-    testWidgets('shows Aura header', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('Aura'), findsOneWidget);
-    });
-
     testWidgets('renders a Scaffold', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(Scaffold), findsOneWidget);
+    });
+
+    testWidgets('shows Chat header title', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Chat'), findsOneWidget);
+    });
+
+    testWidgets('shows empty state prompt text', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.textContaining("What's on your mind"), findsOneWidget);
+    });
+
+    testWidgets('shows prompt cards in empty state', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(const Duration(milliseconds: 500));
+      // Prompt cards are shown; at least one should be visible
+      expect(find.byType(GestureDetector), findsWidgets);
+    });
+
+    testWidgets('does not show mood picker options', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(const Duration(milliseconds: 500));
+      // Mood options were removed in redesign
+      expect(find.text('Great'), findsNothing);
+      expect(find.text('Tough'), findsNothing);
     });
   });
 }

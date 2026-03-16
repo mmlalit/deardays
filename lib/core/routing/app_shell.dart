@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/services/sync/sync_service.dart';
+import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -30,11 +32,13 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    SyncService().onSyncComplete = _onSyncComplete;
     _prefetchData();
   }
 
   @override
   void dispose() {
+    SyncService().onSyncComplete = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -49,6 +53,31 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         _invalidateAndRefresh();
         _lastRefresh = now;
       }
+    }
+  }
+
+  /// Called by SyncService after pending operations sync to Supabase.
+  /// Refreshes providers and triggers semantic tagging for newly synced entries.
+  void _onSyncComplete(List<String> syncedEntryIds) {
+    if (!mounted) return;
+    _invalidateAndRefresh();
+    if (syncedEntryIds.isNotEmpty) {
+      _tagSyncedEntries(syncedEntryIds);
+    }
+  }
+
+  Future<void> _tagSyncedEntries(List<String> entryIds) async {
+    for (final id in entryIds) {
+      if (!mounted) return;
+      try {
+        final entry = await ref.read(journalRepositoryProvider).getEntry(id);
+        if (entry != null && !entry.tagsGenerated) {
+          unawaited(MemoryTaggingService().tagEntry(
+            entryId: id,
+            content: entry.content,
+          ));
+        }
+      } catch (_) {}
     }
   }
 

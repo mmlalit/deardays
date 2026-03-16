@@ -101,8 +101,19 @@ export async function checkRateLimit(
     };
   }
 
-  // 1. Check global daily cost cap
-  const { data: costData } = await supabase.rpc("get_daily_ai_cost");
+  // 1 + 2. Fetch global cost cap and per-user usage in parallel
+  const today = new Date().toISOString().split("T")[0];
+  const [{ data: costData }, { data: usage }] = await Promise.all([
+    supabase.rpc("get_daily_ai_cost"),
+    supabase
+      .from("ai_usage")
+      .select("call_count, estimated_tokens")
+      .eq("user_id", userId)
+      .eq("function_name", functionName)
+      .eq("call_date", today)
+      .single(),
+  ]);
+
   const dailyCost = typeof costData === "number" ? costData : 0;
 
   if (dailyCost >= getDailyCostCap()) {
@@ -113,17 +124,6 @@ export async function checkRateLimit(
       limit: dailyLimit,
     };
   }
-
-  // 2. Check per-user daily call limit
-  const today = new Date().toISOString().split("T")[0];
-
-  const { data: usage } = await supabase
-    .from("ai_usage")
-    .select("call_count, estimated_tokens")
-    .eq("user_id", userId)
-    .eq("function_name", functionName)
-    .eq("call_date", today)
-    .single();
 
   const currentCount = usage?.call_count ?? 0;
 

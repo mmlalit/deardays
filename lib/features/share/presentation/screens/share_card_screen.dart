@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/share/data/models/share_card_config.dart';
@@ -10,16 +12,16 @@ import 'package:deardays/features/share/presentation/widgets/share_card_preview.
 import 'package:deardays/features/share/services/share_card_renderer.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 
-class ShareCardScreen extends StatefulWidget {
+class ShareCardScreen extends ConsumerStatefulWidget {
   final JournalEntry entry;
 
   const ShareCardScreen({super.key, required this.entry});
 
   @override
-  State<ShareCardScreen> createState() => _ShareCardScreenState();
+  ConsumerState<ShareCardScreen> createState() => _ShareCardScreenState();
 }
 
-class _ShareCardScreenState extends State<ShareCardScreen> {
+class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
   final GlobalKey _repaintKey = GlobalKey();
   late TextEditingController _captionController;
   late ShareCardConfig _config;
@@ -38,14 +40,30 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
       showDate: true,
       showMood: true,
       showLocation: widget.entry.locationName != null,
-      photoUrl: _firstPhotoUrl(),
+      photoUrl: null, // resolved async below
     );
     _captionController = TextEditingController(text: fallback);
     _captionController.addListener(_onCaptionChanged);
 
+    _resolvePhotoUrl();
+
     if (AiService().isConfigured) {
       _generateAiSummary();
     }
+  }
+
+  Future<void> _resolvePhotoUrl() async {
+    final photos = widget.entry.media.where((m) => m.mediaType == 'photo').toList();
+    if (photos.isEmpty) return;
+    final storagePath = photos.first.storagePath;
+    try {
+      final url = storagePath.startsWith('http')
+          ? storagePath
+          : await ref.read(mediaServiceProvider).getSignedUrl(storagePath);
+      if (mounted) {
+        setState(() => _config = _config.copyWith(photoUrl: url));
+      }
+    } catch (_) {}
   }
 
   @override
@@ -55,11 +73,6 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
     super.dispose();
   }
 
-  String? _firstPhotoUrl() {
-    final photos = widget.entry.media.where((m) => m.mediaType == 'photo').toList();
-    if (photos.isEmpty) return null;
-    return photos.first.storagePath;
-  }
 
   String _generateFallbackSummary() {
     final text = widget.entry.polishedContent ?? widget.entry.content;

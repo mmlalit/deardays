@@ -90,7 +90,11 @@ class AuthService {
 
     if (response.user != null) {
       // Link this user to RevenueCat for purchase tracking.
-      await _revenueCat.login(response.user!.id);
+      // Wrapped in try-catch: RevenueCat is unsupported on some platforms
+      // (e.g. Windows) and must never break the login flow.
+      try {
+        await _revenueCat.login(response.user!.id);
+      } catch (_) {}
     }
 
     return response;

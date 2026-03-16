@@ -170,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen>
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
     } catch (e) {
-      if (mounted) _showError('Something went wrong. Please try again.');
+      if (mounted) _showError(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -974,11 +974,11 @@ class _LoginScreenState extends State<LoginScreen>
           const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: colors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: colors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

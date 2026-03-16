@@ -7,8 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/services/connectivity/connectivity_service.dart';
+import 'package:deardays/services/sync/sync_queue.dart';
+import 'package:deardays/services/sync/sync_operation.dart';
 
 /// Lightweight data object passed from ReviewSaveScreen -> PostSaveScreen.
 class PostSaveData {
@@ -16,12 +20,14 @@ class PostSaveData {
   final String title;
   final String content;
   final String? attachedPhotoPath;
+  final bool savedOffline;
 
   const PostSaveData({
     required this.entryId,
     required this.title,
     required this.content,
     this.attachedPhotoPath,
+    this.savedOffline = false,
   });
 }
 
@@ -47,13 +53,26 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     if (entryId != null) {
       setState(() => _isSaving = true);
       try {
-        await ref.read(journalRepositoryProvider).updateEntryChapter(
-              entryId,
-              _selectedChapterId!,
-            );
-        // Refresh chapters so entry_count updates
-        ref.invalidate(chaptersProvider);
-        ref.invalidate(chapterEntriesProvider(_selectedChapterId!));
+        if (ConnectivityService().isOnline) {
+          await ref.read(journalRepositoryProvider).updateEntryChapter(
+                entryId,
+                _selectedChapterId!,
+              );
+          ref.invalidate(chaptersProvider);
+          ref.invalidate(chapterEntriesProvider(_selectedChapterId!));
+        } else {
+          // Queue the chapter assignment for when connectivity is restored
+          final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+          await SyncQueue().enqueue(SyncOperation.create(
+            id: entryId,
+            type: SyncOperationType.update,
+            tableName: 'journal_entries',
+            payload: {
+              'chapter_id': _selectedChapterId!,
+              'user_id': userId,
+            },
+          ));
+        }
       } catch (_) {
         // Non-critical — memory is saved, chapter link is best-effort
       } finally {
@@ -474,6 +493,34 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                   ),
                 ),
               ),
+
+              if (resolvedData?.savedOffline == true) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.accent.withAlpha(60)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.cloud_off_rounded, size: 16, color: colors.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Saved locally — will sync when back online.',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: colors.accent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 40),
 

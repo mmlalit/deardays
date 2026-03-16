@@ -73,10 +73,18 @@ void main() {
     print('──────────────────────────────────────────');
     print(_raw.trim());
 
+    // Cold start
+    final t0cold = DateTime.now();
+    await ai.lightPolish(_raw);
+    final cold = DateTime.now().difference(t0cold).inMilliseconds;
+
+    // Warm
+    final t0 = DateTime.now();
     final polished = await ai.lightPolish(_raw);
+    final ms = DateTime.now().difference(t0).inMilliseconds;
 
     print('\n══════════════════════════════════════════');
-    print('LIGHT POLISH (grammar/spelling fixed):');
+    print('LIGHT POLISH  ⏱ cold=${cold}ms  warm=${ms}ms');
     print('──────────────────────────────────────────');
     print(polished.trim());
     print('══════════════════════════════════════════\n');
@@ -90,10 +98,18 @@ void main() {
       return;
     }
 
+    // Cold start
+    final t0cold = DateTime.now();
+    await ai.polishNarrative(_raw, style: 'memoir');
+    final cold = DateTime.now().difference(t0cold).inMilliseconds;
+
+    // Warm
+    final t0 = DateTime.now();
     final story = await ai.polishNarrative(_raw, style: 'memoir');
+    final ms = DateTime.now().difference(t0).inMilliseconds;
 
     print('\n══════════════════════════════════════════');
-    print('MEMOIR STORY:');
+    print('MEMOIR STORY  ⏱ cold=${cold}ms  warm=${ms}ms');
     print('──────────────────────────────────────────');
     print(story.trim());
     print('══════════════════════════════════════════\n');
@@ -120,12 +136,20 @@ void main() {
       print('${m['role']!.toUpperCase()}: ${m['content']}');
     }
 
+    // Cold start
+    final t0cold = DateTime.now();
+    await ai.chat(messages: conversation, mood: 'tough');
+    final cold = DateTime.now().difference(t0cold).inMilliseconds;
+
+    // Warm
+    final t0 = DateTime.now();
     final reply = await ai.chat(
       messages: conversation,
       mood: 'tough',
     );
+    final ms = DateTime.now().difference(t0).inMilliseconds;
 
-    print('\nAI REPLY:');
+    print('\nAI REPLY  ⏱ cold=${cold}ms  warm=${ms}ms');
     print('──────────────────────────────────────────');
     print(reply.trim());
     print('══════════════════════════════════════════\n');

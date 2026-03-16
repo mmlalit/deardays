@@ -56,7 +56,8 @@ class SyncService {
   bool _queueReady = false;
 
   /// Callback invoked after a successful sync so the UI can refresh providers.
-  VoidCallback? onSyncComplete;
+  /// Receives the IDs of entries that were created during this sync cycle.
+  void Function(List<String> syncedEntryIds)? onSyncComplete;
 
   /// Initialize: listen for connectivity changes and trigger sync.
   Future<void> init() async {
@@ -110,6 +111,7 @@ class SyncService {
     bool hadErrors = false;
     bool hadSuccess = false;
     int failedCount = 0;
+    final syncedCreatedIds = <String>[];
 
     for (final entry in entries) {
       final key = entry.key;
@@ -130,6 +132,9 @@ class SyncService {
         await _replayOperation(op);
         await queue.dequeue(key);
         hadSuccess = true;
+        if (op.type == SyncOperationType.create) {
+          syncedCreatedIds.add(op.id);
+        }
         // Remove from local cache after successful sync
         if (op.type == SyncOperationType.create ||
             op.type == SyncOperationType.update) {
@@ -178,7 +183,7 @@ class SyncService {
 
     // Notify the UI to refresh data after successful syncs
     if (hadSuccess) {
-      onSyncComplete?.call();
+      onSyncComplete?.call(syncedCreatedIds);
     }
   }
 

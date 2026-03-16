@@ -134,8 +134,10 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
+  // Non-resizable portrait window: no maximize box, no resize border.
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+      window_class, title.c_str(),
+      WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
@@ -143,6 +145,18 @@ bool Win32Window::Create(const std::wstring& title,
   if (!window) {
     return false;
   }
+
+  // Center the window on the primary monitor (physical pixels).
+  RECT wr;
+  GetWindowRect(window, &wr);
+  int win_w = wr.right - wr.left;
+  int win_h = wr.bottom - wr.top;
+  int screen_w = GetSystemMetrics(SM_CXSCREEN);
+  int screen_h = GetSystemMetrics(SM_CYSCREEN);
+  int cx = (screen_w - win_w) / 2;
+  int cy = (screen_h - win_h) / 2;
+  if (cy < 0) cy = 0;
+  SetWindowPos(window, nullptr, cx, cy, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
 
   UpdateTheme(window);
 

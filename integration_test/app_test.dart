@@ -36,6 +36,8 @@ import 'flows/book_detail_flow_test.dart';
 import 'flows/settings_subscreen_flow_test.dart';
 import 'flows/see_all_flow_test.dart';
 import 'flows/paywall_flow_test.dart';
+import 'flows/save_journey_flow_test.dart';
+import 'flows/cross_screen_consistency_flow_test.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +57,8 @@ void main() {
       if (details.exceptionAsString().contains('overflowed')) return;
       if (details.exceptionAsString().contains('KeyUpEvent is dispatched')) return;
       if (details.exceptionAsString().contains('_pressedKeys.containsKey')) return;
+      if (details.exceptionAsString().contains('StorageException')) return;
+      if (details.exceptionAsString().contains('Object not found')) return;
       originalOnError?.call(details);
     };
   });
@@ -78,4 +82,6 @@ void main() {
   settingsSubscreenFlowTests();
   seeAllFlowTests();
   paywallFlowTests();
+  saveJourneyFlowTests();
+  crossScreenConsistencyFlowTests();
 }

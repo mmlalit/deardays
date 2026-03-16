@@ -13,26 +13,64 @@
   <title>DearDays — Your life, your story.</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    body {
+    html, body {
       margin: 0;
       padding: 0;
-      background-color: #f8f7f6;
+      height: 100%;
+      width: 100%;
+      background-color: #1e293b;
       overflow: hidden;
     }
+
+    /* Flutter renders its view as a direct child of body.
+       We constrain it via CSS to a phone-sized centered frame. */
+    body > flutter-view,
+    body > flt-glass-pane {
+      position: absolute !important;
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      width: min(430px, 100vw) !important;
+      height: min(932px, 90vh) !important;
+      overflow: hidden !important;
+      border-radius: 40px;
+      box-shadow: 0 0 60px rgba(0,0,0,0.3);
+      border: 8px solid #111;
+    }
+
+    /* On actual mobile, go full screen */
+    @media (max-width: 499px) {
+      html, body {
+        background-color: #f8f7f6;
+      }
+      body > flutter-view,
+      body > flt-glass-pane {
+        width: 100vw !important;
+        height: 100vh !important;
+        border-radius: 0;
+        box-shadow: none;
+        border: none;
+      }
+    }
+
     .loading {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
       font-family: 'Inter', sans-serif;
       color: #d4a373;
+      z-index: 10;
     }
     .loading h1 {
       font-family: 'Playfair Display', serif;
       font-size: 28px;
       margin-bottom: 8px;
-      color: #1e293b;
+      color: #f8f7f6;
     }
     .loading p {
       font-size: 14px;
@@ -45,6 +83,16 @@
     <h1>DearDays</h1>
     <p>Loading your story...</p>
   </div>
+  <script>
+    // Hide loading screen once Flutter view is ready
+    new MutationObserver(function(mutations, observer) {
+      if (document.querySelector('flutter-view') || document.querySelector('flt-glass-pane')) {
+        var el = document.getElementById('loading');
+        if (el) el.style.display = 'none';
+        observer.disconnect();
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

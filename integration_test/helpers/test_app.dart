@@ -5,7 +5,10 @@
 /// All data providers are overridden with mock data.
 library;
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +32,7 @@ import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/media/media_service.dart';
 
 // ── Screens ──────────────────────────────────────────────────────────────────
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
@@ -67,18 +71,25 @@ Future<void> initE2EApp() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Supabase: real client, but no stored session → currentUser = null.
+  // Supabase: initialize with real or dummy credentials so that
+  // Supabase.instance is always accessible (e.g. _FakeMediaService, home_screen).
   // No actual DB calls because all providers are overridden below.
-  if (SupabaseConfig.supabaseUrl.isNotEmpty) {
-    try {
-      await Supabase.initialize(
-        url: SupabaseConfig.supabaseUrl,
-        anonKey: SupabaseConfig.supabaseAnonKey,
-      );
-    } catch (_) {
-      // Already initialized by a previous test run in the same process.
-    }
+  final url = SupabaseConfig.supabaseUrl.isNotEmpty
+      ? SupabaseConfig.supabaseUrl
+      : 'https://placeholder.supabase.co';
+  final anonKey = SupabaseConfig.supabaseAnonKey.isNotEmpty
+      ? SupabaseConfig.supabaseAnonKey
+      : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MTkwMDAwMDAwMH0.placeholder';
+  try {
+    await Supabase.initialize(url: url, anonKey: anonKey);
+  } catch (_) {
+    // Already initialized by a previous test run in the same process.
   }
+
+  // Intercept HTTP requests so CachedNetworkImage resolves instantly
+  // (returns a 1×1 transparent PNG) instead of hanging pumpAndSettle().
+  // Set AFTER Supabase.initialize() so Supabase's internal setup is not affected.
+  HttpOverrides.global = _TestHttpOverrides();
 
   // Hive: needed by CheckInNotifier local persistence.
   await Hive.initFlutter(Directory.systemTemp.path);
@@ -149,6 +160,8 @@ List<Override> _e2eOverrides() {
     ]),
     // Prevent CheckInNotifier from initialising speech_to_text (hangs on Windows)
     checkInProvider.overrideWith((ref) => _FakeCheckInNotifier()),
+    // Prevent signed URL requests to real Supabase Storage for mock photo paths
+    mediaServiceProvider.overrideWith((_) => _FakeMediaService()),
   ];
 }
 
@@ -304,6 +317,34 @@ class _E2EAppState extends ConsumerState<_E2EApp> {
 // Fake CheckInNotifier — skips Hive box load and speech_to_text init
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Fake MediaService — returns placeholder URLs, no real Supabase Storage calls
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FakeMediaService extends MediaService {
+  _FakeMediaService() : super(client: Supabase.instance.client);
+
+  @override
+  Future<String> getSignedUrl(String storagePath) async =>
+      'https://placeholder.test/$storagePath';
+
+  @override
+  String getPublicUrl(String storagePath) {
+    if (storagePath.startsWith('http')) return storagePath;
+    return 'https://placeholder.test/$storagePath';
+  }
+
+  @override
+  String getThumbnailUrl(String storagePath) {
+    if (storagePath.startsWith('http')) return storagePath;
+    return 'https://placeholder.test/thumb/$storagePath';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fake CheckInNotifier — skips Hive box load and speech_to_text init
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _FakeCheckInNotifier extends CheckInNotifier {
   _FakeCheckInNotifier() : super(AiService(), loadData: false);
 
@@ -317,4 +358,318 @@ class _FakeCheckInNotifier extends CheckInNotifier {
       isFirstCheckInToday: false,
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTP override — returns a 1×1 transparent PNG for all requests so that
+// CachedNetworkImage (and any other network image loader) resolves instantly
+// instead of hanging pumpAndSettle() with real HTTP timeouts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 1×1 transparent PNG (67 bytes).
+final _transparentPixel = Uint8List.fromList([
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x62, 0x00, 0x00, 0x00, 0x02,
+  0x00, 0x01, 0xE5, 0x27, 0xDE, 0xFC, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+  0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+]);
+
+class _TestHttpOverrides extends HttpOverrides {
+  final HttpOverrides? _previous = HttpOverrides.current;
+
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    // Create the real client (for Supabase, etc.) and wrap it.
+    final realClient = _previous != null
+        ? _previous.createHttpClient(context)
+        : super.createHttpClient(context);
+    return _ImageInterceptingHttpClient(realClient);
+  }
+}
+
+/// Wraps a real [HttpClient] but returns a fake 1×1 PNG for image-like URLs
+/// (placeholder.test, .jpg, .png, .webp). All other requests pass through to
+/// the real client so Supabase init and API calls still work.
+class _ImageInterceptingHttpClient implements HttpClient {
+  final HttpClient _real;
+  _ImageInterceptingHttpClient(this._real);
+
+  static bool _shouldIntercept(Uri url) {
+    final host = url.host;
+    final path = url.path.toLowerCase();
+    // Intercept placeholder hosts (mock images + dummy Supabase)
+    if (host == 'placeholder.test') return true;
+    if (host == 'placeholder.supabase.co') return true;
+    // Intercept image file extensions
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png') || path.endsWith('.webp')) return true;
+    return false;
+  }
+
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) async =>
+      _shouldIntercept(url) ? _FakeHttpRequest(url) : _real.getUrl(url);
+  @override
+  Future<HttpClientRequest> openUrl(String method, Uri url) async =>
+      _shouldIntercept(url) ? _FakeHttpRequest(url) : _real.openUrl(method, url);
+  @override
+  Future<HttpClientRequest> headUrl(Uri url) async =>
+      _shouldIntercept(url) ? _FakeHttpRequest(url) : _real.headUrl(url);
+  @override
+  Future<HttpClientRequest> postUrl(Uri url) async => _real.postUrl(url);
+  @override
+  Future<HttpClientRequest> putUrl(Uri url) async => _real.putUrl(url);
+  @override
+  Future<HttpClientRequest> deleteUrl(Uri url) async => _real.deleteUrl(url);
+  @override
+  Future<HttpClientRequest> patchUrl(Uri url) async => _real.patchUrl(url);
+  @override
+  Future<HttpClientRequest> open(String method, String host, int port, String path) =>
+      _real.open(method, host, port, path);
+  @override
+  Future<HttpClientRequest> get(String host, int port, String path) =>
+      _real.get(host, port, path);
+  @override
+  Future<HttpClientRequest> head(String host, int port, String path) =>
+      _real.head(host, port, path);
+  @override
+  Future<HttpClientRequest> post(String host, int port, String path) =>
+      _real.post(host, port, path);
+  @override
+  Future<HttpClientRequest> put(String host, int port, String path) =>
+      _real.put(host, port, path);
+  @override
+  Future<HttpClientRequest> delete(String host, int port, String path) =>
+      _real.delete(host, port, path);
+  @override
+  Future<HttpClientRequest> patch(String host, int port, String path) =>
+      _real.patch(host, port, path);
+
+  // Delegate all property access to the real client
+  @override
+  bool get autoUncompress => _real.autoUncompress;
+  @override
+  set autoUncompress(bool value) => _real.autoUncompress = value;
+  @override
+  Duration? get connectionTimeout => _real.connectionTimeout;
+  @override
+  set connectionTimeout(Duration? value) => _real.connectionTimeout = value;
+  @override
+  Duration get idleTimeout => _real.idleTimeout;
+  @override
+  set idleTimeout(Duration value) => _real.idleTimeout = value;
+  @override
+  int? get maxConnectionsPerHost => _real.maxConnectionsPerHost;
+  @override
+  set maxConnectionsPerHost(int? value) => _real.maxConnectionsPerHost = value;
+  @override
+  String? get userAgent => _real.userAgent;
+  @override
+  set userAgent(String? value) => _real.userAgent = value;
+  @override
+  void addCredentials(Uri url, String realm, HttpClientCredentials credentials) =>
+      _real.addCredentials(url, realm, credentials);
+  @override
+  void addProxyCredentials(String host, int port, String realm, HttpClientCredentials credentials) =>
+      _real.addProxyCredentials(host, port, realm, credentials);
+  @override
+  set authenticate(Future<bool> Function(Uri url, String scheme, String? realm)? f) =>
+      _real.authenticate = f;
+  @override
+  set authenticateProxy(Future<bool> Function(String host, int port, String scheme, String? realm)? f) =>
+      _real.authenticateProxy = f;
+  @override
+  set badCertificateCallback(bool Function(X509Certificate cert, String host, int port)? callback) =>
+      _real.badCertificateCallback = callback;
+  @override
+  set connectionFactory(Future<ConnectionTask<Socket>> Function(Uri url, String? proxyHost, int? proxyPort)? f) =>
+      _real.connectionFactory = f;
+  @override
+  set findProxy(String Function(Uri url)? f) => _real.findProxy = f;
+  @override
+  set keyLog(Function(String line)? callback) => _real.keyLog = callback;
+  @override
+  void close({bool force = false}) => _real.close(force: force);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+class _FakeHttpHeaders implements HttpHeaders {
+  final _headers = <String, List<String>>{};
+
+  @override
+  List<String>? operator [](String name) => _headers[name];
+  @override
+  void add(String name, Object value, {bool preserveHeaderCase = false}) {
+    _headers.putIfAbsent(name, () => []).add(value.toString());
+  }
+  @override
+  void set(String name, Object value, {bool preserveHeaderCase = false}) {
+    _headers[name] = [value.toString()];
+  }
+  @override
+  void remove(String name, Object value) {}
+  @override
+  void removeAll(String name) {}
+  @override
+  String? value(String name) => _headers[name]?.first;
+  @override
+  void forEach(void Function(String name, List<String> values) action) {
+    _headers.forEach(action);
+  }
+  @override
+  void noFolding(String name) {}
+  @override
+  void clear() => _headers.clear();
+
+  // Stub all remaining getters/setters
+  @override
+  bool chunkedTransferEncoding = false;
+  @override
+  int contentLength = -1;
+  @override
+  ContentType? contentType;
+  @override
+  DateTime? date;
+  @override
+  DateTime? expires;
+  @override
+  String? host;
+  @override
+  DateTime? ifModifiedSince;
+  @override
+  bool persistentConnection = true;
+  @override
+  int? port;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+class _FakeHttpRequest implements HttpClientRequest {
+  final Uri _uri;
+  _FakeHttpRequest(this._uri);
+
+  @override
+  Uri get uri => _uri;
+  @override
+  String get method => 'GET';
+  @override
+  HttpHeaders get headers => _FakeHttpHeaders();
+  @override
+  List<Cookie> get cookies => [];
+  @override
+  int get contentLength => -1;
+  @override
+  set contentLength(int value) {}
+  @override
+  bool get persistentConnection => false;
+  @override
+  set persistentConnection(bool value) {}
+  @override
+  bool get followRedirects => true;
+  @override
+  set followRedirects(bool value) {}
+  @override
+  int get maxRedirects => 5;
+  @override
+  set maxRedirects(int value) {}
+  @override
+  bool get bufferOutput => true;
+  @override
+  set bufferOutput(bool value) {}
+  @override
+  Encoding get encoding => utf8;
+  @override
+  set encoding(Encoding value) {}
+  @override
+  HttpConnectionInfo? get connectionInfo => null;
+  @override
+  void add(List<int> data) {}
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {}
+  @override
+  Future addStream(Stream<List<int>> stream) async {}
+  @override
+  void write(Object? object) {}
+  @override
+  void writeAll(Iterable objects, [String separator = '']) {}
+  @override
+  void writeCharCode(int charCode) {}
+  @override
+  void writeln([Object? object = '']) {}
+  @override
+  Future<HttpClientResponse> close() async => _FakeHttpResponse(_uri);
+  @override
+  Future flush() async {}
+  @override
+  Future<HttpClientResponse> get done async => _FakeHttpResponse(_uri);
+  @override
+  void abort([Object? exception, StackTrace? stackTrace]) {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+class _FakeHttpResponse extends Stream<List<int>> implements HttpClientResponse {
+  final Uri _uri;
+  _FakeHttpResponse(this._uri);
+
+  bool get _isImage {
+    final path = _uri.path.toLowerCase();
+    return _uri.host == 'placeholder.test' ||
+        path.endsWith('.jpg') || path.endsWith('.jpeg') ||
+        path.endsWith('.png') || path.endsWith('.webp');
+  }
+
+  late final Uint8List _body = _isImage
+      ? _transparentPixel
+      : Uint8List.fromList(utf8.encode('{}'));
+
+  @override
+  int get statusCode => 200;
+  @override
+  String get reasonPhrase => 'OK';
+  @override
+  int get contentLength => _body.length;
+  @override
+  HttpHeaders get headers => _FakeHttpHeaders();
+  @override
+  List<Cookie> get cookies => [];
+  @override
+  HttpClientResponseCompressionState get compressionState =>
+      HttpClientResponseCompressionState.notCompressed;
+  @override
+  bool get persistentConnection => false;
+  @override
+  bool get isRedirect => false;
+  @override
+  List<RedirectInfo> get redirects => [];
+  @override
+  HttpConnectionInfo? get connectionInfo => null;
+  @override
+  X509Certificate? get certificate => null;
+  @override
+  Future<HttpClientResponse> redirect([String? method, Uri? url, bool? followLoops]) async => this;
+  @override
+  Future<Socket> detachSocket() => throw UnsupportedError('detachSocket');
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return Stream.fromIterable([_body]).listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
 }

@@ -223,6 +223,7 @@ class JournalEntry {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    if (tags.isNotEmpty) map['tags'] = tags;
     // Remove null values so Supabase uses DB defaults
     map.removeWhere((_, v) => v == null);
     return map;

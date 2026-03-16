@@ -1,3 +1,6 @@
+# Secrets
+dart_defines.env
+
 # Miscellaneous
 *.class
 *.log
@@ -30,7 +33,6 @@ migrate_working_dir/
 pubspec.lock
 
 # Web related
-lib/generated_plugin_registrant.dart
 
 # Symbolication related
 app.*.symbols
