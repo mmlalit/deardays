@@ -1,7 +1,7 @@
 import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { chat } from "../_shared/ai-providers.ts";
+import { chat, chatStream } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -12,7 +12,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     const { isPremium, userId } = await getUserTier(authHeader);
 
-    const { messages, mood, is_first_checkin, language } = await req.json();
+    const { messages, mood, is_first_checkin, language, stream } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -60,8 +60,37 @@ Deno.serve(async (req: Request) => {
     }
 
     const systemPrompt = parts.join("\n");
-    const text = await chat(messages, systemPrompt);
 
+    // ── Streaming path ────────────────────────────────────────────────
+    if (stream) {
+      const encoder = new TextEncoder();
+      const body = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of chatStream(messages, systemPrompt)) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
+            }
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Stream error";
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+          } finally {
+            controller.close();
+          }
+        },
+      });
+      return new Response(body, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
+    // ── Non-streaming path (fallback) ─────────────────────────────────
+    const text = await chat(messages, systemPrompt);
     return new Response(
       JSON.stringify({ text }),
       { headers: noCacheHeaders },
