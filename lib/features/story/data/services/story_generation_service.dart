@@ -88,7 +88,7 @@ class StoryGenerationService {
     final people = entries.expand((e) => e.people).toSet().toList();
     final moods = entries.map((e) => e.mood).whereType<String>().toSet().toList();
 
-    final story = await _ai.generateWeeklyStory(
+    final result = await _ai.generateWeeklyStory(
       dailyTexts,
       tags: tags,
       people: people,
@@ -97,15 +97,16 @@ class StoryGenerationService {
     );
     _credits.consume(AiOperation.summary);
 
-    // Extract theme from the generated story (much shorter than re-sending raw entries).
+    // Analyse story in one call: theme + highlight (replaces two separate calls).
     String? theme;
     try {
       if (_credits.canUse(AiOperation.themes)) {
-        theme = await _ai.extractStoryTheme([story]);
+        final analysis = await _ai.analyzeStory(result.story);
+        theme = analysis['theme'];
         _credits.consume(AiOperation.themes);
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[StoryGenerationService] theme extraction failed: $e');
+      if (kDebugMode) debugPrint('[StoryGenerationService] story analysis failed: $e');
     }
 
     final keyMomentIds = extractKeyMoments(entries).map((e) => e.id).toList();
@@ -115,7 +116,8 @@ class StoryGenerationService {
       level: StoryLevelType.weekly,
       periodStart: StoryNode.weekStart(weekDate),
       periodEnd: StoryNode.weekEnd(weekDate),
-      generatedStory: story,
+      generatedStory: result.story,
+      summary: result.summary,
       theme: theme,
       keyMomentIds: keyMomentIds,
       generatedAt: DateTime.now(),
@@ -161,7 +163,10 @@ class StoryGenerationService {
         weekNode = await generateWeekly(weekDate, texts,
             entries: entries, language: language);
       }
-      if (weekNode.isGenerated) weeklyStories.add(weekNode.generatedStory!);
+      // Use short summary as input if available — avoids sending full story text
+      if (weekNode.isGenerated) {
+        weeklyStories.add(weekNode.summary ?? weekNode.generatedStory!);
+      }
     }
 
     if (weeklyStories.isEmpty) {
@@ -177,7 +182,7 @@ class StoryGenerationService {
     final people = allMonthEntries.expand((e) => e.people).toSet().toList();
     final moods = allMonthEntries.map((e) => e.mood).whereType<String>().toSet().toList();
 
-    final story = await _ai.generateMonthlyStory(
+    final result = await _ai.generateMonthlyStory(
       weeklyStories,
       tags: tags,
       people: people,
@@ -189,7 +194,8 @@ class StoryGenerationService {
     String? theme;
     try {
       if (_credits.canUse(AiOperation.themes)) {
-        theme = await _ai.extractStoryTheme([story]);
+        final analysis = await _ai.analyzeStory(result.story);
+        theme = analysis['theme'];
         _credits.consume(AiOperation.themes);
       }
     } catch (_) {}
@@ -201,7 +207,8 @@ class StoryGenerationService {
       level: StoryLevelType.monthly,
       periodStart: DateTime(year, month, 1),
       periodEnd: DateTime(year, month + 1, 0),
-      generatedStory: story,
+      generatedStory: result.story,
+      summary: result.summary,
       theme: theme,
       keyMomentIds: keyMomentIds,
       generatedAt: DateTime.now(),
@@ -245,13 +252,16 @@ class StoryGenerationService {
       throw AiServiceException('No summary credits remaining');
     }
 
-    final monthlyTexts = yearMonthly.map((n) => n.generatedStory!).toList();
+    // Use short summary as input if available — avoids sending full monthly stories
+    final monthlySummaries = yearMonthly
+        .map((n) => n.summary ?? n.generatedStory!)
+        .toList();
     final tags = allYearEntries.expand((e) => e.tags).toSet().toList();
     final people = allYearEntries.expand((e) => e.people).toSet().toList();
     final moods = allYearEntries.map((e) => e.mood).whereType<String>().toSet().toList();
 
-    final story = await _ai.generateYearlyStory(
-      monthlyTexts,
+    final result = await _ai.generateYearlyStory(
+      monthlySummaries,
       tags: tags,
       people: people,
       moods: moods,
@@ -262,7 +272,8 @@ class StoryGenerationService {
     String? theme;
     try {
       if (_credits.canUse(AiOperation.themes)) {
-        theme = await _ai.extractStoryTheme([story]);
+        final analysis = await _ai.analyzeStory(result.story);
+        theme = analysis['theme'];
         _credits.consume(AiOperation.themes);
       }
     } catch (_) {}
@@ -274,7 +285,8 @@ class StoryGenerationService {
       level: StoryLevelType.yearly,
       periodStart: DateTime(year, 1, 1),
       periodEnd: DateTime(year, 12, 31),
-      generatedStory: story,
+      generatedStory: result.story,
+      summary: result.summary,
       theme: theme,
       keyMomentIds: keyMomentIds,
       generatedAt: DateTime.now(),

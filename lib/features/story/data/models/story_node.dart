@@ -20,6 +20,11 @@ class StoryNode {
   /// AI-generated narrative text. Null means not yet generated.
   final String? generatedStory;
 
+  /// Short summary of the period (≤60 words weekly, ≤100 monthly, ≤200 yearly).
+  /// Generated in the same AI call as [generatedStory] — no extra cost.
+  /// Used by [reflectionSummaryProvider] to avoid a second AI call.
+  final String? summary;
+
   /// 1–3 word theme extracted by AI (e.g. "New Beginnings").
   final String? theme;
 
@@ -35,6 +40,7 @@ class StoryNode {
     required this.periodStart,
     required this.periodEnd,
     this.generatedStory,
+    this.summary,
     this.theme,
     this.keyMomentIds = const [],
     this.generatedAt,
@@ -44,6 +50,7 @@ class StoryNode {
 
   StoryNode copyWith({
     String? generatedStory,
+    String? summary,
     String? theme,
     List<String>? keyMomentIds,
     DateTime? generatedAt,
@@ -54,6 +61,7 @@ class StoryNode {
       periodStart: periodStart,
       periodEnd: periodEnd,
       generatedStory: generatedStory ?? this.generatedStory,
+      summary: summary ?? this.summary,
       theme: theme ?? this.theme,
       keyMomentIds: keyMomentIds ?? this.keyMomentIds,
       generatedAt: generatedAt ?? this.generatedAt,
@@ -76,6 +84,7 @@ class StoryNode {
         'period_start': periodStart.toIso8601String(),
         'period_end': periodEnd.toIso8601String(),
         if (generatedStory != null) 'generated_story': generatedStory,
+        if (summary != null) 'summary': summary,
         if (theme != null) 'theme': theme,
         'key_moment_ids': keyMomentIds,
         if (generatedAt != null) 'generated_at': generatedAt!.toIso8601String(),
@@ -91,6 +100,7 @@ class StoryNode {
       periodStart: DateTime.parse(json['period_start'] as String),
       periodEnd: DateTime.parse(json['period_end'] as String),
       generatedStory: json['generated_story'] as String?,
+      summary: json['summary'] as String?,
       theme: json['theme'] as String?,
       keyMomentIds: List<String>.from(json['key_moment_ids'] as List? ?? []),
       generatedAt: json['generated_at'] != null

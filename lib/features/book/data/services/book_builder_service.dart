@@ -7,14 +7,13 @@ import 'package:deardays/features/book/data/models/book_page.dart';
 /// Builds the ordered list of [BookPage]s for any [BookMode].
 ///
 /// The page structure is always:
-///   0  Cover
-///   1  Title page
-///   2  Introduction
-///   3  Table of Contents  (indices filled in after body is built)
-///   4+ Body pages (dividers + time bridges + memory pages)
+///   0  Cover  (with happiest memory photo as background)
+///   1  Introduction
+///   2  Table of Contents  (indices filled in after body is built)
+///   3+ Body pages (dividers + time bridges + memory pages)
 ///   N  Closing page
 ///
-/// AI is NOT used here. Monthly reflections are template-based
+/// DearDays story is NOT generated here. Monthly reflections are template-based
 /// ("You wrote N times in Month.") — factual, zero hallucination risk.
 class BookBuilderService {
   static final _monthFmt = DateFormat('MMMM');
@@ -41,26 +40,17 @@ class BookBuilderService {
       authorName: authorName,
       dateRange: dateRange,
       memoryCount: sorted.length,
-    ));
-
-    pages.add(TitleBookPage(
-      title: 'My Life Book',
-      subtitle: switch (mode) {
-        BookMode.byChapter => 'A memoir by chapter',
-        BookMode.byTime    => 'Year by year',
-        BookMode.stream    => 'A complete memoir',
-      },
-      dateRange: dateRange,
+      coverPhotoPath: _happiestPhotoPath(sorted),
     ));
 
     pages.add(IntroductionBookPage(text: _introText(sorted, authorName)));
 
     // TOC placeholder — filled in below after we know body page indices
-    final tocIndex = pages.length; // always 3
+    final tocIndex = pages.length; // always 2
     pages.add(const TocBookPage(entries: []));
 
     // ── Body ───────────────────────────────────────────────────────────────
-    final bodyStart = pages.length; // always 4
+    final bodyStart = pages.length; // always 3
     switch (mode) {
       case BookMode.stream:
         pages.addAll(_streamPages(sorted));
@@ -76,31 +66,49 @@ class BookBuilderService {
       startDateLabel: _shortFmt.format(sorted.first.entryDate),
     ));
 
-    // ── Build TOC by scanning body for divider pages ───────────────────────
+    // ── Build TOC by scanning body pages ──────────────────────────────────────
     final tocEntries = <TocEntry>[
-      const TocEntry(label: 'Introduction', pageIndex: 2),
+      const TocEntry(label: 'Introduction', pageIndex: 1),
     ];
-    for (int i = bodyStart; i < pages.length; i++) {
-      final p = pages[i];
-      if (p is YearDividerPage) {
-        tocEntries.add(TocEntry(
-          label: p.year.toString(),
-          meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
-          pageIndex: i,
-        ));
-      } else if (p is MonthDividerPage) {
-        tocEntries.add(TocEntry(
-          label: _monthFmt.format(DateTime(p.year, p.month)),
-          meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
-          pageIndex: i,
-          isSubEntry: true,
-        ));
-      } else if (p is ChapterDividerPage) {
-        tocEntries.add(TocEntry(
-          label: p.chapter.title,
-          meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
-          pageIndex: i,
-        ));
+
+    if (mode == BookMode.stream) {
+      // Stream mode has no dividers — group first memory of each month
+      String? lastMonthKey;
+      for (int i = bodyStart; i < pages.length; i++) {
+        final p = pages[i];
+        if (p is MemoryBookPage) {
+          final d = p.entry.entryDate;
+          final mk = '${d.year}-${d.month}';
+          if (mk != lastMonthKey) {
+            lastMonthKey = mk;
+            final label = DateFormat('MMMM yyyy').format(d);
+            tocEntries.add(TocEntry(label: label, pageIndex: i));
+          }
+        }
+      }
+    } else {
+      for (int i = bodyStart; i < pages.length; i++) {
+        final p = pages[i];
+        if (p is YearDividerPage) {
+          tocEntries.add(TocEntry(
+            label: p.year.toString(),
+            meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
+            pageIndex: i,
+          ));
+        } else if (p is MonthDividerPage) {
+          tocEntries.add(TocEntry(
+            label: _monthFmt.format(DateTime(p.year, p.month)),
+            meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
+            pageIndex: i,
+            isSubEntry: true,
+          ));
+        } else if (p is ChapterDividerPage) {
+          tocEntries.add(TocEntry(
+            label: p.chapter.title,
+            meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
+            pageIndex: i,
+          ));
+        }
       }
     }
     pages[tocIndex] = TocBookPage(entries: tocEntries);
@@ -108,18 +116,13 @@ class BookBuilderService {
     return pages;
   }
 
-  // ── Stream: all entries linked by time bridges ─────────────────────────────
+  // ── Stream: all entries in order ───────────────────────────────────────────
   List<BookPage> _streamPages(List<JournalEntry> entries) {
-    final out = <BookPage>[];
-    for (int i = 0; i < entries.length; i++) {
-      if (i > 0) {
-        out.add(TimeBridgePage(
-          label: _bridge(entries[i].entryDate.difference(entries[i - 1].entryDate)),
-        ));
-      }
-      out.add(MemoryBookPage(entry: entries[i], isFirstInSection: i == 0));
-    }
-    return out;
+    return entries
+        .asMap()
+        .entries
+        .map((e) => MemoryBookPage(entry: e.value, isFirstInSection: e.key == 0))
+        .toList();
   }
 
   // ── By time: year divider → month divider → entries ───────────────────────
@@ -143,11 +146,6 @@ class BookBuilderService {
           reflection: _monthReflection(mes, month, year),
         ));
         for (int i = 0; i < mes.length; i++) {
-          if (i > 0) {
-            out.add(TimeBridgePage(
-              label: _bridge(mes[i].entryDate.difference(mes[i - 1].entryDate)),
-            ));
-          }
           out.add(MemoryBookPage(entry: mes[i], isFirstInSection: i == 0));
         }
       }
@@ -175,31 +173,29 @@ class BookBuilderService {
         memoryCount: ces.length,
       ));
       for (int i = 0; i < ces.length; i++) {
-        if (i > 0) {
-          out.add(TimeBridgePage(
-            label: _bridge(ces[i].entryDate.difference(ces[i - 1].entryDate)),
-          ));
-        }
         out.add(MemoryBookPage(entry: ces[i], isFirstInSection: i == 0));
       }
     }
     return out;
   }
 
-  // ── Time bridge label — factual, no AI ────────────────────────────────────
-  String _bridge(Duration gap) {
-    final d = gap.inDays;
-    if (d == 0) return 'Later that day';
-    if (d == 1) return 'The next day';
-    if (d <= 3) return 'A few days later';
-    if (d <= 7) return '$d days later';
-    if (d <= 14) return 'A week later';
-    if (d <= 30) return '${(d / 7).round()} weeks later';
-    if (d <= 60) return 'A month later';
-    if (d <= 90) return 'Nearly two months later';
-    if (d <= 180) return '${(d / 30).round()} months later';
-    if (d < 365) return 'Several months passed';
-    return 'Nearly a year passed';
+  // ── Happiest memory photo — used as cover page background ─────────────────
+  static String? _happiestPhotoPath(List<JournalEntry> entries) {
+    const moodScore = {'great': 4, 'good': 3, 'okay': 2, 'low': 1, 'tough': 0};
+    final withPhotos = entries
+        .where((e) => e.hasPhoto && e.media.any((m) => m.mediaType == 'photo'))
+        .toList();
+    if (withPhotos.isEmpty) return null;
+    withPhotos.sort((a, b) {
+      final sa = a.sentimentScore?.toDouble() ??
+          (moodScore[a.mood?.toLowerCase()] ?? 0).toDouble();
+      final sb = b.sentimentScore?.toDouble() ??
+          (moodScore[b.mood?.toLowerCase()] ?? 0).toDouble();
+      return sb.compareTo(sa);
+    });
+    return withPhotos.first.media
+        .firstWhere((m) => m.mediaType == 'photo')
+        .storagePath;
   }
 
   // ── Monthly reflection — template only, no AI, no hallucination ───────────

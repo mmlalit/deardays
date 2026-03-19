@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/ai/ai_service.dart';
+import 'package:deardays/services/ai/ai_prompts.dart';
+import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/services/ai/ai_credit_service.dart';
 import 'package:deardays/services/ai/offline_ai_queue.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
@@ -27,6 +29,8 @@ import 'package:deardays/services/analytics/analytics_service.dart';
 import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 import 'package:deardays/services/ai/mood_detection_service.dart';
 import 'package:deardays/services/ai/highlight_service.dart';
+import 'package:deardays/features/story/data/models/story_node.dart';
+import 'package:deardays/features/story/data/repositories/story_node_repository.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 
@@ -502,65 +506,48 @@ final reflectionMoodsProvider =
 ///   monthly → summarises the weekly summaries cached for this month
 ///   yearly  → summarises the monthly summaries cached for this year
 ///
-/// AI is called at most ONCE per period window per user. Every subsequent
-/// open of the same week/month/year is served from reflection_cache.
+/// Priority order:
+///   1. StoryNode.summary — generated for free alongside the story (no extra AI call)
+///   2. reflectionCache — legacy cache from before hierarchical summaries
+///   3. Fall back: call AI with raw entries if neither is available
 final reflectionSummaryProvider =
     FutureProvider.family<String?, ReflectionPeriod>((ref, period) async {
-  final now = DateTime.now();
-  final cache = ref.watch(reflectionCacheRepositoryProvider);
+  // Feature-gated: off by default. Enable via remote config / PostHog.
+  if (!FeatureFlags().isEnabledSync(Feature.weeklySummary)) return null;
 
+  final now = DateTime.now();
+
+  // ── 1. StoryNode.summary — free, generated in the same call as the story ──
+  final storyRepo = StoryNodeRepository();
+  final storyKey = switch (period) {
+    ReflectionPeriod.weekly  => StoryNode.weekKey(now.year, StoryNode.isoWeekNumber(now)),
+    ReflectionPeriod.monthly => StoryNode.monthKey(now.year, now.month),
+    ReflectionPeriod.yearly  => StoryNode.yearKey(now.year),
+  };
+  final storyNode = await storyRepo.get(storyKey);
+  if (storyNode?.summary != null) return storyNode!.summary;
+
+  // ── 2. Legacy reflection cache ─────────────────────────────────────────────
+  final cache = ref.watch(reflectionCacheRepositoryProvider);
   final periodKey = switch (period) {
     ReflectionPeriod.weekly  => ReflectionCacheRepository.weeklyKey(now),
     ReflectionPeriod.monthly => ReflectionCacheRepository.monthlyKey(now),
     ReflectionPeriod.yearly  => ReflectionCacheRepository.yearlyKey(now),
   };
-
-  // Serve from cache if available.
   final cached = await cache.get(period: period.name, periodKey: periodKey);
   if (cached?.summary != null) return cached!.summary;
 
+  // ── 3. Fall back: generate from raw entries ────────────────────────────────
   final language = ref.watch(localeProvider).languageName;
   final ai = ref.watch(aiServiceProvider);
 
   try {
-    final String? summary;
+    final entries = await ref.watch(reflectionEntriesProvider(period).future);
+    if (entries.isEmpty) return null;
 
-    switch (period) {
-      case ReflectionPeriod.weekly:
-        final entries = await ref.watch(reflectionEntriesProvider(period).future);
-        if (entries.isEmpty) return null;
-        final texts = _sampleTexts(entries.map((e) => e.content).toList());
-        summary = await ai.generateSummary(texts, period: 'weekly', language: language);
-
-      case ReflectionPeriod.monthly:
-        // Summarise the weekly summaries already cached for this month.
-        final weeklies = await cache.getWeeklySummariesForMonth(now.year, now.month);
-        if (weeklies.isEmpty) {
-          // Fallback: summarise raw entries if no weekly cache exists yet.
-          final entries = await ref.watch(reflectionEntriesProvider(period).future);
-          if (entries.isEmpty) return null;
-          final texts = _sampleTexts(entries.map((e) => e.content).toList());
-          summary = await ai.generateSummary(texts, period: 'monthly', language: language);
-        } else {
-          summary = await ai.generateSummary(weeklies, period: 'monthly', language: language);
-        }
-
-      case ReflectionPeriod.yearly:
-        // Summarise the monthly summaries already cached for this year.
-        final monthlies = await cache.getMonthlySummariesForYear(now.year);
-        if (monthlies.isEmpty) {
-          // Fallback: sample raw entries if no monthly cache exists yet.
-          final entries = await ref.watch(reflectionEntriesProvider(period).future);
-          if (entries.isEmpty) return null;
-          final raw = entries.map((e) => e.content).toList();
-          final sampled = (raw.toList()..shuffle()).take(30).toList();
-          final texts = _sampleTexts(sampled);
-          summary = await ai.generateSummary(texts, period: 'yearly', language: language);
-        } else {
-          summary = await ai.generateSummary(monthlies, period: 'yearly', language: language);
-        }
-    }
-
+    final texts = _sampleTexts(entries.map((e) => e.content).toList());
+    final result = await ai.analyzeEntries(texts, language: language);
+    final summary = result['summary'] as String?;
     await cache.save(period: period.name, periodKey: periodKey, summary: summary);
     return summary;
   } catch (e, st) {
@@ -572,6 +559,9 @@ final reflectionSummaryProvider =
 /// Cached AI themes for a given reflection period.
 final reflectionThemesProvider =
     FutureProvider.family<List<String>, ReflectionPeriod>((ref, period) async {
+  // Feature-gated: off by default. Enable via remote config / PostHog.
+  if (!FeatureFlags().isEnabledSync(Feature.weeklySummary)) return [];
+
   final now = DateTime.now();
   final cache = ref.watch(reflectionCacheRepositoryProvider);
 
@@ -593,9 +583,11 @@ final reflectionThemesProvider =
       ? (raw.toList()..shuffle()).take(30).toList()
       : raw;
   final sampled = _sampleTexts(presampled);
+  final language = ref.watch(localeProvider).languageName;
   try {
-    final themes = await ref.watch(aiServiceProvider).detectThemes(sampled);
-    // Merge themes into whatever cache row already exists for this key.
+    // analyzeEntries() returns themes + summary + highlight in one call.
+    final result = await ref.watch(aiServiceProvider).analyzeEntries(sampled, language: language);
+    final themes = List<String>.from(result['themes'] as List? ?? []);
     await cache.save(period: period.name, periodKey: periodKey, themes: themes);
     return themes;
   } catch (e, st) {
@@ -611,30 +603,18 @@ final weeklySummaryProvider = FutureProvider<String?>((ref) =>
 final weeklyThemesProvider = FutureProvider<List<String>>((ref) =>
     ref.watch(reflectionThemesProvider(ReflectionPeriod.weekly).future));
 
-/// AI-generated writing prompt (refreshes each call; UI should cache per day).
-final writingPromptProvider = FutureProvider<String?>((ref) async {
-  final ai = ref.watch(aiServiceProvider);
-  if (!ai.isConfigured) return null;
-  try {
-    return await ai.getWritingPrompt();
-  } catch (e, st) {
-    CrashReportingService().recordError(e, st, reason: 'writingPromptProvider');
-    return null;
-  }
+/// Returns a random writing prompt from the curated static list.
+/// No AI call — instant, always available, and free.
+/// Refresh by calling `ref.invalidate(writingPromptProvider)`.
+final writingPromptProvider = Provider<String?>((ref) {
+  const prompts = AiPrompts.staticWritingPrompts;
+  return prompts[DateTime.now().microsecondsSinceEpoch % prompts.length];
 });
 
-/// AI-generated cover search query for a given book title.
+/// Cover query is no longer AI-generated — always returns null so the UI
+/// falls back to the color-preset picker already built into BookCreationScreen.
 final bookCoverQueryProvider =
-    FutureProvider.family<String?, String>((ref, bookTitle) async {
-  final ai = ref.watch(aiServiceProvider);
-  if (!ai.isConfigured) return null;
-  try {
-    return await ai.generateCoverQuery(bookTitle);
-  } catch (e, st) {
-    CrashReportingService().recordError(e, st, reason: 'bookCoverQueryProvider');
-    return null;
-  }
-});
+    Provider.family<String?, String>((ref, bookTitle) => null);
 
 // --- Filter Model ---
 

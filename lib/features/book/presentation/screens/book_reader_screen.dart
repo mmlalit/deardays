@@ -31,6 +31,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
   bool _overlayVisible = true;
+  bool _isDearDays = false; // toggle: false = Original, true = ✦ DearDays
 
   @override
   void initState() {
@@ -90,7 +91,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                   setState(() => _currentPage = i);
                 },
                 itemBuilder: (context, index) =>
-                    _buildPage(context, pages[index], index, pages),
+                    _buildPage(context, pages[index], index, pages, entries),
               ),
 
               // Thin progress bar — always visible
@@ -122,18 +123,19 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     BookPage page,
     int index,
     List<BookPage> pages,
+    List<JournalEntry> entries,
   ) {
     return switch (page) {
-      CoverBookPage p     => _CoverPage(page: p),
-      TitleBookPage p     => _TitlePage(page: p),
+      CoverBookPage p        => _CoverPage(page: p),
       IntroductionBookPage p => _IntroPage(page: p, pageNum: 'i'),
-      TocBookPage p       => _TocPage(page: p, onTap: _jumpToPage),
-      YearDividerPage p   => _YearPage(page: p),
-      MonthDividerPage p  => _MonthPage(page: p),
-      ChapterDividerPage p => _ChapterPage(page: p),
-      MemoryBookPage p    => _MemoryPage(page: p, pageNum: index),
-      TimeBridgePage p    => _TimeBridgePage(page: p),
-      ClosingBookPage p   => _ClosingPage(page: p, onRecord: () => context.push('/record'), onWrite: () => context.push('/write')),
+      TocBookPage p          => _TocPage(page: p, onTap: _jumpToPage),
+      YearDividerPage p      => _YearPage(page: p),
+      MonthDividerPage p     => _MonthPage(page: p),
+      ChapterDividerPage p   => _ChapterPage(page: p),
+      MemoryBookPage p       => _MemoryPage(page: p, pageNum: index, isDearDays: _isDearDays),
+      WeeklyNarrativeBookPage p => _WeeklyNarrativePage(page: p, pageNum: index, isDearDays: _isDearDays, allEntries: entries),
+      TimeBridgePage p       => _TimeBridgePage(page: p),
+      ClosingBookPage p      => _ClosingPage(page: p, onRecord: () => context.push('/record'), onWrite: () => context.push('/write')),
     };
   }
 
@@ -175,16 +177,25 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                   ),
                   Expanded(
                     child: Text(
-                      _modeLabel(widget.mode),
-                      textAlign: TextAlign.center,
+                      _sectionName(pages, _currentPage),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.manrope(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 1.5,
-                        color: textColor.withAlpha(160),
+                        letterSpacing: 0.5,
+                        color: textColor.withAlpha(140),
                       ),
                     ),
                   ),
+                  // JOURNAL | ✦ DEARDAYS STORY segmented toggle
+                  _SegmentedToggle(
+                    isDearDays: _isDearDays,
+                    textColor: textColor,
+                    accentColor: const Color(0xFF6366F1),
+                    onChanged: (val) => setState(() => _isDearDays = val),
+                  ),
+                  const SizedBox(width: 4),
                   IconButton(
                     onPressed: () => context.push('/export'),
                     icon: Icon(Icons.download_rounded, size: 20, color: textColor.withAlpha(180)),
@@ -265,13 +276,14 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     _                    => false,
   };
 
-  String _modeLabel(BookMode mode) => switch (mode) {
-    BookMode.stream    => 'MY LIFE BOOK',
-    BookMode.byTime    => 'YEAR BY YEAR',
-    BookMode.byChapter => 'BY CHAPTER',
-  };
-
   String _sectionName(List<BookPage> pages, int currentIndex) {
+    final current = currentIndex < pages.length ? pages[currentIndex] : null;
+    // Front-matter pages — show their own label
+    if (current is CoverBookPage) return '';
+    if (current is IntroductionBookPage) return 'Introduction';
+    if (current is TocBookPage) return 'Contents';
+    if (current is ClosingBookPage) return 'Closing';
+
     // Walk backwards to find the nearest section divider
     for (int i = currentIndex; i >= 0; i--) {
       final p = pages[i];
@@ -281,7 +293,11 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
       }
       if (p is YearDividerPage) return p.year.toString();
     }
-    return 'My Life Book';
+    // Stream mode — derive from the current memory page date
+    if (current is MemoryBookPage) {
+      return DateFormat('MMMM yyyy').format(current.entry.entryDate);
+    }
+    return '';
   }
 
   Widget _buildEmpty(BuildContext context) {
@@ -412,7 +428,7 @@ Widget _dropCap(BuildContext context, String text) {
           style: GoogleFonts.newsreader(
             fontSize: 66,
             fontWeight: FontWeight.w700,
-            color: AppColors.of(context).accent,
+            color: const Color(0xFF5C3D1E),
             height: 0.82,
           ),
         ),
@@ -453,183 +469,147 @@ Widget _bodyText(String text) {
   );
 }
 
-/// Thin ornamental rule: — · —
-Widget _ornament({Color? color}) {
-  return Text(
-    '— · —',
-    style: TextStyle(
-      fontSize: 14,
-      color: (color ?? AppColors.readingText).withAlpha(80),
-      letterSpacing: 4,
-    ),
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 0. Cover page
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CoverPage extends StatelessWidget {
+class _CoverPage extends ConsumerWidget {
   final CoverBookPage page;
   const _CoverPage({required this.page});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (page.coverPhotoPath != null) {
+      return FutureBuilder<String>(
+        future: ref.read(mediaServiceProvider).getSignedUrl(page.coverPhotoPath!),
+        builder: (context, snap) => _buildCover(context, snap.data),
+      );
+    }
+    return _buildCover(context, null);
+  }
+
+  Widget _buildCover(BuildContext context, String? photoUrl) {
     final accent = AppColors.of(context).accent;
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Background: happiest memory photo or fallback gradient
+        if (photoUrl != null && photoUrl.isNotEmpty)
+          CachedNetworkImage(
+            imageUrl: photoUrl,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => _fallbackGradient(),
+            errorWidget: (_, __, ___) => _fallbackGradient(),
+          )
+        else
+          _fallbackGradient(),
+
+        // Gradient scrim — light top tint, strong dark bottom 40%
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: const [0.0, 0.55, 1.0],
+              colors: [
+                Colors.black.withAlpha(50),
+                Colors.black.withAlpha(20),
+                Colors.black.withAlpha(230),
+              ],
+            ),
+          ),
         ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(width: 48, height: 1, color: accent.withAlpha(100)),
-              const SizedBox(height: 32),
-              Text(
-                page.title.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 4,
-                  color: accent,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                page.title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.newsreader(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'A personal memoir',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.newsreader(
-                  fontSize: 15,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white.withAlpha(140),
-                ),
-              ),
-              const SizedBox(height: 32),
-              Container(width: 48, height: 1, color: accent.withAlpha(100)),
-              const SizedBox(height: 32),
-              Text(
-                page.dateRange.toUpperCase(),
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 3,
-                  color: Colors.white.withAlpha(100),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: accent.withAlpha(80)),
-                ),
-                child: Text(
-                  '${page.memoryCount} ${page.memoryCount == 1 ? 'memory' : 'memories'}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: accent,
-                    letterSpacing: 0.5,
+
+        // Text content — anchored to bottom
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Author above title
+                if (page.authorName != null)
+                  Text(
+                    'By ${page.authorName}',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.5,
+                      color: Colors.white.withAlpha(160),
+                    ),
                   ),
-                ),
-              ),
-              if (page.authorName != null) ...[
-                const SizedBox(height: 40),
+                const SizedBox(height: 10),
+                Container(width: 40, height: 1, color: accent.withAlpha(200)),
+                const SizedBox(height: 14),
                 Text(
-                  'By ${page.authorName}',
+                  page.title,
                   style: GoogleFonts.newsreader(
-                    fontSize: 15,
-                    fontStyle: FontStyle.italic,
-                    color: Colors.white.withAlpha(80),
+                    fontSize: 40,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1.1,
                   ),
+                ),
+                const SizedBox(height: 24),
+                // Metadata chips
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withAlpha(60)),
+                      ),
+                      child: Text(
+                        page.dateRange.toUpperCase(),
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.5,
+                          color: Colors.white.withAlpha(160),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: accent.withAlpha(140)),
+                      ),
+                      child: Text(
+                        '${page.memoryCount} ${page.memoryCount == 1 ? 'memory' : 'memories'}',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: accent,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. Title page
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TitlePage extends StatelessWidget {
-  final TitleBookPage page;
-  const _TitlePage({required this.page});
-
-  @override
-  Widget build(BuildContext context) {
-    return _readingShell(
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Column(
-            children: [
-              const Spacer(flex: 3),
-              Text(
-                page.title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.newsreader(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.readingText,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _ornament(),
-              const SizedBox(height: 16),
-              Text(
-                page.subtitle,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.newsreader(
-                  fontSize: 15,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.readingText.withAlpha(140),
-                ),
-              ),
-              const Spacer(flex: 2),
-              Text(
-                page.dateRange.toUpperCase(),
-                style: GoogleFonts.manrope(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2.5,
-                  color: AppColors.readingText.withAlpha(80),
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
+  Widget _fallbackGradient() => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
           ),
         ),
-      ),
-    );
-  }
+      );
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Introduction page
@@ -640,27 +620,40 @@ class _IntroPage extends StatelessWidget {
   final String pageNum;
   const _IntroPage({required this.page, required this.pageNum});
 
+  // Warm sepia — pairs with the cream reading background
+  static const _titleColor = Color(0xFF5C3D1E);
+
   @override
   Widget build(BuildContext context) {
-    final accent = AppColors.of(context).accent;
     return _readingShell(
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 48, 32, 32),
+          padding: const EdgeInsets.fromLTRB(36, 48, 36, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Ornamental divider above title
+              Row(children: [
+                Container(width: 24, height: 1, color: _titleColor.withAlpha(80)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('❧',
+                      style: TextStyle(fontSize: 14, color: _titleColor.withAlpha(120))),
+                ),
+                Container(width: 24, height: 1, color: _titleColor.withAlpha(80)),
+              ]),
+              const SizedBox(height: 16),
               Text(
                 'Introduction',
                 style: GoogleFonts.newsreader(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                   fontStyle: FontStyle.italic,
-                  color: accent,
+                  color: _titleColor,
                 ),
               ),
               const SizedBox(height: 6),
-              Container(width: 40, height: 2, color: accent.withAlpha(120)),
+              Container(width: 40, height: 2, color: _titleColor.withAlpha(100)),
               const SizedBox(height: 32),
               Expanded(
                 child: SingleChildScrollView(
@@ -695,13 +688,14 @@ class _TocPage extends StatelessWidget {
   final ValueChanged<int> onTap;
   const _TocPage({required this.page, required this.onTap});
 
+  static const _titleColor = Color(0xFF5C3D1E);
+
   @override
   Widget build(BuildContext context) {
-    final accent = AppColors.of(context).accent;
     return _readingShell(
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 48, 32, 32),
+          padding: const EdgeInsets.fromLTRB(36, 48, 36, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -711,11 +705,11 @@ class _TocPage extends StatelessWidget {
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                   fontStyle: FontStyle.italic,
-                  color: accent,
+                  color: _titleColor,
                 ),
               ),
               const SizedBox(height: 6),
-              Container(width: 40, height: 2, color: accent.withAlpha(120)),
+              Container(width: 40, height: 2, color: _titleColor.withAlpha(100)),
               const SizedBox(height: 24),
               Expanded(
                 child: ListView.builder(
@@ -1008,18 +1002,17 @@ class _ChapterPage extends StatelessWidget {
 class _MemoryPage extends ConsumerWidget {
   final MemoryBookPage page;
   final int pageNum;
-  const _MemoryPage({required this.page, required this.pageNum});
+  final bool isDearDays;
+  const _MemoryPage({required this.page, required this.pageNum, required this.isDearDays});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final entry = page.entry;
-    final displayText = (entry.polishedContent?.isNotEmpty == true)
+    final hasPolished = entry.polishedContent?.isNotEmpty == true;
+    final displayText = (isDearDays && hasPolished)
         ? entry.polishedContent!
         : entry.content;
     final dateLabel = DateFormat('MMMM d, yyyy').format(entry.entryDate);
-    final timeLabel = entry.entryTime != null
-        ? ' · ${entry.entryTime!.hour.toString().padLeft(2, '0')}:${entry.entryTime!.minute.toString().padLeft(2, '0')}'
-        : '';
 
     final paragraphs = displayText
         .split('\n')
@@ -1029,38 +1022,23 @@ class _MemoryPage extends ConsumerWidget {
     return _readingShell(
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(32, 32, 32, 32),
+          padding: const EdgeInsets.fromLTRB(36, 36, 36, 36),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Date + mood row
-              Row(
-                children: [
-                  Container(
-                    width: 3,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: AppColors.of(context).accent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$dateLabel$timeLabel'.toUpperCase(),
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: AppColors.of(context).accent,
-                    ),
-                  ),
-                  if (entry.mood != null) ...[
-                    const SizedBox(width: 8),
-                    Text(_moodEmoji(entry.mood!), style: const TextStyle(fontSize: 13)),
-                  ],
-                ],
+              // Elegant date line — no app-style UI elements
+              Text(
+                dateLabel.toUpperCase(),
+                style: GoogleFonts.manrope(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2,
+                  color: AppColors.readingText.withAlpha(100),
+                ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 6),
+              Container(width: 28, height: 1, color: AppColors.readingText.withAlpha(60)),
+              const SizedBox(height: 20),
 
               // Photo
               if (entry.media.isNotEmpty)
@@ -1075,18 +1053,18 @@ class _MemoryPage extends ConsumerWidget {
                     paragraphs.first,
                     style: GoogleFonts.newsreader(
                       fontSize: 17,
-                      height: 1.75,
+                      height: 1.6,
                       color: AppColors.readingText,
                     ),
                   ),
                 ...paragraphs.skip(1).map(
                       (p) => Padding(
-                        padding: const EdgeInsets.only(top: 18),
+                        padding: const EdgeInsets.only(top: 16),
                         child: Text(
                           p,
                           style: GoogleFonts.newsreader(
                             fontSize: 17,
-                            height: 1.75,
+                            height: 1.6,
                             color: AppColors.readingText,
                           ),
                         ),
@@ -1094,17 +1072,21 @@ class _MemoryPage extends ConsumerWidget {
                     ),
               ],
 
-              const SizedBox(height: 32),
-              Center(
-                child: Text(
-                  '${pageNum + 1}',
-                  style: GoogleFonts.newsreader(
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.readingText.withAlpha(80),
+              // DearDays polish indicator
+              if (isDearDays && hasPolished) ...[
+                const SizedBox(height: 24),
+                Center(
+                  child: Text(
+                    '✦',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.readingText.withAlpha(80),
+                    ),
                   ),
                 ),
-              ),
+              ],
+
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -1112,14 +1094,6 @@ class _MemoryPage extends ConsumerWidget {
     );
   }
 
-  String _moodEmoji(String mood) => switch (mood.toLowerCase()) {
-    'great' => '😄',
-    'good'  => '🙂',
-    'okay'  => '😐',
-    'low'   => '😔',
-    'tough' => '😢',
-    _       => '',
-  };
 }
 
 class _MemoryPhoto extends ConsumerWidget {
@@ -1238,8 +1212,6 @@ class _ClosingPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _ornament(),
-              const SizedBox(height: 32),
               Text(
                 'Your story continues.',
                 textAlign: TextAlign.center,
@@ -1260,8 +1232,6 @@ class _ClosingPage extends StatelessWidget {
                   height: 1.6,
                 ),
               ),
-              const SizedBox(height: 40),
-              _ornament(),
               const SizedBox(height: 40),
               GestureDetector(
                 onTap: onRecord,
@@ -1323,6 +1293,935 @@ class _ClosingPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Weekly narrative page (AI-generated story with optional photos)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _WeeklyNarrativePage extends ConsumerStatefulWidget {
+  final WeeklyNarrativeBookPage page;
+  final int pageNum;
+  final bool isDearDays;
+  final List<JournalEntry> allEntries;
+  const _WeeklyNarrativePage({
+    required this.page,
+    required this.pageNum,
+    required this.isDearDays,
+    required this.allEntries,
+  });
+
+  @override
+  ConsumerState<_WeeklyNarrativePage> createState() =>
+      _WeeklyNarrativePageState();
+}
+
+class _WeeklyNarrativePageState
+    extends ConsumerState<_WeeklyNarrativePage> {
+  late WeeklyNarrativeBookPage _page;
+  bool _entriesExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _page = widget.page;
+  }
+
+  List<JournalEntry> get _weekEntries {
+    try {
+      final start = DateTime.parse(_page.weekStart);
+      final end = start.add(const Duration(days: 7));
+      return widget.allEntries
+          .where((e) =>
+              !e.entryDate.isBefore(start) && e.entryDate.isBefore(end))
+          .toList()
+        ..sort((a, b) => a.entryDate.compareTo(b.entryDate));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // In Journal mode — show a gentle prompt to switch
+    if (!widget.isDearDays) {
+      return _readingShell(
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '✦',
+                    style: TextStyle(
+                      fontSize: 28,
+                      color: AppColors.of(context).accent.withAlpha(120),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'DearDays Story',
+                    style: GoogleFonts.newsreader(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.readingText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Switch to ✦ Story mode\nto read the narrative for this week.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.readingText.withAlpha(120),
+                      height: 1.6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final paragraphs = _page.content
+        .split('\n')
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    final weekLabel = _formatWeekLabel(_page.weekStart);
+    final layout =
+        _page.photos.isNotEmpty ? _page.photos.first.layout : null;
+    final weekEntries = _weekEntries;
+
+    return _readingShell(
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(32, 32, 32, 48),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _weekHeader(context, weekLabel),
+              const SizedBox(height: 28),
+              ..._buildLayout(context, paragraphs, layout),
+              const SizedBox(height: 32),
+              // Collapsible original entries
+              if (weekEntries.isNotEmpty) ...[
+                _buildCollapseRow(context, weekEntries.length),
+                if (_entriesExpanded) ...[
+                  const SizedBox(height: 12),
+                  ...weekEntries.map((e) => _buildEntryCard(context, e)),
+                ],
+                const SizedBox(height: 24),
+              ],
+              Center(
+                child: Text(
+                  '${widget.pageNum + 1}',
+                  style: GoogleFonts.newsreader(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.readingText.withAlpha(80),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _weekHeader(BuildContext context, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.of(context).accent.withAlpha(180),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.manrope(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+            color: AppColors.of(context).accent.withAlpha(180),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCollapseRow(BuildContext context, int count) {
+    final accent = AppColors.of(context).accent;
+    return GestureDetector(
+      onTap: () => setState(() => _entriesExpanded = !_entriesExpanded),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: accent.withAlpha(12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: accent.withAlpha(30)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              _entriesExpanded
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              size: 16,
+              color: accent.withAlpha(160),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _entriesExpanded
+                  ? 'Hide original entries'
+                  : 'See original entries ($count)',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: accent.withAlpha(180),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEntryCard(BuildContext context, JournalEntry entry) {
+    final dateLabel = DateFormat('MMM d').format(entry.entryDate);
+    final firstLine = (entry.rawContent ?? entry.content)
+        .split('\n')
+        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => entry.content);
+    final snippet = firstLine.length > 80
+        ? '${firstLine.substring(0, 80)}…'
+        : firstLine;
+
+    return GestureDetector(
+      onTap: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.readingBg,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.85,
+          maxChildSize: 0.95,
+          builder: (_, ctrl) => _EntryDetailSheet(
+            entry: entry,
+            isDearDays: widget.isDearDays,
+            scrollController: ctrl,
+          ),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.readingText.withAlpha(6),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.readingText.withAlpha(18)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dateLabel.toUpperCase(),
+                  style: GoogleFonts.manrope(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                    color: AppColors.of(context).accent,
+                  ),
+                ),
+                if (entry.mood != null)
+                  Text(
+                    _moodEmoji(entry.mood!),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                snippet,
+                style: GoogleFonts.newsreader(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppColors.readingText.withAlpha(160),
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 16, color: AppColors.readingText.withAlpha(60)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _moodEmoji(String mood) => switch (mood.toLowerCase()) {
+    'great' => '😄',
+    'good'  => '🙂',
+    'okay'  => '😐',
+    'low'   => '😔',
+    'tough' => '😢',
+    _       => '',
+  };
+
+  // ── Layout builders ────────────────────────────────────────────────────────
+
+  List<Widget> _buildLayout(
+    BuildContext context,
+    List<String> paragraphs,
+    PageLayout? layout,
+  ) {
+    if (_page.photos.isEmpty) return _textParagraphs(paragraphs);
+
+    return switch (layout) {
+      PageLayout.weekOpener  => _weekOpenerLayout(paragraphs),
+      PageLayout.rightFloat  => _floatLayout(paragraphs, floatRight: true),
+      PageLayout.leftFloat   => _floatLayout(paragraphs, floatRight: false),
+      PageLayout.photoStrip  => _photoStripLayout(paragraphs),
+      _                      => _midPageLayout(paragraphs),
+    };
+  }
+
+  /// Hero photo full-width at top, all text below.
+  List<Widget> _weekOpenerLayout(List<String> paragraphs) {
+    final hero = _page.photos.first;
+    return [
+      _NarrativePhotoWidget(
+        photo: hero,
+        aspectRatio: 16 / 9,
+        onEdit: () => _showPhotoEditSheet(hero),
+      ),
+      const SizedBox(height: 24),
+      ..._textParagraphs(paragraphs),
+    ];
+  }
+
+  /// Photo inserted after paragraph N, text above and below.
+  List<Widget> _midPageLayout(List<String> paragraphs) {
+    final photo = _page.photos.first;
+    final splitAt = photo.afterParagraph.clamp(0, paragraphs.length);
+    final before = paragraphs.sublist(0, splitAt);
+    final after = splitAt < paragraphs.length
+        ? paragraphs.sublist(splitAt)
+        : <String>[];
+    return [
+      ..._textParagraphs(before),
+      if (before.isNotEmpty) const SizedBox(height: 18),
+      _NarrativePhotoWidget(
+        photo: photo,
+        aspectRatio: 4 / 3,
+        onEdit: () => _showPhotoEditSheet(photo),
+      ),
+      if (after.isNotEmpty) const SizedBox(height: 18),
+      ..._textParagraphs(after),
+    ];
+  }
+
+  /// Photo floated beside first paragraph, rest of text below.
+  List<Widget> _floatLayout(
+    List<String> paragraphs, {
+    required bool floatRight,
+  }) {
+    final photo = _page.photos.first;
+    final firstPara = paragraphs.isNotEmpty ? paragraphs.first : '';
+    final rest =
+        paragraphs.length > 1 ? paragraphs.sublist(1) : <String>[];
+
+    final photoBox = SizedBox(
+      width: 130,
+      child: _NarrativePhotoWidget(
+        photo: photo,
+        aspectRatio: 3 / 4,
+        onEdit: () => _showPhotoEditSheet(photo),
+      ),
+    );
+    final textBox = Expanded(
+      child: Text(
+        firstPara,
+        style: GoogleFonts.newsreader(
+          fontSize: 16,
+          height: 1.75,
+          color: AppColors.readingText,
+        ),
+      ),
+    );
+
+    return [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: floatRight
+            ? [textBox, const SizedBox(width: 14), photoBox]
+            : [photoBox, const SizedBox(width: 14), textBox],
+      ),
+      ..._textParagraphs(rest),
+    ];
+  }
+
+  /// All text first, then a horizontal strip of up to 3 photos at the bottom.
+  List<Widget> _photoStripLayout(List<String> paragraphs) {
+    final photos = _page.photos.take(3).toList();
+    return [
+      ..._textParagraphs(paragraphs),
+      const SizedBox(height: 24),
+      SizedBox(
+        height: 130,
+        child: Row(
+          children: photos.map((photo) {
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _NarrativePhotoWidget(
+                  photo: photo,
+                  aspectRatio: 1,
+                  showCaption: false,
+                  onEdit: () => _showPhotoEditSheet(photo),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: photos.map((photo) {
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                photo.caption,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 9,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.readingText.withAlpha(110),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    ];
+  }
+
+  List<Widget> _textParagraphs(List<String> paragraphs) {
+    return paragraphs.asMap().entries.map((e) {
+      return Padding(
+        padding: EdgeInsets.only(top: e.key == 0 ? 0 : 18),
+        child: Text(
+          e.value,
+          style: GoogleFonts.newsreader(
+            fontSize: 17,
+            height: 1.75,
+            color: AppColors.readingText,
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  String _formatWeekLabel(String weekStart) {
+    try {
+      final d = DateTime.parse(weekStart);
+      final end = d.add(const Duration(days: 6));
+      if (d.month == end.month) {
+        return '${DateFormat('MMM d').format(d)}–${DateFormat('d, yyyy').format(end)}';
+      }
+      return '${DateFormat('MMM d').format(d)} – ${DateFormat('MMM d, yyyy').format(end)}';
+    } catch (_) {
+      return weekStart;
+    }
+  }
+
+  void _showPhotoEditSheet(PagePhoto photo) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.readingBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _PhotoEditSheet(
+        photo: photo,
+        page: _page,
+        onPhotosUpdated: (updated) => setState(() => _page = updated),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Narrative photo widget — fetches a signed URL from the storage path
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NarrativePhotoWidget extends ConsumerWidget {
+  final PagePhoto photo;
+  final double aspectRatio;
+  final bool showCaption;
+  final VoidCallback onEdit;
+
+  const _NarrativePhotoWidget({
+    required this.photo,
+    required this.aspectRatio,
+    required this.onEdit,
+    this.showCaption = true,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mediaService = ref.read(mediaServiceProvider);
+
+    return GestureDetector(
+      onTap: onEdit,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: AspectRatio(
+              aspectRatio: aspectRatio,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  FutureBuilder<String>(
+                    // Use pre-generated signed URL if valid — avoids a Storage
+                    // API call per page turn (critical at scale).
+                    future: photo.hasValidSignedUrl
+                        ? Future.value(photo.signedUrl)
+                        : mediaService.getSignedUrl(photo.storagePath),
+                    builder: (ctx, snap) {
+                      if (!snap.hasData || snap.data!.isEmpty) {
+                        return Container(
+                          color: AppColors.readingText.withAlpha(12),
+                          child: Icon(Icons.image_outlined,
+                              color: AppColors.readingText.withAlpha(50),
+                              size: 28),
+                        );
+                      }
+                      return CachedNetworkImage(
+                        imageUrl: snap.data!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                            color: AppColors.readingText.withAlpha(12)),
+                        errorWidget: (_, __, ___) => Container(
+                            color: AppColors.readingText.withAlpha(12)),
+                      );
+                    },
+                  ),
+                  // Edit hint
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(100),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(Icons.edit_outlined,
+                          color: Colors.white, size: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (showCaption && photo.caption.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              photo.caption,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+                color: AppColors.readingText.withAlpha(120),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Photo edit bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PhotoEditSheet extends ConsumerStatefulWidget {
+  final PagePhoto photo;
+  final WeeklyNarrativeBookPage page;
+  final void Function(WeeklyNarrativeBookPage updated) onPhotosUpdated;
+
+  const _PhotoEditSheet({
+    required this.photo,
+    required this.page,
+    required this.onPhotosUpdated,
+  });
+
+  @override
+  ConsumerState<_PhotoEditSheet> createState() => _PhotoEditSheetState();
+}
+
+class _PhotoEditSheetState extends ConsumerState<_PhotoEditSheet> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.readingText.withAlpha(40),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Edit Photo',
+            style: GoogleFonts.newsreader(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.readingText,
+            ),
+          ),
+          if (widget.photo.caption.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              widget.photo.caption,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.manrope(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: AppColors.readingText.withAlpha(140),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          _SheetOption(
+            icon: Icons.delete_outline_rounded,
+            label: 'Remove this photo',
+            color: Colors.red.shade600,
+            loading: _loading,
+            onTap: _removePhoto,
+          ),
+          const SizedBox(height: 8),
+          _SheetOption(
+            icon: Icons.close_rounded,
+            label: 'Cancel',
+            color: AppColors.readingText.withAlpha(120),
+            onTap: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _removePhoto() async {
+    setState(() => _loading = true);
+    try {
+      final updatedPhotos = widget.page.photos
+          .where((p) =>
+              p.storagePath != widget.photo.storagePath ||
+              p.entryId != widget.photo.entryId)
+          .toList();
+      await ref
+          .read(bookRepositoryProvider)
+          .updatePagePhotos(widget.page.id, updatedPhotos);
+      final updatedPage = WeeklyNarrativeBookPage(
+        id: widget.page.id,
+        content: widget.page.content,
+        weekStart: widget.page.weekStart,
+        pageNumber: widget.page.pageNumber,
+        wordCount: widget.page.wordCount,
+        photos: updatedPhotos,
+      );
+      widget.onPhotosUpdated(updatedPage);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not remove photo: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entry detail bottom sheet — shown when tapping an original entry card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EntryDetailSheet extends ConsumerWidget {
+  final JournalEntry entry;
+  final bool isDearDays;
+  final ScrollController scrollController;
+
+  const _EntryDetailSheet({
+    required this.entry,
+    required this.isDearDays,
+    required this.scrollController,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasPolished = entry.polishedContent?.isNotEmpty == true;
+    final displayText = (isDearDays && hasPolished)
+        ? entry.polishedContent!
+        : entry.content;
+    final dateLabel = DateFormat('MMMM d, yyyy').format(entry.entryDate);
+    final paragraphs = displayText
+        .split('\n')
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+    final accent = AppColors.of(context).accent;
+
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.readingText.withAlpha(40),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Date + mood + ✦ indicator
+          Row(
+            children: [
+              Container(
+                width: 3, height: 16,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                dateLabel.toUpperCase(),
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: accent,
+                ),
+              ),
+              if (entry.mood != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  _moodEmoji(entry.mood!),
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
+              if (isDearDays && hasPolished) ...[
+                const SizedBox(width: 6),
+                Text('✦', style: TextStyle(fontSize: 10, color: accent)),
+              ],
+            ],
+          ),
+          const SizedBox(height: 24),
+          ...paragraphs.map((p) => Padding(
+            padding: const EdgeInsets.only(bottom: 18),
+            child: Text(
+              p,
+              style: GoogleFonts.newsreader(
+                fontSize: 17,
+                height: 1.75,
+                color: AppColors.readingText,
+              ),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  String _moodEmoji(String mood) => switch (mood.toLowerCase()) {
+    'great' => '😄',
+    'good'  => '🙂',
+    'okay'  => '😐',
+    'low'   => '😔',
+    'tough' => '😢',
+    _       => '',
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Segmented toggle: JOURNAL | ✦ DEARDAYS STORY
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SegmentedToggle extends StatelessWidget {
+  final bool isDearDays;
+  final Color textColor;
+  final Color accentColor;
+  final ValueChanged<bool> onChanged;
+
+  const _SegmentedToggle({
+    required this.isDearDays,
+    required this.textColor,
+    required this.accentColor,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: textColor.withAlpha(18),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SegTab(
+            label: 'Journal',
+            active: !isDearDays,
+            activeColor: textColor.withAlpha(200),
+            textColor: textColor,
+            onTap: () => onChanged(false),
+          ),
+          _SegTab(
+            label: '✦ Story',
+            active: isDearDays,
+            activeColor: accentColor,
+            textColor: textColor,
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegTab extends StatelessWidget {
+  final String label;
+  final bool active;
+  final Color activeColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  const _SegTab({
+    required this.label,
+    required this.active,
+    required this.activeColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 9),
+        decoration: BoxDecoration(
+          color: active ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : textColor.withAlpha(100),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _SheetOption({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: AppColors.readingText.withAlpha(8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: loading
+            ? const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 12),
+                  Text(
+                    label,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
