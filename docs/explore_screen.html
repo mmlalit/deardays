@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,200..800&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <!-- Single Material Symbols import with FILL axis support -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#195de6",
+            "background-light": "#f6f6f8",
+            "background-dark": "#111621",
+          },
+          fontFamily: {
+            "display": ["Newsreader", "serif"],
+            "sans": ["Noto Sans", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+  <title>DearDays - Explore Memories</title>
+  <style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+
+    /* Hide scrollbars on scroll rows */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Active Material icon fill */
+    .fill-1 { font-variation-settings: 'FILL' 1; }
+
+    /* Card press feedback */
+    .card-pressable {
+      transition: transform 150ms ease, opacity 150ms ease;
+    }
+    .card-pressable:active {
+      transform: scale(0.97);
+      opacity: 0.92;
+    }
+
+    /* Right-fade scroll affordance */
+    .scroll-fade-right {
+      -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+      mask-image: linear-gradient(to right, black 80%, transparent 100%);
+    }
+  </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark font-sans text-slate-900 dark:text-slate-100">
+<div class="relative flex min-h-screen flex-col max-w-md mx-auto bg-background-light dark:bg-background-dark shadow-xl overflow-x-hidden pb-32">
+
+  <!-- ─── Header ─────────────────────────────────────────────────────────── -->
+  <header class="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-4 pt-6 pb-2">
+    <div class="flex items-center justify-between mb-4">
+
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <div class="bg-primary/10 p-2 rounded-full">
+          <!-- Changed from bubble_chart → auto_stories for memory/journal context -->
+          <span class="material-symbols-outlined text-primary text-2xl">auto_stories</span>
+        </div>
+        <h1 class="text-2xl font-display font-bold tracking-tight">DearDays</h1>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-2 items-center">
+        <!-- Notification bell with unread badge -->
+        <button class="relative p-3 active:bg-slate-200 dark:active:bg-slate-800 rounded-full transition-colors">
+          <span class="material-symbols-outlined text-slate-600 dark:text-slate-300">notifications</span>
+          <span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+        </button>
+        <!-- Avatar — stronger border, fallback initials -->
+        <div class="h-10 w-10 rounded-full bg-slate-300 dark:bg-slate-700 overflow-hidden border-2 border-primary/60">
+          <img
+            class="w-full h-full object-cover"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRGZAfso3YprnSO3Xq2SrSBRPDrPEWELnavUkruEUVKkH3GDPqv9SmFzJ64OtxsFtOmdEm0RbT9YYhfGAOHOwelgXarhuBWjHee4KaNetxWU8EPNMwx05WUOC9i2aDmpC7XeeYWNDpGew_7YVKlotSJDQH38aihaTtEjTMVKcpLhqJoS4sBGV_vau3hy0bPkZEuNpwkNT9udNzdWp1Pdow0UaqxNMmuhEO6c7-SxcT8fEca1ww0vU0mA6affL4L1iEvqQi-fMUOA"
+            alt="Your profile photo"
+            onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'flex items-center justify-center w-full h-full text-sm font-bold text-slate-600\'>A</span>'"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="relative group">
+      <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-xl">search</span>
+      <!-- Cleaner placeholder, full-opacity bg, clear button -->
+      <input
+        id="search-input"
+        class="w-full bg-slate-200 dark:bg-slate-800 border border-transparent rounded-xl py-3 pl-12 pr-10 focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-slate-500 text-sm outline-none transition-all"
+        placeholder="Search your memories..."
+        type="text"
+        oninput="document.getElementById('search-clear').style.display = this.value ? 'flex' : 'none'"
+      />
+      <!-- Clear button — hidden until user types -->
+      <button
+        id="search-clear"
+        class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-full bg-slate-400 dark:bg-slate-600 active:bg-slate-500 transition-colors"
+        onclick="document.getElementById('search-input').value=''; this.style.display='none'; document.getElementById('search-input').focus()"
+        style="display:none"
+      >
+        <span class="material-symbols-outlined text-white text-sm" style="font-size:14px">close</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── AI Insights ────────────────────────────────────────────────────── -->
+  <section class="px-4 mt-6">
+    <h2 class="text-xl font-display font-bold mb-4 flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+      AI Insights
+    </h2>
+
+    <!-- Horizontal scroll — room for multiple insight cards -->
+    <div class="flex overflow-x-auto gap-3 no-scrollbar scroll-fade-right">
+
+      <!-- Insight card 1 -->
+      <div class="card-pressable flex-none w-72 flex items-center gap-4 rounded-xl bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer">
+        <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center flex-none">
+          <span class="material-symbols-outlined text-primary text-3xl">self_improvement</span>
+        </div>
+        <div class="flex flex-col gap-1 flex-1 min-w-0">
+          <p class="text-primary text-xs font-bold uppercase tracking-wide">Reflective Mood</p>
+          <p class="text-slate-800 dark:text-slate-200 text-sm font-medium leading-snug">You've been more reflective in recent entries.</p>
+          <p class="text-primary text-xs font-semibold mt-1">See full mood report →</p>
+        </div>
+      </div>
+
+      <!-- Insight card 2 -->
+      <div class="card-pressable flex-none w-72 flex items-center gap-4 rounded-xl bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer">
+        <div class="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center justify-center flex-none">
+          <span class="material-symbols-outlined text-amber-500 text-3xl">local_fire_department</span>
+        </div>
+        <div class="flex flex-col gap-1 flex-1 min-w-0">
+          <p class="text-amber-500 text-xs font-bold uppercase tracking-wide">12-Day Streak</p>
+          <p class="text-slate-800 dark:text-slate-200 text-sm font-medium leading-snug">Your longest journaling streak yet.</p>
+          <p class="text-amber-500 text-xs font-semibold mt-1">View streak history →</p>
+        </div>
+      </div>
+
+      <!-- Insight card 3 -->
+      <div class="card-pressable flex-none w-72 flex items-center gap-4 rounded-xl bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer">
+        <div class="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center flex-none">
+          <span class="material-symbols-outlined text-emerald-500 text-3xl">calendar_month</span>
+        </div>
+        <div class="flex flex-col gap-1 flex-1 min-w-0">
+          <p class="text-emerald-500 text-xs font-bold uppercase tracking-wide">This Month</p>
+          <p class="text-slate-800 dark:text-slate-200 text-sm font-medium leading-snug">18 memories captured in March.</p>
+          <p class="text-emerald-500 text-xs font-semibold mt-1">See monthly summary →</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── Happiest Memories — Horizontal Slider ─────────────────────────── -->
+  <section class="mt-8">
+    <div class="px-4 flex items-center justify-between mb-4">
+      <h2 class="text-xl font-display font-bold">Happiest Memories</h2>
+      <button class="text-primary text-sm font-semibold active:opacity-70">See all</button>
+    </div>
+
+    <!-- Scroll row with right-fade affordance -->
+    <div class="relative">
+      <div class="flex overflow-x-auto gap-4 px-4 no-scrollbar scroll-fade-right">
+
+        <!-- Card 1 -->
+        <div class="card-pressable flex-none w-56 group cursor-pointer">
+          <div class="relative h-72 rounded-2xl overflow-hidden">
+            <img
+              class="w-full h-full object-cover transition-transform duration-500"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCzYqe4q0UMTN0EOAihK-lCA1bTe8UaeRWF_GQN0FXojZPPo1mXK6cgZYFr_4Itp-7J2af8n-0InUzkMG0e_PhxA8Uw9iu42VPsee59f21BtESQNiggBwc2yrgmaz78Im8C5OjRAtRk7NJyklL3IfgoP78lZ1AgXklN4lreyR2NT2YA14_y7qqlTHsoIGaBq8U_wvRlW3eOGbZaZzvUTPlSd0_Gns3fZJjCSlDvNjdY_ZcpEMa1uvvwJIMnJWBMfTCfVgxUgwwgyw"
+              alt="Friends laughing together at an outdoor picnic"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+            <div class="absolute bottom-4 left-4 text-white">
+              <p class="text-xs font-medium opacity-80 uppercase tracking-wider mb-0.5">July 2023</p>
+              <p class="text-lg font-display font-bold leading-tight">Summer Reunion</p>
+              <p class="text-xs opacity-70 mt-1">14 photos</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="card-pressable flex-none w-56 group cursor-pointer">
+          <div class="relative h-72 rounded-2xl overflow-hidden">
+            <img
+              class="w-full h-full object-cover transition-transform duration-500"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcQXto4g6PR02GEaLjjBk3iZRJsD4vzeMpFhm1c_V5-Ht_I-lKtALd7a9_NhBp6pg2clNBGQgbrlJuD5IeNQHkas0A-5gdPdvaq_Y4unhcuuSkuY6mz2TcDTSKTGHhXCdK7gSUFROxy4vkUmlrsHXkxZS-7m9vhs5CriedQUCQZ5PjrwE-j6H5LzEOId6kAg6vpfTIpgGAE6gk6slv5blyxGy9E83CsNHyOCTqm_yyvDXOGxGSoDN3DyF1P1M4j5lKwR_mTFdjZA"
+              alt="People celebrating with sparklers at a night party"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+            <div class="absolute bottom-4 left-4 text-white">
+              <p class="text-xs font-medium opacity-80 uppercase tracking-wider mb-0.5">Dec 2023</p>
+              <p class="text-lg font-display font-bold leading-tight">New Year's Eve</p>
+              <p class="text-xs opacity-70 mt-1">27 photos</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3 (shows partial for scroll affordance) -->
+        <div class="card-pressable flex-none w-56 group cursor-pointer">
+          <div class="relative h-72 rounded-2xl overflow-hidden">
+            <div class="w-full h-full bg-gradient-to-br from-rose-200 to-orange-200 dark:from-rose-900 dark:to-orange-900 flex items-center justify-center">
+              <span class="material-symbols-outlined text-white/60 text-5xl">photo_library</span>
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+            <div class="absolute bottom-4 left-4 text-white">
+              <p class="text-xs font-medium opacity-80 uppercase tracking-wider mb-0.5">Aug 2023</p>
+              <p class="text-lg font-display font-bold leading-tight">Beach Holidays</p>
+              <p class="text-xs opacity-70 mt-1">38 photos</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Family Moments ────────────────────────────────────────────────── -->
+  <section class="mt-8">
+    <div class="px-4 flex items-center justify-between mb-4">
+      <h2 class="text-xl font-display font-bold">Family Moments</h2>
+      <!-- Changed "Manage People" → "See all" -->
+      <button class="text-primary text-sm font-semibold active:opacity-70">See all</button>
+    </div>
+
+    <!-- Featured card — full width, taller -->
+    <div class="px-4 mb-4">
+      <div class="card-pressable relative h-56 rounded-2xl overflow-hidden cursor-pointer">
+        <img
+          class="w-full h-full object-cover object-center"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmSqD8C6ISvsd4QTf36815t1K5m4dMpM_2E0fNB0yCTvxOOoJk9FoDfD8WM34AZvYctB-hTM02szrKKytD83ipuKr-mOOq7mwQKqf0oTh-dvwKN0Gmq2OLl4XUdlzHYM2zMofUpftNBDQ4c4bnJlpiuY8DBFvsJzxDRr1rQVdgp37peJf2G8jAZk1j-wbqVyIRl1i2VJeAh-JzvBIfijgt1kWcdFNkn-alckXVEWVWhXia4saCKF0Yh9fanN_Nf_KmMM4vp48E5A"
+          alt="Family cooking together in a bright kitchen"
+        />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+        <!-- "This Week" badge — solid bg for guaranteed readability -->
+        <div class="absolute top-3 left-3 bg-primary px-3 py-1 rounded-full">
+          <p class="text-white text-[10px] font-bold uppercase tracking-wide">This Week</p>
+        </div>
+        <div class="absolute bottom-4 left-4 text-white">
+          <p class="text-xs font-medium opacity-80 uppercase tracking-wider mb-0.5">March 2024</p>
+          <p class="text-lg font-display font-bold leading-tight">Sunday Cook-Off</p>
+          <p class="text-xs opacity-70 mt-1">8 photos · 2 videos</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Horizontal scroll row of people/moment cards -->
+    <div class="relative">
+      <div class="flex overflow-x-auto gap-3 px-4 no-scrollbar scroll-fade-right">
+
+        <!-- Person card 1 -->
+        <div class="card-pressable flex-none cursor-pointer">
+          <div class="relative w-36 aspect-square rounded-xl overflow-hidden">
+            <img
+              class="w-full h-full object-cover object-top"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0G37C68Wuv7gKANxVxRAQbSegS80JAA2o_dRwGr6JkSz78JpJBK90c7K8P1g4dr2MPrjUu_KBqdbmrNyivrtgdRqExcQ5IdGxZW0h-mDl8B2gROg-fJbkbGO0f5IK4JMUejrXSkutv_uyffcigetTv3-ScI7ZUbQPYUrR3QbuZuofiGegpi0nDxzYfLqqgtM1z19ZI89BS9ux_46iDwPpw2aFZ3unWQILeVi-oz9tyj7R6KfY-aHqGtqsYVSYRj1Tctmj-8SjOA"
+              alt="Father and son playing soccer"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+            <div class="absolute bottom-2 left-2 text-white">
+              <p class="text-xs font-bold leading-tight">Dad &amp; Leo</p>
+              <p class="text-[10px] opacity-70">12 memories</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Person card 2 -->
+        <div class="card-pressable flex-none cursor-pointer">
+          <div class="relative w-36 aspect-square rounded-xl overflow-hidden">
+            <img
+              class="w-full h-full object-cover object-top"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7IX3X2hHNhiS08p-bbQk0tP1uR9tYUolL4J-qC3xD3_0P2Zf-mfjs1YzbOo7GV-2kgNME2uK5ofRDCsou13RQg8VSwsezQyEQ_-q8p0_bbeFXPk7DxraQ9kAgISEuoKEZHcnoBcKpCTqAUQfLlw45pcXp3HVaNShFF6eHu4Ra4fA-xwCAGHhBYoCJarctJZBGt85bkLZeaX6ACOlGeuJOivVtMSPI8lwcB0wbyVIEFeac8W8v3SCEKVqTxwb7dRzOeK0U6Uqozg"
+              alt="Mother reading to children"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+            <div class="absolute bottom-2 left-2 text-white">
+              <p class="text-xs font-bold leading-tight">Mum &amp; Kids</p>
+              <p class="text-[10px] opacity-70">24 memories</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Person card 3 — placeholder shows there are more people -->
+        <div class="card-pressable flex-none cursor-pointer">
+          <div class="relative w-36 aspect-square rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 flex flex-col items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-slate-400 text-3xl">person_add</span>
+            <p class="text-xs text-slate-500 font-medium text-center px-2 leading-tight">Add a person</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Travel Stories ────────────────────────────────────────────────── -->
+  <section class="px-4 mt-8 mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-display font-bold">Travel Stories</h2>
+      <button class="text-primary text-sm font-semibold active:opacity-70">See all</button>
+    </div>
+
+    <div class="space-y-3">
+
+      <!-- Travel row card 1 -->
+      <div class="card-pressable flex items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 cursor-pointer">
+        <div class="w-20 h-20 flex-none rounded-xl overflow-hidden">
+          <img
+            class="w-full h-full object-cover"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDUD2eC8I2MUd-OZ54y9hzIqi_L6bo4CT3KRWhlgZCWTWuPmJGwjRyJEg6nV-_MdEhpZ3NDJDeow6c3b_HmGpHg71Slzq1waJi1-1_nnY_7MA2EoyHfkIbIAVk1ZG4Chn3tFM2iXbXfeztifTWfaVD095Esud45gj1m0QILmNk-r71kXVesL4dcuEaxwPw7NtLA3ObHQqqlj6yJrJuV28PsimF3QHM5HCjnHWX6G0-0y_8D4KQt-oBe7xTy7n16pygphRPJxgh2A"
+            alt="View of Eiffel Tower through Parisian street"
+          />
+        </div>
+        <div class="flex-1 min-w-0">
+          <!-- Fixed: tracking-normal on small uppercase text -->
+          <p class="text-xs text-slate-400 font-medium uppercase tracking-normal mb-0.5">France · 12 photos</p>
+          <h3 class="font-display font-bold text-base leading-tight">Parisian Spring</h3>
+          <!-- line-clamp-2 for more substance -->
+          <p class="text-slate-500 dark:text-slate-400 text-xs mt-1 line-clamp-2 leading-relaxed">Walking through the Tuileries gardens in full bloom.</p>
+        </div>
+        <!-- Larger touch target on chevron -->
+        <div class="p-2 -mr-1">
+          <span class="material-symbols-outlined text-slate-400 text-xl">chevron_right</span>
+        </div>
+      </div>
+
+      <!-- Travel row card 2 -->
+      <div class="card-pressable flex items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 cursor-pointer">
+        <div class="w-20 h-20 flex-none rounded-xl overflow-hidden">
+          <img
+            class="w-full h-full object-cover"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4Rj8mw9WKFufPykxgk8sQ76Gc_oJT3IxVb3RFSfzbZ_q_UAwFtTQ7Twzlz5V3AssngWCfNueJwrZk4HmEGjBLVgo7Sq9SbX4fl5RPbM5Gvofu8sF9MYW_zQrxlpeG7uXy36n4seU9G8MZTa9DaFjMo3A-pBXxhHDaULfAFvlH9dfSmsR3A0CFLzjFTBY282-uVCdwHRqTbNg7H-TBaSCIFhJkj8e8FDp_cYFcFWYgv6dv8XR_68KdDBRqQmmqSVhvapFBIT3mUQ"
+            alt="Clear lake water reflecting snow capped mountains"
+          />
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs text-slate-400 font-medium uppercase tracking-normal mb-0.5">Italy · 45 photos</p>
+          <h3 class="font-display font-bold text-base leading-tight">Dolomite Peaks</h3>
+          <p class="text-slate-500 dark:text-slate-400 text-xs mt-1 line-clamp-2 leading-relaxed">The most breathtaking views from Seceda at sunrise.</p>
+        </div>
+        <div class="p-2 -mr-1">
+          <span class="material-symbols-outlined text-slate-400 text-xl">chevron_right</span>
+        </div>
+      </div>
+
+      <!-- Empty state placeholder (shown when no more stories) -->
+      <!--
+      <div class="flex flex-col items-center justify-center py-8 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 gap-2">
+        <span class="material-symbols-outlined text-slate-300 text-4xl">luggage</span>
+        <p class="text-slate-400 text-sm font-medium">No travel stories yet</p>
+        <button class="text-primary text-sm font-semibold mt-1">Add your first trip +</button>
+      </div>
+      -->
+
+    </div>
+  </section>
+
+  <!-- ─── Bottom Navigation ─────────────────────────────────────────────── -->
+  <!--
+    iOS safe-area fix: padding-bottom accounts for home indicator
+    overflow-visible ensures the FAB renders above the nav pill
+  -->
+  <nav
+    class="fixed left-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-visible"
+    style="bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem))"
+  >
+    <div class="flex justify-around items-center h-16 px-2">
+
+      <a class="flex flex-col items-center gap-1 text-slate-400 active:text-primary transition-colors" href="#">
+        <span class="material-symbols-outlined text-xl">photo_library</span>
+        <!-- Bumped from text-[10px] to text-xs (12px) -->
+        <span class="text-xs font-medium">Photos</span>
+      </a>
+
+      <!-- Active tab — Explore -->
+      <a class="flex flex-col items-center gap-1 text-primary" href="#">
+        <div class="bg-primary/10 rounded-full px-3 py-0.5 flex items-center gap-1">
+          <span class="material-symbols-outlined fill-1 text-xl">explore</span>
+        </div>
+        <span class="text-xs font-bold">Explore</span>
+      </a>
+
+      <!-- FAB — center -->
+      <a class="flex flex-col items-center justify-center -mt-8" href="#">
+        <div class="bg-primary text-white p-3.5 rounded-full shadow-lg shadow-primary/40 border-4 border-background-light dark:border-background-dark active:scale-95 transition-transform">
+          <span class="material-symbols-outlined text-2xl">add</span>
+        </div>
+      </a>
+
+      <a class="flex flex-col items-center gap-1 text-slate-400 active:text-primary transition-colors" href="#">
+        <span class="material-symbols-outlined text-xl">group</span>
+        <span class="text-xs font-medium">Sharing</span>
+      </a>
+
+      <!-- Library icon changed to auto_stories for clarity -->
+      <a class="flex flex-col items-center gap-1 text-slate-400 active:text-primary transition-colors" href="#">
+        <span class="material-symbols-outlined text-xl">auto_stories</span>
+        <span class="text-xs font-medium">Library</span>
+      </a>
+
+    </div>
+  </nav>
+
+</div>
+</body>
+</html>
