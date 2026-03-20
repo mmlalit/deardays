@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+// ReflectionPeriod is re-exported from app_providers.dart
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/features/book/presentation/providers/life_book_provider.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
@@ -355,11 +356,13 @@ final hierarchicalBookProvider =
 // ─────────────────────────────────────────────────────────────────────────────
 
 class StoryNotifier extends StateNotifier<StoryState> {
-  StoryNotifier(this._ref) : super(const StoryState()) {
+  StoryNotifier(this._ref, {this.period = ReflectionPeriod.weekly})
+      : super(const StoryState()) {
     _checkDataAvailability();
   }
 
   final Ref _ref;
+  final ReflectionPeriod period;
 
   Future<void> _checkDataAvailability() async {
     try {
@@ -383,10 +386,14 @@ class StoryNotifier extends StateNotifier<StoryState> {
     state = state.copyWith(status: StoryStatus.generating, progress: 0.1);
     try {
       final now = DateTime.now();
-      final weekStart = StoryNode.weekStart(now);
+      final (startDate, limit) = switch (period) {
+        ReflectionPeriod.weekly  => (StoryNode.weekStart(now), 14),
+        ReflectionPeriod.monthly => (DateTime(now.year, now.month, 1), 60),
+        ReflectionPeriod.yearly  => (DateTime(now.year, 1, 1), 400),
+      };
       final entries = await _ref
           .read(journalRepositoryProvider)
-          .getEntries(startDate: weekStart, endDate: now, limit: 14);
+          .getEntries(startDate: startDate, endDate: now, limit: limit);
 
       if (entries.isEmpty) {
         state = state.copyWith(
@@ -436,8 +443,8 @@ class StoryNotifier extends StateNotifier<StoryState> {
       state = state.copyWith(progress: 0.8);
 
       final story = LifeStory(
-        period: 'weekly',
-        startDate: weekStart,
+        period: period.name,
+        startDate: startDate,
         endDate: now,
         totalEntries: entries.length,
         voiceEntries: entries.where((e) => e.hasVoice).length,
@@ -477,3 +484,7 @@ class StoryNotifier extends StateNotifier<StoryState> {
 final storyProvider = StateNotifierProvider<StoryNotifier, StoryState>((ref) {
   return StoryNotifier(ref);
 });
+
+final storyFamilyProvider = StateNotifierProvider.family<StoryNotifier, StoryState, ReflectionPeriod>(
+  (ref, period) => StoryNotifier(ref, period: period),
+);
