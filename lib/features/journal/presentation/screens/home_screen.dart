@@ -121,7 +121,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -157,7 +157,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 final entries = data;
                 if (entries.isEmpty) {
                   return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
                     sliver: SliverToBoxAdapter(
                       child: Container(
                         padding: const EdgeInsets.all(24),
@@ -181,7 +181,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 return _buildMixedMemoryCards(context, entries, colors);
               },
               loading: () => SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (_, i) => Padding(
@@ -193,7 +193,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
               error: (_, __) => SliverPadding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
                 sliver: SliverToBoxAdapter(
                   child: Container(
                     padding: const EdgeInsets.all(24),
@@ -290,7 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (_, i) => i == 0 ? widgets[i] : Padding(

@@ -80,7 +80,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _onNext() {
     if (_isLastPage) {
       widget.onComplete();
-    } else {
+    } else if (_pageController.hasClients) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
@@ -248,7 +248,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     color: Colors.black.withAlpha(40),
                     borderRadius: BorderRadius.circular(99),
                   ),
-                  child: const DdLogoWhite(size: 28),
+                  child: const DdWordmarkWhite(size: 28),
                 ),
               ),
             ),

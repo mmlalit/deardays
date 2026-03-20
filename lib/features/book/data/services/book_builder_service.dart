@@ -26,6 +26,8 @@ class BookBuilderService {
     required BookMode mode,
     required String authorName,
     List<Chapter> chapters = const [],
+    String? customTitle,
+    String? customCoverImageUrl,
   }) {
     if (entries.isEmpty) return [];
 
@@ -37,11 +39,12 @@ class BookBuilderService {
 
     // ── Front matter ───────────────────────────────────────────────────────
     pages.add(CoverBookPage(
-      title: 'My Life Book',
+      title: customTitle ?? 'My Life Book',
       authorName: authorName,
       dateRange: dateRange,
       memoryCount: sorted.length,
-      coverPhotoPath: _happiestPhotoPath(sorted),
+      coverPhotoPath: customCoverImageUrl == null ? _happiestPhotoPath(sorted) : null,
+      coverImageUrl: customCoverImageUrl,
     ));
 
     pages.add(IntroductionBookPage(text: _introText(sorted, authorName)));
@@ -220,7 +223,7 @@ class BookBuilderService {
           entry: entry,
           isFirstInSection: isNewMonth,
           sectionLabel: isNewMonth ? '${d.year} · ${_monthFmt.format(d).toUpperCase()}' : null,
-          weekLabel: _weekRangeLabel(d),
+          weekLabel: null, // WeekOpener page already shows the week context
         ));
       }
     }
@@ -280,7 +283,7 @@ class BookBuilderService {
               entry: entry,
               isFirstInSection: showSection,
               sectionLabel: showSection ? sectionLabel : null,
-              weekLabel: _weekRangeLabel(entry.entryDate),
+              weekLabel: null, // WeekOpener page already shows the week context
             ));
           }
         }

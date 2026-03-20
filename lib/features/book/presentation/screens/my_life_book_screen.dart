@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -28,6 +30,11 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
   int _activeChapterIndex = 0;
   final _scrollController = ScrollController();
   List<_Chapter> _chapters = const [];
+
+  // ── Cover customisation state ───────────────────────────────────────────
+  String? _coverLocalPath;   // user-picked local image (overrides network photo)
+  String? _coverTitle;       // null = use default
+  String? _coverSubtitle;    // null = use default
 
   // ── Map real Chapter + JournalEntry data to display model ──────────────────
 
@@ -347,6 +354,19 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
   // ── Cover card ──────────────────────────────────────────────────────────────
 
   Widget _buildCoverCard(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+    final meta = user?.userMetadata;
+    final displayName = (meta?['display_name'] as String?)?.trim() ??
+        (meta?['full_name'] as String?)?.trim() ??
+        'My';
+    final defaultTitle = "$displayName's Story";
+    final defaultSubtitle = _chapters.isNotEmpty
+        ? '${_chapters.first.monthYear} – ${_chapters.last.monthYear}'
+        : 'A life well lived';
+
+    final title = _coverTitle ?? defaultTitle;
+    final subtitle = _coverSubtitle ?? defaultSubtitle;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ClipRRect(
@@ -356,25 +376,55 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              CachedNetworkImage(
-                imageUrl:
-                    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=900&fit=crop',
-                fit: BoxFit.cover,
-                memCacheWidth: 900,
-                memCacheHeight: 540,
-                errorWidget: (_, __, ___) =>
-                    Container(color: const Color(0xFF1E293B)),
-              ),
-              Container(
-                decoration: const BoxDecoration(
+              // ── Background photo ─────────────────────────────────────────
+              if (_coverLocalPath != null)
+                Image.asset(_coverLocalPath!, fit: BoxFit.cover)
+              else
+                CachedNetworkImage(
+                  imageUrl:
+                      'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=900&fit=crop',
+                  fit: BoxFit.cover,
+                  memCacheWidth: 900,
+                  memCacheHeight: 540,
+                  errorWidget: (_, __, ___) =>
+                      Container(color: const Color(0xFF1E293B)),
+                ),
+
+              // ── Gradient scrim (lighter — photo breathes in top 35%) ─────
+              const DecoratedBox(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0x330F172A), Color(0xF50F172A)],
-                    stops: [0.0, 0.72],
+                    colors: [Color(0x00000000), Color(0xBF000000)],
+                    stops: [0.35, 1.0],
                   ),
                 ),
               ),
+
+              // ── Edit button (top-right) ───────────────────────────────────
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: () => _showCoverEditSheet(
+                      context, defaultTitle, defaultSubtitle),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(120),
+                      shape: BoxShape.circle,
+                      border:
+                          Border.all(color: Colors.white.withAlpha(60), width: 1),
+                    ),
+                    child: const Icon(Icons.edit_rounded,
+                        size: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+
+              // ── Text overlay (bottom) ─────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.all(22),
                 child: Column(
@@ -384,7 +434,7 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
                     _pill('VOLUME I'),
                     const SizedBox(height: 10),
                     Text(
-                      'The Digital Autobiography',
+                      title,
                       style: GoogleFonts.newsreader(
                         fontSize: 26,
                         fontWeight: FontWeight.w600,
@@ -394,7 +444,7 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'A continuous journey of a life well lived',
+                      subtitle,
                       style: GoogleFonts.newsreader(
                         fontSize: 13,
                         color: Colors.white.withAlpha(190),
@@ -415,7 +465,7 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
                           ),
                         ),
                         Text(
-                          '35%',
+                          '${((_activeChapterIndex / (_chapters.length.clamp(1, 999))) * 100).round()}%',
                           style: GoogleFonts.manrope(
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
@@ -429,7 +479,9 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: 0.35,
+                        value: _chapters.isEmpty
+                            ? 0
+                            : _activeChapterIndex / _chapters.length,
                         backgroundColor: Colors.white.withAlpha(45),
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           Color(0xFF195DE6),
@@ -447,6 +499,253 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Cover edit bottom sheet ───────────────────────────────────────────────
+
+  Future<void> _showCoverEditSheet(
+    BuildContext context,
+    String defaultTitle,
+    String defaultSubtitle,
+  ) async {
+    final titleCtrl =
+        TextEditingController(text: _coverTitle ?? defaultTitle);
+    final subtitleCtrl =
+        TextEditingController(text: _coverSubtitle ?? defaultSubtitle);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFFAFAFC),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Drag handle
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF94A3B8).withAlpha(80),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Edit Cover',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Change photo ─────────────────────────────────────────
+                    Text(
+                      'COVER PHOTO',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _photoSourceBtn(
+                          ctx,
+                          icon: Icons.photo_library_outlined,
+                          label: 'Gallery',
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final img = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              maxWidth: 1800,
+                            );
+                            if (img != null && sheetCtx.mounted) {
+                              setState(() => _coverLocalPath = img.path);
+                              Navigator.pop(sheetCtx);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        _photoSourceBtn(
+                          ctx,
+                          icon: Icons.camera_alt_outlined,
+                          label: 'Camera',
+                          onTap: () async {
+                            final picker = ImagePicker();
+                            final img = await picker.pickImage(
+                              source: ImageSource.camera,
+                              maxWidth: 1800,
+                            );
+                            if (img != null && sheetCtx.mounted) {
+                              setState(() => _coverLocalPath = img.path);
+                              Navigator.pop(sheetCtx);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Title ────────────────────────────────────────────────
+                    Text(
+                      'TITLE',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: titleCtrl,
+                      style: GoogleFonts.newsreader(
+                          fontSize: 15, color: const Color(0xFF0F172A)),
+                      decoration: InputDecoration(
+                        hintText: defaultTitle,
+                        hintStyle: GoogleFonts.newsreader(
+                            color: const Color(0xFFCBD5E1)),
+                        filled: true,
+                        fillColor: const Color(0xFFF1F5F9),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Subtitle ─────────────────────────────────────────────
+                    Text(
+                      'SUBTITLE',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: subtitleCtrl,
+                      style: GoogleFonts.manrope(
+                          fontSize: 14, color: const Color(0xFF0F172A)),
+                      decoration: InputDecoration(
+                        hintText: defaultSubtitle,
+                        hintStyle: GoogleFonts.manrope(
+                            color: const Color(0xFFCBD5E1)),
+                        filled: true,
+                        fillColor: const Color(0xFFF1F5F9),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Save button ──────────────────────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _coverTitle = titleCtrl.text.trim().isEmpty
+                                ? null
+                                : titleCtrl.text.trim();
+                            _coverSubtitle = subtitleCtrl.text.trim().isEmpty
+                                ? null
+                                : subtitleCtrl.text.trim();
+                          });
+                          Navigator.pop(sheetCtx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF195DE6),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Save',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    titleCtrl.dispose();
+    subtitleCtrl.dispose();
+  }
+
+  Widget _photoSourceBtn(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF195DE6)),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF0F172A),
                 ),
               ),
             ],

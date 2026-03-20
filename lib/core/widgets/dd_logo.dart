@@ -56,6 +56,69 @@ class DdLogoWhite extends StatelessWidget {
   }
 }
 
+/// Horizontal wordmark: gradient "dd" + "DearDays" text side by side.
+/// Use [DdWordmark] on light backgrounds, [DdWordmarkWhite] on dark/gradient.
+class DdWordmark extends StatelessWidget {
+  final double size; // controls the "dd" height; name scales proportionally
+  const DdWordmark({super.key, this.size = 28});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        DdLogo(size: size),
+        SizedBox(width: size * 0.25),
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: _kGradientColors,
+          ).createShader(bounds),
+          child: Text(
+            'DearDays',
+            style: GoogleFonts.nunito(
+              fontSize: size * 0.52,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.0,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// White wordmark variant for dark/gradient backgrounds.
+class DdWordmarkWhite extends StatelessWidget {
+  final double size;
+  const DdWordmarkWhite({super.key, this.size = 28});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        DdLogoWhite(size: size),
+        SizedBox(width: size * 0.25),
+        Text(
+          'DearDays',
+          style: GoogleFonts.nunito(
+            fontSize: size * 0.52,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            height: 1.0,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Rounded-square app-icon variant — white card with gradient "dd" inside.
 class DdLogoIcon extends StatelessWidget {
   final double size;

@@ -948,7 +948,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 count: weekEntries.length,
                 colors: colors,
                 photoUrlBuilder: _getPhotoUrl,
-                onTap: () => context.push('/story?period=weekly'),
+                onTap: () => context.push('/story'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
@@ -958,7 +958,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 count: monthEntries.length,
                 colors: colors,
                 photoUrlBuilder: _getPhotoUrl,
-                onTap: () => context.push('/story?period=monthly'),
+                onTap: () => context.push('/story'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
@@ -968,7 +968,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 count: yearEntries.length,
                 colors: colors,
                 photoUrlBuilder: _getPhotoUrl,
-                onTap: () => context.push('/story?period=yearly'),
+                onTap: () => context.push('/story'),
               ),
             ],
           ),

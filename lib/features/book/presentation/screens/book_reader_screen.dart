@@ -6,11 +6,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/routing/routes.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
+import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/models/book_page.dart';
 import 'package:deardays/features/book/data/services/book_builder_service.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
@@ -31,9 +37,9 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
   bool _overlayVisible = false; // starts hidden — tap to reveal
-  bool _isDearDays = false; // toggle: false = Journal, true = ✦ Story
-  final Set<int> _bookmarkedPages = {};
+  bool _isDearDays = true; // toggle: false = Journal, true = ✦ Story
   int _themeIndex = 0; // index into _readingThemes
+  int? _resumePage; // last bookmarked page — persisted to Hive
 
   static const _readingThemes = [
     (label: 'Parchment', color: Color(0xFFFBF7F0)), // warm cream — default
@@ -49,6 +55,35 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _loadTheme();
+    _loadResumePage();
+  }
+
+  Future<void> _loadTheme() async {
+    final box = await Hive.openBox<int>('reader_prefs');
+    final saved = box.get('themeIndex', defaultValue: 0)!;
+    if (mounted && saved != _themeIndex) {
+      setState(() => _themeIndex = saved.clamp(0, _readingThemes.length - 1));
+    }
+  }
+
+  Future<void> _saveTheme(int index) async {
+    final box = await Hive.openBox<int>('reader_prefs');
+    await box.put('themeIndex', index);
+  }
+
+  Future<void> _loadResumePage() async {
+    final box = await Hive.openBox<int>('reader_prefs');
+    final saved = box.get('resumePage');
+    if (mounted && saved != null) {
+      setState(() => _resumePage = saved);
+    }
+  }
+
+  Future<void> _saveResumePage(int page) async {
+    final box = await Hive.openBox<int>('reader_prefs');
+    await box.put('resumePage', page);
+    if (mounted) setState(() => _resumePage = page);
   }
 
   @override
@@ -152,14 +187,19 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     final entries = entriesAsync.valueOrNull ?? [];
     final chapters = chaptersAsync.valueOrNull ?? [];
     final authorName = profileAsync.valueOrNull?.displayName ?? 'You';
-    final primaryBookId = booksAsync.valueOrNull?.isNotEmpty == true
-        ? booksAsync.valueOrNull!.first.id
+    final primaryBook = booksAsync.valueOrNull?.isNotEmpty == true
+        ? booksAsync.valueOrNull!.first
         : null;
+    final primaryBookId = primaryBook?.id;
 
-    // Watch weekly narrative pages when Story mode is on and a book exists
-    final weeklyPagesAsync = (_isDearDays && primaryBookId != null)
+    // Pre-fetch weekly summary so it's ready before the user swipes to week opener
+    ref.watch(reflectionSummaryProvider(ReflectionPeriod.weekly));
+
+    // Always watch weekly pages so we can auto-switch to Story if available
+    final weeklyPagesAsync = primaryBookId != null
         ? ref.watch(weeklyNarrativePagesProvider(primaryBookId))
         : null;
+    final weeklyPages = weeklyPagesAsync?.valueOrNull ?? [];
 
     if (entries.isEmpty) return _buildEmpty(context);
 
@@ -168,10 +208,11 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
       mode: widget.mode,
       authorName: authorName,
       chapters: chapters,
+      customTitle: primaryBook?.title,
+      customCoverImageUrl: primaryBook?.coverImageUrl,
     );
 
     // In Story mode, replace body with AI-generated weekly narrative pages
-    final weeklyPages = weeklyPagesAsync?.valueOrNull ?? [];
     final pages = (_isDearDays && weeklyPages.isNotEmpty)
         ? _storyModePages(builtPages, weeklyPages)
         : builtPages;
@@ -194,7 +235,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                   setState(() => _currentPage = i);
                 },
                 itemBuilder: (context, index) =>
-                    _buildPage(context, pages[index], index, pages, entries),
+                    _buildPage(context, pages[index], index, pages, entries, primaryBookId),
               ),
 
               // Overlay: top + bottom bars
@@ -217,16 +258,26 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     int index,
     List<BookPage> pages,
     List<JournalEntry> entries,
+    String? bookId,
   ) {
     return switch (page) {
-      CoverBookPage p           => _CoverPage(page: p),
-      IntroductionBookPage p    => _IntroPage(page: p, pageNum: 'i', bgColor: _readingBg),
+      CoverBookPage p           => _CoverPage(page: p, bookId: bookId),
+      IntroductionBookPage p    => _IntroPage(
+          page: p,
+          pageNum: 'i',
+          bgColor: _readingBg,
+          themeIndex: _themeIndex,
+          onThemeChanged: (i) {
+            setState(() => _themeIndex = i);
+            _saveTheme(i);
+          },
+        ),
       TocBookPage p             => _TocPage(page: p, onTap: _jumpToPage, bgColor: _readingBg),
       YearDividerPage p         => _YearPage(page: p),
       MonthDividerPage p        => _MonthPage(page: p),
       ChapterDividerPage p      => _ChapterPage(page: p),
-      WeekOpenerBookPage p      => _WeekOpenerPage(page: p, pageNum: index),
-      MemoryBookPage p          => _MemoryPage(page: p, pageNum: index, isDearDays: _isDearDays),
+      WeekOpenerBookPage p      => _WeekOpenerPage(page: p, pageNum: index, bgColor: _readingBg),
+      MemoryBookPage p          => _MemoryPage(page: p, pageNum: index, isDearDays: _isDearDays, bgColor: _readingBg),
       WeeklyNarrativeBookPage p => _WeeklyNarrativePage(page: p, pageNum: index, isDearDays: _isDearDays, allEntries: entries, bgColor: _readingBg),
       TimeBridgePage p          => _TimeBridgePage(page: p),
       ClosingBookPage p         => _ClosingPage(page: p, onRecord: () => context.push('/record'), onWrite: () => context.push('/write'), bgColor: _readingBg),
@@ -265,31 +316,38 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => context.pop(),
-                    icon: Icon(Icons.arrow_back_ios_new, size: 18, color: textColor),
+                  // Contents — top left
+                  _BarBtn(
+                    icon: Icons.menu_rounded,
+                    label: 'Contents',
+                    color: isDark ? Colors.white : Colors.black,
+                    onTap: () {
+                      final tocIndex = pages.indexWhere((p) => p is TocBookPage);
+                      if (tocIndex >= 0) _jumpToPage(tocIndex);
+                    },
                   ),
+                  // Date — center
                   Expanded(
                     child: Text(
-                      _sectionName(pages, _currentPage),
+                      _pageDate(currentPage),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: GoogleFonts.manrope(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.8,
                         color: textColor.withAlpha(140),
                       ),
                     ),
                   ),
-                  Text(
-                    '${_currentPage + 1} / ${pages.length}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      color: textColor.withAlpha(90),
-                    ),
+                  // X — close reader → Books
+                  _BarBtn(
+                    icon: Icons.close_rounded,
+                    label: 'Close',
+                    color: isDark ? Colors.white : Colors.black,
+                    onTap: () => context.go(AppRoutes.book),
                   ),
-                  const SizedBox(width: 16),
                 ],
               ),
             ),
@@ -312,8 +370,15 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
     final canGoPrev = _currentPage > 0;
     final canGoNext = _currentPage < pages.length - 1;
-    final isBookmarked = _bookmarkedPages.contains(_currentPage);
     final tocIndex = pages.indexWhere((p) => p is TocBookPage);
+    final hideControls = currentPage is CoverBookPage ||
+        currentPage is IntroductionBookPage ||
+        currentPage is WeekOpenerBookPage ||
+        currentPage is MonthDividerPage ||
+        currentPage is YearDividerPage ||
+        currentPage is ChapterDividerPage ||
+        currentPage is TocBookPage ||
+        currentPage is ClosingBookPage;
 
     return Positioned(
       bottom: 0,
@@ -326,167 +391,228 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
         ),
         child: SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Row 1: Journal / ✦ Story mode toggle ──────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Container(
-                  height: 44,
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: textColor.withAlpha(18),
-                    borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              children: [
+                // ── Prev ─────────────────────────────────────────────────────
+                Expanded(
+                  child: _BarBtn(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    label: 'Prev',
+                    color: canGoPrev ? textColor : textColor.withAlpha(35),
+                    onTap: canGoPrev
+                        ? () => _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            )
+                        : null,
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isDearDays = false),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              color: !_isDearDays
-                                  ? (isDark ? Colors.white.withAlpha(220) : AppColors.readingText.withAlpha(210))
+                ),
+
+                // ── Journal / Story / More ────────────────────────────────
+                if (!hideControls) ...[
+                  Expanded(
+                    child: _BarBtn(
+                      icon: Icons.menu_book_outlined,
+                      label: 'Journal',
+                      color: !_isDearDays ? accentColor : textColor.withAlpha(100),
+                      onTap: () => setState(() => _isDearDays = false),
+                    ),
+                  ),
+                  Expanded(
+                    child: _BarBtn(
+                      icon: Icons.auto_stories_rounded,
+                      label: 'Story',
+                      color: _isDearDays ? accentColor : textColor.withAlpha(100),
+                      onTap: () => setState(() => _isDearDays = true),
+                    ),
+                  ),
+                  Expanded(
+                    child: _BarBtn(
+                      icon: Icons.more_horiz_rounded,
+                      label: 'More',
+                      color: textColor.withAlpha(160),
+                      onTap: () => _showMoreSheet(context, pages, textColor, accentColor, isDark),
+                    ),
+                  ),
+                ] else ...[
+                  const Spacer(),
+                  _BarBtn(
+                    icon: Icons.menu_book_rounded,
+                    label: 'Contents',
+                    color: tocIndex >= 0 ? textColor.withAlpha(160) : textColor.withAlpha(40),
+                    onTap: tocIndex >= 0 ? () => _jumpToPage(tocIndex) : null,
+                  ),
+                  // Resume — only on cover page when a bookmark exists
+                  if (currentPage is CoverBookPage && _resumePage != null && _resumePage! > 0) ...[
+                    const SizedBox(width: 8),
+                    _BarBtn(
+                      icon: Icons.play_arrow_rounded,
+                      label: 'Resume',
+                      color: accentColor,
+                      onTap: () => _jumpToPage(_resumePage!),
+                    ),
+                  ],
+                  const Spacer(),
+                ],
+
+                // ── Next ─────────────────────────────────────────────────────
+                Expanded(
+                  child: _BarBtn(
+                    icon: Icons.arrow_forward_ios_rounded,
+                    label: 'Next',
+                    color: canGoNext ? textColor : textColor.withAlpha(35),
+                    onTap: canGoNext
+                        ? () => _pageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            )
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── More bottom sheet ─────────────────────────────────────────────────────
+
+  void _showMoreSheet(
+    BuildContext context,
+    List<BookPage> pages,
+    Color textColor,
+    Color accentColor,
+    bool isDark,
+  ) {
+    final bgColor = isDark ? const Color(0xFF1C1C1E) : AppColors.readingBg;
+    final labelColor = isDark ? Colors.white70 : AppColors.readingText.withAlpha(160);
+    final isBookmarked = _resumePage == _currentPage;
+    final tocIndex = pages.indexWhere((p) => p is TocBookPage);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: labelColor.withAlpha(80),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+
+                // Reading theme
+                Text(
+                  'READING THEME',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: labelColor,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    for (int i = 0; i < _readingThemes.length; i++)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _themeIndex = i);
+                          _saveTheme(i);
+                          setSheet(() {});
+                        },
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          margin: const EdgeInsets.only(right: 10),
+                          decoration: BoxDecoration(
+                            color: _readingThemes[i].color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _themeIndex == i
+                                  ? accentColor
                                   : Colors.transparent,
-                              borderRadius: BorderRadius.circular(21),
+                              width: 2.5,
                             ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '📖  Journal',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: !_isDearDays
-                                    ? (isDark ? Colors.black.withAlpha(200) : Colors.white)
-                                    : textColor.withAlpha(110),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(30),
+                                blurRadius: 4,
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isDearDays = true),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              color: _isDearDays ? accentColor : Colors.transparent,
-                              borderRadius: BorderRadius.circular(21),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '✦  Story',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: _isDearDays ? Colors.white : textColor.withAlpha(110),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-              ),
 
-              // ── Row 2: Page color swatches ────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_readingThemes.length, (i) {
-                    final theme = _readingThemes[i];
-                    final isActive = _themeIndex == i;
-                    return GestureDetector(
-                      onTap: () => setState(() => _themeIndex = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: theme.color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isActive ? accentColor : textColor.withAlpha(60),
-                            width: isActive ? 2.5 : 1,
-                          ),
-                          boxShadow: isActive
-                              ? [BoxShadow(color: accentColor.withAlpha(80), blurRadius: 6)]
-                              : null,
-                        ),
-                        child: isActive
-                            ? const Icon(Icons.check_rounded, size: 14, color: accentColor)
-                            : null,
-                      ),
-                    );
-                  }),
-                ),
-              ),
+                const SizedBox(height: 20),
+                Divider(color: labelColor.withAlpha(40), height: 1),
+                const SizedBox(height: 16),
 
-              Divider(height: 1, thickness: 1, color: textColor.withAlpha(15)),
-
-              // ── Row 3: Controls ───────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                child: Row(
+                // Actions row
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _BarBtn(
-                      icon: Icons.arrow_back_ios_new_rounded,
-                      label: 'Prev',
-                      color: canGoPrev ? textColor : textColor.withAlpha(40),
-                      onTap: canGoPrev
-                          ? () => _pageController.previousPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                              )
-                          : null,
-                    ),
+                    // Bookmark
                     _BarBtn(
                       icon: isBookmarked
                           ? Icons.bookmark_rounded
                           : Icons.bookmark_border_rounded,
-                      label: 'Bookmark',
-                      color: isBookmarked ? accentColor : textColor.withAlpha(160),
-                      onTap: () => setState(() {
-                        if (isBookmarked) {
-                          _bookmarkedPages.remove(_currentPage);
-                        } else {
-                          _bookmarkedPages.add(_currentPage);
+                      label: isBookmarked ? 'Bookmarked' : 'Bookmark',
+                      color: isBookmarked ? accentColor : textColor,
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        if (!isBookmarked) {
+                          _saveResumePage(_currentPage);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Page bookmarked — tap Resume on the cover to return'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
                         }
-                      }),
+                      },
                     ),
+
+                    // Contents
                     _BarBtn(
                       icon: Icons.menu_book_rounded,
                       label: 'Contents',
-                      color: tocIndex >= 0 ? textColor.withAlpha(160) : textColor.withAlpha(40),
-                      onTap: tocIndex >= 0 ? () => _jumpToPage(tocIndex) : null,
-                    ),
-                    _BarBtn(
-                      icon: Icons.ios_share_rounded,
-                      label: 'Share',
-                      color: textColor.withAlpha(160),
-                      onTap: () => context.push('/export'),
-                    ),
-                    _BarBtn(
-                      icon: Icons.arrow_forward_ios_rounded,
-                      label: 'Next',
-                      color: canGoNext ? textColor : textColor.withAlpha(40),
-                      onTap: canGoNext
-                          ? () => _pageController.nextPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                              )
+                      color: tocIndex >= 0 ? textColor : textColor.withAlpha(60),
+                      onTap: tocIndex >= 0
+                          ? () {
+                              Navigator.of(ctx).pop();
+                              _jumpToPage(tocIndex);
+                            }
                           : null,
                     ),
+
                   ],
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
@@ -500,7 +626,6 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     YearDividerPage()     => true,
     MonthDividerPage()    => true,
     ChapterDividerPage()  => true,
-    WeekOpenerBookPage()  => true,
     TimeBridgePage()      => false,
     _                     => false,
   };
@@ -522,6 +647,24 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     if (current is MemoryBookPage) {
       return DateFormat('MMMM yyyy').format(current.entry.entryDate);
     }
+    return '';
+  }
+
+  /// Returns the date label shown in the top bar center for the current page.
+  String _pageDate(BookPage? page) {
+    if (page is MemoryBookPage) {
+      return DateFormat('MMMM yyyy').format(page.entry.entryDate).toUpperCase();
+    }
+    if (page is WeekOpenerBookPage) return page.weekRange;
+    if (page is WeeklyNarrativeBookPage) {
+      try {
+        return DateFormat('MMMM yyyy').format(DateTime.parse(page.weekStart)).toUpperCase();
+      } catch (_) {}
+    }
+    if (page is IntroductionBookPage) return 'INTRODUCTION';
+    if (page is TocBookPage) return 'CONTENTS';
+    if (page is ClosingBookPage) return 'CLOSING';
+    if (page is ChapterDividerPage) return page.chapter.title.toUpperCase();
     return '';
   }
 
@@ -609,33 +752,6 @@ Widget _readingShell({required Widget child, Color color = AppColors.readingBg})
   );
 }
 
-/// Inline section banner — "2026 · MARCH" — shown at top of first memory in each month.
-class _SectionBanner extends StatelessWidget {
-  final String label;
-  const _SectionBanner({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF5C3D1E).withAlpha(10),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF5C3D1E).withAlpha(30)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.manrope(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 2.5,
-          color: const Color(0xFF5C3D1E).withAlpha(150),
-        ),
-      ),
-    );
-  }
-}
 
 /// Drop cap + rest of first paragraph.
 Widget _dropCap(BuildContext context, String text) {
@@ -707,15 +823,27 @@ Widget _bodyText(String text) {
 // 0. Cover page
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CoverPage extends ConsumerWidget {
+class _CoverPage extends ConsumerStatefulWidget {
   final CoverBookPage page;
-  const _CoverPage({required this.page});
+  final String? bookId;
+  const _CoverPage({required this.page, this.bookId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (page.coverPhotoPath != null) {
+  ConsumerState<_CoverPage> createState() => _CoverPageState();
+}
+
+class _CoverPageState extends ConsumerState<_CoverPage> {
+  bool _uploading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Use direct URL (user-uploaded) or fall back to signed storage path
+    if (widget.page.coverImageUrl != null && widget.page.coverImageUrl!.isNotEmpty) {
+      return _buildCover(context, widget.page.coverImageUrl);
+    }
+    if (widget.page.coverPhotoPath != null) {
       return FutureBuilder<String>(
-        future: ref.read(mediaServiceProvider).getSignedUrl(page.coverPhotoPath!),
+        future: ref.read(mediaServiceProvider).getSignedUrl(widget.page.coverPhotoPath!),
         builder: (context, snap) => _buildCover(context, snap.data),
       );
     }
@@ -727,7 +855,7 @@ class _CoverPage extends ConsumerWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Background: happiest memory photo or fallback gradient
+        // Background photo or fallback gradient
         if (photoUrl != null && photoUrl.isNotEmpty)
           CachedNetworkImage(
             imageUrl: photoUrl,
@@ -762,10 +890,9 @@ class _CoverPage extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Author above title
-                if (page.authorName != null)
+                if (widget.page.authorName != null)
                   Text(
-                    'By ${page.authorName}',
+                    'By ${widget.page.authorName}',
                     style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -777,7 +904,7 @@ class _CoverPage extends ConsumerWidget {
                 Container(width: 40, height: 1, color: accent.withAlpha(200)),
                 const SizedBox(height: 14),
                 Text(
-                  page.title,
+                  widget.page.title,
                   style: GoogleFonts.newsreader(
                     fontSize: 40,
                     fontWeight: FontWeight.w700,
@@ -786,7 +913,6 @@ class _CoverPage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Metadata chips
                 Row(
                   children: [
                     Container(
@@ -796,7 +922,7 @@ class _CoverPage extends ConsumerWidget {
                         border: Border.all(color: Colors.white.withAlpha(60)),
                       ),
                       child: Text(
-                        page.dateRange.toUpperCase(),
+                        widget.page.dateRange.toUpperCase(),
                         style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -813,7 +939,7 @@ class _CoverPage extends ConsumerWidget {
                         border: Border.all(color: accent.withAlpha(140)),
                       ),
                       child: Text(
-                        '${page.memoryCount} ${page.memoryCount == 1 ? 'memory' : 'memories'}',
+                        '${widget.page.memoryCount} ${widget.page.memoryCount == 1 ? 'memory' : 'memories'}',
                         style: GoogleFonts.manrope(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -828,8 +954,177 @@ class _CoverPage extends ConsumerWidget {
             ),
           ),
         ),
+
+        // Edit button — top right, always visible
+        Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            right: 16,
+            child: _uploading
+                ? const SizedBox(
+                    width: 36, height: 36,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : GestureDetector(
+                    onTap: () => _showEditSheet(context),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(100),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withAlpha(60)),
+                      ),
+                      child: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
+                    ),
+                  ),
+          ),
       ],
     );
+  }
+
+  void _showEditSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(60),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.title_rounded, color: Colors.white, size: 20),
+                ),
+                title: Text('Edit Title',
+                    style: GoogleFonts.manrope(color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: Text('Change your book\'s name',
+                    style: GoogleFonts.manrope(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showTitleDialog(context);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.image_rounded, color: Colors.white, size: 20),
+                ),
+                title: Text('Change Cover Photo',
+                    style: GoogleFonts.manrope(color: Colors.white, fontWeight: FontWeight.w600)),
+                subtitle: Text('Pick a photo from your gallery',
+                    style: GoogleFonts.manrope(color: Colors.white54, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickCoverPhoto(context);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Returns the existing book or creates a new one if none exists yet.
+  Future<Book> _getOrCreateBook() async {
+    final repo = ref.read(bookRepositoryProvider);
+    final books = await repo.getBooks();
+    if (books.isNotEmpty) return books.first;
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    final now = DateTime.now();
+    return repo.createBook(Book(
+      id: '',
+      userId: userId,
+      title: widget.page.title,
+      startDate: now,
+      createdAt: now,
+      updatedAt: now,
+    ));
+  }
+
+  void _showTitleDialog(BuildContext context) {
+    final controller = TextEditingController(text: widget.page.title);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Book Title',
+            style: GoogleFonts.newsreader(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: GoogleFonts.manrope(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'My Life Book',
+            hintStyle: GoogleFonts.manrope(color: Colors.white38),
+            enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white60)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newTitle = controller.text.trim();
+              Navigator.pop(ctx);
+              if (newTitle.isEmpty || newTitle == widget.page.title) return;
+              final book = await _getOrCreateBook();
+              await ref.read(bookRepositoryProvider).updateBook(book.copyWith(title: newTitle));
+              ref.invalidate(booksProvider);
+            },
+            child: Text('Save', style: GoogleFonts.manrope(color: const Color(0xFF6366F1), fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickCoverPhoto(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked == null) return;
+    if (!mounted) return;
+    setState(() => _uploading = true);
+    try {
+      final book = await _getOrCreateBook();
+      final repo = ref.read(bookRepositoryProvider);
+      final url = await repo.uploadCoverImage(book.id, File(picked.path));
+      await repo.updateBook(book.copyWith(coverImageUrl: url));
+      ref.invalidate(booksProvider);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not update cover: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   Widget _fallbackGradient() => Container(
@@ -853,10 +1148,18 @@ class _IntroPage extends StatelessWidget {
   final IntroductionBookPage page;
   final String pageNum;
   final Color bgColor;
-  const _IntroPage({required this.page, required this.pageNum, required this.bgColor});
+  final int themeIndex;
+  final ValueChanged<int> onThemeChanged;
+  const _IntroPage({
+    required this.page,
+    required this.pageNum,
+    required this.bgColor,
+    required this.themeIndex,
+    required this.onThemeChanged,
+  });
 
-  // Warm sepia — pairs with the cream reading background
   static const _titleColor = Color(0xFF5C3D1E);
+  static const _accentColor = Color(0xFF8B6340);
 
   @override
   Widget build(BuildContext context) {
@@ -864,48 +1167,124 @@ class _IntroPage extends StatelessWidget {
       color: bgColor,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(36, 48, 36, 32),
+          padding: const EdgeInsets.fromLTRB(36, 72, 36, 88),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Ornamental divider above title
-              Row(children: [
-                Container(width: 24, height: 1, color: _titleColor.withAlpha(80)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('❧',
-                      style: TextStyle(fontSize: 14, color: _titleColor.withAlpha(120))),
-                ),
-                Container(width: 24, height: 1, color: _titleColor.withAlpha(80)),
-              ]),
-              const SizedBox(height: 16),
+              // ── Top ornamental rule ─────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(width: 40, height: 1, color: _accentColor.withAlpha(60)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text('◆',
+                        style: TextStyle(fontSize: 8, color: _accentColor.withAlpha(100))),
+                  ),
+                  Container(width: 40, height: 1, color: _accentColor.withAlpha(60)),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // ── Title ───────────────────────────────────────────────────
               Text(
                 'Introduction',
                 style: GoogleFonts.newsreader(
-                  fontSize: 22,
+                  fontSize: 26,
                   fontWeight: FontWeight.w600,
                   fontStyle: FontStyle.italic,
                   color: _titleColor,
                 ),
               ),
-              const SizedBox(height: 6),
-              Container(width: 40, height: 2, color: _titleColor.withAlpha(100)),
-              const SizedBox(height: 32),
+              const SizedBox(height: 12),
+              Container(width: 32, height: 1.5, color: _accentColor.withAlpha(120)),
+              const SizedBox(height: 36),
+
+              // ── Body text ───────────────────────────────────────────────
               Expanded(
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
+                child: Align(
+                  alignment: Alignment.topLeft,
                   child: _bodyText(page.text),
                 ),
               ),
-              Center(
-                child: Text(
-                  pageNum,
-                  style: GoogleFonts.newsreader(
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.readingText.withAlpha(80),
+
+              // ── Theme picker ────────────────────────────────────────────
+              Column(
+                children: [
+                  Text(
+                    'READING THEME',
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: _accentColor.withAlpha(120),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (int i = 0; i < _BookReaderScreenState._readingThemes.length; i++)
+                        GestureDetector(
+                          onTap: () => onThemeChanged(i),
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                              color: _BookReaderScreenState._readingThemes[i].color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: themeIndex == i
+                                    ? const Color(0xFF6366F1)
+                                    : _accentColor.withAlpha(60),
+                                width: themeIndex == i ? 2.5 : 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(25),
+                                  blurRadius: 3,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _BookReaderScreenState._readingThemes[themeIndex].label,
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      color: _accentColor.withAlpha(140),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // ── Ornamental footer ───────────────────────────────────────
+              Column(
+                children: [
+                  Text(
+                    '·  ·  ·',
+                    style: GoogleFonts.newsreader(
+                      fontSize: 18,
+                      letterSpacing: 6,
+                      color: _accentColor.withAlpha(80),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    pageNum,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.readingText.withAlpha(80),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -925,29 +1304,27 @@ class _TocPage extends StatelessWidget {
   final Color bgColor;
   const _TocPage({required this.page, required this.onTap, required this.bgColor});
 
-  static const _titleColor = Color(0xFF5C3D1E);
-
   @override
   Widget build(BuildContext context) {
     return _readingShell(
       color: bgColor,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(36, 48, 36, 24),
+          padding: const EdgeInsets.fromLTRB(36, 72, 36, 88),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Contents',
                 style: GoogleFonts.newsreader(
-                  fontSize: 26,
+                  fontSize: 34,
                   fontWeight: FontWeight.w600,
                   fontStyle: FontStyle.italic,
-                  color: _titleColor,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(height: 8),
-              Container(width: 48, height: 2, color: _titleColor.withAlpha(120)),
+              Container(width: 48, height: 2, color: Colors.black.withAlpha(160)),
               const SizedBox(height: 28),
               Expanded(
                 child: ListView.builder(
@@ -959,44 +1336,6 @@ class _TocPage extends StatelessWidget {
                   ),
                 ),
               ),
-              // Separator above CTA
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Container(height: 1, color: _titleColor.withAlpha(20)),
-              ),
-              // Start Reading — jumps to first content page (entries[1])
-              if (page.entries.length > 1)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => onTap(page.entries[1].pageIndex),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        color: _titleColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Start Reading',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               const SizedBox(height: 16),
               Center(
                 child: Text(
@@ -1029,38 +1368,40 @@ class _TocRow extends StatelessWidget {
     return _buildWeekRow(context);
   }
 
-  // ── Year header: "2026  ·  50 memories ──────────────"
+  // ── Year header: "2026" + memory count pill + divider line
   Widget _buildYearHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 20, bottom: 12),
+      padding: const EdgeInsets.only(top: 24, bottom: 14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             entry.label,
             style: GoogleFonts.newsreader(
-              fontSize: 16,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: _titleColor,
+              color: Colors.black,
             ),
           ),
           if (entry.meta != null) ...[
-            Text(
-              '  ·  ',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                color: _titleColor.withAlpha(80),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1),
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-            Text(
-              entry.meta!,
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: _titleColor.withAlpha(120),
+              child: Text(
+                entry.meta!,
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Container(height: 1, color: _titleColor.withAlpha(35)),
           ),
@@ -1084,41 +1425,45 @@ class _TocRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Label + memory count stacked
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    entry.label,
+              // Week label
+              Text(
+                entry.label,
+                style: GoogleFonts.manrope(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              if (entry.meta != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: accent.withAlpha(22),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    entry.meta!,
                     style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.readingText.withAlpha(200),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
                     ),
                   ),
-                  if (entry.meta != null)
-                    Text(
-                      entry.meta!,
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        color: AppColors.readingText.withAlpha(100),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+              ],
               // Dotted leader fills remaining space
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _DottedLeader(color: AppColors.readingText.withAlpha(60)),
+                  child: _DottedLeader(color: AppColors.readingText.withAlpha(50)),
                 ),
               ),
-              // Page number — unified accent color
+              // Page number
               Text(
                 '${entry.pageIndex + 1}',
                 style: GoogleFonts.manrope(
-                  fontSize: 12,
+                  fontSize: 14,
                   color: accent,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1364,7 +1709,8 @@ class _MemoryPage extends ConsumerWidget {
   final MemoryBookPage page;
   final int pageNum;
   final bool isDearDays;
-  const _MemoryPage({required this.page, required this.pageNum, required this.isDearDays});
+  final Color bgColor;
+  const _MemoryPage({required this.page, required this.pageNum, required this.isDearDays, required this.bgColor});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1384,17 +1730,13 @@ class _MemoryPage extends ConsumerWidget {
         .toList();
 
     return _readingShell(
+      color: bgColor,
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(36, 36, 36, 36),
+          padding: const EdgeInsets.fromLTRB(36, 72, 36, 88),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Inline section banner — "2026 · MARCH" (first of each month)
-              if (page.sectionLabel != null) ...[
-                _SectionBanner(label: page.sectionLabel!),
-                const SizedBox(height: 24),
-              ],
 
               // Week + date header
               if (page.weekLabel != null)
@@ -1575,133 +1917,169 @@ class _TimeBridgePage extends StatelessWidget {
 class _WeekOpenerPage extends ConsumerWidget {
   final WeekOpenerBookPage page;
   final int pageNum;
-  const _WeekOpenerPage({required this.page, required this.pageNum});
+  final Color bgColor;
+  const _WeekOpenerPage({required this.page, required this.pageNum, required this.bgColor});
 
-  static const _bg     = Color(0xFF1E1209); // deep warm brown
-  static const _gold   = Color(0xFFD4A46A);
-  static const _text   = Color(0xFFF2ECE3);
+  static const _ink = AppColors.readingText; // same as all other book pages
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasPhotos = page.photoPaths.isNotEmpty &&
-        page.layout != WeekOpenerLayout.textOnly;
+    final hasPhoto = page.photoPaths.isNotEmpty;
+
+    // Use page summary if available, else try weekly reflection provider, else fallback
+    final weeklySummaryAsync = ref.watch(reflectionSummaryProvider(ReflectionPeriod.weekly));
+    final summaryText = (page.summary != null && page.summary!.isNotEmpty)
+        ? page.summary!
+        : weeklySummaryAsync.maybeWhen(
+            data: (s) => (s != null && s.isNotEmpty) ? s : null,
+            orElse: () => null,
+          ) ?? '${page.memoryCount} ${page.memoryCount == 1 ? "memory" : "memories"} this week';
 
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: _bg,
+      color: bgColor,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ─────────────────────────────────────────────────────
+            // ── Header: ◆ WEEK ◆ label ────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(28, 36, 28, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+              child: Row(
                 children: [
+                  Text('◆', style: GoogleFonts.manrope(fontSize: 8, color: _ink.withAlpha(80))),
+                  const SizedBox(width: 6),
                   Text(
                     'WEEK',
                     style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 3,
-                      color: _gold.withAlpha(160),
+                      color: _ink.withAlpha(140),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    page.weekRange,
-                    style: GoogleFonts.newsreader(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: _text,
-                      height: 1.1,
+                  const SizedBox(width: 6),
+                  Text('◆', style: GoogleFonts.manrope(fontSize: 8, color: _ink.withAlpha(80))),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // ── Date + memory pill ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      page.weekRange,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                        height: 1.1,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${page.memoryCount} ${page.memoryCount == 1 ? "memory" : "memories"}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: _text.withAlpha(160),
-                      letterSpacing: 0.5,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withAlpha(20),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF6366F1).withAlpha(60)),
+                    ),
+                    child: Text(
+                      '${page.memoryCount} ${page.memoryCount == 1 ? "memory" : "memories"}',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF6366F1),
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 28),
-              height: 1,
-              color: _gold.withAlpha(80),
-            ),
-            const SizedBox(height: 16),
 
-            // ── Photos ─────────────────────────────────────────────────────
-            if (hasPhotos)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildPhotoSection(ref),
-                ),
-              ),
+            const SizedBox(height: 20),
 
-            // ── Text-only decoration ────────────────────────────────────────
-            if (!hasPhotos)
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(width: 40, height: 1, color: _gold.withAlpha(60)),
-                      const SizedBox(height: 20),
-                      Text(
-                        '· · ·',
-                        style: GoogleFonts.newsreader(
-                          fontSize: 20,
-                          letterSpacing: 6,
-                          color: _gold.withAlpha(100),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Container(width: 40, height: 1, color: _gold.withAlpha(60)),
-                    ],
-                  ),
-                ),
-              ),
-
-            // ── Weekly summary ──────────────────────────────────────────────
-            if (page.summary != null && page.summary!.isNotEmpty) ...[
-              const SizedBox(height: 14),
+            // ── Hero photo — single full-width 4:3 ─────────────────────────
+            if (hasPhoto)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Text(
-                  '"${page.summary}"',
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.newsreader(
-                    fontSize: 14,
-                    fontStyle: FontStyle.italic,
-                    color: _text.withAlpha(160),
-                    height: 1.6,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: _BookPhotoCell(
+                      storagePath: page.photoPaths.first,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ),
-            ],
+
+            if (!hasPhoto)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: _ink.withAlpha(8),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _ink.withAlpha(20)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '· · ·',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 22,
+                        letterSpacing: 8,
+                        color: _ink.withAlpha(60),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 20),
+
+            // ── Summary / fallback ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 32, height: 1, color: _ink.withAlpha(40)),
+                  const SizedBox(height: 14),
+                  Text(
+                    summaryText,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 17,
+                      color: _ink.withAlpha(200),
+                      height: 1.75,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const Spacer(),
 
             // ── Page number ─────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.only(bottom: 12),
               child: Center(
                 child: Text(
                   '${pageNum + 1}',
                   style: GoogleFonts.newsreader(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
-                    color: _text.withAlpha(60),
+                    color: _ink.withAlpha(100),
                   ),
                 ),
               ),
@@ -1710,17 +2088,6 @@ class _WeekOpenerPage extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  Widget _buildPhotoSection(WidgetRef ref) {
-    return switch (page.layout) {
-      WeekOpenerLayout.singleHero  => _SingleHeroGrid(paths: page.photoPaths),
-      WeekOpenerLayout.asymmetric  => _AsymmetricGrid(paths: page.photoPaths),
-      WeekOpenerLayout.triptych    => _TriptychGrid(paths: page.photoPaths),
-      WeekOpenerLayout.mosaic      => _MosaicGrid(paths: page.photoPaths),
-      WeekOpenerLayout.polaroid    => _PolaroidGrid(paths: page.photoPaths),
-      WeekOpenerLayout.textOnly    => const SizedBox.shrink(),
-    };
   }
 }
 
@@ -1776,215 +2143,6 @@ class _BookPhotoCell extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-// ── Layout A: single full-width hero ─────────────────────────────────────────
-
-class _SingleHeroGrid extends StatelessWidget {
-  final List<String> paths;
-  const _SingleHeroGrid({required this.paths});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: AspectRatio(
-        aspectRatio: 4 / 3,
-        child: _BookPhotoCell(
-          storagePath: paths.first,
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Layout B: large left (60%) + tall portrait right (40%) ───────────────────
-
-class _AsymmetricGrid extends StatelessWidget {
-  final List<String> paths;
-  const _AsymmetricGrid({required this.paths});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 6,
-          child: _BookPhotoCell(
-            storagePath: paths[0],
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(10),
-              bottomLeft: Radius.circular(10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 4,
-          child: paths.length > 1
-              ? _BookPhotoCell(
-                  storagePath: paths[1],
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
-                  ),
-                )
-              : ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
-                  ),
-                  child: Container(color: Colors.white.withAlpha(5)),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Layout C: three equal panels (triptych) ───────────────────────────────────
-
-class _TriptychGrid extends StatelessWidget {
-  final List<String> paths;
-  const _TriptychGrid({required this.paths});
-
-  @override
-  Widget build(BuildContext context) {
-    final count = paths.length.clamp(1, 3);
-    return Row(
-      children: List.generate(count, (i) {
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(left: i == 0 ? 0 : 8),
-            child: _BookPhotoCell(
-              storagePath: paths[i],
-              borderRadius: BorderRadius.only(
-                topLeft: i == 0 ? const Radius.circular(10) : Radius.zero,
-                bottomLeft: i == 0 ? const Radius.circular(10) : Radius.zero,
-                topRight: i == count - 1 ? const Radius.circular(10) : Radius.zero,
-                bottomRight: i == count - 1 ? const Radius.circular(10) : Radius.zero,
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
-
-// ── Layout D: large hero top 70% + two small squares bottom 30% ──────────────
-
-class _MosaicGrid extends StatelessWidget {
-  final List<String> paths;
-  const _MosaicGrid({required this.paths});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          flex: 7,
-          child: _BookPhotoCell(
-            storagePath: paths[0],
-            borderRadius: BorderRadius.circular(10).copyWith(
-              bottomLeft: Radius.zero,
-              bottomRight: Radius.zero,
-            ),
-          ),
-        ),
-        if (paths.length > 1) ...[
-          const SizedBox(height: 8),
-          Expanded(
-            flex: 3,
-            child: Row(
-              children: [
-                Expanded(
-                  child: _BookPhotoCell(
-                    storagePath: paths[1],
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: paths.length > 2
-                      ? _BookPhotoCell(
-                          storagePath: paths[2],
-                          borderRadius: const BorderRadius.only(
-                            bottomRight: Radius.circular(10),
-                          ),
-                        )
-                      : ClipRRect(
-                          borderRadius: const BorderRadius.only(
-                            bottomRight: Radius.circular(10),
-                          ),
-                          child: Container(color: Colors.white.withAlpha(5)),
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-// ── Layout E: stacked polaroid photos with rotation ───────────────────────────
-
-class _PolaroidGrid extends StatelessWidget {
-  final List<String> paths;
-  const _PolaroidGrid({required this.paths});
-
-  static const _rotations = <double>[-0.04, 0.05, -0.02];
-
-  @override
-  Widget build(BuildContext context) {
-    final count = paths.length.clamp(1, 3);
-    final w = MediaQuery.of(context).size.width * 0.52;
-    final h = w * 1.3;
-    return Center(
-      child: SizedBox(
-        height: h,
-        child: Stack(
-          alignment: Alignment.center,
-          // Render back-to-front so photo 0 is on top
-          children: List.generate(count, (i) {
-            final offset = (i - (count - 1) / 2) * 22.0;
-            return Transform(
-              transform: Matrix4.identity()
-                ..translateByDouble(offset, 0.0, 0.0, 1.0)
-                ..rotateZ(_rotations[i % _rotations.length]),
-              alignment: Alignment.center,
-              child: Container(
-                width: w,
-                height: h,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(80),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 36),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: _BookPhotoCell(storagePath: paths[i]),
-                  ),
-                ),
-              ),
-            );
-          }).reversed.toList(),
-        ),
-      ),
     );
   }
 }
@@ -2212,7 +2370,7 @@ class _WeeklyNarrativePageState
       color: widget.bgColor,
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(32, 32, 32, 48),
+          padding: const EdgeInsets.fromLTRB(32, 72, 32, 88),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2469,7 +2627,7 @@ class _WeeklyNarrativePageState
       child: Text(
         firstPara,
         style: GoogleFonts.newsreader(
-          fontSize: 16,
+          fontSize: 17,
           height: 1.75,
           color: AppColors.readingText,
         ),

@@ -305,7 +305,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           _buildMonthlySliver(filtered, colors)
         else
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
             sliver: _buildTimelineSliver(filtered, colors),
           ),
       ],
@@ -409,7 +409,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   Widget _buildStatsGrid(int memories, int chapters, int years, AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
         children: [
           Expanded(
@@ -490,7 +490,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       data: (summary) {
         if (summary == null || summary.isEmpty) return const SizedBox.shrink();
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: GestureDetector(
             onTap: () => context.push('/reflection?period=weekly'),
             child: Container(
@@ -559,7 +559,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget _buildControlsRow(AppPalette colors) {
     final hasMoodFilter = _moodFilter != null;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 0, 8),
+      padding: const EdgeInsets.fromLTRB(20, 0, 0, 8),
       child: SizedBox(
         height: 34,
         child: Row(
@@ -1224,7 +1224,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (_, i) => items[i],
@@ -1340,7 +1340,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (_, i) => Padding(

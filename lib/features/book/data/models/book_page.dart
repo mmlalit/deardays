@@ -21,12 +21,15 @@ class CoverBookPage extends BookPage {
   final int memoryCount;
   /// Storage path of the happiest memory photo — shown as full-bleed cover bg.
   final String? coverPhotoPath;
+  /// Direct public URL for a user-uploaded custom cover photo (overrides coverPhotoPath).
+  final String? coverImageUrl;
   const CoverBookPage({
     required this.title,
     required this.dateRange,
     required this.memoryCount,
     this.authorName,
     this.coverPhotoPath,
+    this.coverImageUrl,
   });
 }
 
