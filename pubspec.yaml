@@ -104,6 +104,7 @@ flutter:
 
   assets:
     - assets/images/logo.png
+    - assets/images/onboarding/
     - assets/fonts/
 
   # Fonts loaded via google_fonts package at runtime
