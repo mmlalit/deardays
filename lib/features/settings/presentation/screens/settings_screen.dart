@@ -24,6 +24,7 @@ import 'package:deardays/features/auth/presentation/screens/pin_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/pattern_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/terms_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/cookie_policy_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/e2e_encryption_screen.dart';
@@ -497,7 +498,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   title: Text(s, style: GoogleFonts.manrope(fontSize: 15)),
                   subtitle: Text(
                     s == 'Memoir'
-                        ? 'Third-person narrative, reflective tone'
+                        ? 'First-person narrative, reflective tone'
                         : s == 'Diary'
                             ? 'First-person, casual daily entries'
                             : 'Cinematic storytelling, vivid scenes',
@@ -611,7 +612,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -680,6 +682,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -1191,6 +1194,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       trailing: Icon(Icons.open_in_new, size: 14, color: AppColors.of(context).textMuted.withAlpha(76)),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const TermsScreen()),
+                      ),
+                    ),
+                    _buildCardRow(
+                      icon: null,
+                      label: 'Cookie & Tracking Policy',
+                      textColor: textColor,
+                      trailing: Icon(Icons.open_in_new, size: 14, color: AppColors.of(context).textMuted.withAlpha(76)),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const CookiePolicyScreen()),
                       ),
                       isLast: true,
                     ),

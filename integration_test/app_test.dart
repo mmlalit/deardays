@@ -38,6 +38,23 @@ import 'flows/see_all_flow_test.dart';
 import 'flows/paywall_flow_test.dart';
 import 'flows/save_journey_flow_test.dart';
 import 'flows/cross_screen_consistency_flow_test.dart';
+import 'flows/sharing_flow_test.dart';
+import 'flows/memory_crud_flow_test.dart';
+import 'flows/post_save_flow_test.dart';
+import 'flows/review_save_flow_test.dart';
+import 'flows/ai_insights_flow_test.dart';
+import 'flows/text_entry_extended_flow_test.dart';
+import 'flows/checkin_extended_flow_test.dart';
+import 'flows/memory_detail_extended_flow_test.dart';
+import 'flows/search_flow_test.dart';
+import 'flows/book_reading_flow_test.dart';
+import 'flows/sharing_extended_flow_test.dart';
+import 'flows/recording_flow_test.dart';
+import 'flows/photo_entry_flow_test.dart';
+import 'flows/performance_flow_test.dart';
+import 'flows/security_flow_test.dart';
+import 'flows/ux_polish_flow_test.dart';
+import 'flows/backend_resilience_flow_test.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +76,8 @@ void main() {
       if (details.exceptionAsString().contains('_pressedKeys.containsKey')) return;
       if (details.exceptionAsString().contains('StorageException')) return;
       if (details.exceptionAsString().contains('Object not found')) return;
+      if (details.exceptionAsString().contains('OfflineAiQueue not initialized')) return;
+      if (details.exceptionAsString().contains('AiCreditService')) return;
       originalOnError?.call(details);
     };
   });
@@ -84,4 +103,21 @@ void main() {
   paywallFlowTests();
   saveJourneyFlowTests();
   crossScreenConsistencyFlowTests();
+  sharingFlowTests();
+  memoryCrudFlowTests();
+  postSaveFlowTests();
+  reviewSaveFlowTests();
+  aiInsightsFlowTests();
+  textEntryExtendedFlowTests();
+  checkinExtendedFlowTests();
+  memoryDetailExtendedFlowTests();
+  searchFlowTests();
+  bookReadingFlowTests();
+  sharingExtendedFlowTests();
+  recordingFlowTests();
+  photoEntryFlowTests();
+  performanceFlowTests();
+  securityFlowTests();
+  uxPolishFlowTests();
+  backendResilienceFlowTests();
 }

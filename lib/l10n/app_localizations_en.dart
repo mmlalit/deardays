@@ -33,7 +33,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manage => 'Manage';
 
   @override
-  String get journaling => 'JOURNALING';
+  String get journaling => 'MEMORIES';
 
   @override
   String get dailyReminder => 'Daily Reminder';
@@ -128,7 +128,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get encryptionExplanation =>
-      'Your encryption key is derived from your password and never leaves your device. The server stores only encrypted blobs — we cannot read your journal entries.';
+      'Your encryption key is derived from your password and never leaves your device. The server stores only encrypted blobs — we cannot read your memories.';
 
   @override
   String get gotIt => 'Got it';
@@ -170,7 +170,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteAccountWarning =>
-      'This will permanently delete your account and all journal entries. This action cannot be undone.\n\nYour encrypted data will be erased from the server.';
+      'This will permanently delete your account and all your memories. This action cannot be undone.\n\nYour encrypted data will be erased from the server.';
 
   @override
   String get cancel => 'Cancel';
@@ -199,6 +199,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get termsOfService => 'Terms of Service';
+
+  @override
+  String get goodMorning => 'Good Morning';
+
+  @override
+  String get goodAfternoon => 'Good Afternoon';
+
+  @override
+  String get goodEvening => 'Good Evening';
+
+  @override
+  String get morning => 'Morning';
+
+  @override
+  String get afternoon => 'Afternoon';
+
+  @override
+  String get evening => 'Evening';
+
+  @override
+  String get dailyLimitReached =>
+      'You\'ve reached today\'s memory limit. Come back tomorrow!';
 
   @override
   String get moodGreat => 'great';
@@ -256,6 +278,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get today => 'Today';
+
+  @override
+  String get yesterday => 'Yesterday';
+
+  @override
+  String daysAgo(int count) {
+    return '$count days ago';
+  }
+
+  @override
+  String get weekAgo => '1 week ago';
+
+  @override
+  String monthsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count months ago',
+      one: '1 month ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count years ago',
+      one: '1 year ago',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get noEntries => 'No entries yet';

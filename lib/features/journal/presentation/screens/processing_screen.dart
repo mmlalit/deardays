@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/services/ai/ai_service.dart';
@@ -76,16 +77,17 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     String transcript = '';
     try {
       if (widget.data.rawText.isNotEmpty) {
-        // Text entry — no network needed, but show the step for at least 350ms
-        // so the user sees it animate before it completes.
+        // On-device transcript or text entry — no network needed.
+        // Brief delay so the user sees the step animate before it completes.
         await Future.delayed(const Duration(milliseconds: 350));
         transcript = widget.data.rawText;
-      } else if (widget.data.audioPath != null && widget.data.audioPath!.isNotEmpty) {
+      } else if (widget.data.audioPath != null &&
+          widget.data.audioPath!.isNotEmpty &&
+          widget.data.useWhisper) {
+        // User explicitly consented to AI transcription — send audio to Whisper.
         if (_creditService.canUse(AiOperation.transcription)) {
           _creditService.consume(AiOperation.transcription);
           transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
-        } else {
-          transcript = widget.data.rawText;
         }
       }
     } catch (_) {
@@ -206,11 +208,11 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     if (aiError != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('AI error: $aiError', style: const TextStyle(fontSize: 12)),
+          content: Text(aiError!, style: const TextStyle(fontSize: 14)),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 10),
-          action: SnackBarAction(label: 'Dismiss', textColor: Colors.white, onPressed: () {}),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(label: 'OK', textColor: Colors.white, onPressed: () {}),
         ),
       );
     }
@@ -304,16 +306,8 @@ class _ProcessingScreenState extends State<ProcessingScreen>
               child: Icon(Icons.arrow_back_rounded, size: 20, color: colors.textPrimary),
             ),
           ),
-          Expanded(
-            child: Text(
-              'Aura',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
+          const Expanded(
+            child: Center(child: DdLogo(size: 22)),
           ),
           const SizedBox(width: 40),
         ],
@@ -408,7 +402,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
         ),
         const SizedBox(height: 10),
         Text(
-          'Aura is weaving your story together...',
+          'DearDays is weaving your story together...',
           textAlign: TextAlign.center,
           style: GoogleFonts.manrope(
             fontSize: 15,
@@ -467,7 +461,9 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     final accent = _accentColor(colors);
     final steps = _isTextEntry
         ? ['Reading your words', 'Understanding story', 'Polishing grammar', 'Crafting your narrative']
-        : ['Transcribing voice', 'Understanding story', 'Polishing grammar', 'Crafting your narrative'];
+        : widget.data.useWhisper
+            ? ['Transcribing with AI', 'Understanding story', 'Polishing grammar', 'Crafting your narrative']
+            : ['Reading your recording', 'Understanding story', 'Polishing grammar', 'Crafting your narrative'];
 
     return Column(
       children: List.generate(steps.length, (i) {

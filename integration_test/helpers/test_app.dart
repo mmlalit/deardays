@@ -58,6 +58,18 @@ import 'package:deardays/features/explore/presentation/screens/see_all_timeline_
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
 import 'package:deardays/features/share/presentation/screens/share_card_screen.dart';
+import 'package:deardays/features/sharing/data/models/memory_share.dart';
+import 'package:deardays/features/sharing/data/repositories/sharing_repository.dart';
+import 'package:deardays/features/sharing/presentation/providers/sharing_provider.dart';
+import 'package:deardays/features/sharing/presentation/screens/request_access_screen.dart';
+import 'package:deardays/features/sharing/presentation/screens/shared_with_me_screen.dart';
+import 'package:deardays/features/sharing/presentation/screens/share_approvals_screen.dart';
+import 'package:deardays/features/search/presentation/screens/search_screen.dart';
+import 'package:deardays/features/book/presentation/screens/chapter_detail_screen.dart';
+import 'package:deardays/features/book/presentation/screens/book_reader_screen.dart';
+import 'package:deardays/features/book/data/models/book_page.dart';
+import 'package:deardays/features/journal/data/models/chapter.dart';
+import 'package:deardays/features/journal/presentation/screens/photo_entry_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // One-time init — call from setUpAll()
@@ -100,9 +112,12 @@ Future<void> initE2EApp() async {
 // App builder — fresh instance per test
 // ─────────────────────────────────────────────────────────────────────────────
 
-Widget buildE2EApp() {
+Widget buildE2EApp({List<Override>? additionalOverrides}) {
   return ProviderScope(
-    overrides: _e2eOverrides(),
+    overrides: [
+      ..._e2eOverrides(),
+      ...?additionalOverrides,
+    ],
     child: const _E2EApp(),
   );
 }
@@ -127,7 +142,7 @@ List<Override> _e2eOverrides() {
   final streak = Streak(
     id: 'e2e-streak',
     userId: 'e2e-user',
-    currentStreak: 7,
+    currentStreak: 5,
     longestStreak: 21,
     lastEntryDate: now,
     totalEntries: mockEntries.length,
@@ -162,6 +177,8 @@ List<Override> _e2eOverrides() {
     checkInProvider.overrideWith((ref) => _FakeCheckInNotifier()),
     // Prevent signed URL requests to real Supabase Storage for mock photo paths
     mediaServiceProvider.overrideWith((_) => _FakeMediaService()),
+    // Sharing: prevent all Supabase calls from sharing feature
+    sharingRepositoryProvider.overrideWith((_) => FakeSharingRepository()),
   ];
 }
 
@@ -207,7 +224,7 @@ GoRouter _createRouter() => GoRouter(
         ),
         GoRoute(
           path: '/edit-memory',
-          builder: (_, s) => EditMemoryScreen(data: s.extra as ReviewData),
+          builder: (_, s) => EditMemoryScreen(entry: s.extra as JournalEntry),
         ),
         GoRoute(path: '/paywall', builder: (_, __) => const PaywallScreen()),
         GoRoute(path: '/on-this-day', builder: (_, __) => const OnThisDayScreen()),
@@ -264,6 +281,47 @@ GoRouter _createRouter() => GoRouter(
         GoRoute(
           path: '/book-detail',
           builder: (_, s) => BookDetailScreen(book: s.extra as GeneratedBook),
+        ),
+        GoRoute(
+          path: '/share/:token',
+          builder: (_, s) => RequestAccessScreen(token: s.pathParameters['token']!),
+        ),
+        GoRoute(
+          path: '/shared-with-me',
+          builder: (_, __) => const SharedWithMeScreen(),
+        ),
+        GoRoute(
+          path: '/share-approvals',
+          builder: (_, __) => const ShareApprovalsScreen(),
+        ),
+        GoRoute(
+          path: '/search',
+          builder: (_, __) => const SearchScreen(),
+        ),
+        GoRoute(
+          path: '/chapter/:id',
+          builder: (_, s) {
+            final extra = s.extra;
+            if (extra is Chapter) return ChapterDetailScreen(chapter: extra);
+            return const HomeScreen();
+          },
+        ),
+        GoRoute(
+          path: '/book-reader',
+          builder: (_, s) {
+            final mode = s.extra;
+            return BookReaderScreen(
+              mode: mode is BookMode ? mode : BookMode.stream,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/photo-entry',
+          builder: (_, s) {
+            final extra = s.extra;
+            if (extra is! String) return const HomeScreen();
+            return PhotoEntryScreen(photoPath: extra);
+          },
         ),
       ],
     );
@@ -672,4 +730,64 @@ class _FakeHttpResponse extends Stream<List<int>> implements HttpClientResponse 
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fake SharingRepository — returns safe empty values, no Supabase calls
+// ─────────────────────────────────────────────────────────────────────────────
+
+class FakeSharingRepository extends SharingRepository {
+  FakeSharingRepository() : super(client: Supabase.instance.client);
+
+  static MemoryShare _fakeShare() => MemoryShare(
+        id: 'fake-share-id',
+        token: 'fake-token',
+        memoryId: 'fake-memory-id',
+        sharerId: 'e2e-user',
+        status: ShareStatus.pending,
+        createdAt: DateTime.now(),
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+
+  @override
+  Future<MemoryShare?> getShareByToken(String token) async => null;
+
+  @override
+  Future<MemoryShare> createShare(String memoryId) async => _fakeShare();
+
+  @override
+  Future<List<MemoryShare>> getPendingRequests() async => [];
+
+  @override
+  Future<List<MemoryShare>> getSharesForMemory(String memoryId) async => [];
+
+  @override
+  Future<List<SharedMemoryItem>> getSharedWithMe() async => [];
+
+  @override
+  Future<void> requestAccess({
+    required String shareId,
+    required String recipientName,
+    String? recipientId,
+  }) async {}
+
+  @override
+  Future<void> respondToRequest({
+    required String shareId,
+    required bool approve,
+  }) async {}
+
+  @override
+  Future<void> revokeShare(String shareId) async {}
+
+  @override
+  Future<void> recordView(String shareId) async {}
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchShare(String shareId) =>
+      Stream.value([]);
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchPendingRequests() =>
+      Stream.value([]);
 }

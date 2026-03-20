@@ -1,7 +1,7 @@
 import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { generate } from "../_shared/ai-providers.ts";
+import { generate, PROVIDERS } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -45,7 +45,15 @@ Deno.serve(async (req: Request) => {
       .filter(Boolean)
       .join("\n");
 
-    const text = await generate(rawText, systemPrompt);
+    // Route by style: batch story generation → cheap background model;
+    // clean polish → near-quality Gemini; memoir/default → quality OpenAI.
+    const _storyStyles = ["weekly_story", "monthly_story", "yearly_story", "lifetime_story"];
+    const polishOpts = _storyStyles.includes(style)
+      ? PROVIDERS.BACKGROUND
+      : style === "clean"
+        ? PROVIDERS.POLISH_CLEAN
+        : PROVIDERS.QUALITY;
+    const text = await generate(rawText, systemPrompt, 2048, polishOpts);
 
     return new Response(
       JSON.stringify({ text }),

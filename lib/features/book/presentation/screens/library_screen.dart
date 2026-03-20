@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
+import 'package:deardays/core/widgets/app_avatar.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book_page.dart';
@@ -44,7 +45,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: chaptersAsync.when(
           data: (chapters) => _buildContent(context, chapters),
           loading: () => _buildLoadingContent(context),
-          error: (_, __) => _buildContent(context, []),
+          error: (e, __) {
+            debugPrint('chaptersProvider error: $e');
+            return _buildContent(context, []);
+          },
         ),
       ),
     );
@@ -75,7 +79,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.05,
+                childAspectRatio: 0.85,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _buildChapterCard(context, filtered[index]),
@@ -160,6 +164,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             tooltip: 'Search chapters',
             icon: Icon(Icons.search, color: colors.textSecondary, size: 22),
           ),
+          const SizedBox(width: 4),
+          const AppAvatar(),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -191,31 +198,63 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 16:9 cover photo
+            // 4:3 cover photo — taller for full image visibility
             AspectRatio(
-              aspectRatio: 16 / 9,
-              child: CachedNetworkImage(
-                imageUrl: _heroCoverUrl,
-                fit: BoxFit.cover,
-                memCacheWidth: 800,
-                placeholder: (_, __) => Container(
-                  color: const Color(0xFF1E3A5F),
-                  child: const Center(
-                    child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              aspectRatio: 4 / 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: _heroCoverUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 800,
+                    placeholder: (_, __) => Container(
+                      color: const Color(0xFF1E3A5F),
+                      child: const Center(
+                        child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
+                      ),
                     ),
                   ),
-                  child: const Center(
-                    child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
+                  // Bottom scrim
+                  Positioned(
+                    bottom: 0, left: 0, right: 0, height: 60,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black.withAlpha(60)],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  // dd watermark — bottom right
+                  Positioned(
+                    bottom: 10,
+                    right: 14,
+                    child: Text(
+                      'dd',
+                      style: GoogleFonts.nunito(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white.withAlpha(120),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -227,7 +266,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 children: [
                   // Label
                   Text(
-                    'FEATURED COLLECTION',
+                    'YOUR STORY',
                     style: GoogleFonts.manrope(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -257,53 +296,28 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       color: colors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-                  // Primary button — full width
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton.icon(
-                      onPressed: () =>
-                          context.push('/book-reader', extra: BookMode.stream),
-                      icon: const Icon(Icons.menu_book_rounded, size: 17),
-                      label: Text(
-                        'Read Autobiography',
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.accent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Secondary buttons — side by side
+                  // Two equal buttons — By Timeline + By Chapter
                   Row(
                     children: [
                       Expanded(
-                        child: _SecondaryButton(
-                          icon: Icons.timeline,
+                        child: _PrimaryButton(
+                          icon: Icons.timeline_rounded,
                           label: 'By Timeline',
                           onTap: () => context.push(
                               '/book-reader', extra: BookMode.byTime),
+                          colors: colors,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _SecondaryButton(
-                          icon: Icons.auto_awesome,
+                        child: _PrimaryButton(
+                          icon: Icons.auto_stories_rounded,
                           label: 'By Chapter',
                           onTap: () => context.push(
                               '/book-reader', extra: BookMode.byChapter),
+                          colors: colors,
                         ),
                       ),
                     ],
@@ -351,68 +365,103 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  // ── Chapter card (icon badge + title + count) ─────────────────────────────
+  // ── Chapter card — full-bleed photo with gradient scrim ──────────────────
 
   Widget _buildChapterCard(BuildContext context, Chapter chapter) {
-    final colors = AppColors.of(context);
     final visual = ChapterVisual.forTitle(chapter.title);
+    final countLabel = chapter.entryCount == 0
+        ? 'No memories'
+        : '${chapter.entryCount} ${chapter.entryCount == 1 ? 'memory' : 'memories'}';
 
     return GestureDetector(
       onTap: () => context.push('/chapter/${chapter.id}', extra: chapter),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(
-              color: colors.textPrimary.withAlpha(10),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            // Colored icon badge
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: visual.primary.withAlpha(28),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                visual.icon,
-                color: visual.primary,
-                size: 22,
+            // Background: stock photo or gradient fallback
+            if (visual.stockImageUrl != null)
+              CachedNetworkImage(
+                imageUrl: visual.stockImageUrl!,
+                fit: BoxFit.cover,
+                memCacheWidth: 400,
+                memCacheHeight: 400,
+                placeholder: (_, __) => _cardGradient(visual),
+                errorWidget: (_, __, ___) => _cardGradient(visual),
+              )
+            else
+              _cardGradient(visual),
+
+            // Bottom gradient scrim
+            Positioned(
+              left: 0, right: 0, bottom: 0, height: 100,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withAlpha(180),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const Spacer(),
-            // Chapter title
-            Text(
-              chapter.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.newsreader(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-                height: 1.3,
+
+            // Top-left icon badge
+            Positioned(
+              top: 10, left: 10,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(50),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withAlpha(40)),
+                ),
+                child: Icon(visual.icon, color: Colors.white, size: 17),
               ),
             ),
-            const SizedBox(height: 4),
-            // Memory count
-            Text(
-              chapter.entryCount == 0
-                  ? 'No memories yet'
-                  : '${chapter.entryCount} ${chapter.entryCount == 1 ? 'memory' : 'memories'}',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: colors.textMuted,
+
+            // Bottom: title + memory count pill
+            Positioned(
+              left: 12, right: 12, bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    chapter.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(25),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withAlpha(50)),
+                    ),
+                    child: Text(
+                      countLabel,
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withAlpha(200),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -420,6 +469,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
     );
   }
+
+  Widget _cardGradient(ChapterVisual visual) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [visual.primary, visual.secondary],
+          ),
+        ),
+      );
 
   // ── Empty state ───────────────────────────────────────────────────────────
 
@@ -540,7 +599,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.05,
+              childAspectRatio: 0.85,
             ),
             delegate: SliverChildBuilderDelegate(
               (_, __) => _buildSkeletonChapterCard(context),
@@ -554,28 +613,34 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Widget _buildSkeletonChapterCard(BuildContext context) {
     final colors = AppColors.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: colors.border.withAlpha(80),
-              borderRadius: BorderRadius.circular(12),
+          Container(color: colors.border.withAlpha(80)),
+          Positioned(
+            top: 10, left: 10,
+            child: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                color: colors.border.withAlpha(120),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
-          const Spacer(),
-          const SkeletonBox(width: 80, height: 14),
-          const SizedBox(height: 6),
-          const SkeletonBox(width: 55, height: 10),
+          Positioned(
+            left: 12, right: 12, bottom: 12,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SkeletonBox(height: 14),
+                const SizedBox(height: 6),
+                const SkeletonBox(width: 70, height: 20),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -583,44 +648,43 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Secondary outline button used in hero card
+// Primary equal button used in hero card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _SecondaryButton extends StatelessWidget {
+class _PrimaryButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final AppPalette colors;
 
-  const _SecondaryButton({
+  const _PrimaryButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    required this.colors,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.of(context);
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 38,
+        height: 44,
         decoration: BoxDecoration(
-          color: colors.bg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: colors.border),
+          color: colors.accent,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 15, color: colors.textSecondary),
+            Icon(icon, size: 15, color: Colors.white),
             const SizedBox(width: 6),
             Text(
               label,
               style: GoogleFonts.manrope(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: colors.textSecondary,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ],

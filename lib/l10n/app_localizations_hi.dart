@@ -202,6 +202,28 @@ class AppLocalizationsHi extends AppLocalizations {
   String get termsOfService => 'सेवा की शर्तें';
 
   @override
+  String get goodMorning => 'सुप्रभात';
+
+  @override
+  String get goodAfternoon => 'नमस्ते';
+
+  @override
+  String get goodEvening => 'शुभ संध्या';
+
+  @override
+  String get morning => 'सुबह';
+
+  @override
+  String get afternoon => 'दोपहर';
+
+  @override
+  String get evening => 'शाम';
+
+  @override
+  String get dailyLimitReached =>
+      'आपने आज की मेमोरी सीमा पूरी कर ली है। कल वापस आएं!';
+
+  @override
   String get moodGreat => 'बहुत अच्छा';
 
   @override
@@ -256,6 +278,39 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get today => 'आज';
+
+  @override
+  String get yesterday => 'कल';
+
+  @override
+  String daysAgo(int count) {
+    return '$count दिन पहले';
+  }
+
+  @override
+  String get weekAgo => '1 सप्ताह पहले';
+
+  @override
+  String monthsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count महीने पहले',
+      one: '1 महीना पहले',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count साल पहले',
+      one: '1 साल पहले',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get noEntries => 'अभी कोई प्रविष्टि नहीं';

@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ShareCardRenderer {
+  static const _channel = MethodChannel('com.example.deardays/social_share');
+
   static Future<Uint8List> renderToPng(
     GlobalKey key, {
     double pixelRatio = 3.0,
@@ -19,6 +21,58 @@ class ShareCardRenderer {
     final image = await boundary.toImage(pixelRatio: pixelRatio);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
+  }
+
+  /// Shares directly to Instagram Stories (Android).
+  ///
+  /// Returns `true` if the share was triggered successfully.
+  /// Returns `false` if Instagram is not installed — caller should fall back
+  /// to the generic share sheet.
+  ///
+  /// On non-Android platforms (Windows / iOS-future) falls back to the
+  /// generic share sheet.
+  static Future<bool> shareToInstagram(Uint8List pngBytes) async {
+    if (Platform.isAndroid) {
+      try {
+        await _channel.invokeMethod<void>(
+          'shareToInstagram',
+          {'bytes': pngBytes},
+        );
+        return true;
+      } on PlatformException catch (e) {
+        if (e.code == 'APP_NOT_INSTALLED') return false;
+        rethrow;
+      }
+    }
+    // iOS: TODO — add Swift platform channel once iOS project is created.
+    // Windows: generic fallback.
+    await shareImage(pngBytes);
+    return true;
+  }
+
+  /// Shares directly to WhatsApp (Android).
+  ///
+  /// Returns `true` if the share was triggered successfully.
+  /// Returns `false` if WhatsApp is not installed — caller should fall back.
+  ///
+  /// On non-Android platforms falls back to the generic share sheet.
+  static Future<bool> shareToWhatsApp(Uint8List pngBytes) async {
+    if (Platform.isAndroid) {
+      try {
+        await _channel.invokeMethod<void>(
+          'shareToWhatsApp',
+          {'bytes': pngBytes},
+        );
+        return true;
+      } on PlatformException catch (e) {
+        if (e.code == 'APP_NOT_INSTALLED') return false;
+        rethrow;
+      }
+    }
+    // iOS: TODO — add Swift platform channel once iOS project is created.
+    // Windows: generic fallback.
+    await shareImage(pngBytes);
+    return true;
   }
 
   /// Shares the image via the platform share sheet.

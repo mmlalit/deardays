@@ -43,6 +43,10 @@ import 'package:deardays/core/config/supabase_config.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/settings/presentation/screens/backup_restore_screen.dart';
 import 'package:deardays/features/story/presentation/screens/story_viewer_screen.dart';
+import 'package:deardays/features/sharing/presentation/screens/request_access_screen.dart';
+import 'package:deardays/features/sharing/presentation/screens/shared_with_me_screen.dart';
+import 'package:deardays/features/sharing/presentation/screens/share_approvals_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/photo_entry_screen.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier() {
@@ -58,6 +62,8 @@ class AppRouter {
   AppRouter._();
 
   static const _publicPaths = {'/onboarding', '/login', '/set-passphrase', '/e2e-gate'};
+  static bool _isPublicPath(String path) =>
+      _publicPaths.contains(path) || path.startsWith('/share/');
   static final _authNotifier = _AuthChangeNotifier();
 
   static final router = GoRouter(
@@ -69,7 +75,7 @@ class AppRouter {
       final isLoggedIn = user != null;
       final currentPath = state.matchedLocation;
 
-      if (!isLoggedIn && !_publicPaths.contains(currentPath)) {
+      if (!isLoggedIn && !_isPublicPath(currentPath)) {
         return '/login';
       }
 
@@ -168,6 +174,14 @@ class AppRouter {
         builder: (context, state) => const TextEntryScreen(),
       ),
       GoRoute(
+        path: '/photo-entry',
+        builder: (context, state) {
+          final photoPath = state.extra;
+          if (photoPath is! String) return const HomeScreen();
+          return PhotoEntryScreen(photoPath: photoPath);
+        },
+      ),
+      GoRoute(
         path: '/review',
         builder: (context, state) {
           final data = state.extra;
@@ -208,6 +222,16 @@ class AppRouter {
             orElse: () => SeeAllSection.happiest,
           );
           return SeeAllTimelineScreen(section: section);
+        },
+      ),
+      GoRoute(
+        path: '/explore/mood/:mood',
+        builder: (context, state) {
+          final mood = state.pathParameters['mood']!;
+          return SeeAllTimelineScreen(
+            section: SeeAllSection.mood,
+            initialMoodFilter: mood,
+          );
         },
       ),
       GoRoute(
@@ -312,6 +336,25 @@ class AppRouter {
             mode: mode is BookMode ? mode : BookMode.stream,
           );
         },
+      ),
+
+      // ── Sharing ──────────────────────────────────────────────────────────
+      // Public: deep link from WhatsApp — no auth required
+      GoRoute(
+        path: '/share/:token',
+        builder: (context, state) => RequestAccessScreen(
+          token: state.pathParameters['token']!,
+        ),
+      ),
+      // Mum's inbox: memories shared with her
+      GoRoute(
+        path: '/shared-with-me',
+        builder: (context, state) => const SharedWithMeScreen(),
+      ),
+      // Sarah's pending approval requests (all memories)
+      GoRoute(
+        path: '/share-approvals',
+        builder: (context, state) => const ShareApprovalsScreen(),
       ),
     ],
   );

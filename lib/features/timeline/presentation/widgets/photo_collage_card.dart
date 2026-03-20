@@ -51,67 +51,74 @@ class PhotoCollageCard extends StatelessWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(20),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date + tags row
-            Row(
-              children: [
-                Text(
-                  dateStr,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textMuted,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const Spacer(),
-                ...tags.take(2).map((t) => Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: _buildTagChip(t.$1, t.$2),
-                    )),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Title
-            Text(
-              title,
-              style: GoogleFonts.newsreader(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Excerpt
-            Text(
-              excerpt,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: colors.textSecondary,
-                height: 1.6,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 14),
-
-            // Photo collage
+            // Photo collage bleeds to card edges at top — same structure as single-photo card
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
               child: _buildCollage(photos),
             ),
 
-            // Voice indicator
-            if (entry.hasVoice) ...[
-              const SizedBox(height: 12),
-              _buildVoiceIndicator(),
-            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date + tags row
+                  Row(
+                    children: [
+                      Text(
+                        dateStr,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textMuted,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const Spacer(),
+                      ...tags.take(2).map((t) => Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: _buildTagChip(t.$1, t.$2),
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Title
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Excerpt
+                  Text(
+                    excerpt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      color: colors.textSecondary,
+                      height: 1.6,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  // Voice indicator
+                  if (entry.hasVoice) ...[
+                    const SizedBox(height: 10),
+                    _buildVoiceIndicator(),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),

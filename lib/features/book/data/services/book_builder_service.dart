@@ -19,6 +19,7 @@ class BookBuilderService {
   static final _monthFmt = DateFormat('MMMM');
   static final _shortFmt = DateFormat('MMM yyyy');
   static final _longFmt = DateFormat('MMMM d, yyyy');
+  static final _weekFmt = DateFormat('MMM d');
 
   List<BookPage> build({
     required List<JournalEntry> entries,
@@ -66,43 +67,16 @@ class BookBuilderService {
       startDateLabel: _shortFmt.format(sorted.first.entryDate),
     ));
 
-    // ── Build TOC by scanning body pages ──────────────────────────────────────
+    // ── Build TOC ─────────────────────────────────────────────────────────────
     final tocEntries = <TocEntry>[
       const TocEntry(label: 'Introduction', pageIndex: 1),
     ];
 
-    if (mode == BookMode.stream) {
-      // Stream mode has no dividers — group first memory of each month
-      String? lastMonthKey;
+    if (mode == BookMode.byChapter) {
+      // Chapter mode: chapter title rows only
       for (int i = bodyStart; i < pages.length; i++) {
         final p = pages[i];
-        if (p is MemoryBookPage) {
-          final d = p.entry.entryDate;
-          final mk = '${d.year}-${d.month}';
-          if (mk != lastMonthKey) {
-            lastMonthKey = mk;
-            final label = DateFormat('MMMM yyyy').format(d);
-            tocEntries.add(TocEntry(label: label, pageIndex: i));
-          }
-        }
-      }
-    } else {
-      for (int i = bodyStart; i < pages.length; i++) {
-        final p = pages[i];
-        if (p is YearDividerPage) {
-          tocEntries.add(TocEntry(
-            label: p.year.toString(),
-            meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
-            pageIndex: i,
-          ));
-        } else if (p is MonthDividerPage) {
-          tocEntries.add(TocEntry(
-            label: _monthFmt.format(DateTime(p.year, p.month)),
-            meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
-            pageIndex: i,
-            isSubEntry: true,
-          ));
-        } else if (p is ChapterDividerPage) {
+        if (p is ChapterDividerPage) {
           tocEntries.add(TocEntry(
             label: p.chapter.title,
             meta: '${p.memoryCount} ${p.memoryCount == 1 ? 'memory' : 'memories'}',
@@ -110,24 +84,154 @@ class BookBuilderService {
           ));
         }
       }
+    } else {
+      // Stream / byTime: hierarchical year headers + week sub-entries
+      // Pre-pass: group memory pages by year → week (insertion-ordered)
+      final yearWeeks = <String, Map<String, ({int firstPage, int count})>>{};
+      final yearCounts = <String, int>{};
+      final yearFirstPages = <String, int>{};
+
+      for (int i = bodyStart; i < pages.length; i++) {
+        final p = pages[i];
+        if (p is! MemoryBookPage) continue;
+        final year = p.entry.entryDate.year.toString();
+        final week = p.weekLabel ?? _weekRangeLabel(p.entry.entryDate);
+        yearWeeks[year] ??= {};
+        yearCounts[year] = (yearCounts[year] ?? 0) + 1;
+        yearFirstPages[year] ??= i;
+        if (yearWeeks[year]!.containsKey(week)) {
+          final e = yearWeeks[year]![week]!;
+          yearWeeks[year]![week] = (firstPage: e.firstPage, count: e.count + 1);
+        } else {
+          yearWeeks[year]![week] = (firstPage: i, count: 1);
+        }
+      }
+
+      for (final year in yearWeeks.keys) {
+        final total = yearCounts[year]!;
+        tocEntries.add(TocEntry(
+          label: year,
+          meta: '$total ${total == 1 ? 'memory' : 'memories'}',
+          pageIndex: yearFirstPages[year]!,
+          isYearHeader: true,
+        ));
+        for (final we in yearWeeks[year]!.entries) {
+          final c = we.value.count;
+          tocEntries.add(TocEntry(
+            label: we.key,
+            meta: '$c ${c == 1 ? 'memory' : 'memories'}',
+            pageIndex: we.value.firstPage,
+            isSubEntry: true,
+          ));
+        }
+      }
     }
+
     pages[tocIndex] = TocBookPage(entries: tocEntries);
 
     return pages;
   }
 
-  // ── Stream: all entries in order ───────────────────────────────────────────
-  List<BookPage> _streamPages(List<JournalEntry> entries) {
-    return entries
-        .asMap()
-        .entries
-        .map((e) => MemoryBookPage(entry: e.value, isFirstInSection: e.key == 0))
-        .toList();
+  // ── Week range label: Mon–Sun ISO week, e.g. "MAR 16–22" ─────────────────
+  static String _weekRangeLabel(DateTime d) {
+    final weekStart = d.subtract(Duration(days: d.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final s = _weekFmt.format(weekStart).toUpperCase();
+    if (weekStart.month == weekEnd.month) {
+      return '$s–${weekEnd.day}';
+    }
+    return '$s – ${_weekFmt.format(weekEnd).toUpperCase()}';
   }
 
-  // ── By time: year divider → month divider → entries ───────────────────────
+  /// Full week label with year, used on WeekOpenerBookPage, e.g. "MAR 2–8, 2026"
+  static String _fullWeekLabel(DateTime weekStart) {
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final s = _weekFmt.format(weekStart).toUpperCase();
+    final year = weekEnd.year;
+    if (weekStart.month == weekEnd.month) {
+      return '$s–${weekEnd.day}, $year';
+    }
+    return '$s – ${_weekFmt.format(weekEnd).toUpperCase()}, $year';
+  }
+
+  /// Deterministic layout for a week opener based on week index and photo count.
+  static WeekOpenerLayout _pickLayout(int weekIndex, int photoCount) {
+    if (photoCount == 0) return WeekOpenerLayout.textOnly;
+    if (photoCount == 1) return WeekOpenerLayout.singleHero;
+    if (photoCount == 2) {
+      return weekIndex.isEven ? WeekOpenerLayout.asymmetric : WeekOpenerLayout.polaroid;
+    }
+    if (photoCount == 3) return WeekOpenerLayout.triptych;
+    const multi = [
+      WeekOpenerLayout.mosaic,
+      WeekOpenerLayout.asymmetric,
+      WeekOpenerLayout.triptych,
+      WeekOpenerLayout.polaroid,
+    ];
+    return multi[weekIndex % multi.length];
+  }
+
+  /// Returns a canonical ISO week key "YYYY-MM-DD" for the Monday of the week
+  /// that contains [d].
+  static String _weekKey(DateTime d) {
+    final ws = d.subtract(Duration(days: d.weekday - 1));
+    return '${ws.year}-${ws.month.toString().padLeft(2, '0')}-${ws.day.toString().padLeft(2, '0')}';
+  }
+
+  // ── Stream: WeekOpenerBookPage before each week, then memory pages ─────────
+  List<BookPage> _streamPages(List<JournalEntry> entries) {
+    final out = <BookPage>[];
+    String? lastMonthKey;
+    int weekIndex = 0;
+
+    final weekGroups = <String, List<JournalEntry>>{};
+    final weekOrder = <String>[];
+    for (final entry in entries) {
+      final wk = _weekKey(entry.entryDate);
+      if (!weekGroups.containsKey(wk)) {
+        weekGroups[wk] = [];
+        weekOrder.add(wk);
+      }
+      weekGroups[wk]!.add(entry);
+    }
+
+    for (final wk in weekOrder) {
+      final weekEntries = weekGroups[wk]!;
+      final weekStartDate = DateTime.parse(wk);
+      final photos = weekEntries
+          .expand((e) => e.media.where((m) => m.mediaType == 'photo'))
+          .map((m) => m.storagePath)
+          .toList();
+
+      out.add(WeekOpenerBookPage(
+        weekRange: _fullWeekLabel(weekStartDate),
+        memoryCount: weekEntries.length,
+        layout: _pickLayout(weekIndex, photos.length),
+        photoPaths: photos,
+      ));
+      weekIndex++;
+
+      for (final entry in weekEntries) {
+        final d = entry.entryDate;
+        final mk = '${d.year}-${d.month}';
+        final isNewMonth = mk != lastMonthKey;
+        if (isNewMonth) lastMonthKey = mk;
+        out.add(MemoryBookPage(
+          entry: entry,
+          isFirstInSection: isNewMonth,
+          sectionLabel: isNewMonth ? '${d.year} · ${_monthFmt.format(d).toUpperCase()}' : null,
+          weekLabel: _weekRangeLabel(d),
+        ));
+      }
+    }
+    return out;
+  }
+
+  // ── By time: WeekOpenerBookPage per week, with month section banners ────────
   List<BookPage> _byTimePages(List<JournalEntry> entries) {
     final out = <BookPage>[];
+    int weekIndex = 0;
+
     final Map<int, Map<int, List<JournalEntry>>> grouped = {};
     for (final e in entries) {
       (grouped[e.entryDate.year] ??= {})[e.entryDate.month] ??= [];
@@ -135,18 +239,50 @@ class BookBuilderService {
     }
     for (final year in (grouped.keys.toList()..sort())) {
       final months = grouped[year]!;
-      final yearTotal = months.values.fold(0, (s, l) => s + l.length);
-      out.add(YearDividerPage(year: year, memoryCount: yearTotal));
       for (final month in (months.keys.toList()..sort())) {
         final mes = months[month]!..sort((a, b) => a.entryDate.compareTo(b.entryDate));
-        out.add(MonthDividerPage(
-          year: year,
-          month: month,
-          memoryCount: mes.length,
-          reflection: _monthReflection(mes, month, year),
-        ));
-        for (int i = 0; i < mes.length; i++) {
-          out.add(MemoryBookPage(entry: mes[i], isFirstInSection: i == 0));
+        final monthName = _monthFmt.format(DateTime(year, month));
+        final sectionLabel = '$year · ${monthName.toUpperCase()}';
+
+        // Group entries in this month by week
+        final weekGroups = <String, List<JournalEntry>>{};
+        final weekOrder = <String>[];
+        for (final entry in mes) {
+          final wk = _weekKey(entry.entryDate);
+          if (!weekGroups.containsKey(wk)) {
+            weekGroups[wk] = [];
+            weekOrder.add(wk);
+          }
+          weekGroups[wk]!.add(entry);
+        }
+
+        bool sectionLabelEmitted = false;
+        for (final wk in weekOrder) {
+          final weekEntries = weekGroups[wk]!;
+          final weekStartDate = DateTime.parse(wk);
+          final photos = weekEntries
+              .expand((e) => e.media.where((m) => m.mediaType == 'photo'))
+              .map((m) => m.storagePath)
+              .toList();
+
+          out.add(WeekOpenerBookPage(
+            weekRange: _fullWeekLabel(weekStartDate),
+            memoryCount: weekEntries.length,
+            layout: _pickLayout(weekIndex, photos.length),
+            photoPaths: photos,
+          ));
+          weekIndex++;
+
+          for (final entry in weekEntries) {
+            final showSection = !sectionLabelEmitted;
+            if (!sectionLabelEmitted) sectionLabelEmitted = true;
+            out.add(MemoryBookPage(
+              entry: entry,
+              isFirstInSection: showSection,
+              sectionLabel: showSection ? sectionLabel : null,
+              weekLabel: _weekRangeLabel(entry.entryDate),
+            ));
+          }
         }
       }
     }
@@ -173,7 +309,12 @@ class BookBuilderService {
         memoryCount: ces.length,
       ));
       for (int i = 0; i < ces.length; i++) {
-        out.add(MemoryBookPage(entry: ces[i], isFirstInSection: i == 0));
+        final entry = ces[i];
+        out.add(MemoryBookPage(
+          entry: entry,
+          isFirstInSection: i == 0,
+          weekLabel: _weekRangeLabel(entry.entryDate),
+        ));
       }
     }
     return out;
@@ -196,24 +337,6 @@ class BookBuilderService {
     return withPhotos.first.media
         .firstWhere((m) => m.mediaType == 'photo')
         .storagePath;
-  }
-
-  // ── Monthly reflection — template only, no AI, no hallucination ───────────
-  String _monthReflection(List<JournalEntry> entries, int month, int year) {
-    final name = _monthFmt.format(DateTime(year, month));
-    final n = entries.length;
-    final countStr = n == 1
-        ? 'You wrote once in $name.'
-        : n == 2
-            ? 'You wrote twice in $name.'
-            : 'You wrote $n times in $name.';
-    final moods = <String, int>{};
-    for (final e in entries) {
-      if (e.mood != null) moods[e.mood!] = (moods[e.mood!] ?? 0) + 1;
-    }
-    if (moods.isEmpty) return countStr;
-    final top = moods.entries.reduce((a, b) => a.value > b.value ? a : b).key;
-    return '$countStr Your most common mood: $top.';
   }
 
   // ── Introduction — template only, no AI ───────────────────────────────────

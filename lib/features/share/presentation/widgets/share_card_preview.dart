@@ -81,26 +81,47 @@ class ShareCardPreview extends StatelessWidget {
 // Shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-Widget _dearDaysWatermark({required Color color, double fontSize = 14}) {
+Widget _dearDaysWatermark({
+  required Color color,
+  double fontSize = 14,
+  bool showLink = false,
+  Color? linkColor,
+}) {
   return Positioned(
     right: 22,
     bottom: 18,
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          '✦ ',
-          style: TextStyle(fontSize: fontSize * 0.7, color: color),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '✦ ',
+              style: TextStyle(fontSize: fontSize * 0.7, color: color),
+            ),
+            Text(
+              'deardays',
+              style: GoogleFonts.newsreader(
+                fontSize: fontSize,
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
         ),
-        Text(
-          'deardays',
-          style: GoogleFonts.newsreader(
-            fontSize: fontSize,
-            fontStyle: FontStyle.italic,
-            fontWeight: FontWeight.w500,
-            color: color,
+        if (showLink)
+          Text(
+            'deardays.app',
+            style: GoogleFonts.manrope(
+              fontSize: fontSize * 0.72,
+              fontWeight: FontWeight.w500,
+              color: linkColor ?? color,
+              letterSpacing: 0.3,
+            ),
           ),
-        ),
       ],
     ),
   );
@@ -266,7 +287,10 @@ class _MinimalCard extends StatelessWidget {
           ),
 
           // DearDays watermark
-          _dearDaysWatermark(color: Colors.white.withAlpha(120)),
+          _dearDaysWatermark(
+            color: Colors.white.withAlpha(120),
+            showLink: config.showAppLink,
+          ),
         ],
       ),
     );
@@ -424,14 +448,30 @@ class _ScrapbookCard extends StatelessWidget {
                   border: Border.all(color: caramel.withAlpha(160), width: 1.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
-                child: Text(
-                  'deardays',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: caramel.withAlpha(160),
-                    letterSpacing: 2.5,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'deardays',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: caramel.withAlpha(160),
+                        letterSpacing: 2.5,
+                      ),
+                    ),
+                    if (config.showAppLink)
+                      Text(
+                        'deardays.app',
+                        style: GoogleFonts.manrope(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w500,
+                          color: caramel.withAlpha(130),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -605,18 +645,34 @@ class _DarkCard extends StatelessWidget {
             ),
           ),
 
-          // Gold "deardays" signature bottom-right
+          // Gold "deardays" signature + optional download link — bottom-right
           Positioned(
             right: 22,
             bottom: 18,
-            child: Text(
-              '✦ deardays',
-              style: GoogleFonts.newsreader(
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                fontWeight: FontWeight.w500,
-                color: gold.withAlpha(160),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '✦ deardays',
+                  style: GoogleFonts.newsreader(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w500,
+                    color: gold.withAlpha(160),
+                  ),
+                ),
+                if (config.showAppLink)
+                  Text(
+                    'deardays.app',
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      color: mutedGray.withAlpha(180),
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -765,20 +821,35 @@ class _ClassicCard extends StatelessWidget {
             ],
           ),
 
-          // DearDays wordmark — bottom center
+          // DearDays wordmark + optional download link — bottom center
           Positioned(
             left: 0, right: 0,
             bottom: 18,
             child: Center(
-              child: Text(
-                'deardays',
-                style: GoogleFonts.newsreader(
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w500,
-                  color: inkLight.withAlpha(140),
-                  letterSpacing: 1.5,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'deardays',
+                    style: GoogleFonts.newsreader(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w500,
+                      color: inkLight.withAlpha(140),
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  if (config.showAppLink)
+                    Text(
+                      'deardays.app',
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                        color: inkLight.withAlpha(120),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

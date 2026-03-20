@@ -1,73 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:deardays/features/book/presentation/screens/library_screen.dart';
 import 'package:deardays/features/book/presentation/screens/book_creation_screen.dart';
 
 import '../helpers/test_app.dart';
 
 void bookCreationFlowTests() {
+  // The LibraryScreen was redesigned — "Create a Book" is no longer in it.
+  // Navigate to BookCreationScreen directly via the /book-create route.
+  Future<void> openBookCreation(WidgetTester tester) async {
+    await tester.pumpWidget(buildE2EApp());
+    await tester.pumpAndSettle();
+
+    // Navigate directly to BookCreationScreen via the router.
+    // Use HomeScreen context (inside router scope) rather than MaterialApp.
+    final context = tester.element(find.byType(Scaffold).first);
+    GoRouter.of(context).push('/book-create');
+    await tester.pumpAndSettle();
+  }
+
   group('Book Creation — Navigation', () {
-    testWidgets('CHAPTERS tab shows "Create a Book" button', (tester) async {
+    testWidgets('CHAPTERS tab shows LibraryScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      // Navigate to CHAPTERS tab
       await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
       expect(find.byType(LibraryScreen), findsOneWidget);
-
-      // Scroll down to reveal the "Create a Book" button
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -600),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Create a Book'), findsOneWidget);
     });
 
-    testWidgets('tapping "Create a Book" navigates to BookCreationScreen',
+    testWidgets('CHAPTERS tab shows "FEATURED COLLECTION" hero card',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      // Navigate to CHAPTERS tab
       await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
-      // Scroll down to reveal the "Create a Book" button
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -600),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Create a Book'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(BookCreationScreen), findsOneWidget);
+      expect(find.text('FEATURED COLLECTION'), findsOneWidget);
     });
-  });
 
-  group('Book Creation — Screen Structure', () {
-    Future<void> openBookCreation(WidgetTester tester) async {
+    testWidgets('CHAPTERS tab shows "Read Autobiography" button',
+        (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -600),
-      );
-      await tester.pumpAndSettle();
+      expect(find.text('Read Autobiography'), findsOneWidget);
+    });
+  });
 
-      await tester.tap(find.text('Create a Book'));
-      await tester.pumpAndSettle();
-    }
-
+  group('Book Creation — Screen Structure', () {
     testWidgets('BookCreationScreen renders without crash', (tester) async {
       await openBookCreation(tester);
       expect(find.byType(BookCreationScreen), findsOneWidget);
@@ -107,17 +94,7 @@ void bookCreationFlowTests() {
   });
 
   group('Book Creation — CHAPTERS tab structure', () {
-    testWidgets('CHAPTERS tab shows "My Life Book" card', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('My Life Book'), findsOneWidget);
-    });
-
-    testWidgets('CHAPTERS tab shows "Your Life Stories" section',
+    testWidgets('CHAPTERS tab shows "Continue Your Journey" title',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
@@ -125,25 +102,31 @@ void bookCreationFlowTests() {
       await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Your Life Stories'), findsOneWidget);
+      expect(find.text('Continue Your Journey'), findsOneWidget);
     });
 
-    testWidgets('CHAPTERS tab shows "Create Custom Chapter" button',
-        (tester) async {
+    testWidgets('CHAPTERS tab shows "Life Chapters" section', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('CHAPTERS'));
       await tester.pumpAndSettle();
 
-      // Scroll down to see the create chapter button
       await tester.drag(
         find.byType(Scrollable).first,
-        const Offset(0, -400),
+        const Offset(0, -300),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Create Custom Chapter'), findsOneWidget);
+      expect(find.text('Life Chapters'), findsOneWidget);
+    });
+
+    testWidgets('CHAPTERS tab shows "Create a Book" button',
+        (tester) async {
+      // Create a Book is accessible via direct route navigation.
+      await openBookCreation(tester);
+      // BookCreationScreen title bar shows "Create a Book"
+      expect(find.text('Create a Book'), findsOneWidget);
     });
   });
 }

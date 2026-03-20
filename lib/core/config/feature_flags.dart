@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:deardays/core/config/supabase_config.dart';
 import 'package:deardays/services/analytics/analytics_service.dart';
 
 /// Feature flag system with remote kill switches and gradual rollout support.
@@ -90,6 +91,7 @@ class FeatureFlags {
     }
 
     // Fallback: fetch from Supabase remote_config table
+    if (SupabaseConfig.supabaseUrl.isEmpty) return;
     try {
       final response = await Supabase.instance.client
           .from('remote_config')
@@ -145,8 +147,8 @@ enum Feature {
   /// Share card generation.
   shareCards('share_cards', defaultValue: true),
 
-  /// Weekly AI summary/reflection.
-  weeklySummary('weekly_summary', defaultValue: true),
+  /// Weekly AI summary/reflection (legacy — superseded by weekly narrative pages).
+  weeklySummary('weekly_summary', defaultValue: false),
 
   /// On This Day feature.
   onThisDay('on_this_day', defaultValue: true),
@@ -155,7 +157,11 @@ enum Feature {
   newOnboarding('new_onboarding', defaultValue: false),
 
   /// Paywall v2 (A/B test).
-  paywallV2('paywall_v2', defaultValue: false);
+  paywallV2('paywall_v2', defaultValue: false),
+
+  /// Hierarchical story generation (weekly → monthly → yearly → lifetime).
+  /// Off by default — expensive multi-call AI pipeline; enable per user/cohort.
+  hierarchicalStories('hierarchical_stories', defaultValue: false);
 
   final String key;
   final bool defaultValue;

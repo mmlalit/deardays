@@ -177,6 +177,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     ref.read(streakProvider.future).ignore();
     ref.read(profileProvider.future).ignore();
     ref.read(booksProvider.future).ignore();
+    ref.read(chaptersProvider.future).ignore();
     ref.read(weeklyMoodsProvider.future).ignore();
     ref.read(onThisDayProvider.future).ignore();
   }

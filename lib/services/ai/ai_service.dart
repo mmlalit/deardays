@@ -667,13 +667,11 @@ class AiService {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return AiServiceException(
-          '[$method] Request timed out. Please try again.',
-        );
+        debugPrint('[$method] Request timed out');
+        return AiServiceException('Request timed out. Please try again.');
       case DioExceptionType.connectionError:
-        return AiServiceException(
-          '[$method] Network error. Check your internet connection.',
-        );
+        debugPrint('[$method] Network error: ${e.message}');
+        return AiServiceException('No internet connection. Please try again.');
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
         if (kDebugMode) {
@@ -682,16 +680,12 @@ class AiService {
               : e.message;
           debugPrint('[$method] API error ($statusCode): $debugMsg');
         }
-        return AiServiceException(
-          '[$method] Request failed ($statusCode). Please try again.',
-        );
+        return AiServiceException('Something went wrong. Please try again.');
       default:
         if (kDebugMode) {
           debugPrint('[$method] Unexpected error: ${e.message}');
         }
-        return AiServiceException(
-          '[$method] Something went wrong. Please try again.',
-        );
+        return AiServiceException('Something went wrong. Please try again.');
     }
   }
 }

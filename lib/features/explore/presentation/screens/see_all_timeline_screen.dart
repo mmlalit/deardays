@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -15,7 +14,7 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 // Section type enum
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum SeeAllSection { happiest, family, travel }
+enum SeeAllSection { happiest, family, travel, mood }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // See All Timeline Screen
@@ -23,15 +22,27 @@ enum SeeAllSection { happiest, family, travel }
 
 class SeeAllTimelineScreen extends ConsumerStatefulWidget {
   final SeeAllSection section;
+  /// Pre-selects a mood filter tab (e.g. 'Great', 'Good') on open.
+  final String? initialMoodFilter;
 
-  const SeeAllTimelineScreen({super.key, required this.section});
+  const SeeAllTimelineScreen({super.key, required this.section, this.initialMoodFilter});
 
   @override
   ConsumerState<SeeAllTimelineScreen> createState() => _SeeAllTimelineScreenState();
 }
 
 class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
-  String _activeFilter = 'All';
+  late String _activeFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    // Capitalise to match filter chip labels: 'great' → 'Great'
+    final mood = widget.initialMoodFilter;
+    _activeFilter = mood != null
+        ? '${mood[0].toUpperCase()}${mood.substring(1)}'
+        : 'All';
+  }
 
   List<String> get _filters {
     switch (widget.section) {
@@ -41,6 +52,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return ['All', 'Milestones', 'Travel', 'Holidays'];
       case SeeAllSection.travel:
         return ['All', 'Trips', 'Adventures', 'Walks'];
+      case SeeAllSection.mood:
+        return ['All', 'Great', 'Good', 'Okay', 'Low', 'Tough'];
     }
   }
 
@@ -52,6 +65,10 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return 'Family Journey';
       case SeeAllSection.travel:
         return 'Travel Adventures';
+      case SeeAllSection.mood:
+        final m = widget.initialMoodFilter ?? '';
+        final label = m.isEmpty ? '' : '${m[0].toUpperCase()}${m.substring(1)}';
+        return '$label Memories';
     }
   }
 
@@ -63,6 +80,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return 'Our shared history';
       case SeeAllSection.travel:
         return 'Exploring the world';
+      case SeeAllSection.mood:
+        return 'All memories with this mood';
     }
   }
 
@@ -74,6 +93,15 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return const Color(0xFFEC4899);
       case SeeAllSection.travel:
         return const Color(0xFFF59E0B);
+      case SeeAllSection.mood:
+        switch (widget.initialMoodFilter) {
+          case 'great': return const Color(0xFF10B981);
+          case 'good':  return const Color(0xFF34D399);
+          case 'okay':  return const Color(0xFFF59E0B);
+          case 'low':   return const Color(0xFFF97316);
+          case 'tough': return const Color(0xFFEF4444);
+          default:      return const Color(0xFF6366F1);
+        }
     }
   }
 
@@ -85,6 +113,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return Icons.family_restroom_rounded;
       case SeeAllSection.travel:
         return Icons.location_on_rounded;
+      case SeeAllSection.mood:
+        return Icons.mood_rounded;
     }
   }
 
@@ -513,6 +543,9 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
       case SeeAllSection.travel:
         tags.add('#Travel');
         break;
+      case SeeAllSection.mood:
+        tags.add('#${_moodLabel(entry.mood)}');
+        break;
     }
 
     // Add location tag for travel
@@ -577,6 +610,9 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
           return _travelKeywords.any((kw) => text.contains(kw));
         }).toList();
         break;
+      case SeeAllSection.mood:
+        base = entries.toList(); // filter applied below via _activeFilter
+        break;
     }
 
     // Apply sub-filter
@@ -587,6 +623,9 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         if (_activeFilter == 'Great') return base.where((e) => e.mood == 'great').toList();
         if (_activeFilter == 'Good') return base.where((e) => e.mood == 'good').toList();
         break;
+      case SeeAllSection.mood:
+        // Filter by mood label
+        return base.where((e) => e.mood?.toLowerCase() == _activeFilter.toLowerCase()).toList();
       case SeeAllSection.family:
         if (_activeFilter == 'Milestones') return base.where((e) => e.isMilestone).toList();
         if (_activeFilter == 'Travel') {
@@ -646,10 +685,7 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
     }
 
     return FutureBuilder<String>(
-      future: Supabase.instance.client.storage
-          .from('entry-media')
-          .createSignedUrl(photo.storagePath, 3600)
-          .catchError((_) => ''),
+      future: ref.read(mediaServiceProvider).getSignedUrl(photo.storagePath).catchError((_) => ''),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.hasError) {
           return Container(color: colors.highlightFaint);

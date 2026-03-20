@@ -88,7 +88,7 @@ class AiCreditService {
 
   // ── Tier management ───────────────────────────────────────────────────────
 
-  String get currentTier => _box?.get('tier', defaultValue: 'free') as String;
+  String get currentTier => (_box?.get('tier', defaultValue: 'free') as String?) ?? 'free';
 
   set currentTier(String tier) {
     _box?.put('tier', tier);

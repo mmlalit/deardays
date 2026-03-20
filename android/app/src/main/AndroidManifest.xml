@@ -3,6 +3,18 @@
         android:label="deardays"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- FileProvider for sharing image files directly to Instagram / WhatsApp -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -41,5 +53,8 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Direct sharing to Instagram and WhatsApp -->
+        <package android:name="com.instagram.android" />
+        <package android:name="com.whatsapp" />
     </queries>
 </manifest>

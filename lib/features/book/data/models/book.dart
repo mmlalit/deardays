@@ -4,6 +4,7 @@ class Book {
   final String title;
   final String coverColor;
   final String writingStyle;
+  final String creationApproach; // 'chronological' | 'thematic'
   final String? coverImageUrl;
   final DateTime startDate;
   final DateTime? endDate;
@@ -17,6 +18,7 @@ class Book {
     required this.title,
     this.coverColor = '#6B4EFF',
     this.writingStyle = 'memoir',
+    this.creationApproach = 'chronological',
     this.coverImageUrl,
     required this.startDate,
     this.endDate,
@@ -31,6 +33,7 @@ class Book {
     String? title,
     String? coverColor,
     String? writingStyle,
+    String? creationApproach,
     String? coverImageUrl,
     DateTime? startDate,
     DateTime? endDate,
@@ -44,6 +47,7 @@ class Book {
       title: title ?? this.title,
       coverColor: coverColor ?? this.coverColor,
       writingStyle: writingStyle ?? this.writingStyle,
+      creationApproach: creationApproach ?? this.creationApproach,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
@@ -60,6 +64,7 @@ class Book {
       'title': title,
       'cover_color': coverColor,
       'writing_style': writingStyle,
+      'creation_approach': creationApproach,
       if (coverImageUrl != null) 'cover_image_url': coverImageUrl,
       'start_date': startDate.toIso8601String().split('T').first,
       'end_date': endDate?.toIso8601String().split('T').first,
@@ -76,6 +81,7 @@ class Book {
       title: map['title'] as String,
       coverColor: (map['cover_color'] as String?) ?? '#6B4EFF',
       writingStyle: (map['writing_style'] as String?) ?? 'memoir',
+      creationApproach: (map['creation_approach'] as String?) ?? 'chronological',
       coverImageUrl: map['cover_image_url'] as String?,
       startDate: DateTime.parse(map['start_date'] as String),
       endDate: map['end_date'] != null

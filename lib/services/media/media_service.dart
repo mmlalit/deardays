@@ -23,6 +23,10 @@ class MediaService {
 
   final SupabaseClient _client;
 
+  /// In-memory cache of signed URLs keyed by storagePath.
+  /// Prevents re-fetching the same URL when widgets rebuild (e.g. on scroll).
+  final Map<String, Future<String>> _signedUrlCache = {};
+
   MediaService({required SupabaseClient client}) : _client = client;
 
   String get _userId => _client.auth.currentUser!.id;
@@ -170,11 +174,14 @@ class MediaService {
   }
 
   /// Returns a signed URL for a media item (valid for 1 hour).
-  Future<String> getSignedUrl(String storagePath) async {
-    final url = await _client.storage
-        .from(_bucketName)
-        .createSignedUrl(storagePath, 3600);
-    return url;
+  /// Results are cached in-memory so repeated calls for the same path
+  /// (e.g. on scroll rebuild) reuse the existing Future without a new request.
+  Future<String> getSignedUrl(String storagePath) {
+    if (storagePath.startsWith('http')) return Future.value(storagePath);
+    return _signedUrlCache.putIfAbsent(
+      storagePath,
+      () => _client.storage.from(_bucketName).createSignedUrl(storagePath, 3600),
+    );
   }
 
   /// Returns the public URL if the bucket is public, otherwise use signed URL.

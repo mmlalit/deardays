@@ -18,7 +18,6 @@ import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 import 'package:deardays/services/analytics/analytics_service.dart';
 import 'package:deardays/services/backup/backup_service.dart';
 import 'package:deardays/services/ai/ai_credit_service.dart';
-import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/services/ai/offline_ai_queue.dart';
 import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -64,7 +63,6 @@ void main() async {
       ConnectivityService().init(),
       BackupService().init(),
       AiCreditService().init(),
-      AiService().initCoverCache(),
       OfflineAiQueue().init(),
       FeatureFlags().init(),
       VersionCheckService().check(),

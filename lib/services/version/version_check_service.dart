@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:deardays/core/config/supabase_config.dart';
+
 /// Checks whether the running app version meets the minimum required version
 /// stored in `remote_config`. When `needsUpdate` is true, the UI should show
 /// a force-update dialog.
@@ -36,6 +38,7 @@ class VersionCheckService {
     if (_checked) return;
     _checked = true;
 
+    if (SupabaseConfig.supabaseUrl.isEmpty) return;
     try {
       final result = await Supabase.instance.client
           .from('remote_config')

@@ -203,6 +203,28 @@ class AppLocalizationsDe extends AppLocalizations {
   String get termsOfService => 'Nutzungsbedingungen';
 
   @override
+  String get goodMorning => 'Guten Morgen';
+
+  @override
+  String get goodAfternoon => 'Guten Tag';
+
+  @override
+  String get goodEvening => 'Guten Abend';
+
+  @override
+  String get morning => 'Morgen';
+
+  @override
+  String get afternoon => 'Nachmittag';
+
+  @override
+  String get evening => 'Abend';
+
+  @override
+  String get dailyLimitReached =>
+      'Du hast dein heutiges Erinnerungslimit erreicht. Komm morgen wieder!';
+
+  @override
   String get moodGreat => 'großartig';
 
   @override
@@ -257,6 +279,39 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get today => 'Heute';
+
+  @override
+  String get yesterday => 'Gestern';
+
+  @override
+  String daysAgo(int count) {
+    return 'Vor $count Tagen';
+  }
+
+  @override
+  String get weekAgo => 'Vor 1 Woche';
+
+  @override
+  String monthsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Vor $count Monaten',
+      one: 'Vor 1 Monat',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Vor $count Jahren',
+      one: 'Vor 1 Jahr',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get noEntries => 'Noch keine Einträge';

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/features/book/presentation/providers/life_book_provider.dart';
@@ -102,6 +103,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
   // ── Weekly generation ────────────────────────────────────────────────────
 
   Future<void> generateWeekly(DateTime weekDate) async {
+    if (!FeatureFlags().isEnabledSync(Feature.hierarchicalStories)) {
+      state = state.copyWith(error: 'Hierarchical stories are not enabled.');
+      return;
+    }
     final key = StoryNode.weekKey(weekDate.year, StoryNode.isoWeekNumber(weekDate));
     if (state.generatingId != null) return;
 
@@ -153,6 +158,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
   // ── Monthly generation ───────────────────────────────────────────────────
 
   Future<void> generateMonthly(int year, int month) async {
+    if (!FeatureFlags().isEnabledSync(Feature.hierarchicalStories)) {
+      state = state.copyWith(error: 'Hierarchical stories are not enabled.');
+      return;
+    }
     final key = StoryNode.monthKey(year, month);
     if (state.generatingId != null) return;
 
@@ -199,6 +208,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
   // ── Yearly generation ────────────────────────────────────────────────────
 
   Future<void> generateYearly(int year) async {
+    if (!FeatureFlags().isEnabledSync(Feature.hierarchicalStories)) {
+      state = state.copyWith(error: 'Hierarchical stories are not enabled.');
+      return;
+    }
     final key = StoryNode.yearKey(year);
     if (state.generatingId != null) return;
 
@@ -236,6 +249,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
   // ── Lifetime generation ──────────────────────────────────────────────────
 
   Future<void> generateLifetime() async {
+    if (!FeatureFlags().isEnabledSync(Feature.hierarchicalStories)) {
+      state = state.copyWith(error: 'Hierarchical stories are not enabled.');
+      return;
+    }
     const key = StoryNode.lifetimeKey;
     if (state.generatingId != null) return;
 

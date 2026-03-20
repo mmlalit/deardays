@@ -20,6 +20,7 @@ import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
+import 'package:deardays/features/book/data/models/book_page.dart';
 import 'package:deardays/features/book/data/repositories/book_repository.dart';
 import 'package:deardays/services/media/media_service.dart';
 import 'package:deardays/services/sync/sync_service.dart';
@@ -182,6 +183,14 @@ final bookRepositoryProvider = Provider<BookRepository>((ref) {
 final booksProvider = FutureProvider<List<Book>>((ref) async {
   ref.watch(authStateProvider);
   return ref.watch(bookRepositoryProvider).getBooks();
+});
+
+/// Loads all AI-generated weekly narrative pages for a specific book.
+/// Used by the book reader in Story (✦ DearDays) mode.
+final weeklyNarrativePagesProvider =
+    FutureProvider.family<List<WeeklyNarrativeBookPage>, String>(
+        (ref, bookId) async {
+  return ref.read(bookRepositoryProvider).getWeeklyPages(bookId, limit: 500);
 });
 
 // --- Journal Entries ---

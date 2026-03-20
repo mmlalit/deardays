@@ -1,7 +1,7 @@
 import { corsHeaders, noCacheHeaders } from "../_shared/cors.ts";
 import { getUserTier } from "../_shared/user-tier.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { chat, chatStream } from "../_shared/ai-providers.ts";
+import { chat, chatStream, PROVIDERS } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -67,7 +67,7 @@ Deno.serve(async (req: Request) => {
       const body = new ReadableStream({
         async start(controller) {
           try {
-            for await (const chunk of chatStream(messages, systemPrompt)) {
+            for await (const chunk of chatStream(messages, systemPrompt, 200, PROVIDERS.CHAT)) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
             }
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -90,7 +90,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Non-streaming path (fallback) ─────────────────────────────────
-    const text = await chat(messages, systemPrompt);
+    const text = await chat(messages, systemPrompt, 200, PROVIDERS.CHAT);
     return new Response(
       JSON.stringify({ text }),
       { headers: noCacheHeaders },

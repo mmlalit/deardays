@@ -8,7 +8,7 @@ void subscriptionFlowTests() {
   Future<void> openSettings(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(GestureDetector).first);
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
   }
 

@@ -27,6 +27,9 @@ class UserProfile {
   final DateTime? e2eConsentGivenAt;
   final DateTime? e2eEnabledAt;
 
+  // Sharing
+  final bool hasReceivedShare;
+
   const UserProfile({
     required this.id,
     this.displayName,
@@ -51,6 +54,7 @@ class UserProfile {
     this.e2eSalt,
     this.e2eConsentGivenAt,
     this.e2eEnabledAt,
+    this.hasReceivedShare = false,
   });
 
   /// Whether the user is still within the free trial period.
@@ -88,6 +92,7 @@ class UserProfile {
     String? e2eSalt,
     DateTime? e2eConsentGivenAt,
     DateTime? e2eEnabledAt,
+    bool? hasReceivedShare,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -116,6 +121,7 @@ class UserProfile {
       e2eSalt: e2eSalt ?? this.e2eSalt,
       e2eConsentGivenAt: e2eConsentGivenAt ?? this.e2eConsentGivenAt,
       e2eEnabledAt: e2eEnabledAt ?? this.e2eEnabledAt,
+      hasReceivedShare: hasReceivedShare ?? this.hasReceivedShare,
     );
   }
 
@@ -144,6 +150,7 @@ class UserProfile {
       'e2e_salt': e2eSalt,
       'e2e_consent_given_at': e2eConsentGivenAt?.toIso8601String(),
       'e2e_enabled_at': e2eEnabledAt?.toIso8601String(),
+      'has_received_share': hasReceivedShare,
     };
   }
 
@@ -186,6 +193,7 @@ class UserProfile {
       e2eEnabledAt: map['e2e_enabled_at'] != null
           ? DateTime.parse(map['e2e_enabled_at'] as String)
           : null,
+      hasReceivedShare: (map['has_received_share'] as bool?) ?? false,
     );
   }
 

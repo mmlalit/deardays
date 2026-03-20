@@ -191,7 +191,7 @@ class _SaveSuccessScreenState extends State<_SaveSuccessScreen>
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 48),
                   child: Text(
-                    'Aura has safely tucked your memory away in the stars. It\'s ready whenever you wish to revisit it.',
+                    'DearDays has safely tucked your memory away in the stars. It\'s ready whenever you wish to revisit it.',
                     style: GoogleFonts.manrope(
                       fontSize: 14,
                       color: colors.textSecondary,

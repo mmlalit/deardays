@@ -155,7 +155,7 @@ abstract class AppLocalizations {
   /// No description provided for @journaling.
   ///
   /// In en, this message translates to:
-  /// **'JOURNALING'**
+  /// **'MEMORIES'**
   String get journaling;
 
   /// No description provided for @dailyReminder.
@@ -335,7 +335,7 @@ abstract class AppLocalizations {
   /// No description provided for @encryptionExplanation.
   ///
   /// In en, this message translates to:
-  /// **'Your encryption key is derived from your password and never leaves your device. The server stores only encrypted blobs — we cannot read your journal entries.'**
+  /// **'Your encryption key is derived from your password and never leaves your device. The server stores only encrypted blobs — we cannot read your memories.'**
   String get encryptionExplanation;
 
   /// No description provided for @gotIt.
@@ -413,7 +413,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAccountWarning.
   ///
   /// In en, this message translates to:
-  /// **'This will permanently delete your account and all journal entries. This action cannot be undone.\n\nYour encrypted data will be erased from the server.'**
+  /// **'This will permanently delete your account and all your memories. This action cannot be undone.\n\nYour encrypted data will be erased from the server.'**
   String get deleteAccountWarning;
 
   /// No description provided for @cancel.
@@ -469,6 +469,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Terms of Service'**
   String get termsOfService;
+
+  /// No description provided for @goodMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good Morning'**
+  String get goodMorning;
+
+  /// No description provided for @goodAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good Afternoon'**
+  String get goodAfternoon;
+
+  /// No description provided for @goodEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good Evening'**
+  String get goodEvening;
+
+  /// No description provided for @morning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning'**
+  String get morning;
+
+  /// No description provided for @afternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Afternoon'**
+  String get afternoon;
+
+  /// No description provided for @evening.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening'**
+  String get evening;
+
+  /// No description provided for @dailyLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached today\'s memory limit. Come back tomorrow!'**
+  String get dailyLimitReached;
 
   /// No description provided for @moodGreat.
   ///
@@ -571,6 +613,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Today'**
   String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterday;
+
+  /// No description provided for @daysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days ago'**
+  String daysAgo(int count);
+
+  /// No description provided for @weekAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'1 week ago'**
+  String get weekAgo;
+
+  /// No description provided for @monthsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 month ago} other{{count} months ago}}'**
+  String monthsAgo(int count);
+
+  /// No description provided for @yearsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 year ago} other{{count} years ago}}'**
+  String yearsAgo(int count);
 
   /// No description provided for @noEntries.
   ///

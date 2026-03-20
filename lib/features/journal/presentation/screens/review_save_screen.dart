@@ -11,6 +11,9 @@ import 'package:uuid/uuid.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:intl/intl.dart';
+
+import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
@@ -38,6 +41,11 @@ class ReviewData {
   final bool isVoice;
   final bool polishWithAI;
 
+  /// When true, ProcessingScreen will send audio to OpenAI Whisper for
+  /// transcription. Requires explicit user consent — audio leaves the device.
+  /// Defaults to false: on-device STT transcript is used instead.
+  final bool useWhisper;
+
   // Pre-computed by ProcessingScreen so ReviewSaveScreen loads instantly
   final String? cleanedText;     // light polish: grammar/spelling fixed
   final String? polishedText;    // full AI literary narrative
@@ -51,6 +59,7 @@ class ReviewData {
     this.audioPath,
     this.isVoice = false,
     this.polishWithAI = false,
+    this.useWhisper = false,
     this.cleanedText,
     this.polishedText,
     this.generatedTitle,
@@ -94,6 +103,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // Display logic falls back to Original automatically if cleanedText is null.
   int _viewMode = 1;
   String? _selectedMood;
+  bool _showMoodPicker = false;
 
   // Save state
   bool _isSaving = false;
@@ -152,23 +162,19 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   /// Lightweight title generation used when full AI polish is not requested.
   Future<void> _generateTitleOnly() async {
+    final l10n = AppLocalizations.of(context);
     try {
-      // Run light polish and AI title generation in parallel
-      final results = await Future.wait([
-        _aiService.lightPolish(widget.data.rawText),
-        _aiService.generateTitle(widget.data.rawText).catchError((_) => ''),
-      ]);
+      // Light polish only — title uses the instant fallback (tap to edit inline)
+      final cleaned = await _aiService.lightPolish(widget.data.rawText);
       if (!mounted) return;
-      final cleaned = results[0];
-      final aiTitle = results[1];
-      final title = aiTitle.isNotEmpty ? aiTitle : _generateFallbackTitle();
+      final title = _generateFallbackTitle(l10n);
       setState(() {
         _cleanedText = cleaned;
         _generatedTitle = title;
         _titleEditController.text = title;
       });
     } catch (_) {
-      final title = _generateFallbackTitle();
+      final title = _generateFallbackTitle(l10n);
       if (mounted) {
         setState(() {
           _generatedTitle = title;
@@ -179,6 +185,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   Future<void> _polishText() async {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _isPolishing = true;
       _polishProgress = 0.0;
@@ -209,7 +216,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         body = lines.skip(1).join('\n\n').trim();
       }
 
-      final title = aiTitle.isNotEmpty ? aiTitle : _generateFallbackTitle();
+      final title = aiTitle.isNotEmpty ? aiTitle : _generateFallbackTitle(l10n);
 
       if (mounted) {
         _titleEditController.text = title;
@@ -242,24 +249,60 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     }
   }
 
-  String _generateFallbackTitle() {
+  String _generateFallbackTitle([AppLocalizations? l10n]) {
     final now = DateTime.now();
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    final timeOfDay = now.hour < 12 ? 'Morning' : now.hour < 17 ? 'Afternoon' : 'Evening';
-    return '$timeOfDay, ${months[now.month - 1]} ${now.day}';
+    final month = DateFormat('MMM').format(now);
+    final timeOfDay = now.hour < 12
+        ? (l10n?.morning ?? 'Morning')
+        : now.hour < 17
+            ? (l10n?.afternoon ?? 'Afternoon')
+            : (l10n?.evening ?? 'Evening');
+    return '$timeOfDay, $month ${now.day}';
   }
 
   Future<void> _saveEntry() async {
     HapticFeedback.mediumImpact();
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _isSaving = true;
       _saveError = null;
     });
 
     try {
+      // ── Daily memory limit check ─────────────────────────────────────────
+      final db = Supabase.instance.client;
+      final userId = db.auth.currentUser?.id;
+      if (userId != null && ConnectivityService().isOnline) {
+        // Read limit from app_config (default 10 if missing)
+        final configRow = await db
+            .from('app_config')
+            .select('value')
+            .eq('key', 'daily_memory_limit')
+            .maybeSingle();
+        final dailyLimit = int.tryParse(configRow?['value'] as String? ?? '') ?? 10;
+
+        // Count today's entries for this user (UTC day)
+        final todayStart = DateTime.now().toUtc().copyWith(
+          hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0,
+        );
+        final todayRows = await db
+            .from('journal_entries')
+            .select('id')
+            .eq('user_id', userId)
+            .gte('created_at', todayStart.toIso8601String());
+        final todayCount = (todayRows as List).length;
+
+        if (todayCount >= dailyLimit) {
+          setState(() {
+            _isSaving = false;
+            _saveError = l10n?.dailyLimitReached ??
+                "You've reached today's memory limit. Come back tomorrow!";
+          });
+          return;
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────
+
       final now = DateTime.now().toUtc();
       final content = _cleanedText ?? widget.data.rawText;
       final polishedContent = _polishedText != null
@@ -1171,6 +1214,21 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // Metadata Row — Tags & Location (shown at top for visibility)
   // ---------------------------------------------------------------------------
 
+  static const _moodOptions = [
+    (value: 'great', label: 'Great', emoji: '😄', color: AppColors.moodGreat),
+    (value: 'good',  label: 'Good',  emoji: '😊', color: AppColors.moodGood),
+    (value: 'okay',  label: 'Okay',  emoji: '😐', color: AppColors.moodOkay),
+    (value: 'low',   label: 'Low',   emoji: '😔', color: AppColors.moodLow),
+    (value: 'tough', label: 'Tough', emoji: '😢', color: AppColors.moodTough),
+  ];
+
+  String _moodEmoji(String? mood) {
+    return _moodOptions
+        .where((m) => m.value == mood)
+        .map((m) => m.emoji)
+        .firstOrNull ?? '😊';
+  }
+
   Widget _buildMetadataRow(AppPalette colors) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -1192,7 +1250,83 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 isActive: _locationName != null,
                 onTap: _addLocation,
               ),
+              const SizedBox(width: 8),
+              _actionPill(
+                icon: Icons.mood_rounded,
+                label: _selectedMood != null
+                    ? '${_moodEmoji(_selectedMood)} ${_selectedMood![0].toUpperCase()}${_selectedMood!.substring(1)}'
+                    : 'Add mood',
+                isActive: _selectedMood != null,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _showMoodPicker = !_showMoodPicker);
+                },
+              ),
             ],
+          ),
+          // Inline mood picker — expands when pill is tapped
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: _showMoodPicker
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: _moodOptions.map((mood) {
+                        final isSelected = _selectedMood == mood.value;
+                        return GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() {
+                              _selectedMood = mood.value;
+                              _showMoodPicker = false;
+                            });
+                          },
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isSelected
+                                      ? mood.color.withAlpha(40)
+                                      : colors.highlightFaint,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? mood.color.withAlpha(150)
+                                        : colors.border,
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(mood.emoji,
+                                      style: const TextStyle(fontSize: 22)),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                mood.label,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 10,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? mood.color
+                                      : colors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
           if (_tags.isNotEmpty) ...[
             const SizedBox(height: 10),

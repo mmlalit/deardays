@@ -40,8 +40,8 @@ class AppColors {
   static const Color successLight = Color(0xFFD1FAE5);
 
   // --- Reading / Book view ---
-  static const Color readingBg = Color(0xFFFBF0D9);
-  static const Color readingText = Color(0xFF3D3228);
+  static const Color readingBg = Color(0xFFF8FAFC);
+  static const Color readingText = Color(0xFF1E293B);
 }
 
 /// All per-palette colors: text, card, border, accent, icons.

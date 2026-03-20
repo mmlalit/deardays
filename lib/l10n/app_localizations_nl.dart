@@ -202,6 +202,28 @@ class AppLocalizationsNl extends AppLocalizations {
   String get termsOfService => 'Servicevoorwaarden';
 
   @override
+  String get goodMorning => 'Goedemorgen';
+
+  @override
+  String get goodAfternoon => 'Goedemiddag';
+
+  @override
+  String get goodEvening => 'Goedenavond';
+
+  @override
+  String get morning => 'Ochtend';
+
+  @override
+  String get afternoon => 'Middag';
+
+  @override
+  String get evening => 'Avond';
+
+  @override
+  String get dailyLimitReached =>
+      'Je hebt de dagelijkse geheugenlimiet bereikt. Kom morgen terug!';
+
+  @override
   String get moodGreat => 'geweldig';
 
   @override
@@ -256,6 +278,39 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get today => 'Vandaag';
+
+  @override
+  String get yesterday => 'Gisteren';
+
+  @override
+  String daysAgo(int count) {
+    return '$count dagen geleden';
+  }
+
+  @override
+  String get weekAgo => '1 week geleden';
+
+  @override
+  String monthsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count maanden geleden',
+      one: '1 maand geleden',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String yearsAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count jaar geleden',
+      one: '1 jaar geleden',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get noEntries => 'Nog geen items';

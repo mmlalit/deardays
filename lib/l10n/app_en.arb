@@ -11,7 +11,7 @@
   "subscription": "Subscription",
   "manage": "Manage",
 
-  "journaling": "JOURNALING",
+  "journaling": "MEMORIES",
   "dailyReminder": "Daily Reminder",
   "dailyReminderSet": "Daily reminder set for {time}",
   "@dailyReminderSet": {
@@ -54,7 +54,7 @@
   "keyDerivation": "Key Derivation",
   "salt": "Salt",
   "uniqueSalt": "Unique 256-bit per user",
-  "encryptionExplanation": "Your encryption key is derived from your password and never leaves your device. The server stores only encrypted blobs \u2014 we cannot read your journal entries.",
+  "encryptionExplanation": "Your encryption key is derived from your password and never leaves your device. The server stores only encrypted blobs \u2014 we cannot read your memories.",
   "gotIt": "Got it",
 
   "data": "DATA",
@@ -73,7 +73,7 @@
   "pdfDesc": "Print-ready book format",
   "deleteAccount": "Delete Account",
   "deleteAccountTitle": "Delete Account?",
-  "deleteAccountWarning": "This will permanently delete your account and all journal entries. This action cannot be undone.\n\nYour encrypted data will be erased from the server.",
+  "deleteAccountWarning": "This will permanently delete your account and all your memories. This action cannot be undone.\n\nYour encrypted data will be erased from the server.",
   "cancel": "Cancel",
   "deleteEverything": "Delete Everything",
   "typeDeleteToConfirm": "Type DELETE to confirm",
@@ -84,6 +84,14 @@
   "version": "Version",
   "privacyPolicy": "Privacy Policy",
   "termsOfService": "Terms of Service",
+
+  "goodMorning": "Good Morning",
+  "goodAfternoon": "Good Afternoon",
+  "goodEvening": "Good Evening",
+  "morning": "Morning",
+  "afternoon": "Afternoon",
+  "evening": "Evening",
+  "dailyLimitReached": "You've reached today's memory limit. Come back tomorrow!",
 
   "moodGreat": "great",
   "moodGood": "good",
@@ -104,6 +112,26 @@
   "delete": "Delete",
   "newEntry": "New Entry",
   "today": "Today",
+  "yesterday": "Yesterday",
+  "daysAgo": "{count} days ago",
+  "@daysAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "weekAgo": "1 week ago",
+  "monthsAgo": "{count, plural, =1{1 month ago} other{{count} months ago}}",
+  "@monthsAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "yearsAgo": "{count, plural, =1{1 year ago} other{{count} years ago}}",
+  "@yearsAgo": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "noEntries": "No entries yet",
   "entriesCount": "{count, plural, =0{No entries} =1{1 entry} other{{count} entries}}",
   "@entriesCount": {

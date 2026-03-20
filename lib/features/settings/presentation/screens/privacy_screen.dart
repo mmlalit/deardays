@@ -21,156 +21,230 @@ class PrivacyScreen extends StatelessWidget {
           children: [
             _buildLastUpdated(context),
             const SizedBox(height: 16),
-            _buildHighlight(),
+            _buildHighlight(context),
             const SizedBox(height: 24),
-            _buildSection(
-              context,
-              'Our Privacy Commitment',
-              'DearDays is built on the principle that your journal is deeply personal and private. We encrypt all journal content server-side so that raw database access never exposes your entries. Data is also encrypted in transit via HTTPS.',
+
+            // ── 1. Introduction ──────────────────────────────────────────
+            _buildSection(context, '1. Introduction',
+              'DearDays ("we", "us", "our") is operated by DearDays, registered in the Netherlands (KVK number on file). This Privacy Policy explains how we collect, use, store, and protect your personal data when you use the DearDays mobile application ("App").\n\n'
+              'We are a Data Controller under the EU General Data Protection Regulation (GDPR) and applicable national laws. Because we are based in the Netherlands, the Dutch Data Protection Authority (Autoriteit Persoonsgegevens, autoriteitpersoonsgegevens.nl) is our lead supervisory authority.\n\n'
+              'This policy applies to users in: the United States, United Kingdom, Canada, India, and the Netherlands (and all EU member states).',
             ),
-            _buildSection(
-              context,
-              'Information We Collect',
-              'We collect the minimum information necessary to provide our service:\n\n'
+
+            // ── 2. Data We Collect ───────────────────────────────────────
+            _buildSection(context, '2. Data We Collect',
               'Account Information:\n'
-              '\u2022 Email address (for authentication and account recovery)\n'
-              '\u2022 Account creation date\n'
-              '\u2022 Subscription status and billing period\n\n'
+              '• Email address (for authentication and account recovery)\n'
+              '• Date of birth (for age verification only — not stored after verification)\n'
+              '• Account creation date and subscription status\n\n'
               'Usage Metadata (non-content):\n'
-              '\u2022 Number of entries created (not their content)\n'
-              '\u2022 App feature usage (e.g., voice recording, export)\n'
-              '\u2022 Device type and operating system version\n'
-              '\u2022 App version and crash reports\n\n'
+              '• Number of entries created (not their content)\n'
+              '• App feature usage (e.g. voice recording, export, AI features)\n'
+              '• Device type, operating system version, app version\n'
+              '• Crash reports and error logs\n\n'
+              'Mood & Wellbeing Data (special category — separate consent required):\n'
+              '• Mood ratings you optionally attach to your entries\n'
+              '• Check-in responses\n\n'
+              'Voice Data (only with your explicit consent):\n'
+              '• Voice recordings are transcribed on your device by default\n'
+              '• If you choose "Use AI Transcription", your audio is sent to OpenAI for transcription and immediately deleted — we do not retain the audio file\n\n'
               'What We Do NOT Collect:\n'
-              '\u2022 Journal entry content (encrypted; we cannot read it)\n'
-              '\u2022 Photos or voice recordings (encrypted on-device)\n'
-              '\u2022 Precise location data\n'
-              '\u2022 Contacts, calendar, or other device data\n'
-              '\u2022 Browsing history or tracking identifiers',
+              '• Your Content (encrypted; we cannot read it)\n'
+              '• Photos (encrypted on device before upload)\n'
+              '• Precise location data\n'
+              '• Contacts, calendar, or other device data\n'
+              '• Browsing history or advertising identifiers',
             ),
-            _buildSection(
-              context,
-              'Server-Side Encryption',
-              'All journal content is encrypted at rest using PGP symmetric encryption (AES-256) with a key stored in Supabase Vault. This key is managed server-side and is separate from your login credentials.\n\n'
-              'This means:\n\n'
-              '\u2022 If the database is compromised, content columns contain only ciphertext\n'
-              '\u2022 Data is encrypted in transit via HTTPS\n'
-              '\u2022 Row Level Security ensures only you can access your data\n'
-              '\u2022 You can safely reset your password without losing any data\n\n'
-              'We also recommend using the app\'s export feature to maintain personal backups.',
+
+            // ── 3. Legal Basis for Processing ────────────────────────────
+            _buildSection(context, '3. Legal Basis for Processing (GDPR / UK GDPR)',
+              'For users in the EU, UK, and countries applying GDPR-equivalent laws, we process your data on the following legal bases:\n\n'
+              '• Contract performance (Art. 6(1)(b)): Account management, service delivery, subscription billing\n'
+              '• Legitimate interest (Art. 6(1)(f)): App security, fraud prevention, crash reporting, aggregate usage analytics\n'
+              '• Consent (Art. 6(1)(a)): AI features, marketing communications, mood/health data processing\n'
+              '• Consent — Special Category (Art. 9(2)(a)): Mood and wellbeing data (you give this separately during onboarding)\n\n'
+              'You may withdraw any consent at any time via Settings → Privacy. Withdrawal does not affect processing already carried out.',
             ),
-            _buildSection(
-              context,
-              'How We Use Your Information',
-              '\u2022 Authentication: To verify your identity and protect your account\n'
-              '\u2022 Service delivery: To sync your encrypted data across devices\n'
-              '\u2022 Billing: To manage your subscription and process payments\n'
-              '\u2022 Support: To respond to your help requests\n'
-              '\u2022 Improvement: To understand aggregate usage patterns and improve the app\n\n'
-              'We never use your information for advertising or sell it to third parties.',
+
+            // ── 4. How We Use Your Data ──────────────────────────────────
+            _buildSection(context, '4. How We Use Your Data',
+              '• Authentication: To verify your identity and protect your account\n'
+              '• Service delivery: To sync your encrypted data across your devices\n'
+              '• Billing: To manage your subscription via Apple App Store or Google Play\n'
+              '• Support: To respond to your help and privacy requests\n'
+              '• Safety: To detect abuse, fraud, or security incidents\n'
+              '• Improvement: Aggregate, anonymised usage patterns only — never individual content\n\n'
+              'We never use your data for advertising. We never sell your data to third parties.',
             ),
-            _buildSection(
-              context,
-              'Data Storage & Security',
-              'Your encrypted data is stored on Supabase infrastructure with:\n\n'
-              '\u2022 Row-Level Security (RLS) ensuring each user can only access their own data\n'
-              '\u2022 TLS encryption for all data in transit\n'
-              '\u2022 Regular security audits and monitoring\n'
-              '\u2022 Automatic backups with geographic redundancy\n\n'
-              'Authentication credentials (PIN hash, pattern hash, biometric preference) are stored locally on your device using platform-secure storage (iOS Keychain / Android Keystore).',
+
+            // ── 5. Encryption & Security ─────────────────────────────────
+            _buildSection(context, '5. Encryption & Security',
+              'All Your Content is encrypted at rest using AES-256 before it leaves your device. Our servers store only ciphertext — we cannot read your entries.\n\n'
+              '• Row Level Security (RLS) ensures only your account can access your data\n'
+              '• All data is encrypted in transit via HTTPS/TLS 1.2+\n'
+              '• Authentication credentials are stored locally using iOS Keychain / Android Keystore\n'
+              '• We perform regular security reviews and maintain access logs\n\n'
+              'In the event of a security breach affecting your personal data, we will notify the relevant supervisory authority within 72 hours and affected users without undue delay, as required by GDPR Art. 33–34.',
             ),
-            _buildSection(
-              context,
-              'Third-Party Services',
-              'We use the following third-party services:\n\n'
-              '\u2022 Supabase: Database and authentication (hosted in the US)\n'
-              '\u2022 Apple / Google: Payment processing for subscriptions\n'
-              '\u2022 Google Fonts: Typography (loaded at runtime, no tracking)\n\n'
-              'We do not use analytics SDKs, advertising networks, or social media trackers.',
+
+            // ── 6. Third-Party Sub-Processors ────────────────────────────
+            _buildSection(context, '6. Third-Party Sub-Processors',
+              'We share data only with the following trusted sub-processors, each bound by a Data Processing Agreement (DPA):\n\n'
+              '• Supabase Inc. (USA) — database, authentication, file storage\n'
+              '• OpenAI LLC (USA) — voice transcription (Whisper, only with your explicit consent) and optional AI features\n'
+              '• Anthropic PBC (USA) — optional AI features (if active)\n'
+              '• Google LLC (USA) — optional AI features via Gemini (if active); Google Fonts typography\n'
+              '• RevenueCat Inc. (USA) — subscription management\n'
+              '• Apple Inc. / Google LLC — payment processing for in-app subscriptions\n\n'
+              'We do not use advertising networks, social media trackers, or analytics SDKs.\n\n'
+              'Voice transcription via OpenAI only occurs when you explicitly tap "Use AI Transcription". Your audio is never sent to any server without your active choice.',
             ),
-            _buildSection(
-              context,
-              'AI Features',
-              'DearDays offers optional AI-powered features such as writing prompts, mood insights, and weekly summaries. When you use these features:\n\n'
-              '\u2022 Content is sent to our AI service only when you explicitly request it\n'
-              '\u2022 AI processing is transient — we do not store your content on AI servers\n'
-              '\u2022 AI features are entirely optional and can be disabled\n'
-              '\u2022 AI-generated content is never used to train models',
+
+            // ── 7. International Data Transfers ──────────────────────────
+            _buildSection(context, '7. International Data Transfers',
+              'Our sub-processors are based in the United States. For users in the EU, UK, and countries with transfer restrictions, we ensure adequate protection through:\n\n'
+              '• EU Standard Contractual Clauses (SCCs, Commission Decision 2021/914) — covering transfers to Supabase, OpenAI, RevenueCat, and Google\n'
+              '• UK International Data Transfer Agreements (IDTA) — for UK users post-Brexit\n'
+              '• Additional safeguard: Your Content is encrypted before transfer, so even in transit it is unreadable to sub-processors\n\n'
+              'For Indian users, data processing complies with the Digital Personal Data Protection Act 2023. Cross-border transfers occur to the US under your explicit consent per DPDPA Section 16.',
             ),
-            _buildSection(
-              context,
-              'International Data Transfers',
-              'DearDays processes data using Supabase infrastructure hosted in the United States. For users in the European Economic Area (EEA), United Kingdom, or other jurisdictions with data transfer restrictions:\n\n'
-              '\u2022 We rely on Standard Contractual Clauses (SCCs) approved by the European Commission\n'
-              '\u2022 We maintain Data Processing Agreements (DPAs) with all sub-processors\n'
-              '\u2022 Your encrypted journal content provides an additional layer of protection — even in transit, your data remains unreadable to us\n\n'
-              'For users in India, data processing complies with the Digital Personal Data Protection Act 2023 (DPDPA). We process personal data only with your explicit consent and for the purposes stated in this policy.',
+
+            // ── 8. Mood & Health Data ────────────────────────────────────
+            _buildSection(context, '8. Mood & Health Data',
+              'Mood data may constitute health-related special category data under GDPR Article 9 and comparable laws (UK GDPR, Washington My Health My Data Act).\n\n'
+              'We process mood data only with your separate, explicit consent given during onboarding. You can withdraw this consent at any time in Settings → Privacy → Mood Data Consent.\n\n'
+              '• We never sell, share, or use mood data for advertising or profiling\n'
+              '• Mood data is encrypted along with Your Content\n'
+              '• Withdrawal of consent stops future mood data collection; existing data is deleted on request',
             ),
-            _buildSection(
-              context,
-              'Health & Mood Data',
-              'DearDays collects mood data as part of your journal entries. Under GDPR Article 9, mood data may constitute special category (health-related) data. We process this data only with your explicit, separate consent.\n\n'
-              'Under the Washington My Health My Data Act and similar US state health privacy laws, we:\n\n'
-              '\u2022 Collect mood/health data only with your affirmative consent\n'
-              '\u2022 Never sell, share, or monetize your health data\n'
-              '\u2022 Allow you to withdraw consent and delete health data at any time\n'
-              '\u2022 Do not use health data for advertising or profiling',
+
+            // ── 9. Your Rights ───────────────────────────────────────────
+            _buildSection(context, '9. Your Rights',
+              'Depending on your country, you have some or all of the following rights:\n\n'
+              'Right to Access — Request a copy of all data we hold about you\n'
+              'Right to Rectification — Correct inaccurate personal data\n'
+              'Right to Erasure — Delete your account and all associated data\n'
+              'Right to Portability — Export your data in JSON or PDF format\n'
+              'Right to Restriction — Limit how we process your data\n'
+              'Right to Object — Opt out of processing based on legitimate interest\n'
+              'Right to Withdraw Consent — For any consent-based processing\n\n'
+              'Response times:\n'
+              '• EU / UK / Netherlands / Canada: within 30 days\n'
+              '• US (CCPA): within 45 days\n'
+              '• India (DPDPA): within 30 days\n\n'
+              'To exercise any right: use Settings → Privacy, or email privacy@deardays.app.',
             ),
-            _buildSection(
-              context,
-              'Your Rights',
-              'You have the right to:\n\n'
-              '\u2022 Access: View all data associated with your account\n'
-              '\u2022 Export: Download all your data in PDF or JSON format at any time\n'
-              '\u2022 Delete: Permanently delete your account and all associated data\n'
-              '\u2022 Correct: Update your account information\n'
-              '\u2022 Object: Opt out of non-essential data processing\n\n'
-              'To exercise these rights, use the in-app settings or contact us at privacy@deardays.app.',
-            ),
-            _buildSection(
-              context,
-              'Do Not Sell or Share (CCPA/CPRA)',
+
+            // ── 10. CCPA / CPRA — US Users ──────────────────────────────
+            _buildSection(context, '10. US Users — CCPA / CPRA (California)',
               'DearDays does not sell or share your personal information as defined by the California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA).\n\n'
-              'You have the right to:\n\n'
-              '\u2022 Opt out of the sale or sharing of personal information (we don\'t sell, but you can enable this toggle in Settings)\n'
-              '\u2022 Limit the use of sensitive personal information\n'
-              '\u2022 Not be discriminated against for exercising your privacy rights\n\n'
-              'To exercise these rights, use the "Do Not Sell My Data" toggle in Settings > Privacy, or contact us at privacy@deardays.app.',
+              'Categories of personal information collected: Identifiers (email), usage data, mood data (sensitive), device information.\n\n'
+              'Your California rights:\n'
+              '• Know what personal information is collected and how it is used\n'
+              '• Delete your personal information\n'
+              '• Opt out of the sale or sharing of personal information (we do not sell, but you can enable the toggle in Settings → Privacy → Do Not Sell My Data)\n'
+              '• Limit use of sensitive personal information\n'
+              '• Non-discrimination for exercising your rights\n\n'
+              'To submit a verifiable consumer request: privacy@deardays.app. We respond within 45 days.\n\n'
+              'Under the Washington My Health My Data Act and similar state health privacy laws: we collect mood/health data only with affirmative consent and never use it for advertising.',
             ),
-            _buildSection(
-              context,
-              'Data Retention',
-              '\u2022 Active accounts: Data is retained as long as your account is active\n'
-              '\u2022 Deleted accounts: All data is permanently deleted within 30 days\n'
-              '\u2022 Expired subscriptions: Your encrypted data is retained for 12 months, after which it may be deleted\n\n'
-              'You can export your data at any time, regardless of subscription status.',
+
+            // ── 11. UK Users ─────────────────────────────────────────────
+            _buildSection(context, '11. UK Users — UK GDPR',
+              'DearDays complies with the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018.\n\n'
+              'Your UK rights mirror those in Section 9 above. To lodge a complaint with the UK supervisory authority:\n\n'
+              'Information Commissioner\'s Office (ICO)\n'
+              'ico.org.uk/make-a-complaint\n'
+              'Telephone: 0303 123 1113\n\n'
+              'Data transfers from the UK to the US are covered by UK International Data Transfer Agreements (IDTA) with each sub-processor.',
             ),
-            _buildSection(
-              context,
-              'Age Requirements',
-              'DearDays requires users to meet minimum age requirements:\n\n'
-              '\u2022 United States and European Union: You must be at least 13 years old\n'
-              '\u2022 India: You must be at least 18 years old (per DPDPA 2023)\n'
-              '\u2022 Other jurisdictions: You must meet the minimum digital consent age in your country\n\n'
-              'We verify age during account creation. If you are a parent or guardian and believe your child has created an account without meeting age requirements, please contact us immediately at privacy@deardays.app.',
+
+            // ── 12. Canadian Users ───────────────────────────────────────
+            _buildSection(context, '12. Canadian Users — PIPEDA & Quebec Law 25',
+              'DearDays complies with Canada\'s Personal Information Protection and Electronic Documents Act (PIPEDA) and Quebec\'s Law 25 (Act respecting the protection of personal information in the private sector).\n\n'
+              'Under PIPEDA, you have the right to access and correct your personal information. Contact: privacy@deardays.app.\n\n'
+              'Under Quebec Law 25 (effective September 2023):\n'
+              '• You have the right to data portability (export your data in a structured format)\n'
+              '• You have the right to be informed of any automated decision-making\n'
+              '• You may withdraw consent at any time\n'
+              '• This policy is available in French (Politique de confidentialité) upon request\n\n'
+              'Our sub-processors processing Canadian user data are listed in Section 6. All are located in the United States; transfers occur under contractual safeguards.\n\n'
+              'Marketing communications (push notifications, emails) are sent only with your express consent, in compliance with Canada\'s Anti-Spam Legislation (CASL). You may withdraw marketing consent at any time in Settings → Privacy → Marketing Preferences.',
             ),
-            _buildSection(
-              context,
-              'Children\'s Privacy',
-              'DearDays is not intended for children under 13. We do not knowingly collect personal information from children under 13. If we discover that a child under 13 has created an account, we will promptly delete it.',
+
+            // ── 13. Indian Users ─────────────────────────────────────────
+            _buildSection(context, '13. Indian Users — DPDPA 2023',
+              'DearDays complies with India\'s Digital Personal Data Protection Act 2023 (DPDPA). We act as a Data Fiduciary in relation to Indian users\' personal data.\n\n'
+              'Minimum age: You must be at least 18 years old to use DearDays in India. Users under 18 require verifiable parental consent.\n\n'
+              'Your rights as a Data Principal under DPDPA:\n'
+              '• Right to access information about your personal data\n'
+              '• Right to correction and erasure\n'
+              '• Right to grievance redressal (see Grievance Officer below)\n'
+              '• Right to nominate another person to exercise rights on your behalf\n\n'
+              'Grievance Officer (India):\n'
+              'Name: DearDays Privacy Team\n'
+              'Email: grievance@deardays.app\n'
+              'Grievances are acknowledged within 48 hours and resolved within 30 days.\n\n'
+              'Cross-border data transfer: Your personal data is processed in the United States under your explicit consent per DPDPA Section 16.',
             ),
-            _buildSection(
-              context,
-              'Changes to This Policy',
-              'We may update this Privacy Policy from time to time. We will notify you of material changes through the App or via email at least 30 days before they take effect. Your continued use of the App constitutes acceptance of the updated policy.',
+
+            // ── 14. Netherlands & EU Users ───────────────────────────────
+            _buildSection(context, '14. Netherlands & EU Users — GDPR',
+              'As a Netherlands-based company, DearDays is directly subject to the EU General Data Protection Regulation (GDPR). Our lead supervisory authority is:\n\n'
+              'Autoriteit Persoonsgegevens (AP)\n'
+              'autoriteitpersoonsgegevens.nl\n'
+              'Telephone: +31 (0)70 888 85 00\n\n'
+              'Minimum age in the Netherlands: You must be at least 16 years old to use DearDays (the Netherlands set the GDPR digital consent age at 16).\n\n'
+              'You have the right to lodge a complaint with the AP at any time. We encourage you to contact us first at privacy@deardays.app so we can resolve your concern directly.',
             ),
-            _buildSection(
-              context,
-              'Contact Us',
-              'For privacy-related questions or concerns:\n\n'
-              'Email: privacy@deardays.app\n\n'
-              'We aim to respond to all privacy inquiries within 72 hours.',
+
+            // ── 15. Data Retention ───────────────────────────────────────
+            _buildSection(context, '15. Data Retention',
+              '• Active accounts: Data is retained for as long as your account is active\n'
+              '• Deleted accounts: All personal data is permanently purged within 30 days of account deletion\n'
+              '• Expired subscriptions: Encrypted content is retained for 12 months, then deleted if the account remains inactive\n'
+              '• Consent audit logs: Retained for 5 years (legal obligation to demonstrate consent)\n'
+              '• Crash logs and error reports: Retained for 90 days\n\n'
+              'You can export your data at any time regardless of subscription status via Settings → Export.',
             ),
+
+            // ── 16. Age Requirements ─────────────────────────────────────
+            _buildSection(context, '16. Age Requirements',
+              '• United States, United Kingdom, Canada: 13 years minimum (COPPA / UK GDPR / PIPEDA)\n'
+              '• Netherlands and EU: 16 years minimum (GDPR, as set by the Netherlands)\n'
+              '• India: 18 years minimum, or verifiable parental consent (DPDPA 2023)\n\n'
+              'We verify age during account creation. If you believe a child has created an account without meeting the minimum age, contact privacy@deardays.app immediately.',
+            ),
+
+            // ── 17. Children's Privacy ───────────────────────────────────
+            _buildSection(context, '17. Children\'s Privacy',
+              'DearDays does not knowingly collect personal data from anyone below the minimum age for their country. If we discover an underage account, we will delete it promptly without retention.\n\n'
+              'Parents or guardians who believe their child has provided personal data without consent should contact privacy@deardays.app.',
+            ),
+
+            // ── 18. Cookies & Tracking ───────────────────────────────────
+            _buildSection(context, '18. Cookies & Tracking',
+              'DearDays is a mobile app. We do not use browser cookies.\n\n'
+              'On-device identifiers used:\n'
+              '• RevenueCat anonymous device ID — used solely to manage your subscription; not linked to advertising\n'
+              '• Crash reporting identifier — used only to group crash reports from the same device\n\n'
+              'We do not use advertising identifiers (IDFA/GAID), social media pixels, or cross-app tracking. See our Cookie & Tracking Policy in Settings for full details.',
+            ),
+
+            // ── 19. Changes to This Policy ───────────────────────────────
+            _buildSection(context, '19. Changes to This Policy',
+              'We will notify you of material changes via in-app notification or email at least 30 days before they take effect. The "Last updated" date at the top of this policy reflects the most recent revision.\n\n'
+              'If changes are material (new purposes, new data types, new third parties), we will ask for your fresh consent where required by law.',
+            ),
+
+            // ── 20. Contact ──────────────────────────────────────────────
+            _buildSection(context, '20. Contact Us',
+              'For all privacy-related questions, data subject requests, or complaints:\n\n'
+              'Email: privacy@deardays.app\n'
+              'Grievances (India): grievance@deardays.app\n\n'
+              'We aim to respond to all privacy enquiries within 72 hours and to resolve them within the legally required timeframe for your country.',
+            ),
+
             const SizedBox(height: 40),
           ],
         ),
@@ -191,7 +265,7 @@ class PrivacyScreen extends StatelessWidget {
           Icon(Icons.info_outline, size: 18, color: colors.accent),
           const SizedBox(width: 10),
           Text(
-            'Last updated: March 1, 2026',
+            'Last updated: March 17, 2026',
             style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -203,7 +277,7 @@ class PrivacyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHighlight() {
+  Widget _buildHighlight(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -220,7 +294,7 @@ class PrivacyScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Server-Side Encryption',
+                  'Your memories are private by design',
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -229,7 +303,7 @@ class PrivacyScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'We cannot read your journal. Your entries are encrypted on your device before reaching our servers.',
+                  'Your memories are encrypted with AES-256 before leaving your device. We cannot read your content. Voice is transcribed on-device by default — AI transcription is always your choice.',
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     color: AppColors.success,

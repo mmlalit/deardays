@@ -6,7 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { generate, embed } from "../_shared/ai-providers.ts";
+import { generate, embed, PROVIDERS } from "../_shared/ai-providers.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -318,7 +318,7 @@ ${entrySummaries}
 Answer their question naturally and conversationally, drawing on the specific entries. Reference dates and feelings when relevant. Be concise (2-4 sentences). Don't list every entry — synthesize the most meaningful insight.${langNote}`;
 
   try {
-    return await generate(prompt);
+    return await generate(prompt, undefined, 300, PROVIDERS.CHAT);
   } catch {
     // Fallback if Gemini fails
     const count = entries.length;

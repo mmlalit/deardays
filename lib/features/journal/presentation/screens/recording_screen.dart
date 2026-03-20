@@ -68,7 +68,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
     _currentPrompt = _fallbackPrompts[today.hour % _fallbackPrompts.length];
 
     // Try to fetch an AI-generated prompt
-    final aiPrompt = ref.read(writingPromptProvider).valueOrNull;
+    final aiPrompt = ref.read(writingPromptProvider);
     if (aiPrompt != null) _currentPrompt = aiPrompt;
 
     _waveController = AnimationController(
@@ -263,7 +263,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
       final path = await _audioRecorder.stop();
 
       // Validate: if no transcript was captured and recording was very short,
-      // show an error instead of navigating forward
+      // show an error instead of navigating forward.
       if (transcript.isEmpty && _elapsedSeconds < 3) {
         if (mounted) {
           setState(() => _isRecording = false);
@@ -276,7 +276,6 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
               duration: const Duration(seconds: 3),
             ),
           );
-          // Restart recording so user can try again
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) _startRecording();
           });
@@ -284,15 +283,22 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         return;
       }
 
+      // If on-device STT captured nothing (but recording was long enough),
+      // ask the user before sending audio to an external AI service.
+      if (transcript.isEmpty && path != null && mounted) {
+        setState(() => _isRecording = false);
+        _showWhisperConsentDialog(path);
+        return;
+      }
+
       if (mounted) {
-        setState(() {
-          _isRecording = false;
-        });
+        setState(() => _isRecording = false);
         context.pushReplacement('/processing', extra: ReviewData(
           rawText: transcript,
           isVoice: true,
           attachedPhotoPath: null,
           audioPath: path,
+          // useWhisper defaults to false — on-device transcript is used.
         ));
       }
     } catch (e) {
@@ -302,6 +308,56 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         );
       }
     }
+  }
+
+  /// Shows a consent dialog when on-device STT captured nothing.
+  /// User must explicitly choose to send audio to OpenAI Whisper.
+  void _showWhisperConsentDialog(String audioPath) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Voice not captured',
+          style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Your device could not transcribe the audio automatically.\n\n'
+          'Would you like to use AI transcription? Your audio will be sent '
+          'to OpenAI to convert your speech to text, then deleted.',
+          style: GoogleFonts.manrope(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              // Discard audio, let user type manually
+              context.pushReplacement('/write');
+            },
+            child: Text(
+              'Type instead',
+              style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.pushReplacement('/processing', extra: ReviewData(
+                rawText: '',
+                isVoice: true,
+                attachedPhotoPath: null,
+                audioPath: audioPath,
+                useWhisper: true,
+              ));
+            },
+            child: Text(
+              'Use AI Transcription',
+              style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String get _formattedTime {

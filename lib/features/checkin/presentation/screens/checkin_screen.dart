@@ -5,12 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/l10n/app_localizations.dart';
 
 class CheckInScreen extends ConsumerStatefulWidget {
   const CheckInScreen({super.key});
@@ -26,6 +28,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   String? _editingSectionId;
   int _promptSeed = 0;
   bool _isViewingHistory = false;
+  bool _promptsHidden = false;
   DateTime? _viewingDate;
 
   static const _allPrompts = [
@@ -44,23 +47,19 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   List<(IconData, String)> get _visiblePrompts {
     final rng = Random(_promptSeed);
     final shuffled = List<(IconData, String)>.from(_allPrompts)..shuffle(rng);
-    return shuffled.take(5).toList();
+    return shuffled.take(3).toList();
   }
 
   String get _formattedDate {
-    final now = DateTime.now();
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
+    return DateFormat('EEE, MMM d').format(DateTime.now());
   }
 
   String _formatHistoryDate(DateTime date) {
     final diff = DateTime.now().difference(date).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${days[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
+    final l10n = AppLocalizations.of(context);
+    if (diff == 0) return l10n?.today ?? 'Today';
+    if (diff == 1) return l10n?.yesterday ?? 'Yesterday';
+    return DateFormat('EEE, MMM d').format(date);
   }
 
   @override
@@ -277,7 +276,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ...prompts.map((chip) => Padding(
+          if (!_promptsHidden) ...prompts.map((chip) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: GestureDetector(
                   onTap: () => _sendPrompt(chip.$2),
@@ -538,6 +537,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     maxLines: 4,
                     minLines: 1,
                     textInputAction: TextInputAction.send,
+                    onTap: () { if (!_promptsHidden) setState(() => _promptsHidden = true); },
                     onSubmitted: (_) => _handleSend(),
                   ),
                 ),

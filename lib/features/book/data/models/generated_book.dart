@@ -120,7 +120,6 @@ class GeneratedBook {
 
 /// Approach chosen for book creation.
 enum BookCreationApproach {
-  pickAndChoose,
-  dailyDiary,
-  aiSurprise,
+  chronological,
+  thematic,
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -366,6 +367,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     final aiMsgId = _uuid.v4();
     _addAiMessage('', id: aiMsgId);
 
+    // Collect all chunks — Supabase buffers SSE so they arrive together
     final buffer = StringBuffer();
     try {
       await for (final chunk in _streamService.streamChat(
@@ -375,20 +377,19 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
         language: language,
       )) {
         buffer.write(chunk);
-        // First chunk: hide typing indicator, show streaming text
-        if (state.isLoading) {
-          state = state.copyWith(isLoading: false, isStreaming: true);
-        }
-        _updateStreamingMessage(aiMsgId, buffer.toString());
       }
-    } catch (_) {
-      if (buffer.isEmpty) {
-        _updateStreamingMessage(aiMsgId, 'I hear you. Tell me more about that.');
-      }
-    } finally {
-      state = state.copyWith(isLoading: false, isStreaming: false);
-      await _persist();
+    } catch (e) {
+      debugPrint('[CheckInNotifier] Stream error: $e');
     }
+
+    // Reveal word-by-word regardless of how fast the network delivered it
+    final fullText = buffer.isEmpty
+        ? 'I hear you. Tell me more about that.'
+        : buffer.toString();
+    await _animateTextReveal(aiMsgId, fullText);
+
+    state = state.copyWith(isLoading: false, isStreaming: false);
+    await _persist();
   }
 
   // ── Edit a message ──────────────────────────────────────────────────
@@ -416,6 +417,20 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────
+
+  /// Reveals [fullText] word by word, giving the ChatGPT typing effect.
+  Future<void> _animateTextReveal(String messageId, String fullText) async {
+    if (fullText.isEmpty) return;
+    state = state.copyWith(isLoading: false, isStreaming: true);
+    final words = fullText.split(' ');
+    final buf = StringBuffer();
+    for (int i = 0; i < words.length; i++) {
+      if (i > 0) buf.write(' ');
+      buf.write(words[i]);
+      _updateStreamingMessage(messageId, buf.toString());
+      await Future.delayed(const Duration(milliseconds: 30));
+    }
+  }
 
   void _addAiMessage(String text, {String? id}) {
     final msg = ChatMessage(

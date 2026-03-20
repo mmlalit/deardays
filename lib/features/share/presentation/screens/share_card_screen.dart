@@ -55,10 +55,9 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
     _captionController.addListener(_onCaptionChanged);
 
     _resolvePhotoUrl();
-
-    if (AiService().isConfigured) {
-      _generateAiSummary();
-    }
+    // AI summary is NOT auto-generated — caption starts with the fallback text
+    // (first 2 sentences of the entry) which is already editable.
+    // Users can tap ✨ to generate an AI caption on demand.
   }
 
   Future<void> _resolvePhotoUrl() async {
@@ -122,8 +121,10 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
     try {
       await Future.delayed(const Duration(milliseconds: 120));
       final bytes = await ShareCardRenderer.renderToPng(_repaintKey);
+      final dateStr = DateFormat('MMMM d, yyyy').format(widget.entry.entryDate);
 
       if (!ShareCardRenderer.supportsNativeShare) {
+        // Windows: save image and copy path to clipboard.
         final path = await ShareCardRenderer.saveToGallery(bytes);
         await Clipboard.setData(ClipboardData(text: path));
         if (mounted) {
@@ -131,8 +132,29 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
             SnackBar(content: Text('Image saved & path copied:\n$path')),
           );
         }
-      } else {
-        final dateStr = DateFormat('MMMM d, yyyy').format(widget.entry.entryDate);
+        return;
+      }
+
+      bool appInstalled = true;
+      switch (_config.platform) {
+        case SharePlatform.instagram:
+          appInstalled = await ShareCardRenderer.shareToInstagram(bytes);
+        case SharePlatform.whatsapp:
+          appInstalled = await ShareCardRenderer.shareToWhatsApp(bytes);
+        case SharePlatform.memoryCard:
+          await ShareCardRenderer.shareImage(bytes, subject: 'DearDays — $dateStr');
+      }
+
+      if (!appInstalled && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${_platformShareLabel(_config.platform)} is not installed. Opening share sheet…',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        await Future.delayed(const Duration(seconds: 2));
         await ShareCardRenderer.shareImage(bytes, subject: 'DearDays — $dateStr');
       }
     } catch (e) {
@@ -372,6 +394,10 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
                               setState(() => _config = _config.copyWith(showLocation: v));
                               sheetSetState(() {});
                             }),
+                          _buildChip('App Link', _config.showAppLink, colors, (v) {
+                            setState(() => _config = _config.copyWith(showAppLink: v));
+                            sheetSetState(() {});
+                          }),
                         ],
                       ),
 

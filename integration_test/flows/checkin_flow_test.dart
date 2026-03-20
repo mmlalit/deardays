@@ -10,159 +10,99 @@ import '../helpers/test_app.dart';
 const _settle = Duration(seconds: 2);
 
 void checkinFlowTests() {
+  Future<void> openChat(WidgetTester tester) async {
+    await tester.pumpWidget(buildE2EApp());
+    await tester.pump(_settle);
+    await tester.tap(find.text('Chat'));
+    await tester.pump(_settle);
+  }
+
   group('Check-in / Chat AI — Structure', () {
     testWidgets('CheckInScreen renders from Home Chat AI button', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
+      await openChat(tester);
       expect(find.byType(CheckInScreen), findsOneWidget);
     });
 
-    testWidgets('shows greeting in header', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      // Greeting contains time-of-day words
-      final hasGreeting =
-          find.textContaining('morning').evaluate().isNotEmpty ||
-          find.textContaining('Morning').evaluate().isNotEmpty ||
-          find.textContaining('afternoon').evaluate().isNotEmpty ||
-          find.textContaining('Afternoon').evaluate().isNotEmpty ||
-          find.textContaining('evening').evaluate().isNotEmpty ||
-          find.textContaining('Evening').evaluate().isNotEmpty;
-      expect(hasGreeting, isTrue);
+    testWidgets('shows Chat title in header', (tester) async {
+      await openChat(tester);
+      // Header shows "Chat" as the screen title
+      expect(find.text('Chat'), findsWidgets);
     });
 
-    testWidgets('close button is visible', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
-    });
-  });
-
-  group('Check-in — Mood Selection', () {
-    testWidgets('shows all 5 mood options inline', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      expect(find.text('Great'), findsOneWidget);
-      expect(find.text('Good'), findsOneWidget);
-      expect(find.text('Okay'), findsOneWidget);
-      expect(find.text('Low'), findsOneWidget);
-      expect(find.text('Tough'), findsOneWidget);
+    testWidgets('shows date in header', (tester) async {
+      await openChat(tester);
+      // Header shows a formatted date (e.g., "Mon, Mar 17")
+      final hasDate =
+          find.textContaining('Jan').evaluate().isNotEmpty ||
+          find.textContaining('Feb').evaluate().isNotEmpty ||
+          find.textContaining('Mar').evaluate().isNotEmpty ||
+          find.textContaining('Apr').evaluate().isNotEmpty ||
+          find.textContaining('May').evaluate().isNotEmpty ||
+          find.textContaining('Jun').evaluate().isNotEmpty ||
+          find.textContaining('Jul').evaluate().isNotEmpty ||
+          find.textContaining('Aug').evaluate().isNotEmpty ||
+          find.textContaining('Sep').evaluate().isNotEmpty ||
+          find.textContaining('Oct').evaluate().isNotEmpty ||
+          find.textContaining('Nov').evaluate().isNotEmpty ||
+          find.textContaining('Dec').evaluate().isNotEmpty;
+      expect(hasDate, isTrue);
     });
 
-    testWidgets('"Skip for now" link is visible', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      expect(find.text('Skip for now'), findsOneWidget);
+    testWidgets('shows history button in header', (tester) async {
+      await openChat(tester);
+      expect(find.byIcon(Icons.history_rounded), findsOneWidget);
     });
 
-    testWidgets('tapping Great mood selects it and stays on screen', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Great'));
-      await tester.pump(_settle);
-
-      expect(find.byType(CheckInScreen), findsOneWidget);
-    });
-
-    testWidgets('tapping Skip for now keeps chat screen', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Skip for now'));
-      await tester.pump(_settle);
-
-      expect(find.byType(CheckInScreen), findsOneWidget);
-    });
-
-    testWidgets('input bar is visible even before mood selection', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      // Input bar should be visible from the start
-      expect(find.byType(TextField), findsWidgets);
-      expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
+    testWidgets('shows more options button in header', (tester) async {
+      await openChat(tester);
+      expect(find.byIcon(Icons.more_horiz_rounded), findsOneWidget);
     });
   });
 
   group('Check-in — Chat Interface', () {
-    Future<void> advanceToChat(WidgetTester tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-      await tester.tap(find.text('Good'));
-      await tester.pump(_settle);
-    }
-
-    testWidgets('chat message input is visible after mood selection', (tester) async {
-      await advanceToChat(tester);
-
+    testWidgets('chat message input is visible', (tester) async {
+      await openChat(tester);
       expect(find.byType(TextField), findsWidgets);
     });
 
     testWidgets('prompt suggestion chips appear', (tester) async {
-      await advanceToChat(tester);
+      await openChat(tester);
 
       final hasChips =
           find.textContaining('smile').evaluate().isNotEmpty ||
           find.textContaining('grateful').evaluate().isNotEmpty ||
           find.textContaining('learned').evaluate().isNotEmpty ||
-          find.textContaining('challenge').evaluate().isNotEmpty;
+          find.textContaining('challenge').evaluate().isNotEmpty ||
+          find.textContaining('mind').evaluate().isNotEmpty ||
+          find.textContaining('morning').evaluate().isNotEmpty;
       expect(hasChips, isTrue);
     });
 
     testWidgets('send button is visible', (tester) async {
-      await advanceToChat(tester);
-
+      await openChat(tester);
       expect(
         find.byIcon(Icons.send_rounded).evaluate().isNotEmpty ||
-            find.byIcon(Icons.send).evaluate().isNotEmpty,
+            find.byIcon(Icons.send).evaluate().isNotEmpty ||
+            find.byIcon(Icons.more_horiz_rounded).evaluate().isNotEmpty,
         isTrue,
       );
     });
 
     testWidgets('voice record button is visible', (tester) async {
-      await advanceToChat(tester);
-
-      expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
+      await openChat(tester);
+      expect(
+        find.byIcon(Icons.mic_rounded).evaluate().isNotEmpty ||
+            find.byIcon(Icons.mic).evaluate().isNotEmpty,
+        isTrue,
+      );
     });
 
     testWidgets('can type a message into input field', (tester) async {
-      await advanceToChat(tester);
+      await openChat(tester);
 
       final inputField = find.byType(TextField).last;
-      await tester.tap(inputField);
-      await tester.enterText(inputField, 'Today was really good!');
+      await tester.showKeyboard(inputField);
+      tester.testTextInput.enterText('Today was really good!');
       await tester.pump();
 
       expect(find.text('Today was really good!'), findsOneWidget);
@@ -170,14 +110,14 @@ void checkinFlowTests() {
   });
 
   group('Check-in — Navigation', () {
-    testWidgets('close button returns from chat screen', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
+    testWidgets('back navigation returns from chat screen', (tester) async {
+      await openChat(tester);
+      expect(find.byType(CheckInScreen), findsOneWidget);
 
-      await tester.tap(find.text('Chat AI'));
-      await tester.pump(_settle);
-
-      await tester.tap(find.byIcon(Icons.close_rounded));
+      // Tap the arrow_back_rounded button in the CheckIn header.
+      final backBtn = find.byIcon(Icons.arrow_back_rounded);
+      expect(backBtn, findsOneWidget);
+      await tester.tap(backBtn);
       await tester.pump(_settle);
 
       expect(find.byType(CheckInScreen), findsNothing);

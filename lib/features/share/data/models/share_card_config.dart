@@ -52,6 +52,9 @@ class ShareCardConfig {
   final bool showDate;
   final bool showMood;
   final bool showLocation;
+  /// Whether to show the "deardays.app" download link on the card.
+  /// Defaults to true — users can opt out in the edit sheet.
+  final bool showAppLink;
   final Alignment photoAlignment;
 
   const ShareCardConfig({
@@ -62,6 +65,7 @@ class ShareCardConfig {
     this.showDate = true,
     this.showMood = true,
     this.showLocation = false,
+    this.showAppLink = true,
     this.photoAlignment = Alignment.center,
   });
 
@@ -73,6 +77,7 @@ class ShareCardConfig {
     bool? showDate,
     bool? showMood,
     bool? showLocation,
+    bool? showAppLink,
     Alignment? photoAlignment,
   }) {
     return ShareCardConfig(
@@ -83,6 +88,7 @@ class ShareCardConfig {
       showDate: showDate ?? this.showDate,
       showMood: showMood ?? this.showMood,
       showLocation: showLocation ?? this.showLocation,
+      showAppLink: showAppLink ?? this.showAppLink,
       photoAlignment: photoAlignment ?? this.photoAlignment,
     );
   }

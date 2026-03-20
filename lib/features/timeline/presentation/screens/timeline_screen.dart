@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/widgets/app_avatar.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/timeline/presentation/widgets/milestone_card.dart';
@@ -100,20 +102,6 @@ void showMemoryContextMenu(
                 context.push('/share-card', extra: entry);
               },
             ),
-            _ContextMenuOption(
-              icon: Icons.bookmark_add_outlined,
-              label: 'Add to Chapter',
-              colors: colors,
-              disabled: true,
-              onTap: () {},
-            ),
-            _ContextMenuOption(
-              icon: Icons.lock_outline_rounded,
-              label: 'Mark as Private',
-              colors: colors,
-              disabled: true,
-              onTap: () {},
-            ),
             Divider(color: colors.border, height: 1),
             _ContextMenuOption(
               icon: Icons.delete_outline_rounded,
@@ -184,7 +172,6 @@ class _ContextMenuOption extends StatelessWidget {
   final String label;
   final AppPalette colors;
   final bool isDestructive;
-  final bool disabled;
   final VoidCallback onTap;
 
   const _ContextMenuOption({
@@ -193,56 +180,32 @@ class _ContextMenuOption extends StatelessWidget {
     required this.colors,
     required this.onTap,
     this.isDestructive = false,
-    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = disabled
-        ? colors.textMuted
-        : isDestructive
-            ? const Color(0xFFEF4444)
-            : colors.textPrimary;
-    return Opacity(
-      opacity: disabled ? 0.5 : 1.0,
-      child: GestureDetector(
-        onTap: disabled ? null : onTap,
-        child: SizedBox(
-          height: 56,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: color),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: color,
-                    ),
+    final color = isDestructive ? const Color(0xFFEF4444) : colors.textPrimary;
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        height: 56,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.manrope(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: color,
                   ),
                 ),
-                if (disabled)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: colors.border,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Soon',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -264,23 +227,14 @@ class TimelineScreen extends ConsumerStatefulWidget {
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   String? _categoryFilter;
   bool _isMonthly = false;
-  bool _searchActive = false;
-  String _searchQuery = '';
   String? _moodFilter;
-  final _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   static const _categories = [
-    (null, 'All Memories'),
+    (null, 'All'),
     ('Family', 'Family'),
     ('Travel', 'Travel'),
     ('Career', 'Career'),
-    ('Personal Growth', 'Personal Growth'),
+    ('Personal Growth', 'Growth'),
   ];
 
   @override
@@ -327,36 +281,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     if (_moodFilter != null) {
       filtered = filtered.where((e) => e.mood == _moodFilter).toList();
     }
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      filtered = filtered.where((e) =>
-        e.content.toLowerCase().contains(q) ||
-        (e.polishedContent?.toLowerCase().contains(q) ?? false) ||
-        e.tags.any((t) => t.toLowerCase().contains(q)) ||
-        (e.locationName?.toLowerCase().contains(q) ?? false)
-      ).toList();
-    }
-
     final totalMemories = entries.length;
     final chapters = entries.map((e) => '${e.entryDate.year}-${e.entryDate.month}').toSet().length;
     final years = entries.map((e) => e.entryDate.year).toSet().length;
 
     return CustomScrollView(
       slivers: [
-        // Top bar + hero + stats + compact calendar + filters
         SliverToBoxAdapter(
           child: Column(
             children: [
               _buildTopBar(colors, entries),
-              _buildHeroSection(colors),
               _buildStatsGrid(totalMemories, chapters, years, colors),
               _buildWeeklySummaryCard(colors),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildControlsRow(colors),
-              if (_searchActive) ...[
-                _buildSearchBar(colors),
-                const SizedBox(height: 4),
-              ],
             ],
           ),
         ),
@@ -385,61 +323,52 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            Icon(Icons.menu_rounded, size: 24, color: colors.accent),
-            const SizedBox(width: 10),
             Text(
-              'Aura',
+              'Timeline',
               style: GoogleFonts.newsreader(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: colors.accent,
+                color: colors.textPrimary,
               ),
             ),
             const Spacer(),
-            // Calendar icon — opens mood calendar overlay
+            // Mood calendar
             Semantics(
               label: 'Mood Calendar',
               button: true,
               child: GestureDetector(
                 onTap: () => _showCalendarOverlay(context, entries, colors),
                 child: Container(
-                  width: 48,
-                  height: 48,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: colors.accent.withAlpha(20),
-                    border: Border.all(color: colors.accent.withAlpha(40)),
+                    color: colors.accent.withAlpha(18),
                   ),
-                  child: Icon(Icons.calendar_month_rounded, size: 22, color: colors.accent),
+                  child: Icon(Icons.calendar_month_rounded, size: 20, color: colors.accent),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            // Search
             Semantics(
               label: 'Search',
               button: true,
               child: GestureDetector(
                 onTap: () => context.push('/search'),
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Center(
-                    child: Icon(Icons.search_rounded, size: 24, color: colors.textSecondary),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.highlightFaint,
                   ),
+                  child: Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent.withAlpha(25),
-                border: Border.all(color: colors.accent.withAlpha(50)),
-              ),
-              child: Icon(Icons.person_rounded, size: 18, color: colors.accent),
-            ),
+            const AppAvatar(),
           ],
         ),
       ),
@@ -475,92 +404,77 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Hero Section
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildHeroSection(AppPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-      child: Column(
-        children: [
-          Text(
-            'Your Life Timeline',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.newsreader(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'A journey through your memories',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              fontSize: 14,
-              color: colors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
   // Stats Grid
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildStatsGrid(int memories, int chapters, int years, AppPalette colors) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
         children: [
-          Expanded(child: _statCard('Memories', '$memories', colors)),
+          Expanded(
+            child: _statCard(
+              'Memories', '$memories', colors,
+              onTap: () => setState(() { _categoryFilter = null; _moodFilter = null; }),
+            ),
+          ),
           const SizedBox(width: 10),
-          Expanded(child: _statCard('Chapters', '$chapters', colors)),
+          Expanded(
+            child: _statCard(
+              'Months', '$chapters', colors,
+              onTap: () => setState(() => _isMonthly = true),
+            ),
+          ),
           const SizedBox(width: 10),
-          Expanded(child: _statCard('Years', '$years', colors)),
+          Expanded(
+            child: _statCard(
+              'Years', '$years', colors,
+              onTap: () => setState(() => _isMonthly = false),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statCard(String label, String value, AppPalette colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(
-        color: colors.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: colors.textPrimary.withAlpha(8),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
+  Widget _statCard(String label, String value, AppPalette colors, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: colors.textPrimary.withAlpha(6),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.manrope(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: colors.accent,
+          ],
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: GoogleFonts.manrope(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: colors.accent,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: colors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -645,124 +559,85 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   Widget _buildControlsRow(AppPalette colors) {
     final hasMoodFilter = _moodFilter != null;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Row 1: View by toggle + action icons ──────────────────────────
-          Row(
-            children: [
-              // "View by" label
-              Text(
-                'View by',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textMuted,
-                ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 0, 8),
+      child: SizedBox(
+        height: 34,
+        child: Row(
+          children: [
+            // ── View toggle (icon-only) ──────────────────────────────────────
+            Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: colors.cardBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: colors.border),
               ),
-              const SizedBox(width: 8),
-              // Timeline / Monthly segmented toggle
-              Container(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _viewToggleTab(Icons.timeline_rounded, isMonthly: false, colors: colors),
+                  _viewToggleTab(Icons.calendar_view_month_rounded, isMonthly: true, colors: colors),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // ── Scrollable category chips ────────────────────────────────────
+            Expanded(
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) {
+                  final (category, label) = _categories[i];
+                  final isActive = _categoryFilter == category;
+                  return GestureDetector(
+                    onTap: () => setState(() => _categoryFilter = category),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isActive ? colors.accent : colors.cardBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isActive ? colors.accent : colors.border,
+                        ),
+                      ),
+                      child: Text(
+                        label,
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? Colors.white : colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            // ── Mood filter ──────────────────────────────────────────────────
+            GestureDetector(
+              onTap: () => _showMoodFilterSheet(colors),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: colors.cardBg,
+                  color: hasMoodFilter ? colors.accent : colors.cardBg,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.border),
+                  border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _viewToggleTab(Icons.timeline_rounded, 'Timeline', isMonthly: false, colors: colors),
-                    _viewToggleTab(Icons.calendar_view_month_rounded, 'Monthly', isMonthly: true, colors: colors),
-                  ],
+                child: Icon(
+                  Icons.tune_rounded,
+                  size: 17,
+                  color: hasMoodFilter ? Colors.white : colors.textSecondary,
                 ),
               ),
-              const Spacer(),
-              // Search toggle
-              GestureDetector(
-                onTap: () => setState(() {
-                  _searchActive = !_searchActive;
-                  if (!_searchActive) {
-                    _searchController.clear();
-                    _searchQuery = '';
-                  }
-                }),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: _searchActive ? colors.accent : colors.cardBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _searchActive ? colors.accent : colors.border),
-                  ),
-                  child: Icon(
-                    _searchActive ? Icons.close_rounded : Icons.search_rounded,
-                    size: 18,
-                    color: _searchActive ? Colors.white : colors.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              // Mood filter button
-              GestureDetector(
-                onTap: () => _showMoodFilterSheet(colors),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: hasMoodFilter ? colors.accent : colors.cardBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
-                  ),
-                  child: Icon(
-                    Icons.tune_rounded,
-                    size: 18,
-                    color: hasMoodFilter ? Colors.white : colors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // ── Row 2: full-width category chips ──────────────────────────────
-          SizedBox(
-            height: 36,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 6),
-              itemBuilder: (_, i) {
-                final (category, label) = _categories[i];
-                final isActive = _categoryFilter == category;
-                return GestureDetector(
-                  onTap: () => setState(() => _categoryFilter = category),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isActive ? colors.accent : colors.cardBg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isActive ? colors.accent : colors.border,
-                      ),
-                    ),
-                    child: Text(
-                      label,
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isActive ? Colors.white : colors.textSecondary,
-                      ),
-                    ),
-                  ),
-                );
-              },
             ),
-          ),
-        ],
+            const SizedBox(width: 16),
+          ],
+        ),
       ),
     );
   }
@@ -1049,7 +924,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     height: 12,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isCurrentYear ? colors.accent : colors.border,
+                      color: ChapterVisual.forTitle(_extractTitle(entry)).primary,
                       // White ring effect (covers the line behind the dot)
                       border: Border.all(color: colors.bg, width: 3),
                     ),
@@ -1115,7 +990,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           children: [
             // Photo at top — bleeds to card edges for a unified look
             if (hasPhoto)
-              _buildCardPhoto(photoMedia.first.storagePath, colors),
+              _buildCardPhoto(photoMedia.first.storagePath, colors)
+            // Mood-colour band when no photo — gives every card a visual anchor
+            else if (entry.mood != null)
+              _buildMoodBand(entry.mood!, colors),
 
             Padding(
               padding: EdgeInsets.fromLTRB(16, hasPhoto ? 14 : 18, 16, 16),
@@ -1220,6 +1098,46 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     return _TimelineCardPhoto(storagePath: storagePath, colors: colors);
   }
 
+  Widget _buildMoodBand(String mood, AppPalette colors) {
+    final moodColor = switch (mood) {
+      'great' => AppColors.moodGreat,
+      'good'  => AppColors.moodGood,
+      'okay'  => AppColors.moodOkay,
+      'low'   => AppColors.moodLow,
+      'tough' => AppColors.moodTough,
+      _       => colors.accent,
+    };
+    final moodEmoji = switch (mood) {
+      'great' => '🌟',
+      'good'  => '😊',
+      'okay'  => '😌',
+      'low'   => '😔',
+      'tough' => '💪',
+      _       => '✨',
+    };
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            moodColor.withAlpha(38),
+            moodColor.withAlpha(18),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(width: 3, color: moodColor),
+          const SizedBox(width: 12),
+          Text(moodEmoji, style: const TextStyle(fontSize: 16)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVoiceIndicator(AppPalette colors) {
     return Container(
       height: 36,
@@ -1262,78 +1180,18 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     );
   }
 
-  Widget _viewToggleTab(IconData icon, String label, {required bool isMonthly, required AppPalette colors}) {
+  Widget _viewToggleTab(IconData icon, {required bool isMonthly, required AppPalette colors}) {
     final isActive = _isMonthly == isMonthly;
     return GestureDetector(
       onTap: () => setState(() => _isMonthly = isMonthly),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        width: 36,
         decoration: BoxDecoration(
           color: isActive ? colors.accent : Colors.transparent,
           borderRadius: BorderRadius.circular(9),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: isActive ? Colors.white : colors.textSecondary),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isActive ? Colors.white : colors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar(AppPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Container(
-        height: 44,
-        decoration: BoxDecoration(
-          color: colors.cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 12),
-            Icon(Icons.search_rounded, size: 18, color: colors.textMuted),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                autofocus: true,
-                style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Search memories…',
-                  hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
-                  border: InputBorder.none,
-                  isDense: true,
-                ),
-                onChanged: (v) => setState(() => _searchQuery = v.trim()),
-              ),
-            ),
-            if (_searchQuery.isNotEmpty)
-              GestureDetector(
-                onTap: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Icon(Icons.cancel_rounded, size: 16, color: colors.textMuted),
-                ),
-              ),
-          ],
-        ),
+        child: Icon(icon, size: 15, color: isActive ? Colors.white : colors.textSecondary),
       ),
     );
   }

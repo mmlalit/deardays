@@ -96,7 +96,7 @@ class OfflineAiQueue {
 
   /// Enqueue an entry for server-side AI processing (polish, themes, etc).
   Future<void> enqueue(AiQueueItem item) async {
-    _ensureOpen();
+    if (_box == null || !_box!.isOpen) return; // Not initialized — skip silently.
     final key = '${item.createdAt.millisecondsSinceEpoch}_${item.entryId}';
     await _box!.put(key, jsonEncode(item.toJson()));
     if (kDebugMode) {

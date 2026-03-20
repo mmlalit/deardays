@@ -24,7 +24,11 @@ class OnThisDaySection extends StatelessWidget {
   final Future<String> Function(String storagePath)? photoUrlBuilder;
 
   int _yearsAgo(JournalEntry e) {
-    return DateTime.now().year - e.entryDate.year;
+    final today = DateTime.now();
+    int years = today.year - e.entryDate.year;
+    final anniversary = DateTime(today.year, e.entryDate.month, e.entryDate.day);
+    if (anniversary.isAfter(today)) years--;
+    return years.clamp(1, 99);
   }
 
   @override

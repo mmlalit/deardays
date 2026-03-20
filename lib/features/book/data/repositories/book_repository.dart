@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
+import 'package:deardays/features/book/data/models/book_page.dart';
 
 class BookRepository {
   final SupabaseClient _client;
@@ -55,6 +56,7 @@ class BookRepository {
       'title': book.title,
       'cover_color': book.coverColor,
       'writing_style': book.writingStyle,
+      'creation_approach': book.creationApproach,
       'cover_image_url': book.coverImageUrl,
       'start_date': book.startDate.toIso8601String().split('T').first,
       'end_date': book.endDate?.toIso8601String().split('T').first,
@@ -79,6 +81,50 @@ class BookRepository {
         .delete()
         .eq('id', id)
         .eq('user_id', _userId);
+  }
+
+  /// Fetches a window of AI-generated weekly narrative pages for a book.
+  ///
+  /// [offset] is the 0-based starting row; [limit] is the page count per window.
+  /// Default window of 10 pages balances memory use and swipe smoothness.
+  /// The reader should pre-fetch the next window when the user reaches page
+  /// [offset + limit - 3] (3-page look-ahead).
+  Future<List<WeeklyNarrativeBookPage>> getWeeklyPages(
+    String bookId, {
+    int offset = 0,
+    int limit = 10,
+  }) async {
+    final response = await _client
+        .from('pages')
+        .select('id, content, week_start, page_number, word_count, photos')
+        .eq('book_id', bookId)
+        .order('week_start', ascending: true)
+        .order('page_number', ascending: true)
+        .range(offset, offset + limit - 1);
+
+    return (response as List<dynamic>)
+        .map((row) =>
+            WeeklyNarrativeBookPage.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Returns the total number of AI-generated pages for a book.
+  /// Uses COUNT(*) — fetches zero rows, just the count.
+  Future<int> getWeeklyPagesCount(String bookId) async {
+    final response = await _client
+        .from('pages')
+        .select()
+        .eq('book_id', bookId)
+        .count(CountOption.exact);
+    return response.count;
+  }
+
+  /// Updates the photo assignments for a single page (user edits).
+  Future<void> updatePagePhotos(String pageId, List<PagePhoto> photos) async {
+    await _client
+        .from('pages')
+        .update({'photos': photos.map((p) => p.toJson()).toList()})
+        .eq('id', pageId);
   }
 
   /// Ensures a default book exists for the current period based on organization setting.
@@ -129,6 +175,26 @@ class BookRepository {
       createdAt: now,
       updatedAt: now,
     ));
+  }
+
+  /// Links [chapterIds] to [bookId] for a thematic book.
+  Future<void> linkChaptersToBook(String bookId, List<String> chapterIds) async {
+    await _client
+        .from('chapters')
+        .update({'book_id': bookId})
+        .inFilter('id', chapterIds)
+        .eq('user_id', _userId);
+  }
+
+  /// Creates a single auto-chapter for a chronological book.
+  Future<void> createChronologicalChapter(String bookId, String bookTitle) async {
+    await _client.from('chapters').insert({
+      'user_id': _userId,
+      'book_id': bookId,
+      'title': bookTitle,
+      'chapter_number': 1,
+      'start_date': DateTime.now().toIso8601String().split('T').first,
+    });
   }
 
   /// Uploads a cover image to Supabase Storage and returns the public URL.

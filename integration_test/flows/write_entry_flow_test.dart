@@ -4,6 +4,31 @@ import 'package:deardays/features/journal/presentation/screens/text_entry_screen
 
 import '../helpers/test_app.dart';
 
+// Use pump(Duration) after navigating to TextEntryScreen — the text field's
+// cursor blink animation prevents pumpAndSettle() from ever settling.
+const _settle = Duration(seconds: 2);
+
+/// Navigate back from TextEntryScreen if still open.
+///
+/// TextEntryScreen has a focused TextField. If left open when the test
+/// framework tears down the widget tree, Windows fires a synthesised
+/// Alt-Left KeyUpEvent that kills the test runner (assertion in
+/// hardware_keyboard.dart). Closing the screen before teardown avoids this.
+Future<void> _closeTextEntryIfOpen(WidgetTester tester) async {
+  if (find.byType(TextEntryScreen).evaluate().isEmpty) return;
+  final backRounded = find.byIcon(Icons.arrow_back_rounded);
+  final backPlain   = find.byIcon(Icons.arrow_back);
+  if (backRounded.evaluate().isNotEmpty) {
+    await tester.tap(backRounded.first);
+  } else if (backPlain.evaluate().isNotEmpty) {
+    await tester.tap(backPlain.first);
+  } else {
+    // Fallback: pop via Navigator directly.
+    (tester.state(find.byType(Navigator).last) as NavigatorState).pop();
+  }
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
 void writeEntryFlowTests() {
   group('Write Entry — Structure', () {
     testWidgets('Write Memory screen renders', (tester) async {
@@ -11,19 +36,24 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
+
+      await _closeTextEntryIfOpen(tester);
     });
 
-    testWidgets('shows Write Memory title', (tester) async {
+    testWidgets('shows Write title in header', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
-      expect(find.text('Write Memory'), findsOneWidget);
+      // The top bar title is "Write"
+      expect(find.text('Write'), findsWidgets);
+
+      await _closeTextEntryIfOpen(tester);
     });
 
     testWidgets('shows text input area', (tester) async {
@@ -31,9 +61,11 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       expect(find.byType(TextField), findsWidgets);
+
+      await _closeTextEntryIfOpen(tester);
     });
 
     testWidgets('shows prompt chips row', (tester) async {
@@ -41,49 +73,31 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
-      expect(find.text('NEED A PROMPT?'), findsOneWidget);
+      // Prompts can be in two states:
+      // - Expanded (default): shows actual prompt question texts
+      // - Collapsed: shows "Prompts" pill button
+      final hasPrompts =
+          find.text('Prompts').evaluate().isNotEmpty ||
+          find.textContaining('smile').evaluate().isNotEmpty ||
+          find.textContaining('today').evaluate().isNotEmpty ||
+          find.textContaining('grateful').evaluate().isNotEmpty;
+      expect(hasPrompts, isTrue);
+
+      await _closeTextEntryIfOpen(tester);
     });
 
-    testWidgets('shows Save Memory button', (tester) async {
+    testWidgets('shows Continue button', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
-      expect(find.text('Save Memory'), findsOneWidget);
-    });
+      expect(find.text('Continue'), findsOneWidget);
 
-    testWidgets('shows Photo meta row', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Photo'), findsOneWidget);
-    });
-
-    testWidgets('shows Location meta row', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Location'), findsOneWidget);
-    });
-
-    testWidgets('shows Tags meta row', (tester) async {
-      await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Tags'), findsOneWidget);
+      await _closeTextEntryIfOpen(tester);
     });
 
     testWidgets('back button is visible', (tester) async {
@@ -91,13 +105,15 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       expect(
         find.byIcon(Icons.arrow_back_rounded).evaluate().isNotEmpty ||
             find.byIcon(Icons.arrow_back).evaluate().isNotEmpty,
         isTrue,
       );
+
+      await _closeTextEntryIfOpen(tester);
     });
   });
 
@@ -107,7 +123,7 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);
@@ -115,6 +131,8 @@ void writeEntryFlowTests() {
       await tester.pump();
 
       expect(find.text('Today was a beautiful day.'), findsOneWidget);
+
+      await _closeTextEntryIfOpen(tester);
     });
 
     testWidgets('word count updates as user types', (tester) async {
@@ -122,17 +140,19 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);
       await tester.enterText(mainField, 'Hello world this is five');
       await tester.pump();
 
-      // Word count should appear (not hidden at 0)
+      // Word count badge appears (e.g. "5 words")
       final hasWordCount =
-          find.textContaining('w').evaluate().isNotEmpty;
+          find.textContaining('word').evaluate().isNotEmpty;
       expect(hasWordCount, isTrue);
+
+      await _closeTextEntryIfOpen(tester);
     });
 
     testWidgets('prompt chip inserts text into field', (tester) async {
@@ -140,7 +160,7 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       // Find and tap the first prompt chip
       final chips = find.descendant(
@@ -154,26 +174,27 @@ void writeEntryFlowTests() {
 
       // A TextField should now have content
       expect(find.byType(TextField), findsWidgets);
+
+      await _closeTextEntryIfOpen(tester);
     });
   });
 
   group('Write Entry — Validation', () {
-    testWidgets('tapping Save Memory with empty text shows error', (tester) async {
+    testWidgets('Continue button is disabled with empty text', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
-      await tester.tap(find.text('Save Memory'));
-      await tester.pumpAndSettle();
+      // Continue button exists but has dimmed opacity when word count < 5.
+      // Tapping it does nothing — app stays on TextEntryScreen.
+      await tester.tap(find.text('Continue'));
+      await tester.pump();
 
-      // Error snackbar should appear
-      expect(
-        find.textContaining('Write something').evaluate().isNotEmpty ||
-            find.byType(SnackBar).evaluate().isNotEmpty,
-        isTrue,
-      );
+      expect(find.byType(TextEntryScreen), findsOneWidget);
+
+      await _closeTextEntryIfOpen(tester);
     });
   });
 
@@ -183,7 +204,7 @@ void writeEntryFlowTests() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
 
@@ -197,19 +218,19 @@ void writeEntryFlowTests() {
       expect(find.byType(TextEntryScreen), findsNothing);
     });
 
-    testWidgets('typing text and tapping Save navigates away from entry screen', (tester) async {
+    testWidgets('typing 5+ words enables Continue and navigates away', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write'));
-      await tester.pumpAndSettle();
+      await tester.pump(_settle);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);
       await tester.enterText(mainField, 'This is my first memory in the app.');
       await tester.pump();
 
-      await tester.tap(find.text('Save Memory'));
+      await tester.tap(find.text('Continue'));
       // Use pump(Duration) instead of pumpAndSettle() — ProcessingScreen runs
       // background AI tasks that would cause pumpAndSettle() to hang indefinitely.
       await tester.pump(const Duration(seconds: 3));

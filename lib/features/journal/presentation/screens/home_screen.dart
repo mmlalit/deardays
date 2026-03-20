@@ -1,69 +1,39 @@
-import 'dart:math';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/widgets/app_avatar.dart';
+import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/core/widgets/milestone_overlay.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
-import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart'
     show showMemoryContextMenu;
 import 'package:deardays/core/widgets/force_update_dialog.dart';
+import 'package:deardays/l10n/app_localizations.dart';
 
-// ── Dynamic mood responses (hardcoded, no AI call) ──────────────────────────
-
-const _moodResponses = <String, List<String>>{
-  'Great': [
-    "That's awesome! What made your day so good?",
-    "Love to hear it! Want to capture the moment?",
-    "Amazing! Tell me what's going right.",
-    "So glad! What's making you feel great?",
-    "Wonderful! Let's save this good energy.",
-  ],
-  'Good': [
-    "Nice! Anything in particular going well?",
-    "Good vibes! What's been the highlight?",
-    "Glad to hear! Want to write about it?",
-    "That's great! What made it a good day?",
-    "Sweet! Anything worth remembering?",
-  ],
-  'Okay': [
-    "Fair enough. Want to talk about what's up?",
-    "Got it. Sometimes okay is just fine.",
-    "Noted! Anything on your mind today?",
-    "That's alright. Want to capture your thoughts?",
-    "Okay days matter too. What happened?",
-  ],
-  'Low': [
-    "I hear you. Want to get it off your chest?",
-    "Sorry to hear. Writing it out might help.",
-    "That's okay. What's been weighing on you?",
-    "I'm here. Want to talk about it?",
-    "Sending good vibes. What's going on?",
-  ],
-  'Tough': [
-    "I'm here for you. Want to talk about it?",
-    "That's rough. Sometimes it helps to write it down.",
-    "I'm sorry. Let it out if you need to.",
-    "Tough days happen. I'm listening.",
-    "Take your time. I'm here when you're ready.",
-  ],
-};
-
-String _getRandomMoodResponse(String mood) {
-  final responses = _moodResponses[mood] ?? _moodResponses['Okay']!;
-  return responses[Random().nextInt(responses.length)];
+String _cleanFirstName(String name) {
+  final first = name.split(' ').first;
+  // If it looks like a username (no spaces, has digits), strip digits/symbols
+  if (!name.contains(' ') && first.contains(RegExp(r'[0-9_.]'))) {
+    final clean = first.replaceAll(RegExp(r'[0-9_.]'), '');
+    if (clean.isNotEmpty) {
+      return clean[0].toUpperCase() + clean.substring(1).toLowerCase();
+    }
+  }
+  return first[0].toUpperCase() + first.substring(1);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,56 +49,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin {
-  // ── Mood check-in state ──────────────────────────────────────────────────
-  AnimationController? _moodAnimController;
-  Animation<double>? _moodScaleAnim;
-  String? _selectedMoodLabel;
-  bool _moodAnimCompleted = false;
-  String? _moodResponseText;
-
-  static const _moodOptions = [
-    _HomeMoodOption('Great', Icons.sentiment_very_satisfied, AppColors.moodGreat),
-    _HomeMoodOption('Good', Icons.sentiment_satisfied, AppColors.moodGood),
-    _HomeMoodOption('Okay', Icons.sentiment_neutral, AppColors.moodOkay),
-    _HomeMoodOption('Low', Icons.sentiment_dissatisfied, AppColors.moodLow),
-    _HomeMoodOption('Tough', Icons.sentiment_very_dissatisfied, AppColors.moodTough),
-  ];
-
-  void _onHomeMoodTap(String label) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      _selectedMoodLabel = label;
-      _moodAnimCompleted = false;
-      _moodResponseText = _getRandomMoodResponse(label);
-    });
-
-    _moodAnimController?.dispose();
-    _moodAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _moodScaleAnim = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 50),
-    ]).animate(CurvedAnimation(
-      parent: _moodAnimController!,
-      curve: Curves.easeInOut,
-    ));
-
-    _moodAnimController!.forward().then((_) {
-      if (mounted) {
-        setState(() => _moodAnimCompleted = true);
-        // Persist mood via checkInProvider
-        ref.read(checkInProvider.notifier).selectMood(label);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _moodAnimController?.dispose();
-    super.dispose();
-  }
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -192,7 +112,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         user?.userMetadata?['display_name'] as String? ??
         user?.email?.split('@').first ??
         'there';
-    final firstName = displayName.split(' ').first;
+    final firstName = _cleanFirstName(displayName);
 
     return Scaffold(
       backgroundColor: colors.bg,
@@ -213,23 +133,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     _buildGreeting(firstName, colors),
                     const SizedBox(height: 28),
 
-                    // 2. Large Mic Button
+                    // 2. Large Mic Button + 3. Write/Photo/Chat grouped
                     _buildMicButton(context, colors),
-                    const SizedBox(height: 16),
-
-                    // 3. Write & Chat icons
+                    const SizedBox(height: 12),
                     _buildWriteChatRow(context, colors),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
 
                     // 4. Streak Strip
                     _buildStreakStrip(colors),
                     const SizedBox(height: 16),
-
-                    // 4b. On This Day
-                    _buildOnThisDaySection(context, colors),
-
-                    // 4c. Reflections (picture cards)
-                    _buildReflectionsSection(context, colors),
 
                     // 6. Recent Memories header
                     _buildSectionHeader(context, colors),
@@ -612,15 +524,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       padding: const EdgeInsets.only(top: 12),
       child: Row(
         children: [
-          Text(
-            'Aura',
-            style: GoogleFonts.manrope(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: colors.accent,
-              letterSpacing: -0.3,
-            ),
-          ),
+          const DdLogo(size: 28),
           const Spacer(),
           Semantics(
             label: 'Search',
@@ -636,20 +540,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
           ),
-          Semantics(
-            label: 'Settings',
-            button: true,
-            child: GestureDetector(
-              onTap: () => context.push('/settings'),
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: Center(
-                  child: Icon(Icons.settings_outlined, size: 22, color: colors.textSecondary),
-                ),
-              ),
-            ),
-          ),
+          const AppAvatar(),
         ],
       ),
     );
@@ -661,19 +552,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildGreeting(String firstName, AppPalette colors) {
     final hour = DateTime.now().hour;
+    final l10n = AppLocalizations.of(context);
     final greeting = hour < 12
-        ? 'Good Morning'
+        ? (l10n?.goodMorning ?? 'Good Morning')
         : hour < 17
-            ? 'Good Afternoon'
-            : 'Good Evening';
-
-    final checkInState = ref.watch(checkInProvider);
-    final hasMoodToday = checkInState.currentMood != null &&
-        checkInState.currentMood != 'skipped' &&
-        checkInState.isViewingToday;
-    final showMoodIcons = !hasMoodToday && _selectedMoodLabel == null;
-    final showMoodCard = (_moodAnimCompleted && _selectedMoodLabel != null) || hasMoodToday;
-    final displayMood = hasMoodToday ? checkInState.currentMood! : _selectedMoodLabel;
+            ? (l10n?.goodAfternoon ?? 'Good Afternoon')
+            : (l10n?.goodEvening ?? 'Good Evening');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -689,194 +573,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
         const SizedBox(height: 6),
-        if (showMoodIcons) ...[
-          Text(
-            'How are you feeling?',
-            style: GoogleFonts.manrope(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              height: 1.4,
-            ),
+        Text(
+          'What happened today?',
+          style: GoogleFonts.manrope(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+            height: 1.4,
           ),
-          const SizedBox(height: 20),
-          _buildHomeMoodRow(colors),
-        ] else if (showMoodCard && displayMood != null) ...[
-          const SizedBox(height: 8),
-          _buildMoodResponseCard(displayMood, colors),
-        ] else ...[
-          Text(
-            'What happened today?',
-            style: GoogleFonts.manrope(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              height: 1.4,
-            ),
-          ),
-        ],
+        ),
       ],
     );
-  }
-
-  // ── Home Mood Row ──────────────────────────────────────────────────────────
-
-  Widget _buildHomeMoodRow(AppPalette colors) {
-    final selected = _selectedMoodLabel;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: _moodOptions.map((mood) {
-        final isSelected = selected == mood.label;
-        final isDimmed = selected != null && !isSelected;
-
-        Widget icon = AnimatedOpacity(
-          opacity: isDimmed ? 0.3 : 1.0,
-          duration: const Duration(milliseconds: 200),
-          child: GestureDetector(
-            onTap: selected == null ? () => _onHomeMoodTap(mood.label) : null,
-            child: Column(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: mood.color.withAlpha(isSelected ? 40 : 20),
-                    border: Border.all(
-                      color: mood.color.withAlpha(isSelected ? 120 : 60),
-                      width: isSelected ? 2.5 : 1.5,
-                    ),
-                  ),
-                  child: Icon(mood.icon, size: 26, color: mood.color),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  mood.label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected ? mood.color : colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-
-        if (isSelected && _moodScaleAnim != null && !_moodAnimCompleted) {
-          icon = AnimatedBuilder(
-            animation: _moodScaleAnim!,
-            builder: (context, child) => Transform.scale(
-              scale: _moodScaleAnim!.value,
-              child: child,
-            ),
-            child: icon,
-          );
-        }
-
-        return icon;
-      }).toList(),
-    );
-  }
-
-  // ── Mood Response Card ─────────────────────────────────────────────────────
-
-  Widget _buildMoodResponseCard(String mood, AppPalette colors) {
-    final moodColor = _homeMoodColor(mood);
-    final moodIcon = _homeMoodIcon(mood);
-    final responseText = _moodResponseText ?? _getRandomMoodResponse(mood);
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        context.push('/checkin');
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: moodColor.withAlpha(12),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: moodColor.withAlpha(40)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: moodColor.withAlpha(25),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(moodIcon, size: 16, color: moodColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Feeling ${mood.toLowerCase()}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: moodColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              responseText,
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: colors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'Tell me more',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: moodColor.withAlpha(180),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_forward_rounded, size: 14, color: moodColor.withAlpha(180)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _homeMoodColor(String mood) {
-    switch (mood.toLowerCase()) {
-      case 'great': return AppColors.moodGreat;
-      case 'good': return AppColors.moodGood;
-      case 'okay': return AppColors.moodOkay;
-      case 'low': return AppColors.moodLow;
-      case 'tough': return AppColors.moodTough;
-      default: return AppColors.moodOkay;
-    }
-  }
-
-  IconData _homeMoodIcon(String mood) {
-    switch (mood.toLowerCase()) {
-      case 'great': return Icons.sentiment_very_satisfied;
-      case 'good': return Icons.sentiment_satisfied;
-      case 'okay': return Icons.sentiment_neutral;
-      case 'low': return Icons.sentiment_dissatisfied;
-      case 'tough': return Icons.sentiment_very_dissatisfied;
-      default: return Icons.sentiment_neutral;
-    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -893,25 +600,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             HapticFeedback.mediumImpact();
             context.push('/record');
           },
-          child: Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.accent,
-              boxShadow: [
-                BoxShadow(
-                  color: colors.accent.withAlpha(80),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [colors.accent, colors.accent.withAlpha(200)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.accent.withAlpha(80),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.mic_rounded,
-              size: 40,
-              color: Colors.white,
-            ),
+                child: const Icon(
+                  Icons.mic_rounded,
+                  size: 36,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Record a memory',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: colors.accent,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -919,8 +644,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 3. Write & Chat row
+  // 3. Write / Photo / Chat row
   // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _openPhotoFlow(BuildContext context) async {
+    HapticFeedback.mediumImpact();
+    final picker = ImagePicker();
+    XFile? photo;
+
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // Desktop: camera not supported — go straight to file picker.
+      photo = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+    } else {
+      // Mobile: show Camera vs Gallery choice sheet.
+      final source = await _showPhotoSourceSheet(context);
+      if (source == null) return;
+      photo = await picker.pickImage(source: source, imageQuality: 85);
+    }
+
+    if (photo != null && context.mounted) {
+      context.push('/photo-entry', extra: photo.path);
+    }
+  }
+
+  Future<ImageSource?> _showPhotoSourceSheet(BuildContext context) {
+    final colors = AppColors.of(context);
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: colors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              _PhotoSourceTile(
+                icon: Icons.camera_alt_rounded,
+                label: 'Take Photo',
+                subtitle: 'Open camera',
+                colors: colors,
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              const SizedBox(height: 10),
+              _PhotoSourceTile(
+                icon: Icons.photo_library_rounded,
+                label: 'Choose from Library',
+                subtitle: 'Browse your gallery',
+                colors: colors,
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildWriteChatRow(BuildContext context, AppPalette colors) {
     return Row(
@@ -930,17 +724,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           context,
           icon: Icons.edit_rounded,
           label: 'Write',
+          iconColor: const Color(0xFF6366F1), // indigo
           colors: colors,
           onTap: () {
             HapticFeedback.mediumImpact();
             context.push('/write');
           },
         ),
-        const SizedBox(width: 40),
+        const SizedBox(width: 24),
+        _buildSmallAction(
+          context,
+          icon: Icons.camera_alt_rounded,
+          label: 'Photo',
+          iconColor: const Color(0xFF10B981), // emerald
+          colors: colors,
+          onTap: () => _openPhotoFlow(context),
+        ),
+        const SizedBox(width: 24),
         _buildSmallAction(
           context,
           icon: Icons.chat_bubble_outline_rounded,
           label: 'Chat',
+          iconColor: const Color(0xFFF97316), // orange
           colors: colors,
           onTap: () {
             HapticFeedback.mediumImpact();
@@ -955,6 +760,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     BuildContext context, {
     required IconData icon,
     required String label,
+    required Color iconColor,
     required AppPalette colors,
     required VoidCallback onTap,
   }) {
@@ -969,9 +775,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: colors.card,
+                color: iconColor.withAlpha(18),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: colors.border),
+                border: Border.all(color: iconColor.withAlpha(40)),
                 boxShadow: [
                   BoxShadow(
                     color: colors.textPrimary.withAlpha(8),
@@ -980,7 +786,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ],
               ),
-              child: Icon(icon, size: 24, color: colors.accent),
+              child: Icon(icon, size: 24, color: iconColor),
             ),
             const SizedBox(height: 6),
             Text(
@@ -1121,24 +927,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           color: hasEntry
                               ? colors.accent
                               : isToday
-                                  ? colors.accent.withAlpha(30)
+                                  ? colors.accent.withAlpha(20)
                                   : Colors.transparent,
                           shape: BoxShape.circle,
                           border: isToday && !hasEntry
-                              ? Border.all(color: colors.accent.withAlpha(80), width: 1.5)
+                              ? Border.all(color: colors.accent.withAlpha(100), width: 1.5)
                               : !hasEntry
-                                  ? Border.all(color: colors.border, width: 1)
+                                  ? Border.all(color: colors.border, width: 1.5)
                                   : null,
                         ),
-                        child: Center(
-                          child: hasEntry
-                              ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                              : Icon(
-                                  Icons.remove_rounded,
-                                  size: 12,
-                                  color: isToday ? colors.accent : colors.textMuted,
-                                ),
-                        ),
+                        child: hasEntry
+                            ? const Center(
+                                child: Icon(Icons.check_rounded, size: 14, color: Colors.white),
+                              )
+                            : null,
                       ),
                     ],
                   ),
@@ -1169,335 +971,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         colors: colors,
         entries: entries,
       ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // 4b. On This Day
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildOnThisDaySection(BuildContext context, AppPalette colors) {
-    final onThisDayAsync = ref.watch(onThisDayProvider);
-    final entries = onThisDayAsync.valueOrNull ?? [];
-
-    if (entries.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: AppColors.orange.withAlpha(20),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.history_rounded,
-                size: 18,
-                color: AppColors.orange,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'On This Day',
-                    style: GoogleFonts.newsreader(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Memories from years past',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                context.push('/on-this-day');
-              },
-              child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(minWidth: 48, minHeight: 48),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Center(
-                    child: Text(
-                      'See All',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: colors.accent,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 190,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: entries.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) {
-              final entry = entries[i];
-              final excerpt = _extractExcerpt(entry);
-              final relDate = _relativeDate(entry.entryDate);
-              final photoMedia =
-                  entry.media.where((m) => m.mediaType == 'photo').toList();
-
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  context.push(
-                    '/memory',
-                    extra: MemoryDetailArgs(
-                      entry: entry,
-                      allEntries: entries,
-                      initialIndex: i,
-                    ),
-                  );
-                },
-                onLongPress: () =>
-                    showMemoryContextMenu(context, entry, colors),
-                child: Container(
-                  width: 180,
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.textPrimary.withAlpha(8),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: 100,
-                        width: double.infinity,
-                        child: photoMedia.isNotEmpty
-                            ? _NetworkImage(
-                                storagePath: photoMedia.first.storagePath)
-                            : _GradientBanner(colors: colors, mood: entry.mood),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              relDate.toUpperCase(),
-                              style: GoogleFonts.manrope(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: colors.accent,
-                                letterSpacing: 1.2,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              excerpt,
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                color: colors.textSecondary,
-                                height: 1.5,
-                              ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // 5b. Reflections — Weekly / Monthly / Yearly cards
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildReflectionsSection(BuildContext context, AppPalette colors) {
-    const cards = <_ReflectionCardData>[
-      _ReflectionCardData(
-        title: 'Weekly',
-        subtitle: 'This week\u2019s story',
-        icon: Icons.view_week_rounded,
-        iconColor: Color(0xFF3B82F6),
-        gradientColors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
-        period: 'weekly',
-      ),
-      _ReflectionCardData(
-        title: 'Monthly',
-        subtitle: 'Your month at a glance',
-        icon: Icons.calendar_month_rounded,
-        iconColor: Color(0xFF10B981),
-        gradientColors: [Color(0xFF10B981), Color(0xFF059669)],
-        period: 'monthly',
-      ),
-      _ReflectionCardData(
-        title: 'Yearly',
-        subtitle: 'A year of memories',
-        icon: Icons.auto_awesome_rounded,
-        iconColor: Color(0xFFF59E0B),
-        gradientColors: [Color(0xFFF59E0B), Color(0xFFF97316)],
-        period: 'yearly',
-      ),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: const Color(0xFF8B5CF6).withAlpha(20),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.insights_rounded,
-                size: 18,
-                color: Color(0xFF8B5CF6),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Reflections',
-              style: GoogleFonts.newsreader(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 160,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: cards.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) {
-              final card = cards[i];
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  context.push('/reflection?period=${card.period}');
-                },
-                child: Container(
-                  width: 150,
-                  decoration: BoxDecoration(
-                    color: colors.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colors.textPrimary.withAlpha(8),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Gradient banner with icon
-                      Container(
-                        height: 85,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: card.gradientColors,
-                          ),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            card.icon,
-                            size: 36,
-                            color: Colors.white.withAlpha(230),
-                          ),
-                        ),
-                      ),
-                      // Text section
-                      Expanded(
-                        child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              card.title,
-                              style: GoogleFonts.manrope(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: colors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              card.subtitle,
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: colors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
     );
   }
 
@@ -1759,25 +1232,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return body.length > 100 ? '${body.substring(0, 100)}...' : body;
   }
 
-  static String _relativeDate(DateTime date) {
+  String _relativeDate(DateTime date) {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final diff =
         now.difference(DateTime(date.year, date.month, date.day)).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
-    if (diff < 7) return '$diff days ago';
-    if (diff < 14) return '1 week ago';
-    if (diff < 365) return '${(diff / 30).round()} months ago';
+    if (diff == 0) return l10n?.today ?? 'Today';
+    if (diff == 1) return l10n?.yesterday ?? 'Yesterday';
+    if (diff < 7) return l10n?.daysAgo(diff) ?? '$diff days ago';
+    if (diff < 14) return l10n?.weekAgo ?? '1 week ago';
+    if (diff < 365) {
+      final months = (diff / 30).round();
+      return l10n?.monthsAgo(months) ?? '$months months ago';
+    }
     final years = (diff / 365).round();
-    return years == 1 ? '1 year ago' : '$years years ago';
+    return l10n?.yearsAgo(years) ?? '$years years ago';
   }
 
   String _dateLabel(DateTime date) {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final diff =
         now.difference(DateTime(date.year, date.month, date.day)).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
+    if (diff == 0) return l10n?.today ?? 'Today';
+    if (diff == 1) return l10n?.yesterday ?? 'Yesterday';
     return DateFormat('MMM d').format(date);
   }
 
@@ -1787,12 +1265,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 // Reusable sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _NetworkImage extends StatelessWidget {
+class _NetworkImage extends ConsumerWidget {
   final String storagePath;
   const _NetworkImage({required this.storagePath});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = AppColors.of(context);
     // If already an HTTP URL (demo data), use directly
     if (storagePath.startsWith('http')) {
@@ -1806,18 +1284,9 @@ class _NetworkImage extends StatelessWidget {
         errorWidget: (_, __, ___) => _GradientBanner(colors: colors),
       );
     }
-    // Use signed URL for private bucket storage
-    late final Future<String> future;
-    try {
-      future = Supabase.instance.client.storage
-          .from('entry-media')
-          .createSignedUrl(storagePath, 3600)
-          .catchError((_) => '');
-    } catch (_) {
-      future = Future.value('');
-    }
+    // Use signed URL for private bucket storage (cached via MediaService)
     return FutureBuilder<String>(
-      future: future,
+      future: ref.read(mediaServiceProvider).getSignedUrl(storagePath).catchError((_) => ''),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
@@ -1934,30 +1403,64 @@ class _GradientBanner extends StatelessWidget {
   }
 }
 
-class _HomeMoodOption {
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Photo source choice tile (Camera / Gallery)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PhotoSourceTile extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final IconData icon;
-  final Color color;
-
-  const _HomeMoodOption(this.label, this.icon, this.color);
-}
-
-class _ReflectionCardData {
-  final String title;
   final String subtitle;
-  final IconData icon;
-  final Color iconColor;
-  final List<Color> gradientColors;
-  final String period;
+  final AppPalette colors;
+  final VoidCallback onTap;
 
-  const _ReflectionCardData({
-    required this.title,
-    required this.subtitle,
+  const _PhotoSourceTile({
     required this.icon,
-    required this.iconColor,
-    required this.gradientColors,
-    required this.period,
+    required this.label,
+    required this.subtitle,
+    required this.colors,
+    required this.onTap,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: colors.bg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 22, color: colors.accent),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                  Text(subtitle, style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: colors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

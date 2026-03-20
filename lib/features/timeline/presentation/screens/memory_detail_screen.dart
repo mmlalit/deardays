@@ -13,6 +13,9 @@ import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
 import 'package:deardays/features/journal/presentation/widgets/version_history_sheet.dart';
+import 'package:deardays/features/sharing/presentation/providers/sharing_provider.dart';
+import 'package:deardays/features/sharing/presentation/screens/share_management_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class MemoryDetailScreen extends ConsumerStatefulWidget {
   final JournalEntry entry;
@@ -36,6 +39,8 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   late int _currentIndex;
   late List<JournalEntry> _entries;
   bool _showSwipeHint = false;
+  bool _showControls = true;
+  Timer? _hideTimer;
 
   @override
   void initState() {
@@ -55,11 +60,22 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       Future.delayed(const Duration(milliseconds: 2500), () {
         if (mounted) setState(() => _showSwipeHint = false);
       });
+      _resetTimer();
     }
+  }
+
+  void _resetTimer() {
+    _hideTimer?.cancel();
+    if (!mounted) return;
+    if (!_showControls) setState(() => _showControls = true);
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showControls = false);
+    });
   }
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -79,83 +95,51 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       backgroundColor: colors.bg,
       body: Stack(
         children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: _entries.length,
-            onPageChanged: (i) => setState(() => _currentIndex = i),
-            itemBuilder: (_, i) => _EntryPage(entry: _entries[i]),
+          // Main paged content — tap anywhere to show controls
+          GestureDetector(
+            onTap: _resetTimer,
+            behavior: HitTestBehavior.translucent,
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _entries.length,
+              onPageChanged: (i) {
+                setState(() => _currentIndex = i);
+                _resetTimer();
+              },
+              itemBuilder: (_, i) => _EntryPage(entry: _entries[i]),
+            ),
           ),
 
-          // Left arrow
-          if (_currentIndex > 0)
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: () => _pageController.previousPage(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  ),
-                  child: Container(
-                    width: 30,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: colors.textPrimary.withAlpha(30),
-                      borderRadius: const BorderRadius.horizontal(
-                        right: Radius.circular(8),
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.chevron_left_rounded,
-                      size: 24,
-                      color: colors.textPrimary.withAlpha(160),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Right arrow
-          if (_currentIndex < _entries.length - 1)
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: () => _pageController.nextPage(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  ),
-                  child: Container(
-                    width: 30,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: colors.textPrimary.withAlpha(30),
-                      borderRadius: const BorderRadius.horizontal(
-                        left: Radius.circular(8),
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 24,
-                      color: colors.textPrimary.withAlpha(160),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Page indicator at bottom
+          // Bottom nav bar — slides up/down + fades
           Positioned(
-            left: 0,
-            right: 0,
+            left: 16,
+            right: 16,
             bottom: 32,
-            child: _entries.length <= 10
-                ? _buildDotIndicator(colors)
-                : _buildTextIndicator(colors),
+            child: AnimatedSlide(
+              offset: _showControls ? Offset.zero : const Offset(0, 1.5),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: AnimatedOpacity(
+                opacity: _showControls ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: _BottomNavBar(
+                  entries: _entries,
+                  currentIndex: _currentIndex,
+                  onPrev: _currentIndex > 0
+                      ? () => _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        )
+                      : null,
+                  onNext: _currentIndex < _entries.length - 1
+                      ? () => _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        )
+                      : null,
+                ),
+              ),
+            ),
           ),
 
           // Swipe hint overlay — fades out after ~2.5s
@@ -195,43 +179,153 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       ),
     );
   }
+}
 
-  Widget _buildDotIndicator(AppPalette colors) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_entries.length, (i) {
-        final isActive = i == _currentIndex;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: isActive ? 16 : 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: isActive ? colors.accent : colors.border,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        );
-      }),
-    );
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom navigation bar — prev title | dots/counter | next title
+// ─────────────────────────────────────────────────────────────────────────────
 
-  Widget _buildTextIndicator(AppPalette colors) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          color: colors.card.withAlpha(220),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.border),
-        ),
-        child: Text(
-          '${_currentIndex + 1} of ${_entries.length}',
-          style: GoogleFonts.manrope(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: colors.textSecondary,
+class _BottomNavBar extends StatelessWidget {
+  final List<JournalEntry> entries;
+  final int currentIndex;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
+
+  const _BottomNavBar({
+    required this.entries,
+    required this.currentIndex,
+    this.onPrev,
+    this.onNext,
+  });
+
+  static final _fmt = DateFormat('MMM d');
+
+  String _shortDate(JournalEntry e) => _fmt.format(e.entryDate);
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final hasPrev = onPrev != null;
+    final hasNext = onNext != null;
+    final total = entries.length;
+
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: colors.textPrimary.withAlpha(200),
+        borderRadius: BorderRadius.circular(100),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(40),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-        ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Prev button + date
+          GestureDetector(
+            onTap: onPrev,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 72, maxWidth: 110),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.chevron_left_rounded,
+                    size: 18,
+                    color: hasPrev ? colors.bg : colors.bg.withAlpha(60),
+                  ),
+                  const SizedBox(width: 2),
+                  Flexible(
+                    child: Text(
+                      hasPrev ? _shortDate(entries[currentIndex - 1]) : '',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: hasPrev ? colors.bg : colors.bg.withAlpha(60),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Centre: dots (≤10) or counter (>10)
+          Expanded(
+            child: Center(
+              child: total <= 10
+                  ? SizedBox(
+                      height: 16,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: List.generate(total, (i) {
+                          final active = i == currentIndex;
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween(end: active ? 14.0 : 5.0),
+                            duration: const Duration(milliseconds: 200),
+                            builder: (_, w, __) => Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                              width: w,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: active ? colors.bg : colors.bg.withAlpha(80),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    )
+                  : Text(
+                      '${currentIndex + 1} / $total',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: colors.bg,
+                      ),
+                    ),
+            ),
+          ),
+
+          // Next date + button
+          GestureDetector(
+            onTap: onNext,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 72, maxWidth: 110),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: Text(
+                      hasNext ? _shortDate(entries[currentIndex + 1]) : '',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: hasNext ? colors.bg : colors.bg.withAlpha(60),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: hasNext ? colors.bg : colors.bg.withAlpha(60),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -257,6 +351,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   bool _playerReady = false;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlayerState>? _playerStateSub;
+  StreamSubscription<Duration?>? _durationSub;
 
   @override
   void initState() {
@@ -273,12 +368,12 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       final mediaService = ref.read(mediaServiceProvider);
       final url = await mediaService.getSignedUrl(voiceMedia.first.storagePath);
       await _player.setUrl(url);
-      if (mounted) {
-        setState(() {
-          _duration = _player.duration ?? Duration.zero;
-          _playerReady = true;
-        });
-      }
+      if (mounted) setState(() => _playerReady = true);
+
+      // Duration arrives asynchronously — listen for it
+      _durationSub = _player.durationStream.listen((d) {
+        if (d != null && mounted) setState(() => _duration = d);
+      });
       _positionSub = _player.positionStream.listen((pos) {
         if (mounted) setState(() => _position = pos);
       });
@@ -294,6 +389,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
 
   @override
   void dispose() {
+    _durationSub?.cancel();
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _player.dispose();
@@ -318,7 +414,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     final colors = AppColors.of(context);
     final entry = widget.entry;
     final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
-    final displayText = entry.polishedContent ?? entry.content;
+    final displayText = entry.polishedContent ?? entry.rawContent ?? entry.content;
     final hasPhoto = photoMedia.isNotEmpty;
 
     return Scaffold(
@@ -552,15 +648,11 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildVoicePlayer(AppPalette colors) {
-    final progress = (_playerReady && _duration.inMilliseconds > 0)
-        ? (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0)
-        : 0.0;
-    final displayTime = _isPlaying
-        ? _formatDuration(_position)
-        : _formatDuration(_playerReady ? _duration : Duration.zero);
+    final maxMs = _duration.inMilliseconds.toDouble();
+    final posMs = _position.inMilliseconds.toDouble().clamp(0.0, maxMs > 0 ? maxMs : 1.0);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
       decoration: BoxDecoration(
         color: colors.cardBg,
         borderRadius: BorderRadius.circular(16),
@@ -573,72 +665,91 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Play / Pause button — 48px circle
-          GestureDetector(
-            onTap: _playerReady ? _togglePlay : null,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent,
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.accent.withAlpha(70),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+          // Top row: play button + label + loading indicator
+          Row(
+            children: [
+              // Play / Pause button
+              GestureDetector(
+                onTap: _playerReady ? _togglePlay : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _playerReady ? colors.accent : colors.border,
+                    boxShadow: _playerReady
+                        ? [BoxShadow(color: colors.accent.withAlpha(60), blurRadius: 10, offset: const Offset(0, 3))]
+                        : [],
                   ),
-                ],
+                  child: _playerReady
+                      ? Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 26)
+                      : const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)),
+                ),
               ),
-              child: Icon(
-                _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          // Label + progress
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Voice Recording',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textMuted,
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.mic_rounded, size: 12, color: colors.accent),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Voice Recording',
+                          style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textMuted),
+                        ),
+                      ],
                     ),
-                    const Spacer(),
-                    Text(
-                      displayTime,
-                      style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          _formatDuration(_position),
+                          style: GoogleFonts.manrope(fontSize: 11, color: colors.accent, fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          ' / ${_formatDuration(_duration)}',
+                          style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Progress bar — 6px height
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: colors.border,
-                    valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
-                    minHeight: 6,
-                  ),
-                ),
-              ],
+              ),
+              // Waveform / equalizer icon — animated while playing
+              Icon(
+                _isPlaying ? Icons.graphic_eq_rounded : Icons.equalizer_rounded,
+                size: 22,
+                color: _isPlaying ? colors.accent : colors.textMuted,
+              ),
+            ],
+          ),
+
+          // Seekable slider
+          SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+              activeTrackColor: colors.accent,
+              inactiveTrackColor: colors.border,
+              thumbColor: colors.accent,
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              overlayColor: colors.accent.withAlpha(20),
+            ),
+            child: Slider(
+              value: posMs,
+              min: 0,
+              max: maxMs > 0 ? maxMs : 1.0,
+              onChanged: _playerReady
+                  ? (v) => _player.seek(Duration(milliseconds: v.round()))
+                  : null,
             ),
           ),
-          const SizedBox(width: 12),
-          // Equalizer icon on right
-          Icon(Icons.equalizer_rounded, size: 22, color: colors.textMuted),
         ],
       ),
     );
@@ -878,34 +989,47 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
             children: [
               ListTile(
                 leading: const Icon(Icons.history_rounded),
-                title: Text(
-                  'Version History',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary),
-                ),
+                title: Text('Version History',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
                 onTap: () {
                   Navigator.pop(context);
                   VersionHistorySheet.show(context, widget.entry);
                 },
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
+              // ── Private share (new) ──
               ListTile(
-                leading: const Icon(Icons.share_outlined),
-                title: Text(
-                  'Share Memory',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary),
-                ),
+                leading: Icon(Icons.lock_outline_rounded, color: colors.accent),
+                title: Text('Share Privately',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                subtitle: Text('Requires your approval',
+                    style: GoogleFonts.manrope(fontSize: 11, color: colors.textMuted)),
                 onTap: () {
                   Navigator.pop(context);
-                  _shareEntry();
+                  _sharePrivately(colors);
+                },
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              // ── Who can see this ──
+              ListTile(
+                leading: Icon(Icons.people_outline_rounded, color: colors.textSecondary),
+                title: Text('Who can see this',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => ShareManagementScreen(
+                      memoryId: widget.entry.id,
+                      memoryTitle: _extractTitle(widget.entry),
+                    ),
+                  ));
                 },
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-                title: Text(
-                  'Delete Memory',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.error),
-                ),
+                title: Text('Delete Memory',
+                    style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(context);
                   _confirmDelete(colors);
@@ -916,6 +1040,54 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _sharePrivately(AppPalette colors) async {
+    final entry = widget.entry;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: colors.accent),
+              const SizedBox(height: 16),
+              Text('Creating share link…',
+                  style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final share = await ref.read(shareActionsProvider.notifier).createShare(entry.id);
+
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss loading
+
+    if (share == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not create share link', style: GoogleFonts.manrope(color: Colors.white)),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
+
+    final link = 'https://deardays.app/share/${share.token}';
+    final title = _extractTitle(entry);
+
+    await Share.share(
+      "✨ I'd like to share \"$title\" with you on DearDays.\n\nTap to view: $link",
+      subject: 'A private memory from DearDays',
     );
   }
 
@@ -956,12 +1128,35 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Returns true if the text looks like base64-encoded/encrypted data
+  bool _looksEncrypted(String text) {
+    final t = text.replaceAll('\n', '').trim();
+    if (t.length < 16) return false;
+    // Encrypted content has no spaces and only base64 characters
+    return !t.contains(' ') && RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(t);
+  }
+
   String _extractTitle(JournalEntry entry) {
-    final lines = entry.content.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    // Prefer raw transcript (decrypted original), then polished narrative
+    final candidates = [
+      entry.rawContent,
+      entry.polishedContent,
+      _looksEncrypted(entry.content) ? null : entry.content,
+    ].whereType<String>().where((s) => s.trim().isNotEmpty).toList();
+
+    if (candidates.isEmpty) {
+      // All content is encrypted — show a meaningful fallback by type
+      if (entry.hasVoice) return 'Voice Memory';
+      if (entry.hasPhoto) return 'Photo Memory';
+      return 'Untitled Memory';
+    }
+
+    final text = candidates.first;
+    final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
     if (lines.isEmpty) return 'Untitled Memory';
     final first = lines.first.trim();
     if (first.length < 80 && lines.length > 1) return first;
-    return entry.content.length > 60 ? '${entry.content.substring(0, 60)}...' : entry.content;
+    return first.length > 60 ? '${first.substring(0, 60)}...' : first;
   }
 
   String _moodLabel(String mood) {

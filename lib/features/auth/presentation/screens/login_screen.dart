@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/core/utils/password_validator.dart';
@@ -245,152 +247,182 @@ class _LoginScreenState extends State<LoginScreen>
     final colors = AppColors.of(context);
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Gradient background
-          _GradientBackground(colors: colors),
-
-          // Content
-          SafeArea(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                final offsetAnimation = Tween<Offset>(
-                  begin: const Offset(1, 0),
-                  end: Offset.zero,
-                ).animate(animation);
-                return FadeTransition(
-                  opacity: animation,
-                  child:
-                      SlideTransition(position: offsetAnimation, child: child),
-                );
-              },
-              child: _showEmailForm
-                  ? _buildEmailStep(key: const ValueKey('email'))
-                  : _buildSocialStep(key: const ValueKey('social')),
-            ),
-          ),
-        ],
+      backgroundColor: colors.bg,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final offset = Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: offset, child: child),
+          );
+        },
+        child: _showEmailForm
+            ? Stack(
+                key: const ValueKey('email'),
+                children: [
+                  _GradientBackground(colors: colors),
+                  SafeArea(child: _buildEmailStep()),
+                ],
+              )
+            : _buildSocialStep(key: const ValueKey('social')),
       ),
     );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Step 1: Social login + branding (or returning-user hero)
+  // Step 1: Full-bleed hero + bottom card
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildSocialStep({Key? key}) {
     final colors = AppColors.of(context);
+    final size = MediaQuery.of(context).size;
+    final heroHeight = size.height * 0.52;
 
-    return SingleChildScrollView(
+    return SizedBox.expand(
       key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          const SizedBox(height: 48),
-
-          // ── Animated logo ──
-          Center(
-            child: Image.asset(
-              'assets/images/logo.png',
-              width: 88,
-              height: 88,
-            ),
-          )
-              .animate()
-              .fadeIn(duration: 600.ms, curve: Curves.easeOut)
-              .scale(
-                begin: const Offset(0.7, 0.7),
-                end: const Offset(1, 1),
-                duration: 700.ms,
-                curve: Curves.easeOutBack,
-              ),
-          const SizedBox(height: 20),
-
-          // ── App name ──
-          Center(
-            child: Text(
-              'DearDays',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: colors.textPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ).animate().fadeIn(delay: 200.ms, duration: 500.ms).slideY(
-                begin: 0.15,
-                end: 0,
-                delay: 200.ms,
-                duration: 500.ms,
-                curve: Curves.easeOut,
-              ),
-          const SizedBox(height: 8),
-
-          // ── Tagline ──
-          Center(
-            child: Text(
-              'Your life, your story.',
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontStyle: FontStyle.italic,
-                color: colors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-          ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
-
-          const SizedBox(height: 40),
-
-          // ── Returning-user quick-unlock hero ──
-          if (_isReturningUser) ...[
-            _buildQuickUnlockHero(colors),
-            const SizedBox(height: 24),
-            _buildDivider(colors, 'OR SIGN IN WITH'),
-            const SizedBox(height: 20),
-          ],
-
-          // ── Social login buttons ──
-          _buildSocialButtons(colors),
-
-          const SizedBox(height: 24),
-
-          // ── Trust signals ──
-          _buildTrustBadges(colors),
-
-          const SizedBox(height: 20),
-
-          // ── Terms ──
-          Center(
-            child: Text(
-              'By continuing, you agree to our Terms of\nService and Privacy Policy.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                color: colors.textMuted,
-                height: 1.5,
-              ),
-            ),
+          // ── Hero gradient background ──────────────────────────────────
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: heroHeight,
+            child: _LoginHeroBg(),
           ),
 
-          if (_isLoading) ...[
-            const SizedBox(height: 24),
-            Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: colors.accent,
+          // ── Full scroll content ───────────────────────────────────────
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                // Hero section — logo + app name
+                SizedBox(
+                  height: heroHeight,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const DdLogoWhite(size: 64)
+                            .animate()
+                            .fadeIn(duration: 700.ms, curve: Curves.easeOut)
+                            .scale(
+                              begin: const Offset(0.7, 0.7),
+                              end: const Offset(1, 1),
+                              duration: 700.ms,
+                              curve: Curves.easeOutBack,
+                            ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'DearDays',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 38,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ).animate().fadeIn(delay: 200.ms, duration: 500.ms).slideY(
+                              begin: 0.12,
+                              end: 0,
+                              delay: 200.ms,
+                              duration: 500.ms,
+                              curve: Curves.easeOut,
+                            ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Your life, your story.',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.white.withAlpha(210),
+                            height: 1.5,
+                          ),
+                        ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
 
-          const SizedBox(height: 40),
+                // ── Bottom card — overlaps hero by 28px so rounded corners show ──
+                Transform.translate(
+                  offset: const Offset(0, -28),
+                  child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: colors.bg,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(32),
+                      topRight: Radius.circular(32),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(18),
+                        blurRadius: 24,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.fromLTRB(28, 32, 28, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Returning-user quick-unlock
+                      if (_isReturningUser) ...[
+                        _buildQuickUnlockHero(colors),
+                        const SizedBox(height: 24),
+                        _buildDivider(colors, 'OR SIGN IN WITH'),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // Social buttons
+                      _buildSocialButtons(colors),
+
+                      const SizedBox(height: 24),
+
+                      // Trust badges
+                      _buildTrustBadges(colors),
+
+                      const SizedBox(height: 20),
+
+                      // Terms
+                      Center(
+                        child: Text(
+                          'By continuing, you agree to our Terms of\nService and Privacy Policy.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            color: colors.textMuted,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+
+                      if (_isLoading) ...[
+                        const SizedBox(height: 24),
+                        Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: colors.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                ), // Transform.translate
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -609,32 +641,74 @@ class _LoginScreenState extends State<LoginScreen>
 
     return SingleChildScrollView(
       key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 12),
-
-          // Back button
-          Align(
-            alignment: Alignment.centerLeft,
-            child: GestureDetector(
-              onTap: _isLoading
-                  ? null
-                  : () => setState(() => _showEmailForm = false),
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.card,
-                  border: Border.all(color: colors.border),
+          // ── Mini-hero strip ──────────────────────────────────────────────
+          Stack(
+            children: [
+              // Gradient strip
+              Container(
+                width: double.infinity,
+                height: 130,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+                  ),
                 ),
-                child: Icon(Icons.arrow_back_rounded,
-                    size: 20, color: colors.textPrimary),
+                child: SafeArea(
+                  bottom: false,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const DdLogoWhite(size: 36),
+                      const SizedBox(height: 6),
+                      Text(
+                        _isSignUp ? 'Start your journey' : 'Welcome back',
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withAlpha(220),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+              // Back button — top-left over strip
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 12),
+                  child: GestureDetector(
+                    onTap: _isLoading
+                        ? null
+                        : () => setState(() => _showEmailForm = false),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withAlpha(30),
+                        border: Border.all(color: Colors.white.withAlpha(60)),
+                      ),
+                      child: const Icon(Icons.arrow_back_rounded,
+                          size: 18, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
+
+          // ── Rest of form ─────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
           const SizedBox(height: 24),
 
           // Heading
@@ -935,7 +1009,10 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
           ),
-          const SizedBox(height: 40),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
         ],
       ),
     );
@@ -989,7 +1066,85 @@ class _LoginScreenState extends State<LoginScreen>
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Gradient Background
+// Login Hero Background (indigo → pink, animated orbs)
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _LoginHeroBg extends StatefulWidget {
+  @override
+  State<_LoginHeroBg> createState() => _LoginHeroBgState();
+}
+
+class _LoginHeroBgState extends State<_LoginHeroBg>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 7),
+    )..repeat(reverse: true);
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+          ),
+        ),
+        child: CustomPaint(
+          painter: _LoginOrbsPainter(t: _anim.value),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginOrbsPainter extends CustomPainter {
+  final double t;
+  _LoginOrbsPainter({required this.t});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _orb(canvas, Offset(size.width * (0.82 + math.sin(t * math.pi) * 0.05),
+        size.height * (0.15 + math.cos(t * math.pi) * 0.06)),
+        size.width * 0.46);
+    _orb(canvas, Offset(size.width * (0.1 + math.cos(t * math.pi) * 0.04),
+        size.height * (0.7 + math.sin(t * math.pi) * 0.05)),
+        size.width * 0.32);
+    _orb(canvas, Offset(size.width * 0.5, size.height * 0.05),
+        size.width * 0.18);
+  }
+
+  void _orb(Canvas canvas, Offset center, double radius) {
+    final c = Colors.white.withAlpha(22);
+    canvas.drawCircle(center, radius,
+        Paint()..shader = RadialGradient(colors: [c, c.withAlpha(0)])
+            .createShader(Rect.fromCircle(center: center, radius: radius)));
+  }
+
+  @override
+  bool shouldRepaint(_LoginOrbsPainter old) => old.t != t;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Gradient Background (email step — subtle)
 // ═════════════════════════════════════════════════════════════════════════════
 
 class _GradientBackground extends StatelessWidget {

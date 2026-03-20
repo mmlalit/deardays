@@ -50,8 +50,12 @@ import 'package:deardays/features/onboarding/presentation/screens/onboarding_scr
 import 'package:deardays/core/providers/subscription_providers.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/entry_media.dart';
+import 'package:deardays/features/journal/data/models/chapter.dart';
 
 import '../helpers/mock_providers.dart';
+
+final _now = DateTime.now();
 
 // ─── Mock data for new golden tests ─────────────────────────────────────────
 
@@ -366,7 +370,7 @@ void main() {
         const TextEntryScreen(),
         overrides: [
           ...authenticatedOverrides(),
-          writingPromptProvider.overrideWith((ref) async => 'What made today special?'),
+          writingPromptProvider.overrideWith((ref) => 'What made today special?'),
         ],
       ));
       await _settle(tester);
@@ -591,6 +595,302 @@ void main() {
       await expectLater(
         find.byType(OnboardingScreen),
         matchesGoldenFile('goldens/onboarding_screen_light.png'),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Bug-fix regression goldens — photo display, time display, post-save flow
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Timeline with entryTime (time display bug regression) ─────────────────
+
+  group('Golden — TimelineScreen with entryTime', () {
+    testWidgets('shows correct time, not 00:00', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final entryWithTime = mockEntry.copyWith(
+        entryTime: const TimeOfDay(hour: 19, minute: 49),
+        content: 'Evening walk in the park\n\nThe sunset was beautiful.',
+        mood: 'great',
+      );
+
+      await tester.pumpWidget(_app(
+        const TimelineScreen(),
+        overrides: authenticatedOverrides(entries: [entryWithTime]),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(TimelineScreen),
+        matchesGoldenFile('goldens/timeline_screen_with_time.png'),
+      );
+    });
+
+    testWidgets('multiple entries with different times', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final morningEntry = mockEntry.copyWith(
+        id: 'entry-morning',
+        entryTime: const TimeOfDay(hour: 7, minute: 30),
+        content: 'Morning coffee and journaling\n\nA peaceful start.',
+        mood: 'good',
+        entryDate: DateTime(2026, 3, 14),
+      );
+      final eveningEntry = mockEntry.copyWith(
+        id: 'entry-evening',
+        entryTime: const TimeOfDay(hour: 21, minute: 15),
+        content: 'Evening reflection\n\nGrateful for today.',
+        mood: 'great',
+        entryDate: DateTime(2026, 3, 14),
+      );
+
+      await tester.pumpWidget(_app(
+        const TimelineScreen(),
+        overrides: authenticatedOverrides(entries: [morningEntry, eveningEntry]),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(TimelineScreen),
+        matchesGoldenFile('goldens/timeline_screen_multiple_times.png'),
+      );
+    });
+  });
+
+  // ── Timeline with photo media (signed URL / FutureBuilder regression) ─────
+
+  group('Golden — TimelineScreen with photo media', () {
+    testWidgets('entry with storage-path photo shows FutureBuilder state', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final photoEntry = mockEntry.copyWith(
+        hasPhoto: true,
+        entryTime: const TimeOfDay(hour: 14, minute: 0),
+        content: 'Trip to Bali\n\nAmazing scenery and food.',
+        media: [
+          EntryMedia(
+            id: 'media-1',
+            entryId: 'entry-id',
+            userId: 'test-user-id',
+            mediaType: 'photo',
+            storagePath: 'test-user-id/entry-id/photo.jpg',
+            createdAt: _now,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_app(
+        const TimelineScreen(),
+        overrides: authenticatedOverrides(entries: [photoEntry]),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(TimelineScreen),
+        matchesGoldenFile('goldens/timeline_screen_with_photo.png'),
+      );
+    });
+
+    testWidgets('entry with HTTP URL photo', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final httpPhotoEntry = mockEntry.copyWith(
+        hasPhoto: true,
+        entryTime: const TimeOfDay(hour: 10, minute: 30),
+        content: 'Beach day\n\nSun and sand.',
+        media: [
+          EntryMedia(
+            id: 'media-2',
+            entryId: 'entry-id',
+            userId: 'test-user-id',
+            mediaType: 'photo',
+            storagePath: 'https://example.com/photo.jpg',
+            createdAt: _now,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_app(
+        const TimelineScreen(),
+        overrides: authenticatedOverrides(entries: [httpPhotoEntry]),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(TimelineScreen),
+        matchesGoldenFile('goldens/timeline_screen_with_http_photo.png'),
+      );
+    });
+  });
+
+  // ── Home Screen with photo entries (signed URL regression) ────────────────
+
+  group('Golden — HomeScreen with photo entries', () {
+    testWidgets('entry with storage-path photo', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final photoEntry = mockEntry.copyWith(
+        hasPhoto: true,
+        entryTime: const TimeOfDay(hour: 16, minute: 45),
+        content: 'Garden photos\n\nThe roses are blooming.',
+        media: [
+          EntryMedia(
+            id: 'media-home-1',
+            entryId: 'entry-id',
+            userId: 'test-user-id',
+            mediaType: 'photo',
+            storagePath: 'test-user-id/entry-id/garden.jpg',
+            createdAt: _now,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(_app(
+        const HomeScreen(),
+        overrides: authenticatedOverrides(
+          entries: [photoEntry],
+          todayEntry: photoEntry,
+          profile: mockProfile,
+          streak: mockStreak,
+        ),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(HomeScreen),
+        matchesGoldenFile('goldens/home_screen_with_photo.png'),
+      );
+    });
+
+    testWidgets('multiple entries with mixed media', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final photoEntry = mockEntry.copyWith(
+        id: 'entry-photo',
+        hasPhoto: true,
+        entryTime: const TimeOfDay(hour: 9, minute: 0),
+        content: 'Morning hike\n\nGreat views from the summit.',
+        media: [
+          EntryMedia(
+            id: 'media-mix-1',
+            entryId: 'entry-photo',
+            userId: 'test-user-id',
+            mediaType: 'photo',
+            storagePath: 'test-user-id/entry-photo/hike.jpg',
+            createdAt: _now,
+          ),
+        ],
+      );
+      final textEntry = mockEntry.copyWith(
+        id: 'entry-text',
+        entryTime: const TimeOfDay(hour: 20, minute: 0),
+        content: 'Quiet evening reading\n\nFinished a good book.',
+        mood: 'good',
+      );
+
+      await tester.pumpWidget(_app(
+        const HomeScreen(),
+        overrides: authenticatedOverrides(
+          entries: [photoEntry, textEntry],
+          todayEntry: photoEntry,
+          profile: mockProfile,
+          streak: mockStreak,
+        ),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(HomeScreen),
+        matchesGoldenFile('goldens/home_screen_mixed_media.png'),
+      );
+    });
+  });
+
+  // ── Post Save Screen with chapters (post-save flow regression) ────────────
+
+  group('Golden — PostSaveScreen with chapters', () {
+    testWidgets('chapter selection step with chapters', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final chapters = [
+        Chapter(
+          id: 'ch-1',
+          userId: 'test-user-id',
+          title: 'My Story 2026',
+          chapterNumber: 1,
+          startDate: DateTime(2026, 1, 1),
+          createdAt: _now,
+        ),
+        Chapter(
+          id: 'ch-2',
+          userId: 'test-user-id',
+          title: 'Travel Memories',
+          chapterNumber: 2,
+          startDate: DateTime(2025, 6, 1),
+          createdAt: _now,
+        ),
+      ];
+
+      await tester.pumpWidget(_app(
+        const PostSaveScreen(data: _mockPostSaveData),
+        overrides: [
+          ...authenticatedOverrides(),
+          chaptersProvider.overrideWith((ref) async => chapters),
+        ],
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(PostSaveScreen),
+        matchesGoldenFile('goldens/post_save_screen_with_chapters.png'),
+      );
+    });
+  });
+
+  // ── Explore Screen with photo entries (signed URL regression) ─────────────
+
+  group('Golden — ExploreScreen with entries', () {
+    testWidgets('entries with photos and times', (tester) async {
+      _setView(tester, _goldenSize);
+
+      final entries = [
+        mockEntry.copyWith(
+          id: 'explore-1',
+          hasPhoto: true,
+          entryTime: const TimeOfDay(hour: 8, minute: 30),
+          content: 'Trip to Bali\n\nIncredible temples and beaches.',
+          mood: 'great',
+          media: [
+            EntryMedia(
+              id: 'media-explore-1',
+              entryId: 'explore-1',
+              userId: 'test-user-id',
+              mediaType: 'photo',
+              storagePath: 'test-user-id/explore-1/bali.jpg',
+              createdAt: _now,
+            ),
+          ],
+        ),
+        mockEntry.copyWith(
+          id: 'explore-2',
+          entryTime: const TimeOfDay(hour: 19, minute: 0),
+          content: 'Birthday celebration\n\nSurprise party was amazing!',
+          mood: 'great',
+          isMilestone: true,
+          milestoneType: 'birthday',
+        ),
+      ];
+
+      await tester.pumpWidget(_app(
+        const ExploreScreen(),
+        overrides: authenticatedOverrides(entries: entries),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ExploreScreen),
+        matchesGoldenFile('goldens/explore_screen_with_photos.png'),
       );
     });
   });
