@@ -316,7 +316,14 @@ class AppRouter {
       ),
       GoRoute(
         path: '/story',
-        builder: (context, state) => const StoryViewerScreen(),
+        builder: (context, state) {
+          final p = state.uri.queryParameters['period'] ?? 'weekly';
+          final period = ReflectionPeriod.values.firstWhere(
+            (e) => e.name == p,
+            orElse: () => ReflectionPeriod.weekly,
+          );
+          return StoryViewerScreen(period: period);
+        },
       ),
       GoRoute(
         path: '/chapter/:id',

@@ -4,6 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/widgets/dd_logo.dart';
 
+// ── Warm cream background ─────────────────────────────────────────────────────
+const _kPaper = Color(0xFFF9F7F3);
+const _kTextDark = Color(0xFF111C2D);
+const _kTextMuted = Color(0xFF64748B);
+const _kDotInactive = Color(0xFFCBD5E1);
+
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onComplete;
 
@@ -23,24 +29,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   static const _pages = [
     _PageData(
+      photo: 'assets/images/onboarding/ob1_speak.jpg',
       gradientColors: [Color(0xFFFF9A6C), Color(0xFFFF6B9D)],
       icon: Icons.mic_rounded,
       title: 'Speak your day',
       subtitle: 'Just talk. DearDays turns your words into beautiful, lasting stories.',
     ),
     _PageData(
+      photo: 'assets/images/onboarding/ob2_journal.jpg',
       gradientColors: [Color(0xFF2DD4BF), Color(0xFF3B82F6)],
       icon: Icons.menu_book_rounded,
       title: 'Your life, one page at a time',
       subtitle: 'Every entry becomes a chapter in your own personal book.',
     ),
     _PageData(
+      photo: 'assets/images/onboarding/ob3_private.jpg',
       gradientColors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
       icon: Icons.lock_rounded,
       title: 'Private by design',
       subtitle: 'End-to-end encrypted. Your story belongs to you and no one else.',
     ),
     _PageData(
+      photo: 'assets/images/onboarding/ob4_memory.jpg',
       gradientColors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
       icon: Icons.auto_awesome_rounded,
       title: 'Record your first memory',
@@ -81,133 +91,167 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     final page = _pages[_currentPage];
-    final size = MediaQuery.of(context).size;
-    final heroHeight = size.height * 0.58;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _kPaper,
       body: Stack(
         children: [
-          // ── Full-bleed gradient hero ─────────────────────────────────────
-          AnimatedBuilder(
-            animation: _bgAnimation,
-            builder: (_, __) => Positioned(
-              top: 0, left: 0, right: 0,
-              height: heroHeight,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.easeInOut,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: page.gradientColors,
-                  ),
-                ),
-                child: _DecorativeOrbs(animation: _bgAnimation, colors: page.gradientColors),
-              ),
-            ),
-          ),
-
-          // ── Skip button (white, on gradient) ────────────────────────────
-          SafeArea(
-            bottom: false,
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8, right: 20),
-                child: TextButton(
-                  onPressed: widget.onComplete,
-                  style: TextButton.styleFrom(foregroundColor: Colors.white.withAlpha(200)),
-                  child: Text('Skip', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ),
-          ),
-
           // ── Main content column ──────────────────────────────────────────
           Column(
             children: [
-              // Hero emoji section — swipeable
+              // ── Photo hero — takes top 58% ──────────────────────────────
               Expanded(
                 flex: 10,
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: _pages.length,
-                  onPageChanged: (i) => setState(() => _currentPage = i),
-                  itemBuilder: (_, i) => _HeroContent(page: _pages[i], isFirst: i == 0),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Photo — animates between pages via AnimatedSwitcher
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      child: Image.asset(
+                        page.photo,
+                        key: ValueKey(page.photo),
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    ),
+
+                    // Dark gradient overlay — bottom of photo for legibility
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: [0.4, 1.0],
+                          colors: [Colors.transparent, Color(0xCC000000)],
+                        ),
+                      ),
+                    ),
+
+                    // Decorative orbs (subtle, over photo)
+                    AnimatedBuilder(
+                      animation: _bgAnimation,
+                      builder: (_, __) => CustomPaint(
+                        painter: _OrbsPainter(
+                          t: _bgAnimation.value,
+                          colors: page.gradientColors,
+                        ),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+
+                    // Page icon — bottom center of hero
+                    Positioned(
+                      bottom: 28,
+                      left: 0,
+                      right: 0,
+                      child: _HeroIcon(page: page),
+                    ),
+                  ],
                 ),
               ),
 
-              // ── White card — overlaps gradient by 28px ───────────────────
-              Transform.translate(
-                offset: const Offset(0, -28),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(36),
-                      topRight: Radius.circular(36),
+              // ── Cream card — flush against photo ─────────────────────────
+              Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: _kPaper,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(32),
+                    topRight: Radius.circular(32),
+                  ),
+                ),
+                padding: EdgeInsets.fromLTRB(
+                  28, 28, 28, math.max(24.0, bottomPadding + 12),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title + subtitle
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _BottomText(
+                        key: ValueKey(_currentPage),
+                        page: _pages[_currentPage],
+                      ),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(14),
-                        blurRadius: 20,
-                        offset: const Offset(0, -4),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Title + subtitle
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: _BottomText(
-                          key: ValueKey(_currentPage),
-                          page: _pages[_currentPage],
+
+                    const SizedBox(height: 24),
+
+                    // Footer: Skip · Dots · Next
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Skip — bottom left
+                        TextButton(
+                          onPressed: widget.onComplete,
+                          style: TextButton.styleFrom(
+                            foregroundColor: _kTextMuted,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
+                          child: Text(
+                            'Skip',
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _kTextMuted,
+                            ),
+                          ),
                         ),
-                      ),
 
-                      const SizedBox(height: 20),
+                        // Progress dots — center
+                        Row(
+                          children: List.generate(_pages.length, (i) {
+                            final active = i == _currentPage;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: active ? 24 : 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                gradient: active
+                                    ? LinearGradient(colors: page.gradientColors)
+                                    : null,
+                                color: active ? null : _kDotInactive,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            );
+                          }),
+                        ),
 
-                      // Dots + Next button
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: List.generate(_pages.length, (i) {
-                              final active = i == _currentPage;
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 250),
-                                margin: const EdgeInsets.only(right: 6),
-                                width: active ? 24 : 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  gradient: active
-                                      ? LinearGradient(colors: _pages[_currentPage].gradientColors)
-                                      : null,
-                                  color: active ? null : const Color(0xFFE2E8F0),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              );
-                            }),
-                          ),
-                          _NextButton(
-                            isLast: _isLastPage,
-                            gradientColors: page.gradientColors,
-                            onTap: _onNext,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
+                        // Next / Get Started — circular button
+                        _NextButton(
+                          isLast: _isLastPage,
+                          gradientColors: page.gradientColors,
+                          onTap: _onNext,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+
+          // ── Centered brand header (over photo) ───────────────────────────
+          SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: 60,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(40),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: const DdLogoWhite(size: 28),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -215,18 +259,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 }
 
-// ── Hero content (emoji + optional logo) ─────────────────────────────────────
+// ── Hero icon (bottom of photo) ───────────────────────────────────────────────
 
-class _HeroContent extends StatefulWidget {
+class _HeroIcon extends StatefulWidget {
   final _PageData page;
-  final bool isFirst;
-  const _HeroContent({required this.page, required this.isFirst});
+  const _HeroIcon({required this.page});
 
   @override
-  State<_HeroContent> createState() => _HeroContentState();
+  State<_HeroIcon> createState() => _HeroIconState();
 }
 
-class _HeroContentState extends State<_HeroContent>
+class _HeroIconState extends State<_HeroIcon>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _fade;
@@ -235,9 +278,9 @@ class _HeroContentState extends State<_HeroContent>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
+    _slide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
     _ctrl.forward();
   }
@@ -254,24 +297,27 @@ class _HeroContentState extends State<_HeroContent>
       opacity: _fade,
       child: SlideTransition(
         position: _slide,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (widget.isFirst) ...[
-              const DdLogoWhite(size: 56),
-              const SizedBox(height: 18),
-            ],
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withAlpha(35),
-                border: Border.all(color: Colors.white.withAlpha(90), width: 2),
+        child: Center(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: widget.page.gradientColors,
               ),
-              child: Icon(widget.page.icon, size: 46, color: Colors.white),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.page.gradientColors.last.withAlpha(100),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-          ],
+            child: Icon(widget.page.icon, size: 34, color: Colors.white),
+          ),
         ),
       ),
     );
@@ -293,10 +339,10 @@ class _BottomText extends StatelessWidget {
           page.title,
           textAlign: TextAlign.center,
           style: GoogleFonts.playfairDisplay(
-            fontSize: 30,
+            fontSize: 34,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF1E293B),
-            height: 1.25,
+            color: _kTextDark,
+            height: 1.2,
           ),
         ),
         const SizedBox(height: 10),
@@ -308,7 +354,7 @@ class _BottomText extends StatelessWidget {
           style: GoogleFonts.manrope(
             fontSize: 14,
             fontWeight: FontWeight.w400,
-            color: const Color(0xFF64748B),
+            color: _kTextMuted,
             height: 1.55,
           ),
         ),
@@ -317,7 +363,7 @@ class _BottomText extends StatelessWidget {
   }
 }
 
-// ── Next / Start button ───────────────────────────────────────────────────────
+// ── Next / Start button (circular) ───────────────────────────────────────────
 
 class _NextButton extends StatelessWidget {
   final bool isLast;
@@ -335,19 +381,19 @@ class _NextButton extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        height: 52,
-        padding: EdgeInsets.symmetric(horizontal: isLast ? 24 : 0),
-        width: isLast ? 148.0 : 52.0,
+        width: isLast ? 140.0 : 56.0,
+        height: 56,
+        padding: EdgeInsets.symmetric(horizontal: isLast ? 20 : 0),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: gradientColors,
           ),
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.last.withAlpha(70),
+              color: gradientColors.last.withAlpha(80),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -363,34 +409,14 @@ class _NextButton extends StatelessWidget {
                     color: Colors.white,
                   ),
                 )
-              : const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
+              : const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24),
         ),
       ),
     );
   }
 }
 
-// ── Decorative floating orbs in hero ─────────────────────────────────────────
-
-class _DecorativeOrbs extends StatelessWidget {
-  final Animation<double> animation;
-  final List<Color> colors;
-  const _DecorativeOrbs({required this.animation, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (_, __) {
-        final t = animation.value;
-        return CustomPaint(
-          painter: _OrbsPainter(t: t, colors: colors),
-          child: const SizedBox.expand(),
-        );
-      },
-    );
-  }
-}
+// ── Decorative floating orbs (subtle tint over photo) ────────────────────────
 
 class _OrbsPainter extends CustomPainter {
   final double t;
@@ -399,34 +425,23 @@ class _OrbsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Large soft orb — top right, drifts slowly
     _drawOrb(
       canvas,
       center: Offset(
-        size.width * (0.78 + math.sin(t * math.pi) * 0.06),
-        size.height * (0.18 + math.cos(t * math.pi) * 0.05),
+        size.width * (0.82 + math.sin(t * math.pi) * 0.06),
+        size.height * (0.15 + math.cos(t * math.pi) * 0.05),
       ),
-      radius: size.width * 0.44,
-      color: Colors.white.withAlpha(28),
+      radius: size.width * 0.38,
+      color: colors.first.withAlpha(22),
     );
-
-    // Small orb — bottom left
     _drawOrb(
       canvas,
       center: Offset(
-        size.width * (0.12 + math.cos(t * math.pi) * 0.04),
-        size.height * (0.72 + math.sin(t * math.pi) * 0.06),
+        size.width * (0.1 + math.cos(t * math.pi) * 0.04),
+        size.height * (0.65 + math.sin(t * math.pi) * 0.06),
       ),
-      radius: size.width * 0.28,
-      color: Colors.white.withAlpha(20),
-    );
-
-    // Tiny accent orb — top left
-    _drawOrb(
-      canvas,
-      center: Offset(size.width * 0.08, size.height * 0.14),
-      radius: size.width * 0.14,
-      color: Colors.white.withAlpha(15),
+      radius: size.width * 0.26,
+      color: colors.last.withAlpha(18),
     );
   }
 
@@ -445,12 +460,14 @@ class _OrbsPainter extends CustomPainter {
 // ── Data model ────────────────────────────────────────────────────────────────
 
 class _PageData {
+  final String photo;
   final List<Color> gradientColors;
   final IconData icon;
   final String title;
   final String subtitle;
 
   const _PageData({
+    required this.photo,
     required this.gradientColors,
     required this.icon,
     required this.title,

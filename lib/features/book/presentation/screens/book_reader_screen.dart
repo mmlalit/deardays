@@ -358,7 +358,9 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                               style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: !_isDearDays ? Colors.white : textColor.withAlpha(110),
+                                color: !_isDearDays
+                                    ? (isDark ? Colors.black.withAlpha(200) : Colors.white)
+                                    : textColor.withAlpha(110),
                               ),
                             ),
                           ),
@@ -931,24 +933,25 @@ class _TocPage extends StatelessWidget {
       color: bgColor,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(36, 48, 36, 32),
+          padding: const EdgeInsets.fromLTRB(36, 48, 36, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Contents',
                 style: GoogleFonts.newsreader(
-                  fontSize: 22,
+                  fontSize: 26,
                   fontWeight: FontWeight.w600,
                   fontStyle: FontStyle.italic,
                   color: _titleColor,
                 ),
               ),
-              const SizedBox(height: 6),
-              Container(width: 40, height: 2, color: _titleColor.withAlpha(100)),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+              Container(width: 48, height: 2, color: _titleColor.withAlpha(120)),
+              const SizedBox(height: 28),
               Expanded(
                 child: ListView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: page.entries.length,
                   itemBuilder: (context, i) => _TocRow(
                     entry: page.entries[i],
@@ -956,37 +959,45 @@ class _TocPage extends StatelessWidget {
                   ),
                 ),
               ),
+              // Separator above CTA
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Container(height: 1, color: _titleColor.withAlpha(20)),
+              ),
               // Start Reading — jumps to first content page (entries[1])
-              if (page.entries.length > 1) ...[
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () => onTap(page.entries[1].pageIndex),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    decoration: BoxDecoration(
-                      color: _titleColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Start Reading',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+              if (page.entries.length > 1)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => onTap(page.entries[1].pageIndex),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        color: _titleColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Start Reading',
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-              ],
+              const SizedBox(height: 16),
               Center(
                 child: Text(
                   'ii',
@@ -1018,101 +1029,141 @@ class _TocRow extends StatelessWidget {
     return _buildWeekRow(context);
   }
 
-  // ── Year header: "── 2026  ·  50 memories ──────────────"
+  // ── Year header: "2026  ·  50 memories ──────────────"
   Widget _buildYearHeader(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 16, bottom: 10),
-        child: Row(
-          children: [
-            Container(width: 16, height: 1, color: _titleColor.withAlpha(60)),
-            const SizedBox(width: 8),
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 12),
+      child: Row(
+        children: [
+          Text(
+            entry.label,
+            style: GoogleFonts.newsreader(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: _titleColor,
+            ),
+          ),
+          if (entry.meta != null) ...[
             Text(
-              entry.label,
-              style: GoogleFonts.newsreader(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: _titleColor,
+              '  ·  ',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: _titleColor.withAlpha(80),
               ),
             ),
-            if (entry.meta != null) ...[
-              Text(
-                '  ·  ',
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  color: _titleColor.withAlpha(80),
-                ),
+            Text(
+              entry.meta!,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: _titleColor.withAlpha(120),
               ),
-              Text(
-                entry.meta!,
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: _titleColor.withAlpha(120),
-                ),
-              ),
-            ],
-            const SizedBox(width: 8),
-            Expanded(
-              child: Container(height: 1, color: _titleColor.withAlpha(30)),
             ),
           ],
-        ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(height: 1, color: _titleColor.withAlpha(35)),
+          ),
+        ],
       ),
     );
   }
 
-  // ── Week row: "  MAR 1–7  ───────  4" (indented)
+  // ── Week row: "  MAR 1–7 ············· 4" (indented, with dotted leader)
   Widget _buildWeekRow(BuildContext context) {
     final accent = AppColors.of(context).accent;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 0, 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                entry.label,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        splashColor: _titleColor.withAlpha(18),
+        highlightColor: _titleColor.withAlpha(10),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 0, 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Label + memory count stacked
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    entry.label,
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.readingText.withAlpha(200),
+                    ),
+                  ),
+                  if (entry.meta != null)
+                    Text(
+                      entry.meta!,
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        color: AppColors.readingText.withAlpha(100),
+                      ),
+                    ),
+                ],
+              ),
+              // Dotted leader fills remaining space
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _DottedLeader(color: AppColors.readingText.withAlpha(60)),
+                ),
+              ),
+              // Page number — unified accent color
+              Text(
+                '${entry.pageIndex + 1}',
                 style: GoogleFonts.manrope(
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.readingText.withAlpha(180),
+                  color: accent,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-            if (entry.meta != null)
-              Text(
-                entry.meta!,
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  color: AppColors.readingText.withAlpha(80),
-                ),
-              ),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: SizedBox(
-                width: 28,
-                child: Divider(color: AppColors.readingText.withAlpha(25), thickness: 1),
-              ),
-            ),
-            Text(
-              '${entry.pageIndex + 1}',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                color: accent.withAlpha(180),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Paints a row of evenly-spaced dots to fill available width (TOC leader).
+class _DottedLeader extends StatelessWidget {
+  final Color color;
+  const _DottedLeader({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(double.infinity, 12),
+      painter: _DottedLeaderPainter(color: color),
+    );
+  }
+}
+
+class _DottedLeaderPainter extends CustomPainter {
+  final Color color;
+  const _DottedLeaderPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+    const dotSpacing = 5.0;
+    final y = size.height / 2;
+    for (double x = 0; x < size.width; x += dotSpacing) {
+      canvas.drawCircle(Offset(x, y), 0.8, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DottedLeaderPainter old) => old.color != color;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1549,19 +1600,15 @@ class _WeekOpenerPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Container(width: 20, height: 1, color: _gold.withAlpha(100)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'WEEK',
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 3,
-                        color: _gold.withAlpha(160),
-                      ),
+                  Text(
+                    'WEEK',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 3,
+                      color: _gold.withAlpha(160),
                     ),
-                  ]),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     page.weekRange,
@@ -1578,7 +1625,7 @@ class _WeekOpenerPage extends ConsumerWidget {
                     style: GoogleFonts.manrope(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: _text.withAlpha(100),
+                      color: _text.withAlpha(160),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -1589,7 +1636,7 @@ class _WeekOpenerPage extends ConsumerWidget {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 28),
               height: 1,
-              color: _gold.withAlpha(40),
+              color: _gold.withAlpha(80),
             ),
             const SizedBox(height: 16),
 
@@ -1773,7 +1820,7 @@ class _AsymmetricGrid extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 3),
+        const SizedBox(width: 8),
         Expanded(
           flex: 4,
           child: paths.length > 1
@@ -1810,7 +1857,7 @@ class _TriptychGrid extends StatelessWidget {
       children: List.generate(count, (i) {
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(left: i == 0 ? 0 : 3),
+            padding: EdgeInsets.only(left: i == 0 ? 0 : 8),
             child: _BookPhotoCell(
               storagePath: paths[i],
               borderRadius: BorderRadius.only(
@@ -1848,7 +1895,7 @@ class _MosaicGrid extends StatelessWidget {
           ),
         ),
         if (paths.length > 1) ...[
-          const SizedBox(height: 3),
+          const SizedBox(height: 8),
           Expanded(
             flex: 3,
             child: Row(
@@ -1861,7 +1908,7 @@ class _MosaicGrid extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 3),
+                const SizedBox(width: 8),
                 Expanded(
                   child: paths.length > 2
                       ? _BookPhotoCell(
