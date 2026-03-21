@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 
 /// Local-first encrypted storage backed by Hive.
 ///
@@ -27,7 +28,6 @@ class LocalStorageService {
 
   static const String _hiveKeyAlias = 'deardays_hive_encryption_key';
   static const String _lastSyncKey = 'last_sync_time';
-  static const String _draftKey = 'current_draft';
 
   Box<String>? _entriesBox;
   Box<String>? _draftsBox;
@@ -161,23 +161,31 @@ class LocalStorageService {
   // Draft management
   // ---------------------------------------------------------------------------
 
-  /// Saves in-progress journal text so it can be recovered after an app crash
-  /// or backgrounding.
-  Future<void> cacheDraft(String text) async {
+  /// Upserts a draft (keyed by [draft.id]).
+  Future<void> saveDraft(DraftEntry draft) async {
     _ensureInitialized();
-    await _draftsBox!.put(_draftKey, text);
+    await _draftsBox!.put(draft.id, draft.toJsonString());
   }
 
-  /// Returns the most recently saved draft, or `null` if none exists.
-  Future<String?> getDraft() async {
+  /// Returns all drafts sorted newest-first.
+  Future<List<DraftEntry>> getDrafts() async {
     _ensureInitialized();
-    return _draftsBox!.get(_draftKey);
+    final drafts = <DraftEntry>[];
+    for (final raw in _draftsBox!.values) {
+      try {
+        drafts.add(DraftEntry.fromJsonString(raw));
+      } catch (e) {
+        if (kDebugMode) debugPrint('[LocalStorageService] Corrupt draft: $e');
+      }
+    }
+    drafts.sort((a, b) => b.savedAt.compareTo(a.savedAt));
+    return drafts;
   }
 
-  /// Clears any saved draft.
-  Future<void> clearDraft() async {
+  /// Deletes a single draft by [id].
+  Future<void> deleteDraft(String id) async {
     _ensureInitialized();
-    await _draftsBox!.delete(_draftKey);
+    await _draftsBox!.delete(id);
   }
 
   // ---------------------------------------------------------------------------

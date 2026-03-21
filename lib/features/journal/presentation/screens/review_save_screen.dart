@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -22,6 +23,7 @@ import 'package:deardays/features/journal/data/repositories/journal_repository.d
 import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/services/media/media_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/services/sync/sync_queue.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
 import 'package:deardays/services/notification/notification_service.dart';
@@ -120,6 +122,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // Shimmer animation
   late AnimationController _shimmerController;
 
+  /// Stable draft ID for this review session so repeated saves upsert.
+  final String _draftId = const Uuid().v4();
+  bool _submitted = false;
+
   @override
   void initState() {
     super.initState();
@@ -161,6 +167,31 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   /// Lightweight title generation used when full AI polish is not requested.
+  Future<void> _saveReviewDraftAndPop() async {
+    final draft = DraftEntry(
+      id: _draftId,
+      type: DraftType.review,
+      rawText: widget.data.rawText,
+      savedAt: DateTime.now(),
+      entryDate: DateTime.now(),
+      cleanedText: _cleanedText,
+      polishedText: _polishedText,
+      generatedTitle: _generatedTitle,
+      mood: _selectedMood,
+      locationName: _locationName,
+      attachedPhotoPath: _attachedPhotoPath,
+      isVoice: widget.data.isVoice,
+    );
+    await LocalStorageService.instance.saveDraft(draft);
+    ref.invalidate(draftsProvider);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteReviewDraft() async {
+    await LocalStorageService.instance.deleteDraft(_draftId);
+    ref.invalidate(draftsProvider);
+  }
+
   Future<void> _generateTitleOnly() async {
     final l10n = AppLocalizations.of(context);
     try {
@@ -448,6 +479,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           savedOffline: savedOffline,
         );
         ref.read(postSaveDataProvider.notifier).state = postSaveData;
+        _submitted = true;
+        unawaited(_deleteReviewDraft());
         context.go('/post-save');
       }
     } catch (e, stack) {
@@ -550,7 +583,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           child: Row(
             children: [
               GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
+                onTap: _saveReviewDraftAndPop,
                 child: SizedBox(
                   width: 40,
                   height: 40,
@@ -1623,12 +1656,43 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       setState(() => _locationName = null);
       return;
     }
+
+    // Show friendly pre-prompt before system dialog
+    final hasPermission = await _locationService.requestPermission();
+    if (!hasPermission) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Location access needed'),
+          content: const Text(
+            'DearDays uses your location to tag where memories happen. '
+            'Enable location in Settings to use this feature.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Not now'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Geolocator.openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     final position = await _locationService.getCurrentPosition();
     if (position == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Could not get location. Check permissions.'),
+            content: const Text('Could not get location. Try again.'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -85,16 +85,24 @@ class DearDaysApp extends ConsumerStatefulWidget {
 }
 
 class _DearDaysAppState extends ConsumerState<DearDaysApp> {
+  StreamSubscription<bool>? _connectivitySub;
+
   @override
   void initState() {
     super.initState();
-    // Wire ConnectivityService stream → connectivityProvider
-    ConnectivityService().onlineStatus.listen((online) {
-      ref.read(connectivityProvider.notifier).state = online;
-    });
     // Set initial value
     ref.read(connectivityProvider.notifier).state =
         ConnectivityService().isOnline;
+    // Wire ConnectivityService stream → connectivityProvider
+    _connectivitySub = ConnectivityService().onlineStatus.listen((online) {
+      if (mounted) ref.read(connectivityProvider.notifier).state = online;
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
   }
 
   @override

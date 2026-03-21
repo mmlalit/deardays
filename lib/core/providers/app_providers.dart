@@ -16,6 +16,7 @@ import 'package:deardays/features/journal/data/repositories/profile_repository.d
 import 'package:deardays/features/journal/data/repositories/reflection_cache_repository.dart';
 import 'package:deardays/features/journal/data/repositories/reflection_override_repository.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
@@ -41,6 +42,13 @@ export 'package:deardays/services/sync/sync_service.dart' show SyncStatus;
 // --- Post-Save Data (survives go_router refreshes) ---
 
 final postSaveDataProvider = StateProvider<PostSaveData?>((ref) => null);
+
+// --- Drafts ---
+
+/// Loads all saved drafts from local storage. Invalidate after any draft mutation.
+final draftsProvider = FutureProvider<List<DraftEntry>>((ref) async {
+  return LocalStorageService.instance.getDrafts();
+});
 
 // --- Sync & Connectivity ---
 

@@ -23,6 +23,8 @@ import 'package:deardays/features/timeline/presentation/screens/timeline_screen.
     show showMemoryContextMenu;
 import 'package:deardays/core/widgets/force_update_dialog.dart';
 import 'package:deardays/l10n/app_localizations.dart';
+import 'package:deardays/core/utils/photo_crop_helper.dart';
+import 'package:deardays/features/journal/presentation/widgets/draft_history_sheet.dart';
 
 String _cleanFirstName(String name) {
   final first = name.split(' ').first;
@@ -135,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                     // 2. Large Mic Button + 3. Write/Photo/Chat grouped
                     _buildMicButton(context, colors),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 20),
                     _buildWriteChatRow(context, colors),
                     const SizedBox(height: 24),
 
@@ -342,7 +344,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 90,
+              height: 110,
               width: double.infinity,
               child: photoMedia.isNotEmpty
                   ? _NetworkImage(
@@ -350,36 +352,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   : _GradientBanner(colors: colors, mood: entry.mood),
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     dateStr.toUpperCase(),
                     style: GoogleFonts.manrope(
-                      fontSize: 9,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: colors.accent,
-                      letterSpacing: 1.0,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     title,
                     style: GoogleFonts.newsreader(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
                       height: 1.3,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
                     excerpt,
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 13,
                       color: colors.textSecondary,
                       height: 1.5,
                     ),
@@ -526,6 +528,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         children: [
           const DdLogo(size: 28),
           const Spacer(),
+          _buildDraftHistoryIcon(context, colors),
           Semantics(
             label: 'Search',
             button: true,
@@ -542,6 +545,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           const AppAvatar(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDraftHistoryIcon(BuildContext context, AppPalette colors) {
+    final count = ref.watch(draftsProvider).valueOrNull?.length ?? 0;
+    return Semantics(
+      label: 'Drafts',
+      button: true,
+      child: GestureDetector(
+        onTap: () => showDraftHistorySheet(context, ref),
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(Icons.history_rounded, size: 22, color: colors.textSecondary),
+              if (count > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -565,8 +602,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         Text(
           '$greeting, $firstName',
           style: GoogleFonts.newsreader(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
             color: colors.textSecondary,
             height: 1.2,
             letterSpacing: -0.3,
@@ -604,8 +641,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 80,
-                height: 80,
+                width: 96,
+                height: 96,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -623,15 +660,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
                 child: const Icon(
                   Icons.mic_rounded,
-                  size: 36,
+                  size: 42,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 'Record a memory',
                 style: GoogleFonts.manrope(
-                  fontSize: 11,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: colors.accent,
                 ),
@@ -666,7 +703,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     if (photo != null && context.mounted) {
-      context.push('/photo-entry', extra: photo.path);
+      final cropped = await cropPhoto(photo.path);
+      final finalPath = cropped ?? photo.path;
+      if (context.mounted) {
+        context.push('/photo-entry', extra: finalPath);
+      }
     }
   }
 
@@ -772,11 +813,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         child: Column(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 76,
+              height: 76,
               decoration: BoxDecoration(
                 color: iconColor.withAlpha(18),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: iconColor.withAlpha(40)),
                 boxShadow: [
                   BoxShadow(
@@ -786,13 +827,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ],
               ),
-              child: Icon(icon, size: 24, color: iconColor),
+              child: Icon(icon, size: 32, color: iconColor),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
               style: GoogleFonts.manrope(
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: colors.textSecondary,
               ),
@@ -1065,7 +1106,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Stack(
               children: [
                 SizedBox(
-                  height: 160,
+                  height: 200,
                   width: double.infinity,
                   child: photoMedia.isNotEmpty
                       ? _NetworkImage(
@@ -1108,33 +1149,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   Text(
                     dateLabel.toUpperCase(),
                     style: GoogleFonts.manrope(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: colors.accent,
-                      letterSpacing: 1.0,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     title,
                     style: GoogleFonts.newsreader(
-                      fontSize: 18,
+                      fontSize: 22,
                       fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
                       height: 1.3,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     excerpt,
                     style: GoogleFonts.manrope(
-                      fontSize: 13,
+                      fontSize: 14,
                       color: colors.textSecondary,
                       height: 1.6,
                     ),
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],

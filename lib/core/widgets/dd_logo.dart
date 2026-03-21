@@ -1,65 +1,94 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// The DearDays "dd" logomark — two lowercase d's with an indigo→pink gradient.
+/// The DearDays sparkle logomark — a 4-pointed star with a purple→teal gradient.
 ///
-/// [DdLogo] — bare text mark, use inline or on coloured backgrounds.
-/// [DdLogoIcon] — rounded-square icon container (login screen, app icon).
-/// [DdLogoWhite] — white version for use on dark/gradient backgrounds.
+/// [DdLogo]          — coloured sparkle, use on light backgrounds.
+/// [DdLogoWhite]     — white sparkle, use on dark/gradient backgrounds.
+/// [DdWordmark]      — horizontal wordmark: sparkle + "DearDays" text.
+/// [DdWordmarkWhite] — white wordmark variant for dark/gradient backgrounds.
+/// [DdLogoIcon]      — rounded-square app icon container.
 
-const _kGradientColors = [Color(0xFF6366F1), Color(0xFFEC4899)];
+const _kGradientColors = [Color(0xFF7C3AED), Color(0xFF06B6D4)];
 
+class _SparklePainter extends CustomPainter {
+  final bool white;
+  const _SparklePainter({this.white = false});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final outerR = size.width * 0.5;
+    final innerR = size.width * 0.10;
+
+    // 4-pointed star via quadratic bezier curves
+    final path = Path()
+      ..moveTo(cx, cy - outerR)
+      ..quadraticBezierTo(cx + innerR, cy - innerR, cx + outerR, cy)
+      ..quadraticBezierTo(cx + innerR, cy + innerR, cx, cy + outerR)
+      ..quadraticBezierTo(cx - innerR, cy + innerR, cx - outerR, cy)
+      ..quadraticBezierTo(cx - innerR, cy - innerR, cx, cy - outerR)
+      ..close();
+
+    final paint = Paint()..style = PaintingStyle.fill;
+    if (white) {
+      paint.color = Colors.white;
+    } else {
+      paint.shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: _kGradientColors,
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    }
+    canvas.drawPath(path, paint);
+
+    // Centre dot (coloured version only)
+    if (!white) {
+      canvas.drawCircle(
+        Offset(cx, cy),
+        size.width * 0.08,
+        Paint()..color = const Color(0xFF2DD4BF),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SparklePainter oldDelegate) => oldDelegate.white != white;
+}
+
+/// Sparkle logomark with purple→teal gradient. [size] is icon width/height in logical px.
 class DdLogo extends StatelessWidget {
   final double size;
   const DdLogo({super.key, this.size = 72});
 
   @override
   Widget build(BuildContext context) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => const LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: _kGradientColors,
-      ).createShader(bounds),
-      child: Text(
-        'dd',
-        style: GoogleFonts.nunito(
-          fontSize: size,
-          fontWeight: FontWeight.w900,
-          color: Colors.white,
-          height: 1.0,
-          letterSpacing: size * -0.04,
-        ),
-      ),
+    return CustomPaint(
+      size: Size(size, size),
+      painter: const _SparklePainter(),
     );
   }
 }
 
-/// White "dd" mark — for use on dark/gradient hero backgrounds.
+/// White sparkle — for use on dark/gradient hero backgrounds.
 class DdLogoWhite extends StatelessWidget {
   final double size;
   const DdLogoWhite({super.key, this.size = 72});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      'dd',
-      style: GoogleFonts.nunito(
-        fontSize: size,
-        fontWeight: FontWeight.w900,
-        color: Colors.white,
-        height: 1.0,
-        letterSpacing: size * -0.04,
-      ),
+    return CustomPaint(
+      size: Size(size, size),
+      painter: const _SparklePainter(white: true),
     );
   }
 }
 
-/// Horizontal wordmark: gradient "dd" + "DearDays" text side by side.
-/// Use [DdWordmark] on light backgrounds, [DdWordmarkWhite] on dark/gradient.
+/// Horizontal wordmark: gradient sparkle + "DearDays" text side by side.
+/// Use on light backgrounds.
 class DdWordmark extends StatelessWidget {
-  final double size; // controls the "dd" height; name scales proportionally
+  final double size; // controls the sparkle height; text scales proportionally
   const DdWordmark({super.key, this.size = 28});
 
   @override
@@ -69,7 +98,7 @@ class DdWordmark extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         DdLogo(size: size),
-        SizedBox(width: size * 0.25),
+        SizedBox(width: size * 0.35),
         ShaderMask(
           blendMode: BlendMode.srcIn,
           shaderCallback: (bounds) => const LinearGradient(
@@ -78,7 +107,7 @@ class DdWordmark extends StatelessWidget {
           child: Text(
             'DearDays',
             style: GoogleFonts.nunito(
-              fontSize: size * 0.52,
+              fontSize: size * 0.78,
               fontWeight: FontWeight.w800,
               color: Colors.white,
               height: 1.0,
@@ -103,11 +132,11 @@ class DdWordmarkWhite extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         DdLogoWhite(size: size),
-        SizedBox(width: size * 0.25),
+        SizedBox(width: size * 0.35),
         Text(
           'DearDays',
           style: GoogleFonts.nunito(
-            fontSize: size * 0.52,
+            fontSize: size * 0.78,
             fontWeight: FontWeight.w800,
             color: Colors.white,
             height: 1.0,
@@ -119,7 +148,7 @@ class DdWordmarkWhite extends StatelessWidget {
   }
 }
 
-/// Rounded-square app-icon variant — white card with gradient "dd" inside.
+/// Rounded-square app-icon variant — white card with gradient sparkle inside.
 class DdLogoIcon extends StatelessWidget {
   final double size;
   const DdLogoIcon({super.key, this.size = 88});
@@ -134,7 +163,7 @@ class DdLogoIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withAlpha(50),
+            color: const Color(0xFF7C3AED).withAlpha(50),
             blurRadius: 28,
             offset: const Offset(0, 10),
           ),

@@ -35,7 +35,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SyncService().onSyncComplete = _onSyncComplete;
     _prefetchData();
-    _scheduleEngagementNotifications();
+    Future.microtask(_scheduleEngagementNotifications);
   }
 
   /// Wires smart engagement notifications:

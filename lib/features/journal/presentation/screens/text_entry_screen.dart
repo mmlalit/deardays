@@ -5,13 +5,19 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 
 class TextEntryScreen extends ConsumerStatefulWidget {
-  const TextEntryScreen({super.key});
+  /// When resuming from draft history, the draft to pre-fill.
+  final DraftEntry? initialDraft;
+
+  const TextEntryScreen({super.key, this.initialDraft});
 
   @override
   ConsumerState<TextEntryScreen> createState() => _TextEntryScreenState();
@@ -23,6 +29,13 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   bool _distractionFree = false;
   bool _promptsExpanded = true;
   int _promptSeed = 0;
+
+  /// ID of the in-progress draft for this session. Stable so repeated saves
+  /// upsert rather than create new entries.
+  late String _draftId;
+
+  /// True once the user taps Continue — suppresses draft save on dispose.
+  bool _submitted = false;
 
   static const _allPrompts = [
     (Icons.sentiment_satisfied_rounded, 'What made you smile today?'),
@@ -62,6 +75,13 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   @override
   void initState() {
     super.initState();
+    final draft = widget.initialDraft;
+    if (draft != null) {
+      _draftId = draft.id;
+      _textController.text = draft.rawText;
+    } else {
+      _draftId = const Uuid().v4();
+    }
     _textController.addListener(() => setState(() {}));
     _focusNode.addListener(() {
       if (_focusNode.hasFocus && _promptsExpanded) {
@@ -77,13 +97,42 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     super.dispose();
   }
 
+  Future<void> _saveDraftIfNeeded() async {
+    if (_submitted) return;
+    final text = _textController.text.trim();
+    if (text.length < 10) return;
+    final draft = DraftEntry(
+      id: _draftId,
+      type: DraftType.text,
+      rawText: text,
+      savedAt: DateTime.now(),
+      entryDate: DateTime.now(),
+    );
+    await LocalStorageService.instance.saveDraft(draft);
+    ref.invalidate(draftsProvider);
+  }
+
+  Future<void> _deleteDraft() async {
+    await LocalStorageService.instance.deleteDraft(_draftId);
+    ref.invalidate(draftsProvider);
+  }
+
+  Future<void> _onBack() async {
+    if (_distractionFree) {
+      _exitDistractionFree();
+      return;
+    }
+    await _saveDraftIfNeeded();
+    if (mounted) Navigator.of(context).maybePop();
+  }
+
   void _refreshPrompts() {
     HapticFeedback.selectionClick();
     setState(() => _promptSeed++);
     ref.invalidate(writingPromptProvider);
   }
 
-  void _goToReview() {
+  Future<void> _goToReview() async {
     HapticFeedback.lightImpact();
     final text = _textController.text.trim();
     if (text.isEmpty) {
@@ -92,7 +141,9 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       );
       return;
     }
-    context.push('/processing', extra: ReviewData(rawText: text));
+    _submitted = true;
+    await _deleteDraft();
+    if (mounted) context.push('/processing', extra: ReviewData(rawText: text));
   }
 
   void _toggleDistractionFree() {
@@ -129,13 +180,14 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     return PopScope(
-      canPop: !_distractionFree,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _distractionFree) _exitDistractionFree();
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _onBack();
       },
       child: Scaffold(
         backgroundColor: colors.bg,
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: _distractionFree
               ? _buildDistractionFreeBody(colors)
@@ -148,12 +200,16 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   // ── Normal body ───────────────────────────────────────────────────────────
 
   Widget _buildNormalBody(AppPalette colors) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     return Column(
       children: [
         _buildTopBar(colors),
         _buildPromptsArea(colors),
         Expanded(child: _buildWritingArea(colors)),
-        _buildBottomBar(colors),
+        Padding(
+          padding: EdgeInsets.only(bottom: keyboardHeight),
+          child: _buildBottomBar(colors),
+        ),
       ],
     );
   }
@@ -166,8 +222,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       ),
       child: Row(
         children: [
-          _iconBtn(Icons.arrow_back_rounded, colors,
-              () => Navigator.of(context).maybePop()),
+          _iconBtn(Icons.arrow_back_rounded, colors, _onBack),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -359,7 +414,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     );
   }
 
-  // ── Writing area — clean canvas, no border ────────────────────────────────
+  // ── Writing area ──────────────────────────────────────────────────────────
 
   Widget _buildWritingArea(AppPalette colors) {
     return Padding(
