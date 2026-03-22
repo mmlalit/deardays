@@ -496,14 +496,17 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       final mediaService = ref.read(mediaServiceProvider);
       final storagePath = photoMedia.first.storagePath;
       if (storagePath.startsWith('http')) {
-        return CachedNetworkImage(
-          imageUrl: storagePath,
-          height: 240,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          memCacheWidth: 800,
-          memCacheHeight: 480,
-          errorWidget: (_, __, ___) => _buildGradientBanner(colors),
+        return _tappablePhoto(
+          child: CachedNetworkImage(
+            imageUrl: storagePath,
+            height: 280,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            memCacheWidth: 800,
+            memCacheHeight: 560,
+            errorWidget: (_, __, ___) => _buildGradientBanner(colors),
+          ),
+          onTap: () => _openFullscreen(context, storagePath),
         );
       }
       return FutureBuilder<String>(
@@ -512,19 +515,58 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           if (!snapshot.hasData || snapshot.hasError) {
             return _buildGradientBanner(colors);
           }
-          return CachedNetworkImage(
-            imageUrl: snapshot.data!,
-            height: 240,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            memCacheWidth: 800,
-            memCacheHeight: 480,
-            errorWidget: (_, __, ___) => _buildGradientBanner(colors),
+          return _tappablePhoto(
+            child: CachedNetworkImage(
+              imageUrl: snapshot.data!,
+              height: 280,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              memCacheWidth: 800,
+              memCacheHeight: 560,
+              errorWidget: (_, __, ___) => _buildGradientBanner(colors),
+            ),
+            onTap: () => _openFullscreen(context, snapshot.data!),
           );
         },
       );
     }
     return _buildGradientBanner(colors);
+  }
+
+  Widget _tappablePhoto({required Widget child, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          child,
+          // Expand hint icon
+          Positioned(
+            bottom: 10,
+            right: 10,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black.withAlpha(120),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openFullscreen(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        pageBuilder: (_, __, ___) => _FullscreenPhotoViewer(imageUrl: imageUrl),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
   }
 
   Widget _buildGradientBanner(AppPalette colors) {
@@ -1174,5 +1216,63 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+}
+
+// ── Fullscreen photo viewer ────────────────────────────────────────────────────
+
+class _FullscreenPhotoViewer extends StatelessWidget {
+  final String imageUrl;
+  const _FullscreenPhotoViewer({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Pinch-to-zoom photo
+          Center(
+            child: InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 5.0,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                placeholder: (_, __) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white54),
+                ),
+                errorWidget: (_, __, ___) => const Icon(
+                  Icons.broken_image_rounded,
+                  color: Colors.white38,
+                  size: 64,
+                ),
+              ),
+            ),
+          ),
+          // Close button
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(140),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 22),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

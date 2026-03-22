@@ -26,11 +26,24 @@ void homeFlowTests() {
       expect(hasGreeting, isTrue);
     });
 
-    testWidgets('shows "How are you feeling?" mood check-in', (tester) async {
+    testWidgets('shows entry prompt text', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('How are you feeling?'), findsOneWidget);
+      // The prompt rotates daily (day % 7). Accept any of the 7 known prompts.
+      const prompts = [
+        'What happened today?',
+        'What made you smile today?',
+        'What are you grateful for?',
+        'What was the highlight of your day?',
+        'Who did you spend time with today?',
+        'What challenged you today?',
+        'What moment do you want to remember?',
+      ];
+      final hasPrompt = prompts.any(
+        (p) => find.text(p).evaluate().isNotEmpty,
+      );
+      expect(hasPrompt, isTrue, reason: 'No daily prompt found on home screen');
     });
 
     testWidgets('shows Journal Activity section', (tester) async {
@@ -63,67 +76,65 @@ void homeFlowTests() {
       expect(find.text('View All'), findsOneWidget);
     });
 
-    testWidgets('shows mood option buttons', (tester) async {
+    testWidgets('shows action buttons row', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      // The home screen shows inline mood buttons: Great, Good, Okay, Low, Tough
-      final hasMoodOptions =
-          find.text('Great').evaluate().isNotEmpty ||
-          find.text('Good').evaluate().isNotEmpty ||
-          find.text('Okay').evaluate().isNotEmpty;
-      expect(hasMoodOptions, isTrue);
+      // Home screen shows 2×2 capture grid: SPEAK IT / SNAP IT / WRITE / CHAT
+      final hasActions =
+          find.text('WRITE').evaluate().isNotEmpty ||
+          find.text('SNAP IT').evaluate().isNotEmpty ||
+          find.text('CHAT').evaluate().isNotEmpty;
+      expect(hasActions, isTrue);
     });
   });
 
   group('Home Screen — Action Buttons', () {
-    testWidgets('large mic button is visible', (tester) async {
+    // 2×2 capture grid labels are rendered in UPPERCASE.
+    testWidgets('SPEAK IT capture button is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      // The main action is a large circular mic button (Icons.mic_rounded, size 40)
-      final micButton = find.byWidgetPredicate(
-        (w) => w is Icon && w.icon == Icons.mic_rounded && (w.size ?? 0) >= 40,
-      );
-      expect(micButton, findsOneWidget);
+      expect(find.text('SPEAK IT'), findsOneWidget);
     });
 
-    testWidgets('Write label is visible', (tester) async {
+    testWidgets('WRITE label is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Write'), findsOneWidget);
+      expect(find.text('WRITE'), findsOneWidget);
     });
 
-    testWidgets('Photo label is visible', (tester) async {
+    testWidgets('SNAP IT capture button is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Photo'), findsOneWidget);
+      expect(find.text('SNAP IT'), findsOneWidget);
     });
 
-    testWidgets('Chat label is visible', (tester) async {
+    testWidgets('CHAT label is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Chat'), findsOneWidget);
+      expect(find.text('CHAT'), findsOneWidget);
     });
 
-    testWidgets('camera icon is visible for Photo button', (tester) async {
+    testWidgets('camera icon is visible (SNAP IT grid button + Snap FAB)', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      final cameraIcon = find.byWidgetPredicate(
+      // Two camera_alt_rounded icons: one in SNAP IT grid button, one in Snap FAB.
+      final cameraIcons = find.byWidgetPredicate(
         (w) => w is Icon && w.icon == Icons.camera_alt_rounded,
       );
-      expect(cameraIcon, findsOneWidget);
+      expect(cameraIcons, findsWidgets);
     });
 
-    testWidgets('tapping Photo stays in the app without crashing', (tester) async {
+    testWidgets('tapping SNAP IT stays in the app without crashing', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Photo'));
+      await tester.tap(find.text('SNAP IT'));
       // image_picker is a platform channel — it will not open a real picker in
       // tests. The tap should be handled gracefully and the app must survive.
       await tester.pump(const Duration(seconds: 2));
@@ -131,24 +142,21 @@ void homeFlowTests() {
       expect(find.byType(MaterialApp), findsOneWidget);
     });
 
-    testWidgets('tapping Write navigates to TextEntryScreen', (tester) async {
+    testWidgets('tapping WRITE navigates to TextEntryScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
     });
 
-    testWidgets('tapping mic button leaves HomeScreen', (tester) async {
+    testWidgets('tapping SPEAK IT leaves HomeScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      final micButton = find.byWidgetPredicate(
-        (w) => w is Icon && w.icon == Icons.mic_rounded && (w.size ?? 0) >= 40,
-      );
-      await tester.tap(micButton);
+      await tester.tap(find.text('SPEAK IT'));
       // Use pump(Duration) — RecordingScreen initialises platform channels.
       await tester.pump(const Duration(seconds: 5));
 
@@ -157,11 +165,11 @@ void homeFlowTests() {
       expect(find.byType(MaterialApp), findsOneWidget);
     });
 
-    testWidgets('tapping Chat navigates to CheckInScreen', (tester) async {
+    testWidgets('tapping CHAT navigates to CheckInScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Chat'));
+      await tester.tap(find.text('CHAT'));
       await tester.pump(const Duration(seconds: 2));
 
       expect(find.byType(CheckInScreen), findsOneWidget);
@@ -171,6 +179,10 @@ void homeFlowTests() {
   group('Home Screen — Memory Cards', () {
     testWidgets('memory cards are visible with mock data', (tester) async {
       await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      // Scroll down to trigger SliverList lazy-build of the hero card
+      await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -300));
       await tester.pumpAndSettle();
 
       // Mock entries include "Trip to Bali"
@@ -201,6 +213,10 @@ void homeFlowTests() {
 
     testWidgets('hero memory card is full-width at the top', (tester) async {
       await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      // Scroll down to trigger SliverList lazy-build of the hero card
+      await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -300));
       await tester.pumpAndSettle();
 
       // Hero card is the first entry — Bali trip

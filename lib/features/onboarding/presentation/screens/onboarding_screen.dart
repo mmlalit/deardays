@@ -21,7 +21,6 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
-  final PageController _pageController = PageController();
   int _currentPage = 0;
 
   late final AnimationController _bgController;
@@ -34,6 +33,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       icon: Icons.mic_rounded,
       title: 'Speak your day',
       subtitle: 'Just talk. DearDays turns your words into beautiful, lasting stories.',
+      imageAlignment: Alignment.center,
     ),
     _PageData(
       photo: 'assets/images/onboarding/ob2_journal.jpg',
@@ -72,7 +72,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   void dispose() {
-    _pageController.dispose();
     _bgController.dispose();
     super.dispose();
   }
@@ -80,11 +79,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _onNext() {
     if (_isLastPage) {
       widget.onComplete();
-    } else if (_pageController.hasClients) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+    } else {
+      setState(() => _currentPage++);
     }
   }
 
@@ -113,7 +109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         page.photo,
                         key: ValueKey(page.photo),
                         fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
+                        alignment: page.imageAlignment,
                         width: double.infinity,
                         height: double.infinity,
                       ),
@@ -465,6 +461,7 @@ class _PageData {
   final IconData icon;
   final String title;
   final String subtitle;
+  final Alignment imageAlignment;
 
   const _PageData({
     required this.photo,
@@ -472,5 +469,6 @@ class _PageData {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.imageAlignment = Alignment.topCenter,
   });
 }

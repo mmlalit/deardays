@@ -25,6 +25,7 @@ import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
+import 'package:deardays/features/journal/data/models/chapter.dart';
 
 // ── Screens ──────────────────────────────────────────────────────────────────
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
@@ -36,10 +37,13 @@ import 'package:deardays/features/journal/presentation/screens/edit_memory_scree
 import 'package:deardays/features/journal/presentation/screens/paywall_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/on_this_day_screen.dart';
 import 'package:deardays/features/book/presentation/screens/library_screen.dart';
+import 'package:deardays/features/book/presentation/screens/book_reader_screen.dart';
+import 'package:deardays/features/book/data/models/book_page.dart';
 import 'package:deardays/features/book/presentation/screens/my_story_screen.dart';
 import 'package:deardays/features/book/presentation/screens/export_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/memory_detail_screen.dart';
+import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/explore/presentation/screens/explore_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
@@ -114,6 +118,17 @@ List<Override> _mockOverrides() {
     // Profile & streak
     profileProvider.overrideWith((_) async => mockProfile),
     streakProvider.overrideWith((_) async => mockStreak),
+
+    // Chapters — static mock list
+    chaptersProvider.overrideWith((_) async {
+      final now = DateTime(2024, 1, 1);
+      return [
+        Chapter(id: 'mock-ch-1', userId: 'mock-user', title: 'Family',          chapterNumber: 1, startDate: now, createdAt: now),
+        Chapter(id: 'mock-ch-2', userId: 'mock-user', title: 'Career',          chapterNumber: 2, startDate: now, createdAt: now),
+        Chapter(id: 'mock-ch-3', userId: 'mock-user', title: 'Travel',          chapterNumber: 3, startDate: now, createdAt: now),
+        Chapter(id: 'mock-ch-4', userId: 'mock-user', title: 'Personal Growth', chapterNumber: 4, startDate: now, createdAt: now),
+      ];
+    }),
   ];
 }
 
@@ -156,7 +171,17 @@ final _mockRouter = GoRouter(
     GoRoute(path: '/paywall', builder: (_, __) => const PaywallScreen()),
     GoRoute(path: '/on-this-day', builder: (_, __) => const OnThisDayScreen()),
     GoRoute(path: '/export', builder: (_, __) => const ExportScreen()),
-    GoRoute(path: '/memory', builder: (_, s) => MemoryDetailScreen(entry: s.extra as JournalEntry)),
+    GoRoute(path: '/book-reader', builder: (_, s) {
+      final mode = s.extra;
+      return BookReaderScreen(mode: mode is BookMode ? mode : BookMode.stream);
+    }),
+    GoRoute(path: '/memory', builder: (_, s) {
+      final extra = s.extra;
+      if (extra is MemoryDetailArgs) {
+        return MemoryDetailScreen(entry: extra.entry, allEntries: extra.allEntries, initialIndex: extra.initialIndex);
+      }
+      return MemoryDetailScreen(entry: extra as JournalEntry);
+    }),
   ],
 );
 

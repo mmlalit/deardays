@@ -37,6 +37,7 @@ void main() {
       expect(find.text('ACCOUNT'), findsOneWidget);
       expect(find.text('JOURNALING'), findsOneWidget);
       expect(find.text('NOTIFICATIONS'), findsOneWidget);
+      // Section label is 'Privacy & Security' → 'PRIVACY & SECURITY'
       expect(find.text('PRIVACY & SECURITY'), findsOneWidget);
     });
 
@@ -44,12 +45,14 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Email'), findsOneWidget);
-      expect(find.text('Password'), findsOneWidget);
-      expect(find.text('Subscription'), findsOneWidget);
-      expect(find.text('Daily Reminder'), findsOneWidget);
-      expect(find.text('Writing Style'), findsOneWidget);
-      expect(find.text('Biometric Lock'), findsOneWidget);
+      // Account section: Edit Profile + Subscription + Sign Out (no Email row)
+      // 'Edit Profile' may appear twice (label + subtitle/trailing) so use findsWidgets
+      expect(find.text('Edit Profile'), findsWidgets);
+      expect(find.text('Subscription'), findsWidgets);
+      expect(find.text('Daily Reminder'), findsWidgets);
+      expect(find.text('Writing Style'), findsWidgets);
+      // Privacy section: 'App Lock' (not 'Biometric Lock')
+      expect(find.text('App Lock'), findsOneWidget);
     });
 
     testWidgets('renders DearDays footer after scroll', (tester) async {
@@ -81,8 +84,8 @@ void main() {
     });
   });
 
-  group('SettingsScreen - Biometric Toggle', () {
-    testWidgets('biometric switch is present', (tester) async {
+  group('SettingsScreen - App Lock Row', () {
+    testWidgets('app lock row is present', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
@@ -92,8 +95,8 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      // Settings uses a custom AnimatedContainer toggle (not Flutter's Switch)
-      expect(find.text('Biometric Lock'), findsOneWidget);
+      // Previously 'Biometric Lock', now renamed to 'App Lock'
+      expect(find.text('App Lock'), findsOneWidget);
     });
   });
 }

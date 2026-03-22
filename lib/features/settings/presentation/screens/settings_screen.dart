@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -1823,7 +1824,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         opacity: 0.3,
         child: Column(
           children: [
-            Image.asset('assets/images/logo.png', width: 44, height: 44),
+            const DdLogo(size: 44),
             const SizedBox(height: 8),
             Text(
               'DearDays',

@@ -89,6 +89,15 @@ class AuthService {
     );
 
     if (response.user != null) {
+      // Ensure profile row exists (may be missing if data was cleared).
+      try {
+        await _client.from('profiles').upsert(
+          {'id': response.user!.id},
+          onConflict: 'id',
+          ignoreDuplicates: true,
+        );
+      } catch (_) {}
+
       // Link this user to RevenueCat for purchase tracking.
       // Wrapped in try-catch: RevenueCat is unsupported on some platforms
       // (e.g. Windows) and must never break the login flow.

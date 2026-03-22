@@ -23,6 +23,8 @@ import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/services/version/version_check_service.dart';
 import 'package:deardays/features/journal/data/repositories/reflection_override_repository.dart';
+import 'package:deardays/services/location/location_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
   // Initialize crash reporting first so it captures all subsequent errors
@@ -47,6 +49,9 @@ void main() async {
     final localStorage = LocalStorageService();
     await localStorage.init();
 
+    // Onboarding state (Hive box used by OnboardingNotifier)
+    await Hive.openBox<String>('onboarding_prefs');
+
     // Sync queue and reflection overrides both depend on localStorage.cipher
     await Future.wait([
       SyncQueue().init(localStorage.cipher),
@@ -60,6 +65,7 @@ void main() async {
       AnalyticsService().init(),
       RevenueCatService().init(),
       NotificationService().init(),
+      LocationService().requestPermission(),
       ConnectivityService().init(),
       BackupService().init(),
       AiCreditService().init(),
@@ -85,16 +91,24 @@ class DearDaysApp extends ConsumerStatefulWidget {
 }
 
 class _DearDaysAppState extends ConsumerState<DearDaysApp> {
+  StreamSubscription<bool>? _connectivitySub;
+
   @override
   void initState() {
     super.initState();
-    // Wire ConnectivityService stream → connectivityProvider
-    ConnectivityService().onlineStatus.listen((online) {
-      ref.read(connectivityProvider.notifier).state = online;
-    });
     // Set initial value
     ref.read(connectivityProvider.notifier).state =
         ConnectivityService().isOnline;
+    // Wire ConnectivityService stream → connectivityProvider
+    _connectivitySub = ConnectivityService().onlineStatus.listen((online) {
+      if (mounted) ref.read(connectivityProvider.notifier).state = online;
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
   }
 
   @override

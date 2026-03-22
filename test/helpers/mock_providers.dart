@@ -13,7 +13,9 @@ import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
+import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
+import 'package:deardays/core/providers/onboarding_provider.dart';
 
 // ---------------------------------------------------------------------------
 // In-memory PKCE storage — avoids SharedPreferences platform channel in tests.
@@ -48,6 +50,25 @@ class FakeCheckInNotifier extends CheckInNotifier {
 /// Initializes Hive + Supabase (fake) so screens that call
 /// Supabase.instance or open Hive boxes don't throw.
 void setUpTestEnv() {
+  // Per-test: suppress google_fonts asset-not-found exceptions for fonts that
+  // are not bundled in the test asset bundle (e.g. Nunito-ExtraBold,
+  // Nunito-Black). These are benign — the widget renders with the fallback
+  // system font and layout geometry is unaffected.
+  setUp(() {
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = (FlutterErrorDetails details) {
+      final msg = details.exceptionAsString();
+      if (msg.contains('GoogleFonts') ||
+          msg.contains('google_fonts') ||
+          msg.contains('allowRuntimeFetching')) {
+        // Ignore font-not-found errors in tests — not a real failure.
+        return;
+      }
+      previousOnError?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = previousOnError);
+  });
+
   setUpAll(() async {
     // Prevent google_fonts from making HTTP requests during tests.
     // Font files in assets/fonts/ satisfy the asset-bundle lookup so no
@@ -160,6 +181,7 @@ Widget buildTestApp(Widget child, {List<Override> overrides = const []}) {
 List<Override> authenticatedOverrides({
   List<JournalEntry> entries = const [],
   List<Book> books = const [],
+  List<Chapter> chapters = const [],
   UserProfile? profile,
   Streak? streak,
   JournalEntry? todayEntry,
@@ -167,6 +189,7 @@ List<Override> authenticatedOverrides({
   final p = profile ?? mockProfile;
   final s = streak ?? mockStreak;
   return [
+    onboardingProvider.overrideWith((ref) => OnboardingNotifier.completed()),
     checkInProvider.overrideWith((ref) => FakeCheckInNotifier()),
     profileProvider.overrideWith((ref) async => p),
     streakProvider.overrideWith((ref) async => s),
@@ -174,6 +197,7 @@ List<Override> authenticatedOverrides({
     onThisDayProvider.overrideWith((ref) async => entries),
     timelineEntriesProvider.overrideWith((ref) => Stream.value(entries)),
     booksProvider.overrideWith((ref) async => books),
+    chaptersProvider.overrideWith((ref) async => chapters),
     moodStatsProvider.overrideWith((ref) async => <String, int>{}),
     totalEntriesProvider.overrideWith((ref) async => entries.length),
     weeklyMoodsProvider

@@ -132,6 +132,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
 /// Theme color palettes the user can choose from in Settings.
 enum AppThemeColor {
+  warmIndigo('Warm Indigo'),
   sereneDuskBlue('Serene Dusk Blue'),
   golden('Golden'),
   morningSage('Morning Sage'),
@@ -143,6 +144,23 @@ enum AppThemeColor {
   /// Light mode palette.
   AppPalette get light {
     switch (this) {
+      case AppThemeColor.warmIndigo:
+        return const AppPalette(
+          bg:             Color(0xFFF9F7F3),
+          card:           Color(0xFFFFFFFF),
+          navBg:          Color(0xFFFFFFFF),
+          textPrimary:    Color(0xFF1C1917),
+          textSecondary:  Color(0xFF78716C),
+          textMuted:      Color(0xFFA8A29E),
+          accent:         Color(0xFF6366F1),
+          accentLight:    Color(0xFF818CF8),
+          accentFaint:    Color(0xFFEEF2FF),
+          iconActive:     Color(0xFF6366F1),
+          iconInactive:   Color(0xFFA8A29E),
+          border:         Color(0xFFE7E5E4),
+          highlight:      Color(0xFF6366F1),
+          highlightFaint: Color(0xFFEEF2FF),
+        );
       case AppThemeColor.sereneDuskBlue:
         return const AppPalette(
           bg:             Color(0xFFF8FAFC),
@@ -217,6 +235,23 @@ enum AppThemeColor {
   /// Dark mode palette.
   AppPalette get dark {
     switch (this) {
+      case AppThemeColor.warmIndigo:
+        return const AppPalette(
+          bg:             Color(0xFF13111A),
+          card:           Color(0xFF1C1A2A),
+          navBg:          Color(0xFF181624),
+          textPrimary:    Color(0xFFF1F0FF),
+          textSecondary:  Color(0xFF9CA3AF),
+          textMuted:      Color(0xFF6B7280),
+          accent:         Color(0xFF818CF8),
+          accentLight:    Color(0xFF6366F1),
+          accentFaint:    Color(0xFF1E1B3A),
+          iconActive:     Color(0xFF818CF8),
+          iconInactive:   Color(0xFF6B7280),
+          border:         Color(0xFF2D2B3D),
+          highlight:      Color(0xFF818CF8),
+          highlightFaint: Color(0xFF1E1B3A),
+        );
       case AppThemeColor.sereneDuskBlue:
         return const AppPalette(
           bg:             Color(0xFF0B1426),

@@ -437,24 +437,28 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                     ),
                   ),
                 ] else ...[
-                  const Spacer(),
-                  _BarBtn(
-                    icon: Icons.menu_book_rounded,
-                    label: 'Contents',
-                    color: tocIndex >= 0 ? textColor.withAlpha(160) : textColor.withAlpha(40),
-                    onTap: tocIndex >= 0 ? () => _jumpToPage(tocIndex) : null,
-                  ),
-                  // Resume — only on cover page when a bookmark exists
-                  if (currentPage is CoverBookPage && _resumePage != null && _resumePage! > 0) ...[
-                    const SizedBox(width: 8),
+                  // Cover page: show Contents + optional Resume
+                  if (currentPage is CoverBookPage) ...[
+                    const Spacer(),
                     _BarBtn(
-                      icon: Icons.play_arrow_rounded,
-                      label: 'Resume',
-                      color: accentColor,
-                      onTap: () => _jumpToPage(_resumePage!),
+                      icon: Icons.menu_book_rounded,
+                      label: 'Contents',
+                      color: tocIndex >= 0 ? textColor.withAlpha(160) : textColor.withAlpha(40),
+                      onTap: tocIndex >= 0 ? () => _jumpToPage(tocIndex) : null,
                     ),
-                  ],
-                  const Spacer(),
+                    if (_resumePage != null && _resumePage! > 0) ...[
+                      const SizedBox(width: 8),
+                      _BarBtn(
+                        icon: Icons.play_arrow_rounded,
+                        label: 'Resume',
+                        color: accentColor,
+                        onTap: () => _jumpToPage(_resumePage!),
+                      ),
+                    ],
+                    const Spacer(),
+                  ] else
+                    // Week opener / dividers: just spacer (Prev + Next already shown)
+                    const Spacer(),
                 ],
 
                 // ── Next ─────────────────────────────────────────────────────

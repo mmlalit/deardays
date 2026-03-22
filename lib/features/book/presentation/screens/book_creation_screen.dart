@@ -538,6 +538,8 @@ class _ThematicFlowState extends ConsumerState<_ThematicFlow> {
     final chaptersAsync = ref.watch(chaptersProvider);
 
     return chaptersAsync.when(
+      skipLoadingOnRefresh: true,
+      skipError: true,
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
         child: Text(

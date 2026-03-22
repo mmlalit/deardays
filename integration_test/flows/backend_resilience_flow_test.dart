@@ -66,7 +66,7 @@ void backendResilienceFlowTests() {
 
       // Home must still render greeting and action buttons
       expect(find.byType(Scaffold), findsWidgets);
-      expect(find.text('Write'), findsOneWidget);
+      expect(find.text('WRITE'), findsOneWidget);
     });
 
     testWidgets('weekly summary error does not crash home screen',
@@ -164,7 +164,7 @@ void backendResilienceFlowTests() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -199,11 +199,8 @@ void backendResilienceFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      // voiceRecording flag defaults true → mic button visible
-      final micBtn = find.byWidgetPredicate(
-        (w) => w is Icon && w.icon == Icons.mic_rounded && (w.size ?? 0) >= 40,
-      );
-      expect(micBtn, findsOneWidget);
+      // voiceRecording flag defaults true → SPEAK IT capture button visible
+      expect(find.text('SPEAK IT'), findsOneWidget);
     });
 
     testWidgets('book generation feature shows CHAPTERS tab by default',

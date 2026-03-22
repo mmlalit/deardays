@@ -175,7 +175,7 @@ void recordingFlowTests() {
       await tester.pump(_settle);
 
       // Navigate via write flow — save triggers ProcessingScreen
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       final textFields = find.byType(TextField);
@@ -200,7 +200,7 @@ void recordingFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pump(_settle);
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       final textFields = find.byType(TextField);
@@ -229,7 +229,7 @@ void recordingFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pump(_settle);
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       final textFields = find.byType(TextField);
