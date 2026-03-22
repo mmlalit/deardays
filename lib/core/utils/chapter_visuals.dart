@@ -24,20 +24,38 @@ class ChapterVisual {
         colors: [primary, secondary],
       );
 
-  /// Returns a visual based on keyword matching in [title].
-  /// Falls back to a hash-based selection for unknown titles.
-  static ChapterVisual forTitle(String title) {
-    final lower = title.toLowerCase();
+  /// Returns a visual for [title], using [colorValue] as the primary color
+  /// if the user has chosen one. Falls back to keyword matching otherwise.
+  static ChapterVisual forTitle(String title, {int? colorValue}) {
+    if (colorValue != null) {
+      final base = Color(colorValue);
+      // Derive a slightly darker secondary from the chosen color
+      final secondary = Color.fromARGB(
+        (base.a * 255.0).round().clamp(0, 255),
+        ((base.r * 255.0).round().clamp(0, 255) * 0.75).round(),
+        ((base.g * 255.0).round().clamp(0, 255) * 0.75).round(),
+        ((base.b * 255.0).round().clamp(0, 255) * 0.75).round(),
+      );
+      // Keep keyword-matched icon/photo if available, else use generic
+      final keyword = _keywordVisual(title);
+      return ChapterVisual(
+        primary: base,
+        secondary: secondary,
+        icon: keyword?.icon ?? Icons.auto_stories,
+        stockImageUrl: keyword?.stockImageUrl,
+      );
+    }
+    return _keywordVisual(title) ?? _fallbacks[title.hashCode.abs() % _fallbacks.length];
+  }
 
+  static ChapterVisual? _keywordVisual(String title) {
+    final lower = title.toLowerCase();
     for (final entry in _keywordMap.entries) {
       for (final keyword in entry.key) {
         if (lower.contains(keyword)) return entry.value;
       }
     }
-
-    // Deterministic fallback based on title hash
-    final index = title.hashCode.abs() % _fallbacks.length;
-    return _fallbacks[index];
+    return null;
   }
 
   static const _keywordMap = <List<String>, ChapterVisual>{

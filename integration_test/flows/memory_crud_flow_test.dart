@@ -184,7 +184,7 @@ void memoryCrudFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       expect(find.byType(TextField).evaluate().isNotEmpty, isTrue);
@@ -194,7 +194,7 @@ void memoryCrudFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       expect(
@@ -207,7 +207,7 @@ void memoryCrudFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       final textFields = find.byType(TextField);
@@ -229,7 +229,7 @@ void memoryCrudFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       // Tap Save without entering text

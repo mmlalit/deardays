@@ -13,7 +13,7 @@ void checkinFlowTests() {
   Future<void> openChat(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
     await tester.pump(_settle);
-    await tester.tap(find.text('Chat'));
+    await tester.tap(find.text('CHAT'));
     await tester.pump(_settle);
   }
 

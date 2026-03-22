@@ -35,7 +35,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
@@ -47,7 +47,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       // The top bar title is "Write"
@@ -60,7 +60,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       expect(find.byType(TextField), findsWidgets);
@@ -72,7 +72,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       // Prompts can be in two states:
@@ -92,7 +92,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       expect(find.text('Continue'), findsOneWidget);
@@ -104,7 +104,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       expect(
@@ -122,7 +122,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       final mainField = find.byType(TextField).first;
@@ -139,7 +139,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       final mainField = find.byType(TextField).first;
@@ -159,7 +159,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       // Find and tap the first prompt chip
@@ -184,7 +184,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       // Continue button exists but has dimmed opacity when word count < 5.
@@ -203,7 +203,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
@@ -222,7 +222,7 @@ void writeEntryFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(_settle);
 
       final mainField = find.byType(TextField).first;

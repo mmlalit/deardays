@@ -261,6 +261,8 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                 const SizedBox(height: 20),
 
                 chaptersAsync.when(
+                  skipLoadingOnRefresh: true,
+                  skipError: true,
                   loading: () => const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),

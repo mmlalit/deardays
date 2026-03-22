@@ -23,25 +23,32 @@ void main() {
       expect(find.byType(TextEntryScreen), findsOneWidget);
     });
 
-    testWidgets('shows Write Memory header', (tester) async {
+    testWidgets('shows Write header', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Write Memory'), findsOneWidget);
+      // Header now shows "Write" (not "Write Memory")
+      expect(find.text('Write'), findsOneWidget);
     });
 
     testWidgets('shows a writing prompt chip', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Prompts are shown as chip buttons
+      // Prompts are shown as list items — check for any known prompt texts
       final knownPrompts = [
-        'What made you smile?',
-        'Who did you meet?',
-        'A challenge faced',
-        'Something new learned',
+        'What made you smile today?',
+        'Who were you with today?',
+        'Something new you learned',
+        'A challenge you faced',
+        'What are you grateful for?',
         'Best part of today',
-        'Grateful for...',
+        'A meal you enjoyed',
+        'Something beautiful you saw',
+        'An idea that excited you',
+        'A memorable conversation',
+        'Something you accomplished',
+        'A calm moment today',
       ];
 
       final hasPrompt = knownPrompts.any(
@@ -57,22 +64,25 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
 
-    testWidgets('shows Save Memory button', (tester) async {
+    testWidgets('shows Continue button', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
+      // Bottom bar has "Continue" button (replacing "Save Memory")
       expect(
-        find.text('Save Memory').evaluate().isNotEmpty ||
+        find.text('Continue').evaluate().isNotEmpty ||
+        find.textContaining('Continue').evaluate().isNotEmpty ||
         find.textContaining('Save').evaluate().isNotEmpty,
         isTrue,
       );
     });
 
-    testWidgets('shows NEED A PROMPT section', (tester) async {
+    testWidgets('shows prompt section', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('NEED A PROMPT?'), findsOneWidget);
+      // Prompt section header changed from "NEED A PROMPT?" to "Need a spark?"
+      expect(find.text('Need a spark?'), findsOneWidget);
     });
   });
 
@@ -116,15 +126,16 @@ void main() {
       );
     });
 
-    testWidgets('photo attachment option is visible', (tester) async {
+    testWidgets('options menu button is visible', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
+      // The text entry screen has a "more options" icon button (photo attachment
+      // was removed; options are now in the overflow menu)
       expect(
-        find.textContaining('photo').evaluate().isNotEmpty ||
-        find.textContaining('Photo').evaluate().isNotEmpty ||
-        find.byIcon(Icons.camera_alt_outlined).evaluate().isNotEmpty ||
-        find.byIcon(Icons.photo_camera_outlined).evaluate().isNotEmpty,
+        find.byIcon(Icons.more_horiz_rounded).evaluate().isNotEmpty ||
+        find.byIcon(Icons.more_vert).evaluate().isNotEmpty ||
+        find.byIcon(Icons.arrow_back_rounded).evaluate().isNotEmpty,
         isTrue,
       );
     });

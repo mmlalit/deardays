@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/core/widgets/app_avatar.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/timeline/presentation/widgets/milestone_card.dart';
@@ -290,9 +289,52 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         SliverToBoxAdapter(
           child: Column(
             children: [
-              _buildTopBar(colors, entries),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
+                child: Row(
+                  children: [
+                    Text('Timeline', style: GoogleFonts.newsreader(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                    const Spacer(),
+                    // Mood calendar
+                    Semantics(
+                      label: 'Mood Calendar',
+                      button: true,
+                      child: GestureDetector(
+                        onTap: () => _showCalendarOverlay(context, entries, colors),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colors.accent.withAlpha(18),
+                          ),
+                          child: Icon(Icons.calendar_month_rounded, size: 20, color: colors.accent),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Search
+                    Semantics(
+                      label: 'Search',
+                      button: true,
+                      child: GestureDetector(
+                        onTap: () => context.push('/search'),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colors.highlightFaint,
+                          ),
+                          child: Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               _buildStatsGrid(totalMemories, chapters, years, colors),
-              _buildWeeklySummaryCard(colors),
+              if (totalMemories > 0) _buildWeeklySummaryCard(colors),
               const SizedBox(height: 16),
               _buildControlsRow(colors),
             ],
@@ -312,72 +354,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Top Bar — "Aura" branding
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildTopBar(AppPalette colors, List<JournalEntry> entries) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Text(
-              'Timeline',
-              style: GoogleFonts.newsreader(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
-            const Spacer(),
-            // Mood calendar
-            Semantics(
-              label: 'Mood Calendar',
-              button: true,
-              child: GestureDetector(
-                onTap: () => _showCalendarOverlay(context, entries, colors),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accent.withAlpha(18),
-                  ),
-                  child: Icon(Icons.calendar_month_rounded, size: 20, color: colors.accent),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Search
-            Semantics(
-              label: 'Search',
-              button: true,
-              child: GestureDetector(
-                onTap: () => context.push('/search'),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.highlightFaint,
-                  ),
-                  child: Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const AppAvatar(),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showCalendarOverlay(BuildContext context, List<JournalEntry> entries, AppPalette colors) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: colors.card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -645,6 +625,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   void _showMoodFilterSheet(AppPalette colors) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: colors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

@@ -18,6 +18,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/config/supabase_config.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/providers/onboarding_provider.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
 import 'package:deardays/core/routing/app_shell.dart';
@@ -149,6 +150,7 @@ List<Override> _e2eOverrides() {
   );
 
   return [
+    onboardingProvider.overrideWith((ref) => OnboardingNotifier.completed()),
     // All data providers → mock data, no DB calls
     profileProvider.overrideWith((_) async => profile),
     streakProvider.overrideWith((_) async => streak),
@@ -172,6 +174,13 @@ List<Override> _e2eOverrides() {
         createdAt: now,
         updatedAt: now,
       ),
+    ]),
+    // Chapters — mock 4 default chapters so LibraryScreen renders without Supabase
+    chaptersProvider.overrideWith((_) async => [
+      Chapter(id: 'e2e-ch-1', userId: 'e2e-user', title: 'Family', chapterNumber: 1, startDate: DateTime(2024, 1, 1), createdAt: DateTime(2024, 1, 1)),
+      Chapter(id: 'e2e-ch-2', userId: 'e2e-user', title: 'Travel', chapterNumber: 2, startDate: DateTime(2024, 1, 1), createdAt: DateTime(2024, 1, 1)),
+      Chapter(id: 'e2e-ch-3', userId: 'e2e-user', title: 'Career', chapterNumber: 3, startDate: DateTime(2024, 1, 1), createdAt: DateTime(2024, 1, 1)),
+      Chapter(id: 'e2e-ch-4', userId: 'e2e-user', title: 'Growth', chapterNumber: 4, startDate: DateTime(2024, 1, 1), createdAt: DateTime(2024, 1, 1)),
     ]),
     // Prevent CheckInNotifier from initialising speech_to_text (hangs on Windows)
     checkInProvider.overrideWith((ref) => _FakeCheckInNotifier()),
@@ -460,6 +469,9 @@ class _ImageInterceptingHttpClient implements HttpClient {
     // Intercept placeholder hosts (mock images + dummy Supabase)
     if (host == 'placeholder.test') return true;
     if (host == 'placeholder.supabase.co') return true;
+    // Intercept known image CDNs used in mock data (Unsplash, etc.)
+    if (host.contains('unsplash.com')) return true;
+    if (host.contains('images.unsplash')) return true;
     // Intercept image file extensions
     if (path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png') || path.endsWith('.webp')) return true;
     return false;

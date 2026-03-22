@@ -189,6 +189,24 @@ class LocalStorageService {
   }
 
   // ---------------------------------------------------------------------------
+  // Today's mood
+  // ---------------------------------------------------------------------------
+
+  /// Saves the mood selected today. Keyed by date so it auto-resets on a new day.
+  Future<void> saveTodayMood(String mood) async {
+    _ensureInitialized();
+    final key = 'mood_${DateTime.now().toIso8601String().substring(0, 10)}';
+    await _syncMetaBox!.put(key, mood);
+  }
+
+  /// Returns today's saved mood, or `null` if none was saved today.
+  Future<String?> getTodayMood() async {
+    _ensureInitialized();
+    final key = 'mood_${DateTime.now().toIso8601String().substring(0, 10)}';
+    return _syncMetaBox!.get(key);
+  }
+
+  // ---------------------------------------------------------------------------
   // Sync metadata
   // ---------------------------------------------------------------------------
 

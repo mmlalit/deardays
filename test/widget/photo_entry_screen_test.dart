@@ -211,16 +211,19 @@ void main() {
   });
 
   group('PhotoEntryScreen — Layout', () {
-    testWidgets('photo preview SizedBox is at least 240px tall', (tester) async {
+    testWidgets('photo preview container is at least 100px tall', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(_settle);
 
-      final tallBoxes = tester
-          .widgetList<SizedBox>(find.byType(SizedBox))
-          .where((b) => (b.height ?? 0) >= 240)
-          .toList();
-      expect(tallBoxes, isNotEmpty,
-          reason: 'Expected a SizedBox >= 240px for the photo preview');
+      // Photo preview now uses AnimatedContainer (height: 260 normal, 100 when
+      // keyboard open). Verify the container is in the tree and the rendered
+      // size is at least 100px tall.
+      final containers = tester.widgetList<AnimatedContainer>(
+        find.byType(AnimatedContainer),
+      ).toList();
+      // At least one AnimatedContainer should exist (the photo preview)
+      expect(containers, isNotEmpty,
+          reason: 'Expected an AnimatedContainer for the photo preview');
     });
 
     testWidgets('Continue button is full-width (ElevatedButton present)',

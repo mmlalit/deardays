@@ -37,7 +37,9 @@ void main() {
     testWidgets('shows Next button on first page', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('Next'), findsOneWidget);
+      // Next button now uses an arrow icon (GestureDetector + AnimatedContainer)
+      // instead of "Next" text — check for the forward arrow icon
+      expect(find.byIcon(Icons.arrow_forward_rounded), findsOneWidget);
     });
 
     testWidgets('page dots are visible', (tester) async {

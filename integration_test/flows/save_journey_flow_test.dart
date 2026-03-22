@@ -143,7 +143,7 @@ void saveJourneyFlowTests() {
       await tester.pumpAndSettle();
 
       // Navigate to Write (use pump — cursor blink prevents pumpAndSettle settling)
-      await tester.tap(find.text('Write'));
+      await tester.tap(find.text('WRITE'));
       await tester.pump(const Duration(seconds: 2));
 
       expect(find.byType(TextEntryScreen), findsOneWidget);

@@ -513,55 +513,53 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildSocialButtons(AppPalette colors) {
     return Column(
       children: [
-        // Icon-only row for Apple + Google
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _SocialIconButton(
-              icon: Icons.apple,
-              iconColor: colors.textPrimary,
-              bgColor: colors.card,
-              borderColor: colors.border,
-              onPressed: _isLoading ? null : _handleAppleSignIn,
-            ),
-            const SizedBox(width: 16),
-            _SocialIconButton(
-              icon: null,
-              googleLogo: true,
-              bgColor: colors.card,
-              borderColor: colors.border,
-              onPressed: _isLoading ? null : _handleGoogleSignIn,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildDivider(colors, 'OR'),
-        const SizedBox(height: 16),
-        // Full-width email button
-        SizedBox(
-          height: 54,
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _isLoading
-                ? null
-                : () => setState(() => _showEmailForm = true),
-            icon: Icon(Icons.mail_outline_rounded,
-                size: 20, color: colors.textPrimary),
-            label: Text(
-              'Continue with Email',
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: colors.border),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ),
+        // Continue with Google — full width
+        _FullWidthAuthButton(
+          onPressed: _isLoading ? null : _handleGoogleSignIn,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset('assets/images/google_logo.png', width: 20, height: 20,
+                  errorBuilder: (_, __, ___) => Icon(Icons.g_mobiledata_rounded, size: 22, color: colors.textPrimary)),
+              const SizedBox(width: 10),
+              Text('Continue with Google',
+                  style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+            ],
           ),
+          bgColor: colors.card,
+          borderColor: colors.border,
+        ),
+        const SizedBox(height: 12),
+        // Continue with Apple — full width
+        _FullWidthAuthButton(
+          onPressed: _isLoading ? null : _handleAppleSignIn,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.apple, size: 22, color: colors.textPrimary),
+              const SizedBox(width: 10),
+              Text('Continue with Apple',
+                  style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+            ],
+          ),
+          bgColor: colors.card,
+          borderColor: colors.border,
+        ),
+        const SizedBox(height: 12),
+        // Continue with Email — full width, accent
+        _FullWidthAuthButton(
+          onPressed: _isLoading ? null : () => setState(() => _showEmailForm = true),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.mail_outline_rounded, size: 20, color: Colors.white),
+              const SizedBox(width: 10),
+              Text('Continue with Email',
+                  style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+            ],
+          ),
+          bgColor: colors.accent,
+          borderColor: Colors.transparent,
         ),
       ],
     )
@@ -1227,53 +1225,46 @@ class _OrbPainter extends CustomPainter {
 // Social Icon Button (circular)
 // ═════════════════════════════════════════════════════════════════════════════
 
-class _SocialIconButton extends StatelessWidget {
-  final IconData? icon;
-  final Color? iconColor;
+// ═════════════════════════════════════════════════════════════════════════════
+// Full-width auth button (Google / Apple / Email)
+// ═════════════════════════════════════════════════════════════════════════════
+
+class _FullWidthAuthButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final Widget child;
   final Color bgColor;
   final Color borderColor;
-  final bool googleLogo;
-  final VoidCallback? onPressed;
 
-  const _SocialIconButton({
-    this.icon,
-    this.iconColor,
+  const _FullWidthAuthButton({
+    required this.onPressed,
+    required this.child,
     required this.bgColor,
     required this.borderColor,
-    this.googleLogo = false,
-    this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onPressed,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: bgColor,
-          border: Border.all(color: borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.of(context).textPrimary.withAlpha(8),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Center(
-          child: googleLogo
-              ? Text(
-                  'G',
-                  style: GoogleFonts.manrope(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF4285F4),
-                  ),
-                )
-              : Icon(icon, size: 28, color: iconColor),
+      child: AnimatedOpacity(
+        opacity: onPressed == null ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        child: Container(
+          height: 54,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(10),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: child,
         ),
       ),
     );

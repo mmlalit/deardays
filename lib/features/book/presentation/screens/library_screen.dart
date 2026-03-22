@@ -7,14 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
-import 'package:deardays/core/widgets/app_avatar.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book_page.dart';
 
-// Hero cover image — warm, cinematic life-journey feel
-const _heroCoverUrl =
-    'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&h=450&fit=crop';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -24,15 +20,6 @@ class LibraryScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
-  bool _searchActive = false;
-  String _searchQuery = '';
-  final _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,35 +28,221 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     return Scaffold(
       backgroundColor: colors.bg,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showCreateChapterSheet(context),
+        backgroundColor: colors.accent,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        child: const Icon(Icons.add_rounded, size: 28),
+      ),
       body: SafeArea(
         child: chaptersAsync.when(
+          skipLoadingOnRefresh: true,
           data: (chapters) => _buildContent(context, chapters),
           loading: () => _buildLoadingContent(context),
           error: (e, __) {
             debugPrint('chaptersProvider error: $e');
-            return _buildContent(context, []);
+            return _buildChaptersErrorState(context);
           },
         ),
       ),
     );
   }
 
-  List<Chapter> _filterChapters(List<Chapter> chapters) {
-    if (_searchQuery.isEmpty) return chapters;
-    final q = _searchQuery.toLowerCase();
-    return chapters.where((c) => c.title.toLowerCase().contains(q)).toList();
+  // ── Create chapter sheet ──────────────────────────────────────────────────
+
+  static const _kPresetColors = [
+    Color(0xFF6366F1), // indigo
+    Color(0xFFEC4899), // pink
+    Color(0xFF14B8A6), // teal
+    Color(0xFFF97316), // orange
+    Color(0xFF22C55E), // green
+    Color(0xFF8B5CF6), // purple
+    Color(0xFFF59E0B), // amber
+    Color(0xFFEF4444), // rose
+    Color(0xFF64748B), // slate
+    Color(0xFF06B6D4), // cyan
+  ];
+
+  Future<void> _showCreateChapterSheet(BuildContext context) async {
+    final titleController = TextEditingController();
+    Color? selectedColor;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final colors = AppColors.of(ctx);
+        final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Container(
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottomInset),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'New Chapter',
+                  style: GoogleFonts.newsreader(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Title field
+                TextField(
+                  controller: titleController,
+                  autofocus: true,
+                  style: GoogleFonts.manrope(fontSize: 15, color: colors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Chapter title...',
+                    hintStyle: GoogleFonts.manrope(fontSize: 15, color: colors.textMuted),
+                    filled: true,
+                    fillColor: colors.bg,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colors.accent, width: 2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Color label
+                Text(
+                  'Color',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textSecondary,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Color swatches
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _kPresetColors.map((c) {
+                    final isSelected = selectedColor == c;
+                    return GestureDetector(
+                      onTap: () => setSheetState(() => selectedColor = c),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: isSelected
+                              ? Border.all(color: colors.accent, width: 3)
+                              : Border.all(color: Colors.transparent, width: 3),
+                          boxShadow: isSelected
+                              ? [BoxShadow(color: c.withAlpha(100), blurRadius: 8, offset: const Offset(0, 2))]
+                              : null,
+                        ),
+                        child: isSelected
+                            ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
+                            : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+                // Create button
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final title = titleController.text.trim();
+                      if (title.isEmpty) return;
+                      Navigator.of(ctx).pop();
+                      try {
+                        final repo = ref.read(profileRepositoryProvider);
+                        final chapter = await repo.createChapter(title);
+                        if (selectedColor != null) {
+                          await repo.updateChapter(
+                            chapter.id,
+                            colorValue: selectedColor!.toARGB32(),
+                          );
+                        }
+                        ref.invalidate(chaptersProvider);
+                      } catch (e) {
+                        debugPrint('createChapter error: $e');
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Create Chapter',
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildContent(BuildContext context, List<Chapter> chapters) {
-    final filtered = _filterChapters(chapters);
+    final colors = AppColors.of(context);
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildHeader(context)),
-        if (!_searchActive) ...[
-          SliverToBoxAdapter(child: _buildHeroCard(context)),
-          SliverToBoxAdapter(child: _buildSectionTitle(context, chapters.length)),
-        ],
-        if (filtered.isEmpty)
+        // Page title
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'My Books',
+              style: GoogleFonts.newsreader(fontSize: 26, fontWeight: FontWeight.w700, color: colors.textPrimary),
+            ),
+          ),
+        ),
+
+        // Hero card
+        SliverToBoxAdapter(child: _buildHeroCard(context)),
+        SliverToBoxAdapter(child: _buildSectionTitle(context, chapters.length)),
+
+        if (chapters.isEmpty)
           SliverToBoxAdapter(child: _buildEmptyState(context))
         else
           SliverPadding(
@@ -82,8 +255,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 childAspectRatio: 0.85,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildChapterCard(context, filtered[index]),
-                childCount: filtered.length,
+                (context, index) => _buildChapterCard(context, chapters[index]),
+                childCount: chapters.length,
               ),
             ),
           ),
@@ -92,242 +265,226 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(BuildContext context) {
-    final colors = AppColors.of(context);
-
-    if (_searchActive) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.border),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  autofocus: true,
-                  style: GoogleFonts.manrope(fontSize: 14, color: colors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Search chapters...',
-                    hintStyle: GoogleFonts.manrope(fontSize: 14, color: colors.textMuted),
-                    prefixIcon: Icon(Icons.search, size: 18, color: colors.textMuted),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 13),
-                    isDense: true,
-                  ),
-                  onChanged: (v) => setState(() => _searchQuery = v),
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () => setState(() {
-                _searchActive = false;
-                _searchQuery = '';
-                _searchController.clear();
-              }),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: colors.accent,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 0),
-      child: Row(
-        children: [
-          Text(
-            'Chapters',
-            style: GoogleFonts.newsreader(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            onPressed: () => setState(() => _searchActive = true),
-            tooltip: 'Search chapters',
-            icon: Icon(Icons.search, color: colors.textSecondary, size: 22),
-          ),
-          const SizedBox(width: 4),
-          const AppAvatar(),
-          const SizedBox(width: 8),
-        ],
-      ),
-    );
-  }
-
-  // ── Hero card (replaces 3 dark book-mode cards) ───────────────────────────
+  // ── My Life Book hero card ────────────────────────────────────────────────
 
   Widget _buildHeroCard(BuildContext context) {
     final colors = AppColors.of(context);
-    final entriesAsync = ref.watch(timelineEntriesProvider);
-    final memoryCount = entriesAsync.valueOrNull?.length ?? 0;
+    final memoryCount = ref.watch(timelineEntriesProvider).valueOrNull?.length ?? 0;
+    final chapterCount = ref.watch(chaptersProvider).valueOrNull?.length ?? 0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Container(
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [colors.accentFaint, colors.highlightFaint],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.accent.withAlpha(45)),
           boxShadow: [
-            BoxShadow(
-              color: colors.textPrimary.withAlpha(12),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: colors.accent.withAlpha(18), blurRadius: 20, offset: const Offset(0, 6)),
           ],
         ),
-        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 4:3 cover photo — taller for full image visibility
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: _heroCoverUrl,
-                    fit: BoxFit.cover,
-                    memCacheWidth: 800,
-                    placeholder: (_, __) => Container(
-                      color: const Color(0xFF1E3A5F),
-                      child: const Center(
-                        child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
-                      ),
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF0F172A), Color(0xFF1E3A5F)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.menu_book_rounded, color: Colors.white54, size: 40),
-                      ),
-                    ),
+            // ── Premium label ──
+            Text(
+              'PREMIUM COLLECTION',
+              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: colors.accent),
+            ),
+            const SizedBox(height: 6),
+
+            // ── Title ──
+            Text(
+              'My Life Book',
+              style: GoogleFonts.newsreader(fontSize: 28, fontWeight: FontWeight.w700, color: colors.textPrimary, height: 1.1),
+            ),
+            const SizedBox(height: 6),
+
+            // ── Subtitle ──
+            Text(
+              'Read your entire life story, chapter by chapter, in one place.',
+              style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: 18),
+
+            // ── Stats row (above books so user sees content size first) ──
+            Row(
+              children: [
+                _buildStatCell('$memoryCount', 'MEMORIES', colors),
+                Container(
+                  width: 1, height: 36,
+                  color: colors.accent.withAlpha(40),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                ),
+                _buildStatCell('$chapterCount', 'CHAPTERS', colors),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            // ── Divider ──
+            Container(height: 1, color: colors.accent.withAlpha(30)),
+            const SizedBox(height: 18),
+
+            // ── Two mini book cards ──
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMiniBookCard(
+                    context,
+                    title: 'By Timeline',
+                    countLabel: '$memoryCount MEMORIES',
+                    description: 'A continuous life story from your first memory to your latest.',
+                    icon: Icons.show_chart_rounded,
+                    color: colors.accent,
+                    bgColor: colors.accentFaint,
+                    mode: BookMode.byTime,
+                    colors: colors,
                   ),
-                  // Bottom scrim
-                  Positioned(
-                    bottom: 0, left: 0, right: 0, height: 60,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black.withAlpha(60)],
-                        ),
-                      ),
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildMiniBookCard(
+                    context,
+                    title: 'By Chapter',
+                    countLabel: '$chapterCount CHAPTERS',
+                    description: 'Your story organized by themes like Family, Career, and Travel.',
+                    icon: Icons.menu_book_rounded,
+                    color: const Color(0xFFEC4899),
+                    bgColor: const Color(0xFFFFF0F5),
+                    mode: BookMode.byChapter,
+                    colors: colors,
                   ),
-                  // dd watermark — bottom right
-                  Positioned(
-                    bottom: 10,
-                    right: 14,
-                    child: Text(
-                      'dd',
-                      style: GoogleFonts.nunito(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white.withAlpha(120),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Mini book card (tinted content card) ─────────────────────────────────
+
+  Widget _buildMiniBookCard(
+    BuildContext context, {
+    required String title,
+    required String countLabel,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required Color bgColor,
+    required BookMode mode,
+    required AppPalette colors,
+  }) {
+    return GestureDetector(
+      onTap: () => context.push('/book-reader', extra: mode),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withAlpha(30)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 22, color: color),
+            ),
+            const SizedBox(height: 12),
+
+            // Title
+            Text(
+              title,
+              style: GoogleFonts.newsreader(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+                height: 1.2,
               ),
             ),
+            const SizedBox(height: 4),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Label
-                  Text(
-                    'YOUR STORY',
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                      color: colors.accent,
-                    ),
+            // Count label (e.g. "45 MEMORIES")
+            Text(
+              countLabel,
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Description
+            Text(
+              description,
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                color: colors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Full-width Read button
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () => context.push('/book-reader', extra: mode),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 6),
-
-                  // Title
-                  Text(
-                    'Continue Your Journey',
-                    style: GoogleFonts.newsreader(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Memory count
-                  Text(
-                    '$memoryCount ${memoryCount == 1 ? 'memory' : 'memories'} across your lifetime',
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Read',
                     style: GoogleFonts.manrope(
                       fontSize: 13,
-                      color: colors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 14),
-
-                  // Two equal buttons — By Timeline + By Chapter
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _PrimaryButton(
-                          icon: Icons.timeline_rounded,
-                          label: 'By Timeline',
-                          onTap: () => context.push(
-                              '/book-reader', extra: BookMode.byTime),
-                          colors: colors,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _PrimaryButton(
-                          icon: Icons.auto_stories_rounded,
-                          label: 'By Chapter',
-                          onTap: () => context.push(
-                              '/book-reader', extra: BookMode.byChapter),
-                          colors: colors,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // ── Stat cell ─────────────────────────────────────────────────────────────
+
+  Widget _buildStatCell(String value, String label, AppPalette colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.newsreader(fontSize: 32, fontWeight: FontWeight.w700, color: colors.textPrimary, height: 1.0),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: colors.textMuted),
+        ),
+      ],
     );
   }
 
@@ -368,7 +525,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // ── Chapter card — full-bleed photo with gradient scrim ──────────────────
 
   Widget _buildChapterCard(BuildContext context, Chapter chapter) {
-    final visual = ChapterVisual.forTitle(chapter.title);
+    final visual = ChapterVisual.forTitle(chapter.title, colorValue: chapter.colorValue);
     final countLabel = chapter.entryCount == 0
         ? 'No memories'
         : '${chapter.entryCount} ${chapter.entryCount == 1 ? 'memory' : 'memories'}';
@@ -490,24 +647,51 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.menu_book_rounded, size: 48, color: colors.textMuted),
-            const SizedBox(height: 12),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.menu_book_rounded, size: 30, color: colors.accent),
+            ),
+            const SizedBox(height: 16),
             Text(
               'No chapters yet',
               style: GoogleFonts.newsreader(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: colors.textPrimary,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
-              'Start recording memories to create your first chapter.',
+              'Chapters are born from your memories. Save a few entries and your first chapter will appear here.',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: colors.textSecondary,
                 height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () => context.go('/home'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(
+                  'Capture a memory',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ],
@@ -518,11 +702,41 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
 
+  Widget _buildChaptersErrorState(BuildContext context) {
+    final colors = AppColors.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 48, color: colors.textMuted),
+            const SizedBox(height: 16),
+            Text(
+              'Couldn\'t load chapters',
+              style: GoogleFonts.newsreader(fontSize: 18, fontWeight: FontWeight.w600, color: colors.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Check your connection and try again.',
+              style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton(
+              onPressed: () => ref.invalidate(chaptersProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadingContent(BuildContext context) {
     final colors = AppColors.of(context);
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildHeader(context)),
         // Hero skeleton
         SliverToBoxAdapter(
           child: Padding(
@@ -648,48 +862,3 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Primary equal button used in hero card
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PrimaryButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final AppPalette colors;
-
-  const _PrimaryButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 44,
-        decoration: BoxDecoration(
-          color: colors.accent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 15, color: Colors.white),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

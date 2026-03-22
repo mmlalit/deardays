@@ -1,10 +1,19 @@
 /// Golden (screenshot regression) tests for DearDays key screens.
 ///
-/// FIRST RUN — generate baselines:
+/// FIRST RUN / after UI changes — regenerate baselines:
 ///   flutter test test/golden/golden_test.dart --update-goldens
 ///
 /// SUBSEQUENT RUNS — compare against baselines:
 ///   flutter test test/golden/golden_test.dart
+///
+/// ⚠️  Goldens must be regenerated after the following redesign changes:
+///   • Home screen: mood check-in row, 2×2 capture grid (SPEAK IT/SNAP IT/
+///     WRITE/CHAT), Journal Activity card with 7-day tiles
+///   • Checklist card: circular % progress ring (replaces linear bar)
+///   • AppShell: glass header (DdLogo + wordmark + history/search/avatar)
+///     and glass BottomAppBar with notched Snap FAB — note that goldens
+///     render screens in isolation (no AppShell), so the glass header is
+///     NOT captured in screen goldens.
 ///
 /// Golden files are stored next to this file at test/golden/goldens/*.png
 /// and should be committed to version control.

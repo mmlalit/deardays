@@ -50,6 +50,34 @@ final draftsProvider = FutureProvider<List<DraftEntry>>((ref) async {
   return LocalStorageService.instance.getDrafts();
 });
 
+// --- Today's Mood ---
+
+class TodayMoodNotifier extends StateNotifier<String?> {
+  TodayMoodNotifier() : super(null) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final saved = await LocalStorageService.instance.getTodayMood();
+      if (mounted) state = saved;
+    } catch (_) {
+      // LocalStorageService not initialized (e.g. in tests) — leave state null.
+    }
+  }
+
+  Future<void> setMood(String mood) async {
+    state = mood;
+    try {
+      await LocalStorageService.instance.saveTodayMood(mood);
+    } catch (_) {}
+  }
+}
+
+final todayMoodProvider = StateNotifierProvider<TodayMoodNotifier, String?>((ref) {
+  return TodayMoodNotifier();
+});
+
 // --- Sync & Connectivity ---
 
 final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.synced);
@@ -169,11 +197,12 @@ final streakProvider = FutureProvider<Streak?>((ref) async {
   return ref.watch(profileRepositoryProvider).getStreak();
 });
 
+/// Loads chapters from the DB for the current user.
+/// Seeding of default chapters is handled in AppShell._ensureDefaultChapters().
+/// Call ref.invalidate(chaptersProvider) after any mutation.
 final chaptersProvider = FutureProvider<List<Chapter>>((ref) async {
-  ref.watch(authStateProvider);
-  final repo = ref.watch(profileRepositoryProvider);
-  // Seed 4 defaults on first load if user has no chapters
-  return repo.seedDefaultChapters();
+  ref.watch(authStateProvider); // re-run on login/logout
+  return ref.watch(profileRepositoryProvider).getChapters();
 });
 
 /// Entries for a specific chapter, ordered chronologically (oldest first).

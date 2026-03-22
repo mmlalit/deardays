@@ -32,6 +32,8 @@ import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:deardays/core/onboarding/sample_memory.dart';
+import 'package:deardays/core/providers/onboarding_provider.dart';
 
 /// Data passed between RecordingScreen → ProcessingScreen → ReviewSaveScreen.
 class ReviewData {
@@ -132,7 +134,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     _attachedPhotoPath = widget.data.attachedPhotoPath;
     _locationName = widget.data.locationName;
     _titleEditController = TextEditingController();
-    _selectedMood = widget.data.mood;
+    // Pre-populate mood from the entry data, or fall back to today's saved mood
+    _selectedMood = widget.data.mood ?? ref.read(todayMoodProvider);
 
     _shimmerController = AnimationController(
       vsync: this,
@@ -465,6 +468,20 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           if (await audioFile.exists()) await audioFile.delete();
         } catch (_) {}
       }
+
+      // Auto-delete sample memory on first real save.
+      try {
+        final entries = await ref.read(timelineEntriesProvider.future);
+        final realEntries = entries.where((e) => !isSampleEntry(e)).toList();
+        if (realEntries.isEmpty) {
+          // This is the first real entry — delete the sample if present.
+          final sampleExists = entries.any((e) => isSampleEntry(e));
+          if (sampleExists) {
+            await ref.read(journalRepositoryProvider).deleteEntry('sample-onboarding-001');
+            ref.read(onboardingProvider.notifier).markSampleMemorySeeded();
+          }
+        }
+      } catch (_) {}
 
       if (mounted) {
         ref.invalidate(todayEntryProvider);

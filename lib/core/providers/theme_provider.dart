@@ -8,7 +8,7 @@ class ThemeState {
   final ThemeMode themeMode;
 
   const ThemeState({
-    this.themeColor = AppThemeColor.sereneDuskBlue,
+    this.themeColor = AppThemeColor.warmIndigo,
     this.themeMode = ThemeMode.light,
   });
 
