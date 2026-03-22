@@ -74,9 +74,10 @@ void uxPolishFlowTests() {
       await tester.pumpWidget(_emptyApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Write'), findsOneWidget);
-      expect(find.text('Photo'), findsOneWidget);
-      expect(find.text('Chat'), findsOneWidget);
+      // 2×2 capture grid labels are UPPERCASE — always visible regardless of entries
+      expect(find.text('WRITE'), findsOneWidget);
+      expect(find.text('SNAP IT'), findsOneWidget);
+      expect(find.text('CHAT'), findsOneWidget);
     });
   });
 
@@ -133,53 +134,53 @@ void uxPolishFlowTests() {
   });
 
   group('UX — Tap Targets', () {
-    testWidgets('Write button meets 44px minimum tap target', (tester) async {
+    // All capture grid buttons are 100px tall — well above the 44px minimum.
+    testWidgets('WRITE button meets 44px minimum tap target', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      final writeBtn = find.text('Write');
+      final writeBtn = find.text('WRITE');
       expect(writeBtn, findsOneWidget);
 
       final box = tester.getRect(writeBtn);
       // Minimum tap target is 44×44 logical pixels (Material guideline: 48×48)
       expect(box.height, greaterThanOrEqualTo(44),
-          reason: 'Write button height ${box.height}px < 44px');
+          reason: 'WRITE button height ${box.height}px < 44px');
     });
 
-    testWidgets('Photo button meets 44px minimum tap target', (tester) async {
+    testWidgets('SNAP IT button meets 44px minimum tap target', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      final photoBtn = find.text('Photo');
-      expect(photoBtn, findsOneWidget);
+      final snapBtn = find.text('SNAP IT');
+      expect(snapBtn, findsOneWidget);
 
-      final box = tester.getRect(photoBtn);
+      final box = tester.getRect(snapBtn);
       expect(box.height, greaterThanOrEqualTo(44),
-          reason: 'Photo button height ${box.height}px < 44px');
+          reason: 'SNAP IT button height ${box.height}px < 44px');
     });
 
-    testWidgets('Chat button meets 44px minimum tap target', (tester) async {
+    testWidgets('CHAT button meets 44px minimum tap target', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      final chatBtn = find.text('Chat');
+      final chatBtn = find.text('CHAT');
       expect(chatBtn, findsOneWidget);
 
       final box = tester.getRect(chatBtn);
       expect(box.height, greaterThanOrEqualTo(44),
-          reason: 'Chat button height ${box.height}px < 44px');
+          reason: 'CHAT button height ${box.height}px < 44px');
     });
 
-    testWidgets('mic button meets 56px minimum tap target', (tester) async {
+    testWidgets('SPEAK IT button meets 44px minimum tap target', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      final micBtn = find.byWidgetPredicate(
-        (w) => w is Icon && w.icon == Icons.mic_rounded && (w.size ?? 0) >= 40,
-      );
-      expect(micBtn, findsOneWidget);
+      // SPEAK IT is in the 2×2 capture grid (100px tall cell)
+      final speakBtn = find.text('SPEAK IT');
+      expect(speakBtn, findsOneWidget);
 
-      final box = tester.getRect(micBtn);
+      final box = tester.getRect(speakBtn);
       expect(box.width, greaterThanOrEqualTo(44));
       expect(box.height, greaterThanOrEqualTo(44));
     });
@@ -209,12 +210,12 @@ void uxPolishFlowTests() {
       expect(semantics, isNotNull);
     });
 
-    testWidgets('Write button is reachable via semantics', (tester) async {
+    testWidgets('WRITE button is reachable via semantics', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      // Verifies the Write text widget is in the semantic tree
-      final writeFinder = find.text('Write');
+      // Verifies the WRITE capture grid button is in the semantic tree
+      final writeFinder = find.text('WRITE');
       expect(writeFinder, findsOneWidget);
       expect(tester.getSemantics(writeFinder), isNotNull);
     });
@@ -223,10 +224,11 @@ void uxPolishFlowTests() {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
+      // Mood labels are rendered in UPPERCASE in the mood check-in row
       final hasMoodSemantics =
-          find.text('Great').evaluate().isNotEmpty ||
-          find.text('Good').evaluate().isNotEmpty ||
-          find.text('Okay').evaluate().isNotEmpty;
+          find.text('GREAT').evaluate().isNotEmpty ||
+          find.text('GOOD').evaluate().isNotEmpty ||
+          find.text('OKAY').evaluate().isNotEmpty;
       expect(hasMoodSemantics, isTrue);
     });
 

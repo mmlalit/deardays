@@ -1,13 +1,17 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/routing/routes.dart';
+import 'package:deardays/core/utils/photo_crop_helper.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
@@ -27,7 +31,16 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
   bool _searchActive = false;
   String _searchQuery = '';
   String? _moodFilter;
+  bool _fabExpanded = false;
+  late Chapter _chapter;
+
   final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _chapter = widget.chapter;
+  }
 
   @override
   void dispose() {
@@ -37,32 +50,123 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final entriesAsync = ref.watch(chapterEntriesProvider(widget.chapter.id));
+    final entriesAsync = ref.watch(chapterEntriesProvider(_chapter.id));
     final colors = AppColors.of(context);
-    final visual = ChapterVisual.forTitle(widget.chapter.title);
+    final visual = ChapterVisual.forTitle(_chapter.title, colorValue: _chapter.colorValue);
 
     return Scaffold(
       backgroundColor: colors.bg,
-      floatingActionButton: _buildFAB(context, colors),
-      body: SafeArea(
-        child: entriesAsync.when(
-          data: (entries) => _buildContent(context, entries, visual, colors),
-          loading: () => _buildLoading(context, visual, colors),
-          error: (_, __) => _buildError(context, colors),
-        ),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: entriesAsync.when(
+              data: (entries) => _buildContent(context, entries, visual, colors),
+              loading: () => _buildLoading(context, visual, colors),
+              error: (_, __) => _buildError(context, colors),
+            ),
+          ),
+          // Dim overlay when FAB expanded
+          if (_fabExpanded)
+            GestureDetector(
+              onTap: () => setState(() => _fabExpanded = false),
+              child: Container(color: Colors.black.withAlpha(60)),
+            ),
+          // FAB stack
+          Positioned(
+            bottom: 24,
+            right: 20,
+            child: _buildFAB(context, colors),
+          ),
+        ],
       ),
     );
   }
 
-  // ── FAB ───────────────────────────────────────────────────────────────────
+  // ── FAB — expandable: 4 capture modes ─────────────────────────────────────
 
   Widget _buildFAB(BuildContext context, AppPalette colors) {
-    return FloatingActionButton(
-      onPressed: () => context.push(AppRoutes.write),
-      backgroundColor: colors.accent,
-      foregroundColor: Colors.white,
-      elevation: 4,
-      child: const Icon(Icons.add_rounded, size: 28),
+    final visual = ChapterVisual.forTitle(_chapter.title, colorValue: _chapter.colorValue);
+    final accent = visual.primary;
+
+    void go(String route) {
+      setState(() => _fabExpanded = false);
+      context.push(route);
+    }
+
+    Future<void> openPhoto() async {
+      setState(() => _fabExpanded = false);
+      final picker = ImagePicker();
+      XFile? photo;
+      if (Platform.isAndroid || Platform.isIOS) {
+        final source = await showModalBottomSheet<ImageSource>(
+          context: context,
+          backgroundColor: colors.card,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 36, height: 4, decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    leading: Icon(Icons.camera_alt_rounded, color: accent),
+                    title: Text('Take a photo', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                    onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.photo_library_rounded, color: accent),
+                    title: Text('Choose from gallery', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                    onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        if (source == null) return;
+        photo = await picker.pickImage(source: source, imageQuality: 85);
+      } else {
+        photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      }
+      if (photo != null && mounted) {
+        final cropped = await cropPhoto(photo.path);
+        final finalPath = cropped ?? photo.path;
+        // ignore: use_build_context_synchronously
+        if (mounted) context.push('/photo-entry', extra: finalPath);
+      }
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (_fabExpanded) ...[
+          _FabOption(icon: Icons.mic_rounded,          label: 'Record',   color: accent, onTap: () => go(AppRoutes.record)),
+          const SizedBox(height: 10),
+          _FabOption(icon: Icons.photo_camera_rounded, label: 'Picture',  color: accent, onTap: openPhoto),
+          const SizedBox(height: 10),
+          _FabOption(icon: Icons.edit_rounded,         label: 'Write',    color: accent, onTap: () => go(AppRoutes.write)),
+          const SizedBox(height: 10),
+          _FabOption(icon: Icons.auto_awesome_rounded, label: 'AI Chat',  color: accent, onTap: () => go(AppRoutes.checkin)),
+          const SizedBox(height: 14),
+        ],
+        FloatingActionButton(
+          onPressed: () => setState(() => _fabExpanded = !_fabExpanded),
+          backgroundColor: _fabExpanded ? colors.textSecondary : accent,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _fabExpanded
+                ? const Icon(Icons.close_rounded, key: ValueKey('close'), size: 26)
+                : const Icon(Icons.add_rounded,   key: ValueKey('add'),   size: 28),
+          ),
+        ),
+      ],
     );
   }
 
@@ -235,7 +339,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Most Meaningful Moment',
+                    _highlightLabel(entry),
                     style: GoogleFonts.newsreader(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -828,7 +932,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tap + to add a memory to this chapter.',
+              'Tap + to capture a memory — record, write, photo or AI chat.',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
@@ -969,6 +1073,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
   // ── More options sheet ────────────────────────────────────────────────────
 
   void _showOptions(BuildContext context, AppPalette colors) {
+    final visual = ChapterVisual.forTitle(_chapter.title, colorValue: _chapter.colorValue);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: colors.card,
@@ -982,20 +1087,30 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: Text('Rename Chapter', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-                onTap: () => Navigator.pop(context),
+                leading: Icon(Icons.edit_outlined, color: colors.textPrimary),
+                title: Text('Rename Chapter', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRenameDialog(context, colors);
+                },
               ),
               ListTile(
-                leading: const Icon(Icons.share_outlined),
-                title: Text('Share Chapter', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-                onTap: () => Navigator.pop(context),
+                leading: Icon(Icons.palette_outlined, color: colors.textPrimary),
+                title: Text('Change Color', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showColorSheet(context, colors, visual);
+                },
               ),
+              const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: AppColors.error),
                 title: Text('Delete Chapter',
                     style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.error)),
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(context, colors);
+                },
               ),
             ],
           ),
@@ -1004,7 +1119,183 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     );
   }
 
+  Future<void> _showRenameDialog(BuildContext context, AppPalette colors) async {
+    final ctrl = TextEditingController(text: _chapter.title);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Rename Chapter',
+            style: GoogleFonts.newsreader(fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          style: GoogleFonts.manrope(fontSize: 15, color: colors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Chapter title',
+            hintStyle: GoogleFonts.manrope(color: colors.textMuted),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Save', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: colors.accent)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final newTitle = ctrl.text.trim();
+    if (newTitle.isEmpty || newTitle == _chapter.title) return;
+    try {
+      final updated = await ref.read(profileRepositoryProvider).updateChapter(_chapter.id, title: newTitle);
+      if (mounted) setState(() => _chapter = updated);
+      ref.invalidate(chaptersProvider);
+    } catch (e) {
+      debugPrint('rename chapter error: $e');
+    }
+  }
+
+  static const _kPresetColors = [
+    Color(0xFF6366F1), Color(0xFFEC4899), Color(0xFF14B8A6), Color(0xFFF97316),
+    Color(0xFF22C55E), Color(0xFF8B5CF6), Color(0xFFF59E0B), Color(0xFFEF4444),
+    Color(0xFF64748B), Color(0xFF06B6D4),
+  ];
+
+  Future<void> _showColorSheet(BuildContext context, AppPalette colors, ChapterVisual currentVisual) async {
+    Color? selected = _chapter.colorValue != null ? Color(_chapter.colorValue!) : null;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSS) => Container(
+          decoration: BoxDecoration(color: colors.card, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 20),
+              Text('Chapter Color', style: GoogleFonts.newsreader(fontSize: 20, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10, runSpacing: 10,
+                children: _kPresetColors.map((c) {
+                  final isActive = selected == c;
+                  return GestureDetector(
+                    onTap: () => setSS(() => selected = c),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                        color: c, shape: BoxShape.circle,
+                        border: isActive ? Border.all(color: colors.accent, width: 3) : Border.all(color: Colors.transparent, width: 3),
+                        boxShadow: isActive ? [BoxShadow(color: c.withAlpha(100), blurRadius: 8, offset: const Offset(0, 2))] : null,
+                      ),
+                      child: isActive ? const Icon(Icons.check_rounded, color: Colors.white, size: 20) : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity, height: 50,
+                child: ElevatedButton(
+                  onPressed: selected == null ? null : () async {
+                    Navigator.pop(ctx);
+                    try {
+                      final updated = await ref.read(profileRepositoryProvider).updateChapter(
+                        _chapter.id, colorValue: selected!.toARGB32(),
+                      );
+                      if (mounted) setState(() => _chapter = updated);
+                      ref.invalidate(chaptersProvider);
+                    } catch (e) { debugPrint('color update error: $e'); }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.accent, foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: Text('Apply Color', style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, AppPalette colors) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Chapter?',
+            style: GoogleFonts.newsreader(fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+        content: Text(
+          'This will delete "${_chapter.title}". Memories inside will not be deleted.',
+          style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(profileRepositoryProvider).deleteChapter(_chapter.id);
+      ref.invalidate(chaptersProvider);
+      if (mounted) this.context.pop();
+    } catch (e) {
+      debugPrint('delete chapter error: $e');
+    }
+  }
+
+
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /// Derives a meaningful label for the highlight card based on the entry's emotion/mood.
+  String _highlightLabel(JournalEntry entry) {
+    switch (entry.emotion?.toLowerCase()) {
+      case 'joy': return 'Most Joyful Moment';
+      case 'excitement': return 'Most Exciting Moment';
+      case 'gratitude': return 'Most Grateful Moment';
+      case 'love': return 'Most Loving Moment';
+      case 'pride': return 'Proudest Moment';
+      case 'nostalgia': return 'Most Nostalgic Moment';
+      case 'contentment': return 'Most Peaceful Moment';
+      case 'sadness': return 'Most Reflective Moment';
+      case 'anxiety':
+      case 'frustration':
+      case 'anger': return 'Most Challenging Moment';
+      default: break;
+    }
+    switch (entry.mood?.toLowerCase()) {
+      case 'great': return 'Best Day';
+      case 'good': return 'Good Day Highlight';
+      case 'tough':
+      case 'low': return 'Most Reflective Moment';
+      default: break;
+    }
+    return 'Most Meaningful Moment';
+  }
 
   JournalEntry? _pickHighlight(List<JournalEntry> entries) {
     if (entries.isEmpty) return null;
@@ -1109,5 +1400,49 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
       case 'loneliness': return Icons.person_outline_rounded;
       default: return visual.icon;
     }
+  }
+}
+
+// ── FAB option pill (label + icon, floats above main FAB) ────────────────────
+
+class _FabOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _FabOption({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(color: color.withAlpha(80), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

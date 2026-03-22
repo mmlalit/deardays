@@ -6,11 +6,11 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  /// Default light theme (Serene Dusk Blue).
-  static ThemeData get light => lightFrom(AppThemeColor.sereneDuskBlue);
+  /// Default light theme (Warm Indigo).
+  static ThemeData get light => lightFrom(AppThemeColor.warmIndigo);
 
   /// Default dark theme.
-  static ThemeData get dark => darkFrom(AppThemeColor.sereneDuskBlue);
+  static ThemeData get dark => darkFrom(AppThemeColor.warmIndigo);
 
   /// Generate a light theme from the chosen color palette.
   static ThemeData lightFrom(AppThemeColor themeColor) {

@@ -110,11 +110,12 @@ void main() {
       expect(find.textContaining(RegExp(r'create.*chapter', caseSensitive: false)), findsWidgets);
     });
 
-    testWidgets('shows close (X) button', (tester) async {
+    testWidgets('shows back navigation button', (tester) async {
       await tester.pumpWidget(buildApp(data: testPostSaveData));
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.byIcon(Icons.close_rounded), findsWidgets);
+      // Header uses back arrow (not close X) to exit the chapter step
+      expect(find.byIcon(Icons.arrow_back_rounded), findsWidgets);
     });
   });
 

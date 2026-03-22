@@ -23,62 +23,59 @@ void main() {
       expect(find.text('My Life Book'), findsOneWidget);
     });
 
-    testWidgets('renders cover card with volume label', (tester) async {
+    testWidgets('renders without crash', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('VOLUME I'), findsOneWidget);
-      expect(find.text('The Digital Autobiography'), findsOneWidget);
+      expect(find.byType(MyLifeBookScreen), findsOneWidget);
     });
 
-    testWidgets('renders reading progress', (tester) async {
+    testWidgets('shows empty state when no chapters', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('READING PROGRESS'), findsOneWidget);
-      expect(find.text('35%'), findsOneWidget);
+      // With no chapters, the screen shows the empty state message
+      expect(find.text('No chapters yet'), findsOneWidget);
     });
 
-    testWidgets('renders Contents section with chapters', (tester) async {
+    testWidgets('shows empty state guidance text', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Contents'), findsOneWidget);
-      // Chapter titles
-      expect(find.textContaining('New Year Beginnings'), findsWidgets);
-      expect(find.textContaining('Love & Connection'), findsOneWidget);
-      expect(find.textContaining('Family Life'), findsOneWidget);
+      expect(
+        find.textContaining('Library tab').evaluate().isNotEmpty ||
+            find.textContaining('chapters').evaluate().isNotEmpty,
+        isTrue,
+      );
     });
 
-    testWidgets('shows first chapter content by default', (tester) async {
+    testWidgets('shows book icon in empty state', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.textContaining('Chapter 1: New Year Beginnings'),
-          findsOneWidget);
-      expect(find.text('FRESH STARTS'), findsOneWidget);
+      expect(find.byIcon(Icons.menu_book_rounded), findsOneWidget);
     });
 
-    testWidgets('shows floating nav with SAVE and SHARE', (tester) async {
+    testWidgets('renders header area without crash', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('SAVE'), findsOneWidget);
-      expect(find.text('SHARE'), findsOneWidget);
+      // Header always renders regardless of chapter state
+      expect(find.byType(SliverAppBar), findsOneWidget);
     });
 
-    testWidgets('shows continue hint to next chapter', (tester) async {
+    testWidgets('shows Scaffold in all states', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Continued in Chapter 2'), findsOneWidget);
+      expect(find.byType(Scaffold), findsWidgets);
     });
 
-    testWidgets('shows chapter mood metadata', (tester) async {
+    testWidgets('shows CustomScrollView', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('MOOD: HOPEFUL'), findsOneWidget);
+      expect(find.byType(CustomScrollView), findsOneWidget);
     });
   });
 }

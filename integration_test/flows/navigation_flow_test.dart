@@ -114,14 +114,20 @@ void navigationFlowTests() {
       expect(find.byType(HomeScreen), findsOneWidget);
     });
 
-    testWidgets('FAB is hidden on Home tab', (tester) async {
+    testWidgets('Snap FAB is visible on all tabs', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
-      // Home has its own action row — no shell FAB
-      expect(find.byType(HomeScreen), findsOneWidget);
-      final fabs = find.byType(FloatingActionButton);
-      expect(fabs, findsNothing);
+      // The Snap camera FAB is always docked in the centre of the BottomAppBar
+      // across every tab (it lives in AppShell, not in individual screens).
+      for (final tab in ['HOME', 'CHAPTERS', 'TIMELINE', 'EXPLORE']) {
+        if (find.text(tab).evaluate().isNotEmpty) {
+          await tester.tap(find.text(tab));
+          await tester.pumpAndSettle();
+        }
+        expect(find.byType(FloatingActionButton), findsOneWidget,
+            reason: 'Snap FAB should be visible on $tab tab');
+      }
     });
 
     testWidgets('nav bar stays visible across all tabs', (tester) async {

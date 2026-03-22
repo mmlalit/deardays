@@ -1,19 +1,14 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/core/widgets/app_avatar.dart';
-import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
 import 'package:deardays/core/widgets/milestone_overlay.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
@@ -23,6 +18,8 @@ import 'package:deardays/features/timeline/presentation/screens/timeline_screen.
     show showMemoryContextMenu;
 import 'package:deardays/core/widgets/force_update_dialog.dart';
 import 'package:deardays/l10n/app_localizations.dart';
+import 'package:deardays/core/providers/onboarding_provider.dart';
+import 'package:deardays/core/onboarding/checklist_card.dart';
 
 String _cleanFirstName(String name) {
   final first = name.split(' ').first;
@@ -49,6 +46,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin {
+
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
@@ -102,6 +100,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
     });
 
+    // ── Checklist task auto-completion ───────────────────────────────────────
+    ref.listen<AsyncValue<List<JournalEntry>>>(timelineEntriesProvider,
+        (_, next) {
+      final entries = next.valueOrNull;
+      if (entries == null) return;
+      final notifier = ref.read(onboardingProvider.notifier);
+      final tasks = ref.read(onboardingProvider).checklistTasks;
+
+      final realEntries = entries.where((e) => !e.tags.contains('__sample__')).toList();
+      if (realEntries.isNotEmpty) {
+        if (!tasks.any((t) => t.id == 'first_memory' && t.isCompleted)) {
+          notifier.completeTask('first_memory');
+        }
+      }
+      if (entries.any((e) => e.hasPhoto)) {
+        if (!tasks.any((t) => t.id == 'add_photo' && t.isCompleted)) {
+          notifier.completeTask('add_photo');
+        }
+      }
+    });
+
+    ref.listen<AsyncValue<List<dynamic>>>(chaptersProvider, (_, next) {
+      final chapters = next.valueOrNull;
+      if (chapters != null && chapters.isNotEmpty) {
+        final tasks = ref.read(onboardingProvider).checklistTasks;
+        if (!tasks.any((t) => t.id == 'create_chapter' && t.isCompleted)) {
+          ref.read(onboardingProvider.notifier).completeTask('create_chapter');
+        }
+      }
+    });
+
     User? user;
     try {
       user = Supabase.instance.client.auth.currentUser;
@@ -125,22 +154,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Header ─────────────────────────────────────────────
-                    _buildHeader(context, displayName, colors),
-                    const SizedBox(height: 8),
-
+                    const SizedBox(height: 20),
                     // 1. Greeting
                     _buildGreeting(firstName, colors),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 16),
 
-                    // 2. Large Mic Button + 3. Write/Photo/Chat grouped
-                    _buildMicButton(context, colors),
-                    const SizedBox(height: 12),
-                    _buildWriteChatRow(context, colors),
-                    const SizedBox(height: 24),
+                    // Mood check-in
+                    _buildMoodRow(colors),
+                    const SizedBox(height: 16),
 
-                    // 4. Streak Strip
-                    _buildStreakStrip(colors),
+                    // 2. Capture grid (2x2)
+                    _buildCaptureHero(context, colors),
+                    const SizedBox(height: 16),
+
+                    // 3. Getting Started checklist (new users only)
+                    _buildChecklistSection(),
+
+                    // 4. Journal Activity
+                    _buildJournalActivityCard(colors),
                     const SizedBox(height: 16),
 
                     // 6. Recent Memories header
@@ -159,22 +190,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
                     sliver: SliverToBoxAdapter(
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: colors.card,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: colors.border),
-                        ),
-                        child: Text(
-                          'No memories yet. Start capturing your day!',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            color: colors.textSecondary,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+                      child: _EmptyHomeState(colors: colors),
                     ),
                   );
                 }
@@ -342,7 +358,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 90,
+              height: 110,
               width: double.infinity,
               child: photoMedia.isNotEmpty
                   ? _NetworkImage(
@@ -350,36 +366,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   : _GradientBanner(colors: colors, mood: entry.mood),
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     dateStr.toUpperCase(),
                     style: GoogleFonts.manrope(
-                      fontSize: 9,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: colors.accent,
-                      letterSpacing: 1.0,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     title,
                     style: GoogleFonts.newsreader(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
                       height: 1.3,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
                     excerpt,
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 13,
                       color: colors.textSecondary,
                       height: 1.5,
                     ),
@@ -515,34 +531,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Header (app name + profile avatar)
+  // Getting Started checklist (Layer 3A)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(
-      BuildContext context, String displayName, AppPalette colors) {
+  Widget _buildChecklistSection() {
+    final onboarding = ref.watch(onboardingProvider);
+    if (onboarding.checklistDismissed || onboarding.allTasksComplete) {
+      return const SizedBox.shrink();
+    }
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Row(
-        children: [
-          const DdLogo(size: 28),
-          const Spacer(),
-          Semantics(
-            label: 'Search',
-            button: true,
-            child: GestureDetector(
-              onTap: () => context.push('/search'),
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: Center(
-                  child: Icon(Icons.search_rounded, size: 22, color: colors.textSecondary),
-                ),
-              ),
-            ),
-          ),
-          const AppAvatar(),
-        ],
-      ),
+      padding: const EdgeInsets.only(bottom: 20),
+      child: const ChecklistCard(),
     );
   }
 
@@ -553,11 +552,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildGreeting(String firstName, AppPalette colors) {
     final hour = DateTime.now().hour;
     final l10n = AppLocalizations.of(context);
+
     final greeting = hour < 12
         ? (l10n?.goodMorning ?? 'Good Morning')
         : hour < 17
             ? (l10n?.goodAfternoon ?? 'Good Afternoon')
             : (l10n?.goodEvening ?? 'Good Evening');
+
+    final tagline = hour >= 5 && hour < 12
+        ? 'Start your day with a memory ☀️'
+        : hour < 17
+            ? 'Capture a moment from today'
+            : hour < 21
+                ? 'Ready to reflect on your day? 🌙'
+                : 'Perfect time to journal ✨';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,20 +573,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         Text(
           '$greeting, $firstName',
           style: GoogleFonts.newsreader(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: colors.textSecondary,
-            height: 1.2,
-            letterSpacing: -0.3,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'What happened today?',
-          style: GoogleFonts.manrope(
-            fontSize: 24,
+            fontSize: 28,
             fontWeight: FontWeight.w700,
             color: colors.textPrimary,
+            height: 1.1,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          tagline,
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: colors.textSecondary,
             height: 1.4,
           ),
         ),
@@ -587,180 +595,132 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 2. Large Mic Button
+  // Mood check-in row
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildMicButton(BuildContext context, AppPalette colors) {
-    return Center(
-      child: Semantics(
-        label: 'Record a memory',
-        button: true,
-        child: GestureDetector(
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            context.push('/record');
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [colors.accent, colors.accent.withAlpha(200)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.accent.withAlpha(80),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+  static const _moodData = [
+    {'emoji': '🤩', 'label': 'GREAT', 'color': Color(0xFFF59E0B)},
+    {'emoji': '😊', 'label': 'GOOD', 'color': Color(0xFF10B981)},
+    {'emoji': '😐', 'label': 'OKAY', 'color': Color(0xFF94A3B8)},
+    {'emoji': '😔', 'label': 'LOW', 'color': Color(0xFF8B5CF6)},
+    {'emoji': '😣', 'label': 'TOUGH', 'color': Color(0xFFEF4444)},
+  ];
+
+  Widget _buildMoodRow(AppPalette colors) {
+    final selectedMood = ref.watch(todayMoodProvider);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'How are you feeling?',
+            style: GoogleFonts.newsreader(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: _moodData.map((m) {
+              final label = m['label'] as String;
+              final color = m['color'] as Color;
+              final emoji = m['emoji'] as String;
+              final isSelected = selectedMood == label;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(todayMoodProvider.notifier).setMood(label);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? color.withAlpha(30) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected ? color : Colors.transparent,
+                      width: 1.5,
                     ),
-                  ],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        emoji,
+                        style: const TextStyle(
+                          fontSize: 28,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        style: GoogleFonts.manrope(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: isSelected ? color : colors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: const Icon(
-                  Icons.mic_rounded,
-                  size: 36,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Record a memory',
-                style: GoogleFonts.manrope(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: colors.accent,
-                ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
-        ),
+        ],
       ),
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 3. Write / Photo / Chat row
+  // 2. Capture grid (2x2)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<void> _openPhotoFlow(BuildContext context) async {
-    HapticFeedback.mediumImpact();
-    final picker = ImagePicker();
-    XFile? photo;
-
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      // Desktop: camera not supported — go straight to file picker.
-      photo = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-    } else {
-      // Mobile: show Camera vs Gallery choice sheet.
-      final source = await _showPhotoSourceSheet(context);
-      if (source == null) return;
-      photo = await picker.pickImage(source: source, imageQuality: 85);
-    }
-
-    if (photo != null && context.mounted) {
-      context.push('/photo-entry', extra: photo.path);
-    }
-  }
-
-  Future<ImageSource?> _showPhotoSourceSheet(BuildContext context) {
-    final colors = AppColors.of(context);
-    return showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag handle
-              Container(
-                width: 36, height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: colors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              _PhotoSourceTile(
-                icon: Icons.camera_alt_rounded,
-                label: 'Take Photo',
-                subtitle: 'Open camera',
-                colors: colors,
-                onTap: () => Navigator.pop(ctx, ImageSource.camera),
-              ),
-              const SizedBox(height: 10),
-              _PhotoSourceTile(
-                icon: Icons.photo_library_rounded,
-                label: 'Choose from Library',
-                subtitle: 'Browse your gallery',
-                colors: colors,
-                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWriteChatRow(BuildContext context, AppPalette colors) {
+  Widget _buildCaptureHero(BuildContext context, AppPalette colors) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildSmallAction(
-          context,
-          icon: Icons.edit_rounded,
+        Expanded(child: _buildGlassButton(
+          icon: Icons.mic_rounded,
+          label: 'Speak it',
+          subtitle: 'Voice memory',
+          color: const Color(0xFF6366F1),
+          colors: colors,
+          onTap: () { HapticFeedback.mediumImpact(); context.push('/record'); },
+        )),
+        const SizedBox(width: 12),
+        Expanded(child: _buildGlassButton(
+          icon: Icons.edit_note_rounded,
           label: 'Write',
-          iconColor: const Color(0xFF6366F1), // indigo
+          subtitle: 'Text entry',
+          color: const Color(0xFFEC4899),
           colors: colors,
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            context.push('/write');
-          },
-        ),
-        const SizedBox(width: 24),
-        _buildSmallAction(
-          context,
-          icon: Icons.camera_alt_rounded,
-          label: 'Photo',
-          iconColor: const Color(0xFF10B981), // emerald
+          onTap: () { HapticFeedback.mediumImpact(); context.push('/write'); },
+        )),
+        const SizedBox(width: 12),
+        Expanded(child: _buildGlassButton(
+          icon: Icons.forum_rounded,
+          label: 'Check In',
+          subtitle: 'AI mood',
+          color: const Color(0xFFF97316),
           colors: colors,
-          onTap: () => _openPhotoFlow(context),
-        ),
-        const SizedBox(width: 24),
-        _buildSmallAction(
-          context,
-          icon: Icons.chat_bubble_outline_rounded,
-          label: 'Chat',
-          iconColor: const Color(0xFFF97316), // orange
-          colors: colors,
-          onTap: () {
-            HapticFeedback.mediumImpact();
-            context.push('/checkin');
-          },
-        ),
+          onTap: () { HapticFeedback.mediumImpact(); context.push('/checkin'); },
+        )),
       ],
     );
   }
 
-  Widget _buildSmallAction(
-    BuildContext context, {
+  Widget _buildGlassButton({
     required IconData icon,
     required String label,
-    required Color iconColor,
+    required String subtitle,
+    required Color color,
     required AppPalette colors,
     required VoidCallback onTap,
   }) {
@@ -772,30 +732,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         child: Column(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              height: 76,
               decoration: BoxDecoration(
-                color: iconColor.withAlpha(18),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: iconColor.withAlpha(40)),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.textPrimary.withAlpha(8),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: color.withAlpha(26),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withAlpha(45), width: 1),
               ),
-              child: Icon(icon, size: 24, color: iconColor),
+              child: Center(
+                child: Icon(icon, size: 28, color: color),
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               label,
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: colors.textSecondary,
-              ),
+              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700, color: colors.textPrimary),
+            ),
+            Text(
+              subtitle,
+              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w500, color: colors.textMuted),
             ),
           ],
         ),
@@ -804,10 +758,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 4. Streak Strip
+  // 4. Journal Activity
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildStreakStrip(AppPalette colors) {
+  Widget _buildJournalActivityCard(AppPalette colors) {
     final streakAsync = ref.watch(streakProvider);
     final entriesAsync = ref.watch(timelineEntriesProvider);
 
@@ -816,165 +770,124 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final streakCount = streak?.currentStreak ?? 0;
 
     final today = DateTime.now();
-    final todayNorm = DateTime(today.year, today.month, today.day);
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
     final days = List.generate(7, (i) {
       final d = today.subtract(Duration(days: 6 - i));
       return DateTime(d.year, d.month, d.day);
     });
-
+    const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     final entryDays = entries.map((e) {
       final d = e.entryDate;
       return DateTime(d.year, d.month, d.day);
     }).toSet();
+    final todayNorm = DateTime(today.year, today.month, today.day);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: colors.textPrimary.withAlpha(8),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: colors.textPrimary.withAlpha(8), blurRadius: 12, offset: const Offset(0, 2))],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: streak info + calendar button
-          Row(
-            children: [
-              if (streakCount > 0) ...[
-                const ExcludeSemantics(
-                  child: Text('\u{1F525}', style: TextStyle(fontSize: 16)),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '$streakCount day streak',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: colors.accent,
-                  ),
-                ),
-              ] else
-                Text(
-                  'Journal Activity',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
-                ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => _showCalendarSheet(context, colors, entries),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: colors.accent.withAlpha(15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.calendar_month_rounded,
-                    size: 18,
-                    color: colors.accent,
-                  ),
-                ),
-              ),
-            ],
+          Text('Journal Activity', style: GoogleFonts.newsreader(fontSize: 18, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+          const SizedBox(height: 4),
+          Text(
+            streakCount > 0 ? '🔥 CURRENT STREAK: $streakCount DAYS' : 'START YOUR STREAK TODAY',
+            style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFFF97316), letterSpacing: 0.8),
           ),
-          const SizedBox(height: 12),
-          // 7-day row
+          const SizedBox(height: 16),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (i) {
               final day = days[i];
               final isToday = day == todayNorm;
-              final hasEntry = entryDays.contains(day);
-              final dayName = dayNames[(day.weekday - 1) % 7];
+              final isDone = entryDays.contains(day);
+              final isFuture = day.isAfter(todayNorm);
+              final dayName = dayNames[day.weekday - 1];
+              // Recent = within last 3 days (not today); older done days get tinted style
+              final isRecentDone = isDone && !isToday && day.isAfter(todayNorm.subtract(const Duration(days: 3)));
 
-              return Expanded(
-                child: ExcludeSemantics(
-                  child: Column(
-                    children: [
-                      Text(
-                        dayName,
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: isToday ? colors.accent : colors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${day.day}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: isToday ? colors.accent : colors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: hasEntry
-                              ? colors.accent
-                              : isToday
-                                  ? colors.accent.withAlpha(20)
-                                  : Colors.transparent,
-                          shape: BoxShape.circle,
-                          border: isToday && !hasEntry
-                              ? Border.all(color: colors.accent.withAlpha(100), width: 1.5)
-                              : !hasEntry
-                                  ? Border.all(color: colors.border, width: 1.5)
-                                  : null,
-                        ),
-                        child: hasEntry
-                            ? const Center(
-                                child: Icon(Icons.check_rounded, size: 14, color: Colors.white),
-                              )
-                            : null,
-                      ),
-                    ],
+              return Column(
+                children: [
+                  Text(
+                    dayName,
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                      color: isToday ? colors.accent : colors.textMuted,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  isDone && !isToday
+                      ? Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: isRecentDone ? colors.accent : colors.accentFaint,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.check_rounded,
+                            size: 16,
+                            color: isRecentDone ? Colors.white : colors.accent,
+                          ),
+                        )
+                      : isToday
+                          ? _DashedBorderBox(
+                              size: 34,
+                              radius: 8,
+                              color: colors.accent,
+                              child: Center(
+                                child: isDone
+                                    ? Icon(Icons.check_rounded, size: 16, color: colors.accent)
+                                    : Text(
+                                        '${day.day}',
+                                        style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent),
+                                      ),
+                              ),
+                            )
+                          : Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: isFuture ? colors.border.withAlpha(80) : colors.border.withAlpha(40),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${day.day}',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: isFuture ? colors.textMuted.withAlpha(80) : colors.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                ],
               );
             }),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => context.go('/timeline'),
+            child: Row(
+              children: [
+                Text('FULL CALENDAR', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: colors.accent, letterSpacing: 1.0)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, size: 14, color: colors.accent),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// Opens a bottom sheet with a monthly calendar view that shows
-  /// which days had journal entries. Users can navigate months.
-  void _showCalendarSheet(
-    BuildContext context,
-    AppPalette colors,
-    List<JournalEntry> entries,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.bg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      isScrollControlled: true,
-      builder: (_) => _CalendarSheet(
-        colors: colors,
-        entries: entries,
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────────────
   // 6. Recent Memories section header
   // ─────────────────────────────────────────────────────────────────────────
@@ -1065,7 +978,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Stack(
               children: [
                 SizedBox(
-                  height: 160,
+                  height: 200,
                   width: double.infinity,
                   child: photoMedia.isNotEmpty
                       ? _NetworkImage(
@@ -1108,33 +1021,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   Text(
                     dateLabel.toUpperCase(),
                     style: GoogleFonts.manrope(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: colors.accent,
-                      letterSpacing: 1.0,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     title,
                     style: GoogleFonts.newsreader(
-                      fontSize: 18,
+                      fontSize: 22,
                       fontWeight: FontWeight.w600,
                       color: colors.textPrimary,
                       height: 1.3,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     excerpt,
                     style: GoogleFonts.manrope(
-                      fontSize: 13,
+                      fontSize: 14,
                       color: colors.textSecondary,
                       height: 1.6,
                     ),
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -1405,59 +1318,118 @@ class _GradientBanner extends StatelessWidget {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Photo source choice tile (Camera / Gallery)
+// Dashed border box — used for today's day cell in Journal Activity
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PhotoSourceTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final AppPalette colors;
-  final VoidCallback onTap;
+class _DashedBorderBox extends StatelessWidget {
+  final double size;
+  final double radius;
+  final Color color;
+  final Widget child;
 
-  const _PhotoSourceTile({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.colors,
-    required this.onTap,
+  const _DashedBorderBox({
+    required this.size,
+    required this.radius,
+    required this.color,
+    required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: colors.bg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: colors.accent.withAlpha(15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 22, color: colors.accent),
+    return CustomPaint(
+      painter: _DashedRoundedRectPainter(color: color, radius: radius),
+      child: SizedBox(width: size, height: size, child: child),
+    );
+  }
+}
+
+class _DashedRoundedRectPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+
+  _DashedRoundedRectPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    const dashWidth = 4.0;
+    const dashSpace = 3.0;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0.75, 0.75, size.width - 1.5, size.height - 1.5),
+        Radius.circular(radius),
+      ));
+
+    final metrics = path.computeMetrics();
+    for (final metric in metrics) {
+      double distance = 0;
+      while (distance < metric.length) {
+        canvas.drawPath(
+          metric.extractPath(distance, distance + dashWidth),
+          paint,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedRoundedRectPainter old) =>
+      old.color != color || old.radius != radius;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty home state — shown when user has no memories yet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EmptyHomeState extends StatelessWidget {
+  final AppPalette colors;
+  const _EmptyHomeState({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: colors.accent.withAlpha(20),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary)),
-                  Text(subtitle, style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary)),
-                ],
-              ),
+            child: Icon(Icons.auto_awesome_rounded, size: 30, color: colors.accent),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Your story starts here',
+            style: GoogleFonts.newsreader(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: colors.textPrimary,
             ),
-            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: colors.textMuted),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Speak, snap, or write your first memory above. It takes less than a minute.',
+            style: GoogleFonts.manrope(
+              fontSize: 14,
+              color: colors.textSecondary,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

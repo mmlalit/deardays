@@ -20,16 +20,16 @@ void main() {
       expect(find.byType(ExploreScreen), findsOneWidget);
     });
 
-    testWidgets('shows Aura header text', (tester) async {
+    testWidgets('shows Explore header text', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('Aura'), findsOneWidget);
+      expect(find.text('Explore'), findsOneWidget);
     });
 
-    testWidgets('shows search bar with hint', (tester) async {
+    testWidgets('shows search icon button', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('Search memories...'), findsOneWidget);
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
     });
 
     testWidgets('renders a Scaffold', (tester) async {
@@ -38,10 +38,11 @@ void main() {
       expect(find.byType(Scaffold), findsOneWidget);
     });
 
-    testWidgets('contains a TextField for search', (tester) async {
+    testWidgets('contains a search icon (not a TextField)', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(TextField), findsOneWidget);
+      // Search navigates to /search via a GestureDetector + Icon, not a TextField
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
     });
   });
 }

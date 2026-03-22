@@ -9,7 +9,6 @@ import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
-import 'package:deardays/core/widgets/app_avatar.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
@@ -119,56 +118,23 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       backgroundColor: colors.bg,
       body: Column(
         children: [
-          _buildHeader(colors),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Row(
+              children: [
+                Text('Explore', style: GoogleFonts.newsreader(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => context.push('/search'),
+                  child: SizedBox(width: 44, height: 44, child: Center(child: Icon(Icons.search_rounded, size: 22, color: colors.textSecondary))),
+                ),
+              ],
+            ),
+          ),
           if (_showFilters) _buildFilterRow(colors),
           if (_hasActiveFilter && !_showFilters) _buildActiveFiltersBadge(colors),
           Expanded(child: _buildBody(colors)),
         ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Header
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(AppPalette colors) {
-    return Container(
-      color: colors.bg,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
-          child: Row(
-            children: [
-              Text(
-                'Explore',
-                style: GoogleFonts.newsreader(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              Semantics(
-                label: 'Search',
-                button: true,
-                child: GestureDetector(
-                  onTap: () => context.push('/search'),
-                  child: SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: Center(
-                      child: Icon(Icons.search_rounded, size: 22, color: colors.textSecondary),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              const AppAvatar(),
-            ],
-          ),
-        ),
       ),
     );
   }

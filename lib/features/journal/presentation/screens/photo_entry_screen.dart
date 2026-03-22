@@ -191,32 +191,47 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
           ),
         ),
       ),
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildPhotoPreview(colors),
-            Expanded(child: _buildTextArea(colors)),
-            _buildContinueButton(colors),
-          ],
+        child: Builder(
+          builder: (context) {
+            final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+            final keyboardOpen = keyboardHeight > 100;
+            return Column(
+              children: [
+                // Photo collapses to thumbnail when keyboard is open (Instagram-style)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  height: keyboardOpen ? 100 : 260,
+                  child: _buildPhotoPreview(colors, compact: keyboardOpen),
+                ),
+                Expanded(child: _buildTextArea(colors)),
+                // Continue button sticks above keyboard
+                Padding(
+                  padding: EdgeInsets.only(bottom: keyboardHeight),
+                  child: _buildContinueButton(colors),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildPhotoPreview(AppPalette colors) {
+  Widget _buildPhotoPreview(AppPalette colors, {bool compact = false}) {
     return Stack(
+      fit: StackFit.expand,
       children: [
-        SizedBox(
+        Image.file(
+          File(_photoPath),
+          fit: BoxFit.cover,
           width: double.infinity,
-          height: 260,
-          child: Image.file(
-            File(_photoPath),
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: colors.card,
-              child: Icon(Icons.broken_image_rounded,
-                  size: 48, color: colors.textSecondary),
-            ),
+          errorBuilder: (_, __, ___) => Container(
+            color: colors.card,
+            child: Icon(Icons.broken_image_rounded,
+                size: 48, color: colors.textSecondary),
           ),
         ),
         // Change photo pill — top right

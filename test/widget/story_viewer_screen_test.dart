@@ -6,21 +6,24 @@ import 'package:deardays/core/theme/app_theme.dart';
 import 'package:deardays/features/story/presentation/screens/story_viewer_screen.dart';
 import 'package:deardays/features/story/presentation/providers/story_provider.dart';
 import 'package:deardays/features/story/data/models/life_story.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 
 import '../helpers/mock_providers.dart';
 
 void main() {
   setUpTestEnv();
 
-  Widget buildWithState(StoryState state) {
+  Widget buildWithState(StoryState initialState) {
     return ProviderScope(
       overrides: [
         ...authenticatedOverrides(),
-        storyProvider.overrideWith((ref) => _FakeStoryNotifier(state)),
+        storyFamilyProvider(ReflectionPeriod.weekly).overrideWith(
+          (ref) => _FakeStoryNotifier(initialState),
+        ),
       ],
       child: MaterialApp(
         theme: AppTheme.light,
-        home: const StoryViewerScreen(),
+        home: const StoryViewerScreen(period: ReflectionPeriod.weekly),
       ),
     );
   }
@@ -32,9 +35,8 @@ void main() {
       ));
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Creating your story...'), findsOneWidget);
-      expect(find.text('Analyzing your memories'), findsOneWidget);
-      expect(find.text('50%'), findsOneWidget);
+      expect(find.text('Crafting your story\u2026'), findsOneWidget);
+      expect(find.text('Reading your memories'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 
@@ -48,7 +50,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Network error occurred'), findsOneWidget);
-      expect(find.text('Try Again'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
     });
 
     testWidgets('default error message when errorMessage is null',

@@ -7,6 +7,9 @@ class Chapter {
   final DateTime? endDate;
   final int entryCount;
   final DateTime createdAt;
+  /// User-chosen accent color stored as ARGB int (e.g. 0xFF6366F1).
+  /// Null means fall back to keyword-based visual.
+  final int? colorValue;
 
   const Chapter({
     required this.id,
@@ -17,6 +20,7 @@ class Chapter {
     this.endDate,
     this.entryCount = 0,
     required this.createdAt,
+    this.colorValue,
   });
 
   Chapter copyWith({
@@ -28,6 +32,7 @@ class Chapter {
     DateTime? endDate,
     int? entryCount,
     DateTime? createdAt,
+    int? colorValue,
   }) {
     return Chapter(
       id: id ?? this.id,
@@ -38,6 +43,7 @@ class Chapter {
       endDate: endDate ?? this.endDate,
       entryCount: entryCount ?? this.entryCount,
       createdAt: createdAt ?? this.createdAt,
+      colorValue: colorValue ?? this.colorValue,
     );
   }
 
@@ -51,6 +57,7 @@ class Chapter {
       'end_date': endDate?.toIso8601String(),
       'entry_count': entryCount,
       'created_at': createdAt.toIso8601String(),
+      if (colorValue != null) 'color': colorValue,
     };
   }
 
@@ -64,6 +71,7 @@ class Chapter {
       endDate: map['end_date'] != null
           ? DateTime.parse(map['end_date'] as String)
           : null,
+      colorValue: (map['color'] as num?)?.toInt(),
       entryCount: (() {
         // Prefer live count from embedded journal_entries relation, fall back
         // to the stale cached column when the relation is not present.

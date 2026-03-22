@@ -27,10 +27,10 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2026, 3, 5),
     updatedAt: DateTime(2026, 3, 5),
     media: [
-      EntryMedia(id: 'media-001', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_1.jpg', sortOrder: 0, createdAt: DateTime(2026, 3, 5)),
-      EntryMedia(id: 'media-002', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_2.jpg', sortOrder: 1, createdAt: DateTime(2026, 3, 5)),
-      EntryMedia(id: 'media-003', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_3.jpg', sortOrder: 2, createdAt: DateTime(2026, 3, 5)),
-      EntryMedia(id: 'media-004', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/bali_4.jpg', sortOrder: 3, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-001', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&fit=crop', sortOrder: 0, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-002', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1555400038-63f5ba517a47?w=600&fit=crop', sortOrder: 1, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-003', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1604999565976-8913ad2ddb7c?w=600&fit=crop', sortOrder: 2, createdAt: DateTime(2026, 3, 5)),
+      EntryMedia(id: 'media-004', entryId: 'mock-001', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?w=600&fit=crop', sortOrder: 3, createdAt: DateTime(2026, 3, 5)),
     ],
   ),
 
@@ -51,7 +51,7 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2026, 2, 18),
     updatedAt: DateTime(2026, 2, 18),
     media: [
-      EntryMedia(id: 'media-005', entryId: 'mock-002', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/birthday_1.jpg', sortOrder: 0, createdAt: DateTime(2026, 2, 18)),
+      EntryMedia(id: 'media-005', entryId: 'mock-002', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=600&fit=crop', sortOrder: 0, createdAt: DateTime(2026, 2, 18)),
     ],
   ),
 
@@ -118,9 +118,9 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2025, 12, 27),
     updatedAt: DateTime(2025, 12, 27),
     media: [
-      EntryMedia(id: 'media-006', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/goa_1.jpg', sortOrder: 0, createdAt: DateTime(2025, 12, 27)),
-      EntryMedia(id: 'media-007', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/goa_2.jpg', sortOrder: 1, createdAt: DateTime(2025, 12, 27)),
-      EntryMedia(id: 'media-008', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/goa_3.jpg', sortOrder: 2, createdAt: DateTime(2025, 12, 27)),
+      EntryMedia(id: 'media-006', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&fit=crop', sortOrder: 0, createdAt: DateTime(2025, 12, 27)),
+      EntryMedia(id: 'media-007', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=600&fit=crop', sortOrder: 1, createdAt: DateTime(2025, 12, 27)),
+      EntryMedia(id: 'media-008', entryId: 'mock-006', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&fit=crop', sortOrder: 2, createdAt: DateTime(2025, 12, 27)),
     ],
   ),
 
@@ -154,7 +154,7 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2025, 6, 9),
     updatedAt: DateTime(2025, 6, 9),
     media: [
-      EntryMedia(id: 'media-009', entryId: 'mock-008', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/school_1.jpg', sortOrder: 0, createdAt: DateTime(2025, 6, 9)),
+      EntryMedia(id: 'media-009', entryId: 'mock-008', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=600&fit=crop', sortOrder: 0, createdAt: DateTime(2025, 6, 9)),
     ],
   ),
 
@@ -200,6 +200,9 @@ final mockEntries = <JournalEntry>[
     wordCount: 76,
     createdAt: DateTime(2025, 3, 15),
     updatedAt: DateTime(2025, 3, 15),
+    media: [
+      EntryMedia(id: 'media-012', entryId: 'mock-011', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1556761175-4b46a572b786?w=600&fit=crop', sortOrder: 0, createdAt: DateTime(2025, 3, 15)),
+    ],
   ),
 
   // ── 2024 ──────────────────────────────────────────────────────────────────
@@ -234,8 +237,8 @@ final mockEntries = <JournalEntry>[
     createdAt: DateTime(2024, 11, 8),
     updatedAt: DateTime(2024, 11, 8),
     media: [
-      EntryMedia(id: 'media-010', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/japan_1.jpg', sortOrder: 0, createdAt: DateTime(2024, 11, 8)),
-      EntryMedia(id: 'media-011', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://placeholder.test/mock/photos/japan_2.jpg', sortOrder: 1, createdAt: DateTime(2024, 11, 8)),
+      EntryMedia(id: 'media-010', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=600&fit=crop', sortOrder: 0, createdAt: DateTime(2024, 11, 8)),
+      EntryMedia(id: 'media-011', entryId: 'mock-013', userId: 'mock-user', mediaType: 'photo', storagePath: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600&fit=crop', sortOrder: 1, createdAt: DateTime(2024, 11, 8)),
     ],
   ),
 

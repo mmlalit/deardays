@@ -10,6 +10,7 @@ import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/features/journal/presentation/screens/recording_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/processing_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/edit_memory_screen.dart';
 import 'package:deardays/features/journal/presentation/screens/paywall_screen.dart';
@@ -171,7 +172,12 @@ class AppRouter {
       ),
       GoRoute(
         path: '/write',
-        builder: (context, state) => const TextEntryScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          return TextEntryScreen(
+            initialDraft: extra is DraftEntry ? extra : null,
+          );
+        },
       ),
       GoRoute(
         path: '/photo-entry',
