@@ -47,19 +47,14 @@ void main() {
         );
       });
 
-      test('generateSummary throws AiServiceException', () {
+      test('analyzeEntries throws AiServiceException', () {
         expect(
-          () => service.generateSummary(['entry1', 'entry2']),
+          () => service.analyzeEntries(['entry1', 'entry2']),
           throwsA(isA<AiServiceException>()),
         );
       });
 
-      test('getWritingPrompt throws AiServiceException', () {
-        expect(
-          () => service.getWritingPrompt(),
-          throwsA(isA<AiServiceException>()),
-        );
-      });
+      // TODO: method removed — getWritingPrompt no longer exists on AiService
 
       test('chat throws AiServiceException', () {
         expect(
@@ -70,12 +65,7 @@ void main() {
         );
       });
 
-      test('generateCoverQuery throws AiServiceException', () {
-        expect(
-          () => service.generateCoverQuery('My Story'),
-          throwsA(isA<AiServiceException>()),
-        );
-      });
+      // TODO: method removed — generateCoverQuery no longer exists on AiService
 
       test('generateShareSummary throws AiServiceException', () {
         expect(
@@ -84,12 +74,7 @@ void main() {
         );
       });
 
-      test('detectThemes throws AiServiceException', () {
-        expect(
-          () => service.detectThemes(['entry text']),
-          throwsA(isA<AiServiceException>()),
-        );
-      });
+      // TODO: method removed — detectThemes no longer exists on AiService (use analyzeEntries)
 
       test('analyzeEntries throws AiServiceException', () {
         expect(
@@ -98,11 +83,10 @@ void main() {
         );
       });
 
-      test('memorySearch throws AiServiceException', () {
+      test('smartMemorySearch throws AiServiceException', () {
         expect(
-          () => service.memorySearch(
-            question: 'When was I happy?',
-            entrySummaries: ['[0] 2026-01-01 | great | Beach day'],
+          () => service.smartMemorySearch(
+            query: 'When was I happy?',
           ),
           throwsA(isA<AiServiceException>()),
         );

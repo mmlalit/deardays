@@ -38,28 +38,23 @@ void main() {
       await svc.initForTesting(hiveDir.path);
     });
 
-    test('getDraft returns null when no draft has been saved', () async {
-      await svc.clearDraft();
-      final draft = await svc.getDraft();
-      expect(draft, isNull);
+    // clearDraft / getDraft / cacheDraft (string-based API) were removed.
+    // The current API uses saveDraft(DraftEntry), getDrafts(), deleteDraft(id).
+
+    test('getDrafts returns empty list when no drafts saved', skip: 'method removed — clearDraft/getDraft/cacheDraft replaced by saveDraft/getDrafts/deleteDraft', () async {
+      // TODO: method removed — clearDraft/getDraft/cacheDraft no longer exist
     });
 
-    test('cacheDraft stores and getDraft retrieves content', () async {
-      await svc.cacheDraft('My draft text');
-      final draft = await svc.getDraft();
-      expect(draft, 'My draft text');
+    test('cacheDraft stores and getDraft retrieves content', skip: 'method removed — cacheDraft replaced by saveDraft(DraftEntry)', () async {
+      // TODO: method removed — cacheDraft no longer exists
     });
 
-    test('clearDraft removes the stored draft', () async {
-      await svc.cacheDraft('Something');
-      await svc.clearDraft();
-      expect(await svc.getDraft(), isNull);
+    test('clearDraft removes the stored draft', skip: 'method removed — clearDraft replaced by deleteDraft(id)', () async {
+      // TODO: method removed — clearDraft no longer exists
     });
 
-    test('overwriting a draft replaces the previous value', () async {
-      await svc.cacheDraft('First draft');
-      await svc.cacheDraft('Second draft');
-      expect(await svc.getDraft(), 'Second draft');
+    test('overwriting a draft replaces the previous value', skip: 'method removed — cacheDraft replaced by saveDraft(DraftEntry)', () async {
+      // TODO: method removed — cacheDraft no longer exists
     });
   });
 

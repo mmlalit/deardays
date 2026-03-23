@@ -30,8 +30,8 @@ void main() {
 
     test('onSyncComplete can be set', () {
       var called = false;
-      SyncService().onSyncComplete = () => called = true;
-      SyncService().onSyncComplete!();
+      SyncService().onSyncComplete = (_) => called = true;
+      SyncService().onSyncComplete!([]);
       expect(called, isTrue);
       // Clean up
       SyncService().onSyncComplete = null;
@@ -40,7 +40,7 @@ void main() {
 
   group('SyncStatus', () {
     test('has all expected values', () {
-      expect(SyncStatus.values, hasLength(4));
+      expect(SyncStatus.values, hasLength(5));
       expect(SyncStatus.values, contains(SyncStatus.synced));
       expect(SyncStatus.values, contains(SyncStatus.pending));
       expect(SyncStatus.values, contains(SyncStatus.syncing));

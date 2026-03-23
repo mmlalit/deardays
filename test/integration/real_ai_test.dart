@@ -174,16 +174,9 @@ void main() {
   // ===========================================================================
 
   group('Real AI — Writing Prompt', () {
-    test('returns a non-empty writing prompt', () async {
-      if (!ai.isConfigured) return;
-
-      final prompt = await ai.getWritingPrompt();
-
-      expect(prompt, isNotEmpty);
-      expect(prompt.length, greaterThan(10));
-      // ignore: avoid_print
-      print('  ✓ Writing prompt: "$prompt"');
-    }, timeout: const Timeout(Duration(seconds: 20)));
+    test('returns a non-empty writing prompt', skip: 'method removed — getWritingPrompt no longer exists on AiService', () async {
+      // TODO: method removed — getWritingPrompt no longer exists on AiService
+    });
   });
 
   // ===========================================================================
@@ -230,23 +223,9 @@ void main() {
   // ===========================================================================
 
   group('Real AI — Summary', () {
-    test('generates a weekly summary from entries', () async {
-      if (!ai.isConfigured) return;
-
-      final summary = await ai.generateSummary(
-        [
-          'Monday: Started the week with a morning run.',
-          'Wednesday: Had a great lunch meeting with the team.',
-          'Friday: Finished the project ahead of deadline.',
-        ],
-        period: 'weekly',
-      );
-
-      expect(summary, isNotEmpty);
-      expect(summary.length, greaterThan(20));
-      // ignore: avoid_print
-      print('  ✓ Summary: "${summary.substring(0, summary.length.clamp(0, 120))}..."');
-    }, timeout: const Timeout(Duration(seconds: 30)));
+    test('generates a weekly summary from entries', skip: 'method removed — generateSummary no longer exists on AiService (use generateWeeklyStory)', () async {
+      // TODO: method removed — generateSummary no longer exists on AiService
+    });
   });
 
   // ===========================================================================
@@ -254,16 +233,9 @@ void main() {
   // ===========================================================================
 
   group('Real AI — Cover Query', () {
-    test('generates a search query for a book title', () async {
-      if (!ai.isConfigured) return;
-
-      final query = await ai.generateCoverQuery('My Year of Adventures');
-
-      expect(query, isNotEmpty);
-      expect(query.split(' ').length, lessThanOrEqualTo(10));
-      // ignore: avoid_print
-      print('  ✓ Cover query: "$query"');
-    }, timeout: const Timeout(Duration(seconds: 20)));
+    test('generates a search query for a book title', skip: 'method removed — generateCoverQuery no longer exists on AiService', () async {
+      // TODO: method removed — generateCoverQuery no longer exists on AiService
+    });
   });
 
   // ===========================================================================

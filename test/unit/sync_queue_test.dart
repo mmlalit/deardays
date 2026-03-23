@@ -38,6 +38,7 @@ void main() {
         tableName: 'journal_entries',
         payload: {'id': 'entry-1', 'user_id': 'user-1', 'content': 'test'},
         createdAt: DateTime.now(),
+        idempotencyKey: 'idem-enqueue-1',
       ));
 
       expect(queue.count, 1);
@@ -51,6 +52,7 @@ void main() {
         tableName: 'journal_entries',
         payload: {'id': 'entry-1', 'user_id': 'user-1'},
         createdAt: now,
+        idempotencyKey: 'idem-fifo-1',
       ));
       await queue.enqueue(SyncOperation(
         id: 'entry-2',
@@ -58,6 +60,7 @@ void main() {
         tableName: 'journal_entries',
         payload: {'id': 'entry-2', 'user_id': 'user-1'},
         createdAt: now.add(const Duration(seconds: 1)),
+        idempotencyKey: 'idem-fifo-2',
       ));
 
       final all = queue.getAll();
@@ -73,6 +76,7 @@ void main() {
         tableName: 'journal_entries',
         payload: {'id': 'entry-1', 'user_id': 'user-1'},
         createdAt: DateTime.now(),
+        idempotencyKey: 'idem-dequeue-1',
       ));
 
       final all = queue.getAll();
@@ -89,6 +93,7 @@ void main() {
         tableName: 'journal_entries',
         payload: {'id': 'entry-1', 'user_id': 'user-1'},
         createdAt: DateTime.now(),
+        idempotencyKey: 'idem-update-1',
       ));
 
       final all = queue.getAll();
@@ -111,6 +116,7 @@ void main() {
           tableName: 'journal_entries',
           payload: {'id': 'entry-$i', 'user_id': 'user-1'},
           createdAt: DateTime.now().add(Duration(seconds: i)),
+          idempotencyKey: 'idem-clear-$i',
         ));
       }
 
@@ -131,6 +137,7 @@ void main() {
         createdAt: now,
         retryCount: 1,
         lastError: 'timeout',
+        idempotencyKey: 'idem-serial-1',
       );
 
       final json = op.toJson();
@@ -151,6 +158,7 @@ void main() {
         tableName: 'journal_entries',
         payload: {'id': 'e1', 'user_id': 'u1'},
         createdAt: DateTime.now(),
+        idempotencyKey: 'idem-copywith-1',
       );
 
       final updated = op.copyWith(retryCount: 3, lastError: 'fail');
