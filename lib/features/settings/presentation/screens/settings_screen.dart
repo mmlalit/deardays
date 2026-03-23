@@ -47,7 +47,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _healthConsent = false;
   bool _notificationsEnabled = false;
   bool _streakMilestonesEnabled = true;
-  bool _aiStoryEnabled = true;
+
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 30);
   final _secureStorage = SecureStorageService();
   final _localAuth = LocalAuthentication();
@@ -370,11 +370,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       }
     } catch (_) {}
 
-    try {
-      final box = await Hive.openBox('settings');
-      final saved = box.get('ai_story_enabled') as bool?;
-      if (mounted) setState(() => _aiStoryEnabled = saved ?? true);
-    } catch (_) {}
   }
 
   Future<void> _toggleStreakMilestones(bool value) async {
@@ -385,10 +380,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     } catch (_) {}
   }
 
-  Future<void> _toggleAiStory(bool value) async {
-    setState(() => _aiStoryEnabled = value);
-    ref.read(aiStoryEnabledProvider.notifier).set(value);
-  }
 
   Future<void> _toggleNotifications(bool value) async {
     setState(() => _notificationsEnabled = value);
@@ -1045,18 +1036,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                         ],
                       ),
                       onTap: _pickBookOrganization,
-                    ),
-                    _buildCardRow(
-                      icon: Icons.auto_fix_high_rounded,
-                      label: 'AI Story',
-                      textColor: textColor,
-                      subtitle: 'Transform entries into literary narratives',
-                      trailing: _buildCustomToggle(
-                        value: _aiStoryEnabled,
-                        onChanged: _toggleAiStory,
-                      ),
                       isLast: true,
                     ),
+                    // TODO(post-launch): AI Story preference toggle
+                    // _buildCardRow(
+                    //   icon: Icons.auto_fix_high_rounded,
+                    //   label: 'AI Story',
+                    //   subtitle: 'Transform entries into literary narratives',
+                    //   trailing: _buildCustomToggle(value: _aiStoryEnabled, onChanged: _toggleAiStory),
+                    //   isLast: true,
+                    // ),
                   ]),
                   const SizedBox(height: 24),
                   // PREFERENCES
