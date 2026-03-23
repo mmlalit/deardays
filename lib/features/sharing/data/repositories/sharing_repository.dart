@@ -30,7 +30,8 @@ class SharingRepository {
         .from('memory_shares')
         .select()
         .eq('token', token)
-        .limit(1);
+        .limit(1)
+        .timeout(const Duration(seconds: 10));
     if (rows.isEmpty) return null;
     return MemoryShare.fromMap(rows.first);
   }
@@ -105,7 +106,8 @@ class SharingRepository {
         .eq('status', 'pending')
         .not('recipient_name', 'is', null)
         .order('requested_at', ascending: false)
-        .limit(100);
+        .limit(100)
+        .timeout(const Duration(seconds: 10));
     return rows.map((r) => _flattenWithTitle(r)).toList();
   }
 
@@ -121,7 +123,8 @@ class SharingRepository {
         .eq('memory_id', memoryId)
         .eq('sharer_id', _userId!)
         .order('created_at', ascending: false)
-        .limit(100);
+        .limit(100)
+        .timeout(const Duration(seconds: 10));
     return rows.map((r) => MemoryShare.fromMap(r)).toList();
   }
 
@@ -141,7 +144,8 @@ class SharingRepository {
         .eq('recipient_id', _userId!)
         .inFilter('status', ['approved', 'revoked'])
         .order('approved_at', ascending: false)
-        .limit(100);
+        .limit(100)
+        .timeout(const Duration(seconds: 10));
     return rows.map((r) => SharedMemoryItem.fromMap(r)).toList();
   }
 

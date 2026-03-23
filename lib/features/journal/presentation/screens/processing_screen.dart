@@ -105,7 +105,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
         ),
       );
       await Future.delayed(const Duration(seconds: 1));
-      if (mounted) Navigator.of(context).maybePop();
+      if (mounted && context.canPop()) context.pop();
       return;
     }
 
@@ -131,7 +131,9 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     String? aiError;
 
     final lightPolishFuture = canPolish
-        ? _aiService.lightPolish(transcript).catchError((e) {
+        ? _aiService.lightPolish(transcript)
+            .timeout(const Duration(seconds: 30))
+            .catchError((e) {
             aiError = e.toString();
             _offlineQueue.enqueue(AiQueueItem(
               entryId: 'pending_${DateTime.now().millisecondsSinceEpoch}',
@@ -155,16 +157,21 @@ class _ProcessingScreenState extends State<ProcessingScreen>
               buffer.write(chunk);
             }
             return buffer.toString().trim();
-          })().catchError((_) => '')
+          })()
+            .timeout(const Duration(seconds: 45))
+            .catchError((_) => '')
         : _aiService
             .polishNarrative(transcript, style: 'memoir')
+            .timeout(const Duration(seconds: 45))
             .catchError((e) {
               aiError ??= e.toString();
               return '';
             });
 
     final titleFuture =
-        _aiService.generateTitle(transcript).catchError((e) {
+        _aiService.generateTitle(transcript)
+            .timeout(const Duration(seconds: 20))
+            .catchError((e) {
           aiError ??= e.toString();
           return '';
         });
@@ -299,7 +306,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () { if (context.canPop()) context.pop(); },
             child: Container(
               width: 40,
               height: 40,

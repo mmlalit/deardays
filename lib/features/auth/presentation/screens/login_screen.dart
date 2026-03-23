@@ -266,7 +266,8 @@ class _LoginScreenState extends State<LoginScreen>
   void _recordFailedAttempt() {
     _failedAttempts++;
     if (_failedAttempts >= 5) {
-      _lockoutUntil = DateTime.now().add(const Duration(seconds: 60));
+      // 30-minute lockout matches PIN/Pattern lockout duration.
+      _lockoutUntil = DateTime.now().add(const Duration(minutes: 30));
       _failedAttempts = 0;
     }
   }

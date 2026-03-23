@@ -110,13 +110,17 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   static const _boxName = 'checkin_conversations';
 
   /// Opens the checkin conversations Hive box with encryption.
+  /// In production builds, cipher failure is rethrown to prevent silently
+  /// storing conversation data unencrypted. In debug/test builds, we fall
+  /// back to an unencrypted box so tests don't require LocalStorageService.
   static Future<Box> _openBox() async {
     try {
       final cipher = LocalStorageService.instance.cipher;
       return await Hive.openBox(_boxName, encryptionCipher: cipher);
     } catch (e) {
-      // Fallback for tests where LocalStorageService isn't initialized.
-      debugPrint('[CheckInNotifier] Falling back to unencrypted Hive box: $e');
+      debugPrint('[CheckInNotifier] Hive cipher init failed: $e');
+      if (!kDebugMode) rethrow;
+      // Debug/test fallback only — never runs in production.
       return await Hive.openBox(_boxName);
     }
   }

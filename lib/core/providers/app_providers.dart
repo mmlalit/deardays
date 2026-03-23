@@ -94,9 +94,18 @@ class AiStoryEnabledNotifier extends StateNotifier<bool> {
     _load();
   }
 
+  // Cache the box reference — Hive.openBox is idempotent but repeated calls
+  // without storing the reference is a code smell and wastes a lookup per op.
+  Box? _box;
+
+  Future<Box> _getBox() async {
+    _box ??= await Hive.openBox('settings');
+    return _box!;
+  }
+
   Future<void> _load() async {
     try {
-      final box = await Hive.openBox('settings');
+      final box = await _getBox();
       final saved = box.get(_key) as bool?;
       state = saved ?? true;
     } catch (_) {}
@@ -105,7 +114,7 @@ class AiStoryEnabledNotifier extends StateNotifier<bool> {
   Future<void> set(bool value) async {
     state = value;
     try {
-      final box = await Hive.openBox('settings');
+      final box = await _getBox();
       await box.put(_key, value);
     } catch (_) {}
   }

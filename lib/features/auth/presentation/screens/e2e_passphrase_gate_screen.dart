@@ -91,14 +91,38 @@ class _E2EPassphraseGateScreenState extends State<E2EPassphraseGateScreen> {
       }
     } on TimeoutException catch (e) {
       debugPrint('[E2EGate] Supabase query timed out: $e');
-      // Timeout — cannot verify key, accept and proceed.
+      // Cannot verify passphrase online — allow offline access but warn the
+      // user so they know verification was skipped. A wrong passphrase will
+      // still produce garbled output when decrypting individual entries.
       enc.setKey(key);
-      if (mounted) widget.onUnlocked();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not verify passphrase (network timeout). '
+              'Proceeding in offline mode.',
+            ),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        widget.onUnlocked();
+      }
     } catch (e) {
       debugPrint('[E2EGate] Network/unknown error during unlock: $e');
-      // Network error or no entries — accept and proceed.
+      // Network error — allow offline access with the same warning.
       enc.setKey(key);
-      if (mounted) widget.onUnlocked();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not verify passphrase (network error). '
+              'Proceeding in offline mode.',
+            ),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        widget.onUnlocked();
+      }
     }
   }
 

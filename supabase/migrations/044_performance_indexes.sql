@@ -19,9 +19,11 @@ CREATE INDEX IF NOT EXISTS idx_journal_entries_user_mood_date
   WHERE mood IS NOT NULL;
 
 -- Index to accelerate the generation_queue worker poll query.
--- The worker queries: WHERE status='pending' AND week_start >= X ORDER BY priority, week_start
+-- The worker queries: WHERE status='pending' ORDER BY retry_count, week_start
+-- NOTE: generation_queue has no 'priority' column; retry_count + week_start
+-- gives the same effect (lower retry = higher priority, older week first).
 CREATE INDEX IF NOT EXISTS idx_generation_queue_pending
-  ON public.generation_queue (status, priority DESC, week_start)
+  ON public.generation_queue (status, retry_count ASC, week_start)
   WHERE status = 'pending';
 
 COMMENT ON INDEX idx_journal_entries_user_chapter
@@ -29,4 +31,4 @@ COMMENT ON INDEX idx_journal_entries_user_chapter
 COMMENT ON INDEX idx_journal_entries_user_mood_date
   IS 'Covers mood-filtered timeline queries; replaces idx_journal_entries_user_mood.';
 COMMENT ON INDEX idx_generation_queue_pending
-  IS 'Covers the weekly page worker poll: pending items ordered by priority + week.';
+  IS 'Covers the weekly page worker poll: pending items ordered by retry_count + week_start.';
