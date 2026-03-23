@@ -284,6 +284,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   void _animateProgress(double from, double to) async {
+    if (!mounted) return;
     const steps = 5;
     final increment = (to - from) / steps;
     for (int i = 1; i <= steps; i++) {
@@ -367,8 +368,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         entryTime: TimeOfDay.fromDateTime(now),
         isAiPolished: _polishedText != null,
         locationName: _locationName,
-        // hasPhoto only true when online — photo upload happens immediately after
-        hasPhoto: _attachedPhotoPath != null && isOnline,
+        // hasPhoto starts false — updated to true only after successful upload
+        hasPhoto: false,
         hasVoice: widget.data.isVoice,
         wordCount: content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length,
         chapterId: _selectedChapterId,
@@ -384,12 +385,21 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         // ── Offline path ────────────────────────────────────────────────────
         debugPrint('[SAVE] Device offline — saving to local cache + SyncQueue');
         await LocalStorageService().cacheEntry(entry);
-        await SyncQueue().enqueue(SyncOperation.create(
-          id: entry.id,
-          type: SyncOperationType.create,
-          tableName: 'journal_entries',
-          payload: entry.toSupabaseMap(),
-        ));
+        if (!mounted) return;
+        try {
+          await SyncQueue().enqueue(SyncOperation.create(
+            id: entry.id,
+            type: SyncOperationType.create,
+            tableName: 'journal_entries',
+            payload: entry.toSupabaseMap(),
+          ));
+        } catch (e) {
+          debugPrint('[ReviewSave] Queue failed: $e');
+        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved locally — will sync when online')),
+        );
         saved = entry;
         savedOffline = true;
       } else {
@@ -429,6 +439,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               entryId: saved.id,
               filePath: _attachedPhotoPath!,
             );
+            // Mark hasPhoto true only after successful upload
+            saved = saved.copyWith(hasPhoto: true);
           } catch (e) {
             debugPrint('[ReviewSaveScreen] Photo upload failed: $e');
             if (mounted) {

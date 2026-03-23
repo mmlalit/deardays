@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/network/network_client.dart';
@@ -10,7 +11,7 @@ class JournalRepository {
 
   JournalRepository({required SupabaseClient client}) : _client = client;
 
-  String get _userId => _client.auth.currentUser!.id;
+  String get _userId => _client.auth.currentUser?.id ?? (throw StateError('Not authenticated'));
 
   /// The table for both reads and writes.
   static const _readTable = 'journal_entries';
@@ -38,8 +39,9 @@ class JournalRepository {
     }
     try {
       return EncryptionService().decryptText(value, key);
-    } on EncryptionException {
-      return value; // Return ciphertext rather than crash — UI will show it.
+    } on EncryptionException catch (e) {
+      debugPrint('[JournalRepository] Decryption failed: $e');
+      return '[Unable to decrypt]';
     }
   }
 
@@ -225,7 +227,8 @@ class JournalRepository {
       });
 
       return (response as List<dynamic>)
-          .map((row) => JournalEntry.fromSupabaseMap(row as Map<String, dynamic>))
+          .map((row) => JournalEntry.fromSupabaseMap(
+              _decryptRow(row as Map<String, dynamic>)))
           .toList();
     });
   }

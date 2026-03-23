@@ -47,6 +47,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _healthConsent = false;
   bool _notificationsEnabled = false;
   bool _streakMilestonesEnabled = true;
+  bool _isDialogOpen = false;
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 30);
   final _secureStorage = SecureStorageService();
@@ -66,17 +67,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _loadBiometricState() async {
     try {
       final canCheck = await _localAuth.canCheckBiometrics;
+      if (!mounted) return;
       final isDeviceSupported = await _localAuth.isDeviceSupported();
+      if (!mounted) return;
       final enabled = await _secureStorage.getBiometricEnabled();
+      if (!mounted) return;
       final lockMethod = await _secureStorage.getLockMethod();
+      if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _biometricAvailable = canCheck && isDeviceSupported;
-          _biometricLockEnabled = enabled;
-          _lockMethod = lockMethod;
-        });
-      }
+      setState(() {
+        _biometricAvailable = canCheck && isDeviceSupported;
+        _biometricLockEnabled = enabled;
+        _lockMethod = lockMethod;
+      });
     } catch (_) {}
   }
 
@@ -138,7 +141,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       final profile = await profileRepo.getProfile();
-      if (profile != null && mounted) {
+      if (!mounted) return;
+      if (profile != null) {
         setState(() {
           _healthConsent = profile.healthConsentGivenAt != null;
         });
@@ -345,7 +349,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     try {
       final profileRepo = ref.read(profileRepositoryProvider);
       final profile = await profileRepo.getProfile();
-      if (profile != null && mounted) {
+      if (!mounted) return;
+      if (profile != null) {
         final hasReminder = profile.reminderTime != null && profile.reminderTime!.isNotEmpty;
         setState(() {
           _notificationsEnabled = hasReminder;
@@ -364,8 +369,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     try {
       final box = await Hive.openBox('settings');
+      if (!mounted) return;
       final saved = box.get('streak_milestones_enabled') as bool?;
-      if (saved != null && mounted) {
+      if (saved != null) {
         setState(() => _streakMilestonesEnabled = saved);
       }
     } catch (_) {}
@@ -780,6 +786,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // ---------------------------------------------------------------------------
 
   Future<void> _deleteAccount() async {
+    if (_isDialogOpen) return;
+    _isDialogOpen = true;
+    try {
+      await _doDeleteAccount();
+    } finally {
+      _isDialogOpen = false;
+    }
+  }
+
+  Future<void> _doDeleteAccount() async {
     // First confirmation
     final confirmed = await showDialog<bool>(
       context: context,
@@ -815,35 +831,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       context: context,
       builder: (ctx) {
         final controller = TextEditingController();
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Type DELETE to confirm',
-              style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'DELETE',
-              hintStyle: GoogleFonts.manrope(color: AppColors.of(context).textMuted),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
-            ),
-            TextButton(
-              onPressed: () {
-                if (controller.text.trim() == 'DELETE') {
-                  Navigator.pop(ctx, true);
-                }
-              },
-              child: Text('Confirm Delete',
-                  style: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w600, color: AppColors.error)),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (ctx2, setState2) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Type DELETE to confirm',
+                  style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600)),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'DELETE',
+                  hintStyle: GoogleFonts.manrope(color: AppColors.of(context).textMuted),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    controller.dispose();
+                    Navigator.pop(ctx2, false);
+                  },
+                  child: Text('Cancel', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (controller.text.trim().toUpperCase() == 'DELETE') {
+                      controller.dispose();
+                      Navigator.pop(ctx2, true);
+                    }
+                  },
+                  child: Text('Confirm Delete',
+                      style: GoogleFonts.manrope(
+                          fontWeight: FontWeight.w600, color: AppColors.error)),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -871,7 +895,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     super.build(context);

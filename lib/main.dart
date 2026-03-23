@@ -27,9 +27,6 @@ import 'package:deardays/services/location/location_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
-  // Initialize crash reporting first so it captures all subsequent errors
-  await CrashReportingService().init();
-
   // Run app inside crash reporting zone (binding must be in the same zone as runApp)
   CrashReportingService().runGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +40,13 @@ void main() async {
         url: SupabaseConfig.supabaseUrl,
         anonKey: SupabaseConfig.supabaseAnonKey,
       );
+    }
+
+    // Initialize crash reporting after Supabase so auth context is available.
+    try {
+      await CrashReportingService().init();
+    } catch (e) {
+      debugPrint('[main] CrashReportingService init failed: $e');
     }
 
     // Local storage must init first — sync queue & AI queue depend on its cipher

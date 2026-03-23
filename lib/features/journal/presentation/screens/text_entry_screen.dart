@@ -184,7 +184,6 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   }
 
   Future<void> _goToReview() async {
-    HapticFeedback.lightImpact();
     final text = _textController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,12 +191,14 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       );
       return;
     }
+    HapticFeedback.lightImpact();
     _submitted = true;
     await _deleteDraft();
     if (mounted) {
+      FocusScope.of(context).unfocus();
       context.push('/processing', extra: ReviewData(
         rawText: text,
-        attachedPhotoPaths: List.unmodifiable(_attachedPhotoPaths),
+        attachedPhotoPath: _attachedPhotoPaths.isNotEmpty ? _attachedPhotoPaths.first : null,
       ));
     }
   }

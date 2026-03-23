@@ -61,7 +61,7 @@ class TodayMoodNotifier extends StateNotifier<String?> {
   Future<void> _load() async {
     try {
       final saved = await LocalStorageService.instance.getTodayMood();
-      if (mounted) state = saved;
+      state = saved;
     } catch (_) {
       // LocalStorageService not initialized (e.g. in tests) — leave state null.
     }
@@ -95,7 +95,7 @@ class AiStoryEnabledNotifier extends StateNotifier<bool> {
     try {
       final box = await Hive.openBox('settings');
       final saved = box.get(_key) as bool?;
-      if (mounted) state = saved ?? true;
+      state = saved ?? true;
     } catch (_) {}
   }
 
@@ -510,7 +510,7 @@ final weeklyMoodsProvider =
 final monthlyMoodStatsProvider =
     FutureProvider<Map<String, int>>((ref) async {
   final now = DateTime.now();
-  final start = DateTime(now.year, now.month - 1, now.day);
+  final start = DateTime(now.month == 1 ? now.year - 1 : now.year, now.month == 1 ? 12 : now.month - 1, now.day);
   return ref
       .watch(journalRepositoryProvider)
       .getMoodStatsByRange(start: start, end: now);
@@ -557,9 +557,9 @@ final reflectionEntriesProvider =
     case ReflectionPeriod.weekly:
       start = now.subtract(const Duration(days: 6));
     case ReflectionPeriod.monthly:
-      start = DateTime(now.year, now.month - 1, now.day);
+      start = DateTime(now.month == 1 ? now.year - 1 : now.year, now.month == 1 ? 12 : now.month - 1, now.day);
     case ReflectionPeriod.yearly:
-      start = DateTime(now.year - 1, now.month, now.day);
+      start = DateTime(now.year - 1, now.month, (now.month == 2 && now.day > 28) ? 28 : now.day);
   }
   return ref.watch(journalRepositoryProvider).getEntries(
         startDate: DateTime(start.year, start.month, start.day),

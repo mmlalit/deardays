@@ -40,6 +40,10 @@ class _LoginScreenState extends State<LoginScreen>
   bool _biometricEnabled = false;
   String _lockMethod = 'none';
 
+  // Rate-limiting
+  int _failedAttempts = 0;
+  DateTime? _lockoutUntil;
+
   // Consent (signup only)
   bool _healthConsentGiven = false;
 
@@ -76,7 +80,9 @@ class _LoginScreenState extends State<LoginScreen>
           _lockMethod = lockMethod;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[LoginScreen] _checkLockOptions error: $e');
+    }
   }
 
   Future<void> _handleBiometricLogin() async {
@@ -95,6 +101,11 @@ class _LoginScreenState extends State<LoginScreen>
       }
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
+        try {
+          await Supabase.instance.client.auth.refreshSession();
+        } catch (e) {
+          debugPrint('[LoginScreen] refreshSession error: $e');
+        }
         if (mounted) widget.onLogin();
       } else {
         if (mounted) {
@@ -138,6 +149,13 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handleEmailAuth() async {
+    // Rate-limit check
+    if (_lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!)) {
+      final remaining = _lockoutUntil!.difference(DateTime.now()).inSeconds;
+      _showError('Too many failed attempts. Try again in ${remaining}s.');
+      return;
+    }
+
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
@@ -164,15 +182,40 @@ class _LoginScreenState extends State<LoginScreen>
           healthConsentGivenAt:
               _healthConsentGiven ? DateTime.now().toUtc() : null,
         );
-        if (response.user != null && mounted) widget.onLogin();
+        if (response.user != null && mounted) {
+          setState(() { _failedAttempts = 0; _lockoutUntil = null; });
+          widget.onLogin();
+        }
       } else {
         final response = await _authService.signInWithEmail(email, password);
-        if (response.user != null && mounted) widget.onLogin();
+        if (response.user != null && mounted) {
+          setState(() { _failedAttempts = 0; _lockoutUntil = null; });
+          widget.onLogin();
+        }
       }
     } on AuthException catch (e) {
-      if (mounted) _showError(e.message);
+      if (mounted) {
+        setState(() {
+          _failedAttempts++;
+          if (_failedAttempts >= 5) {
+            _lockoutUntil = DateTime.now().add(const Duration(seconds: 60));
+            _failedAttempts = 0;
+          }
+        });
+        _showError(e.message);
+      }
     } catch (e) {
-      if (mounted) _showError(e.toString());
+      if (mounted) {
+        setState(() {
+          _failedAttempts++;
+          if (_failedAttempts >= 5) {
+            _lockoutUntil = DateTime.now().add(const Duration(seconds: 60));
+            _failedAttempts = 0;
+          }
+        });
+        debugPrint('[LoginScreen] Login error: $e');
+        _showError('Login failed. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

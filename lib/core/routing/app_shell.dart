@@ -125,7 +125,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           unawaited(MemoryTaggingService().tagEntry(
             entryId: id,
             content: entry.content,
-          ));
+          ).catchError((Object e) {
+            debugPrint('[AppShell] tagEntry error: $e');
+          }));
         }
       } catch (_) {}
     }
@@ -189,14 +191,15 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   }
 
   void _triggerProviderFetch() {
-    ref.read(timelineEntriesProvider.future).ignore();
-    ref.read(todayEntryProvider.future).ignore();
-    ref.read(streakProvider.future).ignore();
-    ref.read(profileProvider.future).ignore();
-    ref.read(booksProvider.future).ignore();
-    ref.read(chaptersProvider.future).ignore();
-    ref.read(weeklyMoodsProvider.future).ignore();
-    ref.read(onThisDayProvider.future).ignore();
+    // ignore: unawaited_futures — fire-and-forget prefetch; errors are logged
+    ref.read(timelineEntriesProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(todayEntryProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(streakProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(profileProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(booksProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(chaptersProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(weeklyMoodsProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(onThisDayProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
   }
 
   Future<void> _openCameraDirectly() async {

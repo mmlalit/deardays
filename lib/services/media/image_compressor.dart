@@ -53,12 +53,19 @@ class ImageCompressor {
       final frame = await codec.getNextFrame();
       final image = frame.image;
 
-      final byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      image.dispose();
+      ByteData? byteData;
+      try {
+        byteData = await image.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
+      } finally {
+        image.dispose();
+      }
 
-      if (byteData == null) return imageBytes;
+      if (byteData == null) {
+        debugPrint('[ImageCompressor] toByteData returned null, using original bytes');
+        return imageBytes;
+      }
 
       final compressed = byteData.buffer.asUint8List();
 

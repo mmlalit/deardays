@@ -225,7 +225,10 @@ class AppRouter {
           final sectionStr = state.pathParameters['section']!;
           final section = SeeAllSection.values.firstWhere(
             (s) => s.name == sectionStr,
-            orElse: () => SeeAllSection.happiest,
+            orElse: () {
+              debugPrint('[AppRouter] Unknown section: $sectionStr');
+              return SeeAllSection.happiest;
+            },
           );
           return SeeAllTimelineScreen(section: section);
         },
@@ -252,8 +255,8 @@ class AppRouter {
             );
           }
           // Backward-compatible: bare JournalEntry
-          final entry = extra as JournalEntry;
-          return MemoryDetailScreen(entry: entry);
+          if (extra is! JournalEntry) return const HomeScreen();
+          return MemoryDetailScreen(entry: extra);
         },
       ),
       GoRoute(

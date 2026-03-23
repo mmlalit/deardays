@@ -114,9 +114,10 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     try {
       final cipher = LocalStorageService.instance.cipher;
       return await Hive.openBox(_boxName, encryptionCipher: cipher);
-    } catch (_) {
+    } catch (e) {
       // Fallback for tests where LocalStorageService isn't initialized.
-      return await _openBox();
+      debugPrint('[CheckInNotifier] Falling back to unencrypted Hive box: $e');
+      return await Hive.openBox(_boxName);
     }
   }
 
@@ -151,8 +152,9 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
             'sections': remote['sections'],
           });
         }
-      } catch (_) {
+      } catch (e) {
         // Network unavailable — stay empty, no crash
+        debugPrint('[CheckInNotifier] Error: $e');
       }
     }
   }
@@ -177,7 +179,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     await box.put(_todayKey, jsonEncode(data));
 
     // Background sync to Supabase — don't await, don't block UI
-    repository?.upsertConversation(_todayKey, data).catchError((_) {});
+    repository?.upsertConversation(_todayKey, data).catchError((Object e) { debugPrint('[CheckInNotifier] Cloud sync failed: $e'); });
   }
 
   // ── Load data for a specific date ───────────────────────────────────
@@ -219,7 +221,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
           );
           return;
         }
-      } catch (_) {}
+      } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
 
       state = CheckInState(
         isFirstCheckInToday: true,
@@ -246,7 +248,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     for (final key in keys) {
       try {
         dates.add(DateTime.parse(key));
-      } catch (_) {}
+      } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
     }
     dates.sort((a, b) => b.compareTo(a)); // newest first
     return dates;
@@ -539,10 +541,10 @@ final availableDatesProvider = FutureProvider<List<DateTime>>((ref) async {
       if (!hiveKeys.contains(key)) {
         try {
           hiveDates.add(DateTime.parse(key));
-        } catch (_) {}
+        } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
       }
     }
-  } catch (_) {}
+  } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
 
   hiveDates.sort((a, b) => b.compareTo(a)); // newest first
   return hiveDates;

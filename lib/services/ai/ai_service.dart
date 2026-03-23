@@ -35,9 +35,7 @@ class AiService {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
-          if (kDebugMode) {
-            debugPrint('[AiService] ${options.method} ${options.uri}');
-          }
+          if (kDebugMode) debugPrint('[AiService] ${options.method} ${options.path}');
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -107,7 +105,7 @@ class AiService {
 
   /// Stable 8-char hex hash of a string — safe across app restarts (unlike hashCode).
   static String _stableHash(String text) =>
-      md5.convert(utf8.encode(text)).toString().substring(0, 8);
+      sha256.convert(utf8.encode(text)).toString().substring(0, 8);
 
   static const String _apiBaseUrl = String.fromEnvironment(
     'AI_API_URL',
@@ -155,6 +153,8 @@ class AiService {
       return _extractText(response);
     } on DioException catch (e) {
       throw _handleDioError(e, 'lightPolish');
+    } catch (e) {
+      throw AiServiceException('Unexpected error: $e');
     }
   }
 
@@ -185,6 +185,8 @@ class AiService {
       return _extractText(response);
     } on DioException catch (e) {
       throw _handleDioError(e, 'polishNarrative');
+    } catch (e) {
+      throw AiServiceException('Unexpected error: $e');
     }
   }
 

@@ -185,6 +185,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       final title = titleController.text.trim();
                       if (title.isEmpty) return;
                       Navigator.of(ctx).pop();
+                      final messenger = ScaffoldMessenger.of(context);
                       try {
                         final repo = ref.read(profileRepositoryProvider);
                         final chapter = await repo.createChapter(title);
@@ -197,6 +198,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         ref.invalidate(chaptersProvider);
                       } catch (e) {
                         debugPrint('createChapter error: $e');
+                        if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Failed to create chapter. Please try again.')));
                       }
                     },
                     style: ElevatedButton.styleFrom(

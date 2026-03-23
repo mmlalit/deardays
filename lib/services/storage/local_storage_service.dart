@@ -259,7 +259,11 @@ class LocalStorageService {
     final existing = await secureStorage.read(key: _hiveKeyAlias);
 
     if (existing != null) {
-      return base64Url.decode(existing);
+      try {
+        return base64Url.decode(existing);
+      } catch (e) {
+        debugPrint('[LocalStorageService] Failed to decode existing key, generating new one: $e');
+      }
     }
 
     final key = Hive.generateSecureKey();

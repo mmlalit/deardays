@@ -81,11 +81,14 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        final pos = _scrollController.position;
+        if (pos.pixels >= pos.maxScrollExtent - 100) {
+          _scrollController.animateTo(
+            pos.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       }
     });
   }

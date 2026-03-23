@@ -75,7 +75,7 @@ class EntryMedia {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is EntryMedia && other.id == id;
+    return other is EntryMedia && other.id == id && other.storagePath == storagePath;
   }
 
   @override

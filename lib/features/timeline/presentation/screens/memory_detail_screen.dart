@@ -13,6 +13,7 @@ import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
 import 'package:deardays/features/journal/presentation/widgets/version_history_sheet.dart';
+import 'package:deardays/features/sharing/data/models/memory_share.dart';
 import 'package:deardays/features/sharing/presentation/providers/sharing_provider.dart';
 import 'package:deardays/features/sharing/presentation/screens/share_management_screen.dart';
 import 'package:share_plus/share_plus.dart';
@@ -344,6 +345,7 @@ class _EntryPage extends ConsumerStatefulWidget {
 }
 
 class _EntryPageState extends ConsumerState<_EntryPage> {
+  static const _shareBaseUrl = 'https://deardays.app/share/';
   final _player = AudioPlayer();
   bool _isPlaying = false;
   Duration _position = Duration.zero;
@@ -1230,7 +1232,27 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       ),
     );
 
-    final share = await ref.read(shareActionsProvider.notifier).createShare(entry.id);
+    MemoryShare? share;
+    try {
+      share = await ref
+          .read(shareActionsProvider.notifier)
+          .createShare(entry.id)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw TimeoutException('Share link timed out'),
+          );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // dismiss loading
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not create share link. Please try again.',
+            style: GoogleFonts.manrope(color: Colors.white)),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+      return;
+    }
 
     if (!mounted) return;
     Navigator.pop(context); // dismiss loading
@@ -1245,7 +1267,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       return;
     }
 
-    final link = 'https://deardays.app/share/${share.token}';
+    final link = '$_shareBaseUrl${share.token}';
     final title = _extractTitle(entry);
 
     await Share.share(

@@ -876,7 +876,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           (moodScore[b.mood?.toLowerCase()] ?? 0).toDouble();
       return sb.compareTo(sa);
     });
-    return ranked.first;
+    return ranked.isNotEmpty ? ranked.first : null;
   }
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -28,8 +28,12 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
   final _focusNode = FocusNode();
   final _picker = ImagePicker();
   bool _hasEnoughText = false;
+  bool _photoLoadError = false;
 
   static const _minChars = 10;
+
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   @override
   void initState() {
@@ -52,7 +56,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
 
   /// Opens the platform crop UI after picking. Returns original path on desktop.
   Future<String?> _cropPhoto(String sourcePath) async {
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    if (_isDesktop) {
       return sourcePath;
     }
     final cropped = await ImageCropper().cropImage(
@@ -79,7 +83,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
 
   Future<void> _changePhoto() async {
     final XFile? photo;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    if (_isDesktop) {
       photo = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
       if (photo != null && mounted) {
         setState(() {
@@ -219,7 +223,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
-          onPressed: () => context.pop(),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
           'Add a Memory',
@@ -282,16 +286,26 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
         fit: StackFit.expand,
         children: [
           // Photo with focal-point alignment
-          Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: FileImage(File(_photoPath)),
-                fit: BoxFit.cover,
-                alignment: _focalAlignment,
-                onError: (_, __) {},
-              ),
-            ),
-          ),
+          _photoLoadError
+              ? Container(
+                  color: Colors.black26,
+                  child: const Center(
+                    child: Icon(Icons.broken_image_rounded,
+                        size: 48, color: Colors.white54),
+                  ),
+                )
+              : Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: FileImage(File(_photoPath)),
+                      fit: BoxFit.cover,
+                      alignment: _focalAlignment,
+                      onError: (_, __) {
+                        if (mounted) setState(() => _photoLoadError = true);
+                      },
+                    ),
+                  ),
+                ),
 
           // Drag-to-reframe hint (fades after first drag)
           if (!compact && _showDragHint)
@@ -333,7 +347,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Crop button — mobile only
-                if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS && !compact)
+                if (!_isDesktop && !compact)
                   GestureDetector(
                     onTap: () async {
                       final cropped = await _cropPhoto(_photoPath);
@@ -367,7 +381,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                       ),
                     ),
                   ),
-                if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS && !compact)
+                if (!_isDesktop && !compact)
                   const SizedBox(width: 8),
                 // Change button
                 GestureDetector(

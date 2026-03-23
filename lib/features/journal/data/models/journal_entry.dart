@@ -272,6 +272,9 @@ class JournalEntry {
   static List<String> _parseStringList(dynamic value) {
     if (value == null) return const [];
     if (value is List) return value.map((e) => e.toString()).toList();
+    if (value is String) {
+      return value.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    }
     return const [];
   }
 
@@ -280,8 +283,8 @@ class JournalEntry {
     final parts = timeStr.split(':');
     if (parts.length < 2) return null;
     return TimeOfDay(
-      hour: int.parse(parts[0]),
-      minute: int.parse(parts[1]),
+      hour: int.tryParse(parts[0]) ?? 0,
+      minute: int.tryParse(parts[1]) ?? 0,
     );
   }
 
@@ -293,7 +296,7 @@ class JournalEntry {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is JournalEntry && other.id == id;
+    return other is JournalEntry && other.id == id && other.updatedAt == updatedAt;
   }
 
   @override

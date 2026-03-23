@@ -9,7 +9,7 @@ class BookRepository {
 
   BookRepository({required SupabaseClient client}) : _client = client;
 
-  String get _userId => _client.auth.currentUser!.id;
+  String get _userId => _client.auth.currentUser?.id ?? (throw StateError('Not authenticated'));
 
   Future<List<Book>> getBooks() async {
     final response = await _client
@@ -36,7 +36,7 @@ class BookRepository {
   }
 
   Future<Book> createBook(Book book) async {
-    final map = book.toMap();
+    final map = Map<String, dynamic>.from(book.toMap());
     map.remove('id');
     map.remove('created_at');
     map.remove('updated_at');

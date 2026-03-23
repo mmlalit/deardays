@@ -104,7 +104,13 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
         : pc.trim();
 
     _titleController = TextEditingController(text: parsedTitle);
-    _storyController = TextEditingController(text: parsedBody.isEmpty ? (e.content) : parsedBody);
+    _storyController = TextEditingController(
+      text: parsedBody.isNotEmpty
+          ? parsedBody
+          : (e.polishedContent != null && e.polishedContent!.isNotEmpty
+              ? e.polishedContent!
+              : e.content),
+    );
     _originalController = TextEditingController(text: e.rawContent ?? e.content);
 
     _selectedMood = e.mood;
@@ -177,19 +183,20 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
 
       final saved = await _repository.updateEntry(updated);
 
-      // Upload new photo if selected — delete old ones first to avoid duplicates
+      // Upload new photo if selected — upload first, then delete old ones to avoid data loss
       if (_newPhotoPath != null) {
         try {
-          // Remove all existing photo media for this entry before uploading the new one.
+          // Upload the new photo first. Only delete old ones after success.
+          await _mediaService.uploadPhoto(
+            entryId: saved.id,
+            filePath: _newPhotoPath!,
+          );
+          // Remove all existing photo media for this entry after the new one is uploaded.
           // This prevents two photos showing side-by-side on memory cards.
           final oldPhotos = widget.entry.media.where((m) => m.mediaType == 'photo').toList();
           for (final old in oldPhotos) {
             await _mediaService.deleteMedia(old);
           }
-          await _mediaService.uploadPhoto(
-            entryId: saved.id,
-            filePath: _newPhotoPath!,
-          );
           _mediaService.clearCachedUrls(
             widget.entry.media.map((m) => m.storagePath).toList(),
           );

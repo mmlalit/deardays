@@ -205,6 +205,9 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     _setStep(3, 'done');
 
     // Show AI error as a dismissible banner so the user knows what failed
+    if (aiError != null) {
+      debugPrint('[ProcessingScreen] AI polish failed: $aiError');
+    }
     if (aiError != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -217,6 +220,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       );
     }
 
+    if (!mounted) return;
     context.pushReplacement('/review', extra: ReviewData(
       rawText: transcript,
       cleanedText: cleanedText,

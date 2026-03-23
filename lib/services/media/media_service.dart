@@ -33,7 +33,7 @@ class MediaService {
 
   MediaService({required SupabaseClient client}) : _client = client;
 
-  String get _userId => _client.auth.currentUser!.id;
+  String get _userId => _client.auth.currentUser?.id ?? (throw StateError('No authenticated user'));
 
   /// Uploads a photo file and creates an entry_media record.
   /// Also generates and uploads a thumbnail for timeline/gallery use.
@@ -87,7 +87,13 @@ class MediaService {
       createdAt: now,
     );
 
-    await _client.from('entry_media').insert(media.toMap());
+    try {
+      await _client.from('entry_media').insert(media.toMap());
+    } catch (e) {
+      // DB insert failed — delete the already-uploaded storage file to avoid orphans
+      await _client.storage.from(_bucketName).remove([storagePath]);
+      rethrow;
+    }
 
     return media;
   }
@@ -136,7 +142,13 @@ class MediaService {
       createdAt: now,
     );
 
-    await _client.from('entry_media').insert(media.toMap());
+    try {
+      await _client.from('entry_media').insert(media.toMap());
+    } catch (e) {
+      // DB insert failed — delete the already-uploaded storage file to avoid orphans
+      await _client.storage.from(_bucketName).remove([storagePath]);
+      rethrow;
+    }
 
     return media;
   }
@@ -276,7 +288,8 @@ class MediaService {
         .eq('user_id', _userId);
 
     final paths = (response as List<dynamic>)
-        .map((row) => (row as Map<String, dynamic>)['storage_path'] as String)
+        .map((row) => (row as Map<String, dynamic>)['storage_path'] as String?)
+        .whereType<String>()
         .toList();
 
     if (paths.isNotEmpty) {

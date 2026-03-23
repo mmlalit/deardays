@@ -264,13 +264,18 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Content
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<String> _getPhotoUrl(String storagePath) async {
+  Future<String> _safeGetSignedUrl(String path) async {
     try {
-      if (storagePath.startsWith('http')) return storagePath;
-      return await ref.read(mediaServiceProvider).getSignedUrl(storagePath);
-    } catch (_) {
+      return await ref.read(mediaServiceProvider).getSignedUrl(path);
+    } catch (e) {
+      debugPrint('[TimelineScreen] getSignedUrl failed: $e');
       return '';
     }
+  }
+
+  Future<String> _getPhotoUrl(String storagePath) async {
+    if (storagePath.startsWith('http')) return storagePath;
+    return _safeGetSignedUrl(storagePath);
   }
 
   Widget _buildContent(List<JournalEntry> entries, AppPalette colors) {
@@ -1838,7 +1843,8 @@ class _TimelineCardPhotoState extends ConsumerState<_TimelineCardPhoto> {
     if (widget.storagePath.startsWith('http')) return widget.storagePath;
     try {
       return await ref.read(mediaServiceProvider).getSignedUrl(widget.storagePath);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[TimelineScreen] getSignedUrl failed: $e');
       return '';
     }
   }

@@ -48,15 +48,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin {
 
   @override
+  void initState() {
+    super.initState();
+    // ── Force-update check (runs once per app session) ───────────────────────
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ForceUpdateDialog.showIfNeeded(context);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
     final profileAsync = ref.watch(profileProvider);
     final entriesAsync = ref.watch(timelineEntriesProvider);
-
-    // ── Force-update check (runs once per app session) ───────────────────────
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) ForceUpdateDialog.showIfNeeded(context);
-    });
 
     // ── Milestone celebration overlay ────────────────────────────────────────
     ref.listen<AsyncValue<Streak?>>(streakProvider, (previous, next) {

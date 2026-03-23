@@ -112,6 +112,7 @@ class SyncService {
     bool hadSuccess = false;
     int failedCount = 0;
     final syncedCreatedIds = <String>[];
+    final cacheIdsToRemove = <String>[];
 
     for (final entry in entries) {
       final key = entry.key;
@@ -135,10 +136,10 @@ class SyncService {
         if (op.type == SyncOperationType.create) {
           syncedCreatedIds.add(op.id);
         }
-        // Remove from local cache after successful sync
+        // Collect IDs to remove from local cache after the loop
         if (op.type == SyncOperationType.create ||
             op.type == SyncOperationType.update) {
-          await LocalStorageService().removeCachedEntry(op.id);
+          cacheIdsToRemove.add(op.id);
         }
         if (kDebugMode) {
           debugPrint('[SyncService] Synced ${op.type.name} ${op.id}');
@@ -170,6 +171,11 @@ class SyncService {
           );
         }
       }
+    }
+
+    // Batch-remove synced entries from local cache after the loop completes
+    for (final id in cacheIdsToRemove) {
+      await LocalStorageService().removeCachedEntry(id);
     }
 
     _failedItemCount = failedCount;
@@ -225,21 +231,31 @@ class SyncService {
         }
 
       case SyncOperationType.update:
+        final updateUserId = payload['user_id'] as String?;
+        if (updateUserId == null) {
+          debugPrint('[SyncService] Missing user_id for UPDATE ${op.id}');
+          return;
+        }
         await client
             .from(table)
             .update(payload)
             .eq('id', op.id)
-            .eq('user_id', payload['user_id'] as String);
+            .eq('user_id', updateUserId);
         if (kDebugMode) {
           debugPrint('[SyncService] UPDATE $table: ${op.id}');
         }
 
       case SyncOperationType.delete:
+        final deleteUserId = payload['user_id'] as String?;
+        if (deleteUserId == null) {
+          debugPrint('[SyncService] Missing user_id for DELETE ${op.id}');
+          return;
+        }
         await client
             .from(table)
             .delete()
             .eq('id', op.id)
-            .eq('user_id', payload['user_id'] as String);
+            .eq('user_id', deleteUserId);
         if (kDebugMode) {
           debugPrint('[SyncService] DELETE from $table: ${op.id}');
         }
