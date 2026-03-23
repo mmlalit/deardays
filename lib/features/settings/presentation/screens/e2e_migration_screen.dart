@@ -171,8 +171,9 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
     if (key == null) return value;
     try {
       return enc.decryptText(value, key);
-    } catch (_) {
-      // Already plaintext (server-encrypted rows come back decrypted via view).
+    } catch (e) {
+      // Already plaintext — server-encrypted rows come back decrypted via view.
+      debugPrint('[E2EMigration] _maybeDecrypt: not encrypted or wrong key: $e');
       return value;
     }
   }

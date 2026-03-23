@@ -153,7 +153,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       ),
       child: Row(
         children: [
-          _iconBtn(Icons.arrow_back_rounded, colors, () => Navigator.of(context).maybePop()),
+          _iconBtn(Icons.arrow_back_rounded, colors, () { if (context.canPop()) context.pop(); }),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
