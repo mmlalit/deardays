@@ -104,6 +104,17 @@ void memoryDetailFlowTests() {
     });
   });
 
+  group('Memory Detail — AI Story toggle', () {
+    testWidgets('toggle not shown for non-polished mock entries', (tester) async {
+      await openDetail(tester);
+      if (find.byType(MemoryDetailScreen).evaluate().isEmpty) return;
+
+      // Mock entries have isAiPolished: true but no polishedContent — toggle must not appear
+      expect(find.text('✨ AI Story'), findsNothing);
+      expect(find.text('My Words'), findsNothing);
+    });
+  });
+
   group('Memory Detail — Navigation', () {
     testWidgets('back button returns to Timeline', (tester) async {
       await openDetail(tester);

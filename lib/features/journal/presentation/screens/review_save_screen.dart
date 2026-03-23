@@ -227,27 +227,37 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     });
 
     try {
+      final aiStoryEnabled = ref.read(aiStoryEnabledProvider);
+
       // Step 1: Light polish — fix grammar/spelling (0% → 40%)
       _animateProgress(0.0, 0.4);
       final cleaned = await _aiService.lightPolish(widget.data.rawText);
       if (!mounted) return;
       setState(() => _cleanedText = cleaned);
 
-      // Step 2: Literary polish + title generation in parallel (40% → 100%)
-      _animateProgress(0.4, 0.85);
-      final results = await Future.wait([
-        _aiService.polishNarrative(cleaned, style: 'memoir'),
-        _aiService.generateTitle(cleaned).catchError((_) => ''),
-      ]);
+      String? body;
+      String aiTitle = '';
 
-      final result = results[0];
-      final aiTitle = results[1];
+      if (aiStoryEnabled) {
+        // Step 2: Literary polish + title generation in parallel (40% → 100%)
+        _animateProgress(0.4, 0.85);
+        final results = await Future.wait([
+          _aiService.polishNarrative(cleaned, style: 'memoir'),
+          _aiService.generateTitle(cleaned).catchError((_) => ''),
+        ]);
 
-      // Strip any leading markdown header from polished text
-      String body = result.trim();
-      final lines = body.split('\n').where((l) => l.trim().isNotEmpty).toList();
-      if (lines.length > 1 && lines.first.startsWith('#')) {
-        body = lines.skip(1).join('\n\n').trim();
+        String raw = results[0].trim();
+        aiTitle = results[1];
+
+        // Strip any leading markdown header from polished text
+        final lines = raw.split('\n').where((l) => l.trim().isNotEmpty).toList();
+        if (lines.length > 1 && lines.first.startsWith('#')) {
+          raw = lines.skip(1).join('\n\n').trim();
+        }
+        body = raw;
+      } else {
+        // AI Story disabled — skip narrative generation, use fallback title
+        _animateProgress(0.4, 1.0);
       }
 
       final title = aiTitle.isNotEmpty ? aiTitle : _generateFallbackTitle(l10n);
@@ -256,7 +266,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         _titleEditController.text = title;
         setState(() {
           _generatedTitle = title;
-          _polishedText = body;
+          _polishedText = body; // null when AI Story disabled
           _isPolishing = false;
           _polishProgress = 1.0;
         });

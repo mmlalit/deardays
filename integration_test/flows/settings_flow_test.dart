@@ -149,6 +149,15 @@ void settingsFlowTests() {
 
       expect(find.text('Chapter Organization'), findsOneWidget);
     });
+
+    testWidgets('shows AI Story row', (tester) async {
+      await openSettings(tester);
+
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      expect(find.text('AI Story'), findsOneWidget);
+    });
   });
 
   group('Settings — Preferences rows', () {

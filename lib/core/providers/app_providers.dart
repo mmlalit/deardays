@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/ai/ai_service.dart';
@@ -76,6 +77,39 @@ class TodayMoodNotifier extends StateNotifier<String?> {
 
 final todayMoodProvider = StateNotifierProvider<TodayMoodNotifier, String?>((ref) {
   return TodayMoodNotifier();
+});
+
+// --- AI Story Preference ---
+
+/// Whether the user wants AI Story generation enabled.
+/// Defaults true. When false: polishNarrative is skipped on save,
+/// AI Story toggle is hidden on the detail screen.
+class AiStoryEnabledNotifier extends StateNotifier<bool> {
+  static const _key = 'ai_story_enabled';
+
+  AiStoryEnabledNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final box = await Hive.openBox('settings');
+      final saved = box.get(_key) as bool?;
+      if (mounted) state = saved ?? true;
+    } catch (_) {}
+  }
+
+  Future<void> set(bool value) async {
+    state = value;
+    try {
+      final box = await Hive.openBox('settings');
+      await box.put(_key, value);
+    } catch (_) {}
+  }
+}
+
+final aiStoryEnabledProvider = StateNotifierProvider<AiStoryEnabledNotifier, bool>((ref) {
+  return AiStoryEnabledNotifier();
 });
 
 // --- Sync & Connectivity ---

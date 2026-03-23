@@ -353,6 +353,9 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<Duration?>? _durationSub;
 
+  // Toggle: true = AI Story, false = My Words (polished)
+  bool _showAiStory = true;
+
   @override
   void initState() {
     super.initState();
@@ -414,7 +417,13 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     final colors = AppColors.of(context);
     final entry = widget.entry;
     final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
-    final displayText = entry.polishedContent ?? entry.rawContent ?? entry.content;
+    final aiStoryGloballyEnabled = ref.watch(aiStoryEnabledProvider);
+    final hasAiStory = aiStoryGloballyEnabled &&
+        entry.isAiPolished &&
+        (entry.polishedContent?.isNotEmpty ?? false);
+    final displayText = hasAiStory && _showAiStory
+        ? entry.polishedContent!
+        : entry.content;
     final hasPhoto = photoMedia.isNotEmpty;
 
     return Scaffold(
@@ -451,6 +460,12 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
                       _buildMetaRow(entry, colors),
                       const SizedBox(height: 24),
 
+                      // AI Story / My Words toggle — only shown when AI story exists
+                      if (hasAiStory) ...[
+                        _buildContentToggle(colors),
+                        const SizedBox(height: 24),
+                      ],
+
                       // Voice player
                       if (entry.hasVoice) ...[
                         _buildVoicePlayer(colors),
@@ -458,7 +473,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
                       ],
 
                       // Body text with drop cap
-                      _buildBody(displayText, colors),
+                      _buildBody(displayText, colors, isAiStory: hasAiStory && _showAiStory),
                       const SizedBox(height: 32),
 
                       // Tags
@@ -798,10 +813,71 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // AI Story / My Words toggle
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildContentToggle(AppPalette colors) {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: colors.accent.withAlpha(18),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _toggleSegment(
+            label: '✨ AI Story',
+            active: _showAiStory,
+            colors: colors,
+            onTap: () => setState(() => _showAiStory = true),
+          ),
+          _toggleSegment(
+            label: 'My Words',
+            active: !_showAiStory,
+            colors: colors,
+            onTap: () => setState(() => _showAiStory = false),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleSegment({
+    required String label,
+    required bool active,
+    required AppPalette colors,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? colors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : colors.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Body text with drop cap
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildBody(String text, AppPalette colors) {
+  Widget _buildBody(String text, AppPalette colors, {bool isAiStory = false}) {
     if (text.isEmpty) return const SizedBox.shrink();
 
     final paragraphs = text.split('\n').where((p) => p.trim().isNotEmpty).toList();
@@ -829,8 +905,8 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           ),
         ),
 
-        // Blockquote from last paragraph if AI polished
-        if (widget.entry.isAiPolished && paragraphs.length > 2) ...[
+        // Blockquote from last paragraph if showing AI Story
+        if (isAiStory && paragraphs.length > 2) ...[
           const SizedBox(height: 24),
           _buildBlockquote(paragraphs.last, colors),
         ],

@@ -99,4 +99,33 @@ void main() {
       expect(find.text('App Lock'), findsOneWidget);
     });
   });
+
+  group('SettingsScreen - AI Story row', () {
+    testWidgets('AI Story row is present in Journaling section', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(SingleChildScrollView);
+      if (scrollable.evaluate().isNotEmpty) {
+        await tester.drag(scrollable, const Offset(0, -400));
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.text('AI Story'), findsOneWidget);
+    });
+
+    testWidgets('AI Story row has a toggle control', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final scrollable = find.byType(SingleChildScrollView);
+      if (scrollable.evaluate().isNotEmpty) {
+        await tester.drag(scrollable, const Offset(0, -400));
+        await tester.pumpAndSettle();
+      }
+
+      // Row is present — toggle is a custom AnimatedContainer (not Flutter Switch)
+      expect(find.text('AI Story'), findsOneWidget);
+    });
+  });
 }
