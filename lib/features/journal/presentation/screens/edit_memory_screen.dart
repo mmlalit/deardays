@@ -176,12 +176,21 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
 
       final saved = await _repository.updateEntry(updated);
 
-      // Upload new photo if selected
+      // Upload new photo if selected — delete old ones first to avoid duplicates
       if (_newPhotoPath != null) {
         try {
+          // Remove all existing photo media for this entry before uploading the new one.
+          // This prevents two photos showing side-by-side on memory cards.
+          final oldPhotos = widget.entry.media.where((m) => m.mediaType == 'photo').toList();
+          for (final old in oldPhotos) {
+            await _mediaService.deleteMedia(old);
+          }
           await _mediaService.uploadPhoto(
             entryId: saved.id,
             filePath: _newPhotoPath!,
+          );
+          _mediaService.clearCachedUrls(
+            widget.entry.media.map((m) => m.storagePath).toList(),
           );
         } catch (_) {
           if (mounted) {
@@ -198,6 +207,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
       if (mounted) {
         ref.invalidate(timelineEntriesProvider);
         ref.invalidate(todayEntryProvider);
+        ref.invalidate(onThisDayProvider);
         context.pop(saved);
       }
     } catch (e) {

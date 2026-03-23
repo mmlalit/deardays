@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
@@ -200,6 +201,23 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
   Future<void> _openCameraDirectly() async {
     HapticFeedback.mediumImpact();
+
+    // On mobile, request camera permission before opening the camera.
+    if (Platform.isAndroid || Platform.isIOS) {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Camera permission is required to snap a photo.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     final picker = ImagePicker();
     XFile? photo;
 
@@ -395,6 +413,7 @@ class _SnapFab extends StatelessWidget {
         ],
       ),
       child: FloatingActionButton(
+        heroTag: 'shell-snap-fab',
         onPressed: onTap,
         backgroundColor: Colors.transparent,
         elevation: 0,

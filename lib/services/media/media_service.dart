@@ -173,6 +173,14 @@ class MediaService {
     return _client.storage.from(_bucketName).getPublicUrl(thumbnailPath(storagePath));
   }
 
+  /// Removes the given paths from the signed URL cache.
+  /// Call after replacing or deleting a photo so the next load fetches a fresh URL.
+  void clearCachedUrls(List<String> paths) {
+    for (final path in paths) {
+      _signedUrlCache.remove(path);
+    }
+  }
+
   /// Returns a signed URL for a media item (valid for 1 hour).
   /// Results are cached in-memory so repeated calls for the same path
   /// (e.g. on scroll rebuild) reuse the existing Future without a new request.
