@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:flutter/material.dart';
@@ -41,7 +42,10 @@ class ReviewData {
   final String rawText;
   final String? mood;
   final String? locationName;
+  /// Single photo (legacy — kept for recording/voice flows). Prefer [attachedPhotoPaths].
   final String? attachedPhotoPath;
+  /// Multiple photos (up to 5). Takes precedence over [attachedPhotoPath].
+  final List<String> attachedPhotoPaths;
   final String? audioPath;
   final bool isVoice;
   final bool polishWithAI;
@@ -61,6 +65,7 @@ class ReviewData {
     this.mood,
     this.locationName,
     this.attachedPhotoPath,
+    this.attachedPhotoPaths = const [],
     this.audioPath,
     this.isVoice = false,
     this.polishWithAI = false,
@@ -113,7 +118,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // Save state
   bool _isSaving = false;
   bool _isUploadingPhoto = false;
-  String? _attachedPhotoPath;
+  late List<String> _attachedPhotoPaths;
+  int _currentPhotoIndex = 0;
+  Alignment _focalAlignment = Alignment.center;
+  bool _showDragHint = true;
   String? _locationName;
   String? _selectedChapterId;
   String? _saveError;
@@ -132,7 +140,12 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   @override
   void initState() {
     super.initState();
-    _attachedPhotoPath = widget.data.attachedPhotoPath;
+    // Merge legacy single-photo field + new multi-photo list (dedup)
+    final legacy = widget.data.attachedPhotoPath;
+    _attachedPhotoPaths = [
+      ...widget.data.attachedPhotoPaths,
+      if (legacy != null && !widget.data.attachedPhotoPaths.contains(legacy)) legacy,
+    ];
     _locationName = widget.data.locationName;
     _titleEditController = TextEditingController();
     // Pre-populate mood from the entry data, or fall back to today's saved mood
@@ -183,7 +196,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       generatedTitle: _generatedTitle,
       mood: _selectedMood,
       locationName: _locationName,
-      attachedPhotoPath: _attachedPhotoPath,
+      attachedPhotoPath: _attachedPhotoPaths.isNotEmpty ? _attachedPhotoPaths.first : null,
       isVoice: widget.data.isVoice,
     );
     await LocalStorageService.instance.saveDraft(draft);
@@ -368,7 +381,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         isAiPolished: _polishedText != null,
         locationName: _locationName,
         // hasPhoto only true when online — photo upload happens immediately after
-        hasPhoto: _attachedPhotoPath != null && isOnline,
+        hasPhoto: _attachedPhotoPaths.isNotEmpty && isOnline,
         hasVoice: widget.data.isVoice,
         wordCount: content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length,
         chapterId: _selectedChapterId,
@@ -422,13 +435,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           await ref.read(bookRepositoryProvider).ensureDefaultBook(organization);
         } catch (_) {}
 
-        if (_attachedPhotoPath != null) {
+        if (_attachedPhotoPaths.isNotEmpty) {
           if (mounted) setState(() => _isUploadingPhoto = true);
           try {
-            await _mediaService.uploadPhoto(
-              entryId: saved.id,
-              filePath: _attachedPhotoPath!,
-            );
+            for (final photoPath in _attachedPhotoPaths) {
+              await _mediaService.uploadPhoto(
+                entryId: saved.id,
+                filePath: photoPath,
+              );
+            }
           } catch (e) {
             debugPrint('[ReviewSaveScreen] Photo upload failed: $e');
             if (mounted) {
@@ -503,7 +518,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           entryId: saved.id,
           title: _generatedTitle ?? _generateFallbackTitle(),
           content: _cleanedText ?? widget.data.rawText,
-          attachedPhotoPath: _attachedPhotoPath,
+          attachedPhotoPath: _attachedPhotoPaths.isNotEmpty ? _attachedPhotoPaths.first : null,
           savedOffline: savedOffline,
         );
         ref.read(postSaveDataProvider.notifier).state = postSaveData;
@@ -650,90 +665,264 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   Widget _buildPhotoOrGradientBanner() {
     final colors = AppColors.of(context);
-
-    Widget imageChild;
-    if (_attachedPhotoPath != null) {
-      imageChild = Image.file(
-        File(_attachedPhotoPath!),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: 300,
-        errorBuilder: (_, __, ___) => _fallbackBannerBg(colors),
-      );
-    } else {
-      imageChild = _fallbackBannerBg(colors);
-    }
+    final hasPhotos = _attachedPhotoPaths.isNotEmpty;
+    final currentPath = hasPhotos ? _attachedPhotoPaths[_currentPhotoIndex] : null;
 
     return ClipRRect(
-      child: Stack(
-        children: [
-          SizedBox(height: 300, width: double.infinity, child: imageChild),
-          // Dark gradient overlay (bottom → transparent)
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withAlpha(180),
-                  ],
-                  stops: const [0.4, 1.0],
-                ),
-              ),
+      child: GestureDetector(
+        // Drag to reframe focal point
+        onPanUpdate: currentPath == null
+            ? null
+            : (details) {
+                final box = context.findRenderObject() as RenderBox?;
+                if (box == null) return;
+                final size = box.size;
+                final dx = -details.delta.dx / size.width * 2.5;
+                final dy = -details.delta.dy / size.height * 2.5;
+                setState(() {
+                  _focalAlignment = Alignment(
+                    (_focalAlignment.x + dx).clamp(-1.0, 1.0),
+                    (_focalAlignment.y + dy).clamp(-1.0, 1.0),
+                  );
+                  _showDragHint = false;
+                });
+              },
+        child: Stack(
+          children: [
+            // Main photo or gradient
+            SizedBox(
+              height: 300,
+              width: double.infinity,
+              child: currentPath != null
+                  ? Container(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: FileImage(File(currentPath)),
+                          fit: BoxFit.cover,
+                          alignment: _focalAlignment,
+                          onError: (_, __) {},
+                        ),
+                      ),
+                    )
+                  : _fallbackBannerBg(colors),
             ),
-          ),
-          // Edit photo button (top-right)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: GestureDetector(
-              onTap: _showPhotoOptions,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withAlpha(100),
-                ),
-                child: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
-              ),
-            ),
-          ),
 
-          // Photo upload progress overlay
-          if (_isUploadingPhoto)
+            // Dark gradient overlay
             Positioned.fill(
-              child: Container(
-                color: Colors.black.withAlpha(120),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Uploading photo...',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withAlpha(180)],
+                    stops: const [0.4, 1.0],
+                  ),
                 ),
               ),
             ),
-        ],
+
+            // Drag-to-reframe hint
+            if (currentPath != null && _showDragHint)
+              Positioned(
+                bottom: hasPhotos && _attachedPhotoPaths.length > 1 ? 68 : 14,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(110),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.open_with_rounded, size: 12, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text('Drag to reframe',
+                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Photo thumbnail strip (shown when ≥1 photo)
+            if (hasPhotos)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 60,
+                  color: Colors.black.withAlpha(80),
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    itemCount: _attachedPhotoPaths.length + (_attachedPhotoPaths.length < 5 ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      // "Add photo" button at the end
+                      if (i == _attachedPhotoPaths.length) {
+                        return GestureDetector(
+                          onTap: _showPhotoOptions,
+                          child: Container(
+                            width: 44, height: 44,
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(25),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white.withAlpha(80), width: 1.5),
+                            ),
+                            child: const Icon(Icons.add_photo_alternate_outlined, size: 20, color: Colors.white),
+                          ),
+                        );
+                      }
+                      final isSelected = i == _currentPhotoIndex;
+                      return GestureDetector(
+                        onTap: () => setState(() {
+                          _currentPhotoIndex = i;
+                          _focalAlignment = Alignment.center;
+                          _showDragHint = true;
+                        }),
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 44, height: 44,
+                              margin: const EdgeInsets.only(right: 6),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isSelected ? Colors.white : Colors.transparent,
+                                  width: 2,
+                                ),
+                                image: DecorationImage(
+                                  image: FileImage(File(_attachedPhotoPaths[i])),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            // Remove badge on selected thumbnail
+                            if (isSelected)
+                              Positioned(
+                                top: 0, right: 4,
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _attachedPhotoPaths.removeAt(i);
+                                    _currentPhotoIndex = (_attachedPhotoPaths.isEmpty ? 0 : i.clamp(0, _attachedPhotoPaths.length - 1));
+                                    _focalAlignment = Alignment.center;
+                                  }),
+                                  child: Container(
+                                    width: 16, height: 16,
+                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                    child: const Icon(Icons.close, size: 11, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+            // Top-right action pills: Crop + Edit
+            Positioned(
+              top: 12, right: 12,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Crop — mobile only, only when photo present
+                  if (currentPath != null &&
+                      !Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)
+                    GestureDetector(
+                      onTap: () async {
+                        final cropped = await _cropPhoto(currentPath);
+                        if (cropped != null && mounted) {
+                          setState(() {
+                            _attachedPhotoPaths[_currentPhotoIndex] = cropped;
+                            _focalAlignment = Alignment.center;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(140),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.crop_rounded, size: 13, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text('Crop', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                        ]),
+                      ),
+                    ),
+                  if (currentPath != null &&
+                      !Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)
+                    const SizedBox(width: 8),
+                  // Edit/Add button
+                  GestureDetector(
+                    onTap: _showPhotoOptions,
+                    child: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withAlpha(100)),
+                      child: Icon(
+                        currentPath != null ? Icons.edit_rounded : Icons.add_photo_alternate_outlined,
+                        size: 18, color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Upload progress overlay
+            if (_isUploadingPhoto)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withAlpha(120),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 36, height: 36,
+                        child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Uploading photo...',
+                          style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// Opens the platform crop UI. Returns original path on desktop (unsupported).
+  Future<String?> _cropPhoto(String sourcePath) async {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) return sourcePath;
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Photo',
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Photo',
+          doneButtonTitle: 'Done',
+          cancelButtonTitle: 'Cancel',
+        ),
+      ],
+    );
+    return cropped?.path;
   }
 
   void _showPhotoOptions() {
@@ -754,8 +943,20 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               decoration: BoxDecoration(color: colors.textMuted.withAlpha(60), borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 16),
-            Text('Add Photo', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-            const SizedBox(height: 16),
+            Text(
+              _attachedPhotoPaths.isEmpty ? 'Add Photo' : 'Add Another Photo',
+              style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary),
+            ),
+            if (_attachedPhotoPaths.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                child: Text(
+                  '${_attachedPhotoPaths.length}/5 photos',
+                  style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+                ),
+              )
+            else
+              const SizedBox(height: 16),
             _photoOptionTile(ctx, Icons.photo_library_outlined, 'Choose from gallery', () async {
               Navigator.of(ctx).pop();
               await _pickPhotoFromGallery();
@@ -765,11 +966,17 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               Navigator.of(ctx).pop();
               await _takePhoto();
             }),
-            if (_attachedPhotoPath != null) ...[
+            if (_attachedPhotoPaths.isNotEmpty) ...[
               const SizedBox(height: 8),
-              _photoOptionTile(ctx, Icons.delete_outline_rounded, 'Remove photo', () {
+              _photoOptionTile(ctx, Icons.delete_outline_rounded, 'Remove current photo', () {
                 Navigator.of(ctx).pop();
-                setState(() => _attachedPhotoPath = null);
+                setState(() {
+                  _attachedPhotoPaths.removeAt(_currentPhotoIndex);
+                  _currentPhotoIndex = _attachedPhotoPaths.isEmpty
+                      ? 0
+                      : _currentPhotoIndex.clamp(0, _attachedPhotoPaths.length - 1);
+                  _focalAlignment = Alignment.center;
+                });
               }),
             ],
           ],
@@ -802,28 +1009,34 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   Future<void> _pickPhotoFromGallery() async {
+    if (_attachedPhotoPaths.length >= 5) return;
     final picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1920,
       imageQuality: 75,
     );
-    if (picked != null && mounted) {
-      setState(() => _attachedPhotoPath = picked.path);
+    if (picked == null) return;
+    final finalPath = await _cropPhoto(picked.path) ?? picked.path;
+    if (mounted) {
+      setState(() {
+        _attachedPhotoPaths.add(finalPath);
+        _currentPhotoIndex = _attachedPhotoPaths.length - 1;
+        _focalAlignment = Alignment.center;
+        _showDragHint = true;
+      });
       _showPhotoConfirmation(true);
       _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
   }
 
   Future<void> _takePhoto() async {
+    if (_attachedPhotoPaths.length >= 5) return;
     if (Platform.isAndroid || Platform.isIOS) {
       final status = await Permission.camera.request();
       if (!status.isGranted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Camera permission is required.'),
-              behavior: SnackBarBehavior.floating,
-            ),
+            const SnackBar(content: Text('Camera permission is required.'), behavior: SnackBarBehavior.floating),
           );
         }
         return;
@@ -835,15 +1048,20 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         maxWidth: 1920,
         imageQuality: 75,
       );
-      if (picked != null && mounted) {
-        setState(() => _attachedPhotoPath = picked.path);
+      if (picked == null) return;
+      final finalPath = await _cropPhoto(picked.path) ?? picked.path;
+      if (mounted) {
+        setState(() {
+          _attachedPhotoPaths.add(finalPath);
+          _currentPhotoIndex = _attachedPhotoPaths.length - 1;
+          _focalAlignment = Alignment.center;
+          _showDragHint = true;
+        });
         _showPhotoConfirmation(true);
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     } catch (e) {
-      if (mounted) {
-        _showPhotoConfirmation(false);
-      }
+      if (mounted) _showPhotoConfirmation(false);
     }
   }
 

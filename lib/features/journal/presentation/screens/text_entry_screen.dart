@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
@@ -26,9 +28,11 @@ class TextEntryScreen extends ConsumerStatefulWidget {
 class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   final _textController = TextEditingController();
   final _focusNode = FocusNode();
+  final _picker = ImagePicker();
   bool _distractionFree = false;
   bool _promptsExpanded = true;
   int _promptSeed = 0;
+  final List<String> _attachedPhotoPaths = [];
 
   /// ID of the in-progress draft for this session. Stable so repeated saves
   /// upsert rather than create new entries.
@@ -132,6 +136,53 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     ref.invalidate(writingPromptProvider);
   }
 
+  Future<void> _pickPhoto() async {
+    if (_attachedPhotoPaths.length >= 5) return;
+    HapticFeedback.selectionClick();
+    final XFile? picked;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    } else {
+      picked = await showModalBottomSheet<XFile?>(
+        context: context,
+        backgroundColor: AppColors.of(context).card,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 36, height: 4,
+                    decoration: BoxDecoration(color: AppColors.of(context).border, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: Icon(Icons.camera_alt_rounded, color: AppColors.of(context).accent),
+                  title: Text('Take a photo', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                  onTap: () async {
+                    final f = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+                    if (ctx.mounted) Navigator.pop(ctx, f);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.photo_library_rounded, color: AppColors.of(context).accent),
+                  title: Text('Choose from gallery', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                  onTap: () async {
+                    final f = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                    if (ctx.mounted) Navigator.pop(ctx, f);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    if (picked != null && mounted) {
+      setState(() => _attachedPhotoPaths.add(picked!.path));
+    }
+  }
+
   Future<void> _goToReview() async {
     HapticFeedback.lightImpact();
     final text = _textController.text.trim();
@@ -143,7 +194,12 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     }
     _submitted = true;
     await _deleteDraft();
-    if (mounted) context.push('/processing', extra: ReviewData(rawText: text));
+    if (mounted) {
+      context.push('/processing', extra: ReviewData(
+        rawText: text,
+        attachedPhotoPaths: List.unmodifiable(_attachedPhotoPaths),
+      ));
+    }
   }
 
   void _toggleDistractionFree() {
@@ -455,69 +511,161 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
 
   Widget _buildBottomBar(AppPalette colors) {
     final enabled = _wordCount >= 5;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
-      decoration: BoxDecoration(
-        color: colors.bg,
-        border: Border(top: BorderSide(color: colors.border)),
-      ),
-      child: Row(
-        children: [
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Photo thumbnail strip (shown when photos are attached)
+        if (_attachedPhotoPaths.isNotEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            height: 60,
             decoration: BoxDecoration(
-              color: colors.accent.withAlpha(15),
-              borderRadius: BorderRadius.circular(20),
+              color: colors.card,
+              border: Border(top: BorderSide(color: colors.border)),
             ),
-            child: Text(
-              '$_wordCount word${_wordCount == 1 ? '' : 's'}',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                color: colors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: enabled ? _goToReview : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              decoration: BoxDecoration(
-                color: enabled ? colors.accent : colors.accent.withAlpha(60),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: enabled
-                    ? [
-                        BoxShadow(
-                          color: colors.accent.withAlpha(60),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        )
-                      ]
-                    : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Continue',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              itemCount: _attachedPhotoPaths.length + (_attachedPhotoPaths.length < 5 ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (i == _attachedPhotoPaths.length) {
+                  return GestureDetector(
+                    onTap: _pickPhoto,
+                    child: Container(
+                      width: 44, height: 44,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(
+                        color: colors.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: colors.border),
+                      ),
+                      child: Icon(Icons.add_photo_alternate_outlined, size: 18, color: colors.accent),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.arrow_forward_rounded,
-                      size: 17, color: Colors.white),
-                ],
-              ),
+                  );
+                }
+                return Stack(
+                  children: [
+                    Container(
+                      width: 44, height: 44,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: DecorationImage(
+                          image: FileImage(File(_attachedPhotoPaths[i])),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 0, right: 4,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _attachedPhotoPaths.removeAt(i)),
+                        child: Container(
+                          width: 16, height: 16,
+                          decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                          child: const Icon(Icons.close, size: 11, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
-        ],
-      ),
+        // Main action bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+          decoration: BoxDecoration(
+            color: colors.bg,
+            border: Border(top: BorderSide(color: colors.border)),
+          ),
+          child: Row(
+            children: [
+              // Word count pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: colors.accent.withAlpha(15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$_wordCount word${_wordCount == 1 ? '' : 's'}',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Camera icon button
+              GestureDetector(
+                onTap: _pickPhoto,
+                child: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _attachedPhotoPaths.isNotEmpty
+                        ? colors.accent.withAlpha(20)
+                        : colors.card,
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 18,
+                          color: _attachedPhotoPaths.isNotEmpty ? colors.accent : colors.textSecondary,
+                        ),
+                      ),
+                      if (_attachedPhotoPaths.isNotEmpty)
+                        Positioned(
+                          top: 2, right: 2,
+                          child: Container(
+                            width: 14, height: 14,
+                            decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
+                            child: Center(
+                              child: Text(
+                                '${_attachedPhotoPaths.length}',
+                                style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Continue button
+              GestureDetector(
+                onTap: enabled ? _goToReview : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: enabled ? colors.accent : colors.accent.withAlpha(60),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: enabled
+                        ? [BoxShadow(color: colors.accent.withAlpha(60), blurRadius: 8, offset: const Offset(0, 2))]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Continue',
+                          style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_forward_rounded, size: 17, color: Colors.white),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

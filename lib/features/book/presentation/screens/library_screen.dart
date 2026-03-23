@@ -29,6 +29,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     return Scaffold(
       backgroundColor: colors.bg,
       floatingActionButton: FloatingActionButton(
+        heroTag: 'library-add-fab',
         onPressed: () => _showCreateChapterSheet(context),
         backgroundColor: colors.accent,
         foregroundColor: Colors.white,

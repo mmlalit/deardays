@@ -155,6 +155,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
           const SizedBox(height: 14),
         ],
         FloatingActionButton(
+          heroTag: 'chapter-detail-fab',
           onPressed: () => setState(() => _fabExpanded = !_fabExpanded),
           backgroundColor: _fabExpanded ? colors.textSecondary : accent,
           foregroundColor: Colors.white,

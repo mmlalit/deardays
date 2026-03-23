@@ -356,6 +356,10 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   // Toggle: true = AI Story, false = My Words (polished)
   bool _showAiStory = true;
 
+  // Multi-photo banner
+  int _photoIndex = 0;
+  late final PageController _photoBannerController = PageController();
+
   @override
   void initState() {
     super.initState();
@@ -396,6 +400,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _player.dispose();
+    _photoBannerController.dispose();
     super.dispose();
   }
 
@@ -507,9 +512,11 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildBanner(List<EntryMedia> photoMedia, AppPalette colors) {
-    if (photoMedia.isNotEmpty) {
-      final mediaService = ref.read(mediaServiceProvider);
-      final storagePath = photoMedia.first.storagePath;
+    if (photoMedia.isEmpty) return _buildGradientBanner(colors);
+
+    final mediaService = ref.read(mediaServiceProvider);
+
+    Widget photoWidget(String storagePath) {
       if (storagePath.startsWith('http')) {
         return _tappablePhoto(
           child: CachedNetworkImage(
@@ -527,9 +534,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
       return FutureBuilder<String>(
         future: mediaService.getSignedUrl(storagePath),
         builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.hasError) {
-            return _buildGradientBanner(colors);
-          }
+          if (!snapshot.hasData || snapshot.hasError) return _buildGradientBanner(colors);
           return _tappablePhoto(
             child: CachedNetworkImage(
               imageUrl: snapshot.data!,
@@ -545,7 +550,47 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
         },
       );
     }
-    return _buildGradientBanner(colors);
+
+    if (photoMedia.length == 1) {
+      return photoWidget(photoMedia.first.storagePath);
+    }
+
+    // Multiple photos — swipeable PageView with dot indicators
+    return SizedBox(
+      height: 280,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _photoBannerController,
+            itemCount: photoMedia.length,
+            onPageChanged: (i) => setState(() => _photoIndex = i),
+            itemBuilder: (_, i) => photoWidget(photoMedia[i].storagePath),
+          ),
+          // Dot indicators
+          Positioned(
+            bottom: 10,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(photoMedia.length, (i) {
+                final active = i == _photoIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: active ? 18 : 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: active ? Colors.white : Colors.white.withAlpha(100),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _tappablePhoto({required Widget child, required VoidCallback onTap}) {

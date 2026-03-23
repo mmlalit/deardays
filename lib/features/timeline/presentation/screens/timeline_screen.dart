@@ -251,6 +251,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         error: (_, __) => _buildError(colors),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'timeline-write-fab',
         onPressed: () => context.push('/write'),
         backgroundColor: colors.accent,
         elevation: 4,
@@ -1128,6 +1129,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.graphic_eq_rounded, size: 16, color: colors.accent),
           const SizedBox(width: 8),
@@ -1147,7 +1149,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
             );
           }),
-          const Spacer(),
+          const SizedBox(width: 8),
           Text(
             'Voice',
             style: GoogleFonts.manrope(

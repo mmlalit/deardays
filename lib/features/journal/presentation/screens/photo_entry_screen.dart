@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
@@ -21,6 +22,8 @@ class PhotoEntryScreen extends ConsumerStatefulWidget {
 
 class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
   late String _photoPath;
+  Alignment _focalAlignment = Alignment.center;
+  bool _showDragHint = true;
   final _textController = TextEditingController();
   final _focusNode = FocusNode();
   final _picker = ImagePicker();
@@ -47,19 +50,55 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
     if (enough != _hasEnoughText) setState(() => _hasEnoughText = enough);
   }
 
+  /// Opens the platform crop UI after picking. Returns original path on desktop.
+  Future<String?> _cropPhoto(String sourcePath) async {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      return sourcePath;
+    }
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Photo',
+          toolbarColor: Colors.black,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Photo',
+          doneButtonTitle: 'Done',
+          cancelButtonTitle: 'Cancel',
+          aspectRatioPickerButtonHidden: false,
+        ),
+      ],
+    );
+    return cropped?.path;
+  }
+
   Future<void> _changePhoto() async {
     final XFile? photo;
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      photo = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-    } else {
-      // Mobile: show choice
-      photo = await _showMobilePhotoSheet();
+      photo = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (photo != null && mounted) {
+        setState(() {
+          _photoPath = photo!.path;
+          _focalAlignment = Alignment.center;
+        });
+      }
+      return;
     }
-    if (photo != null && mounted) {
-      setState(() => _photoPath = photo!.path);
+    photo = await _showMobilePhotoSheet();
+    if (photo != null) {
+      final cropped = await _cropPhoto(photo.path);
+      if (cropped != null && mounted) {
+        setState(() {
+          _photoPath = cropped;
+          _focalAlignment = Alignment.center;
+          _showDragHint = true;
+        });
+      }
     }
   }
 
@@ -221,50 +260,146 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
   }
 
   Widget _buildPhotoPreview(AppPalette colors, {bool compact = false}) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.file(
-          File(_photoPath),
-          fit: BoxFit.cover,
-          width: double.infinity,
-          errorBuilder: (_, __, ___) => Container(
-            color: colors.card,
-            child: Icon(Icons.broken_image_rounded,
-                size: 48, color: colors.textSecondary),
-          ),
-        ),
-        // Change photo pill — top right
-        Positioned(
-          top: 12,
-          right: 12,
-          child: GestureDetector(
-            onTap: _changePhoto,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withAlpha(140),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.edit_rounded, size: 13, color: Colors.white),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Change',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+    return GestureDetector(
+      // Drag to reframe focal point (full-size view only)
+      onPanUpdate: compact
+          ? null
+          : (details) {
+              final box = context.findRenderObject() as RenderBox?;
+              if (box == null) return;
+              final size = box.size;
+              final dx = -details.delta.dx / size.width * 2.5;
+              final dy = -details.delta.dy / size.height * 2.5;
+              setState(() {
+                _focalAlignment = Alignment(
+                  (_focalAlignment.x + dx).clamp(-1.0, 1.0),
+                  (_focalAlignment.y + dy).clamp(-1.0, 1.0),
+                );
+                _showDragHint = false;
+              });
+            },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Photo with focal-point alignment
+          Container(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: FileImage(File(_photoPath)),
+                fit: BoxFit.cover,
+                alignment: _focalAlignment,
+                onError: (_, __) {},
               ),
             ),
           ),
-        ),
-      ],
+
+          // Drag-to-reframe hint (fades after first drag)
+          if (!compact && _showDragHint)
+            Positioned(
+              bottom: 12,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(110),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.open_with_rounded, size: 12, color: Colors.white),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Drag to reframe',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Top-right action pills: Crop + Change
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Crop button — mobile only
+                if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS && !compact)
+                  GestureDetector(
+                    onTap: () async {
+                      final cropped = await _cropPhoto(_photoPath);
+                      if (cropped != null && mounted) {
+                        setState(() {
+                          _photoPath = cropped;
+                          _focalAlignment = Alignment.center;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(140),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.crop_rounded, size: 13, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Crop',
+                            style: GoogleFonts.manrope(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS && !compact)
+                  const SizedBox(width: 8),
+                // Change button
+                GestureDetector(
+                  onTap: _changePhoto,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(140),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit_rounded, size: 13, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Change',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
