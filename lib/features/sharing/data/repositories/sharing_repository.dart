@@ -60,19 +60,15 @@ class SharingRepository {
     required String shareId,
     required bool approve,
   }) async {
-    await _client.from('memory_shares').update({
+    // Chain .select() onto UPDATE to get recipient_id in one round-trip (avoids N+1).
+    final result = await _client.from('memory_shares').update({
       'status':      approve ? 'approved' : 'denied',
       if (approve) 'approved_at': DateTime.now().toIso8601String(),
-    }).eq('id', shareId).eq('sharer_id', _userId!);
+    }).eq('id', shareId).eq('sharer_id', _userId!).select('recipient_id').maybeSingle();
 
     // Flag recipient's profile so "Shared with me" appears on their Explore tab
     if (approve) {
-      final rows = await _client
-          .from('memory_shares')
-          .select('recipient_id')
-          .eq('id', shareId)
-          .limit(1);
-      final recipientId = rows.firstOrNull?['recipient_id'] as String?;
+      final recipientId = result?['recipient_id'] as String?;
       if (recipientId != null) {
         await _client
             .from('profiles')

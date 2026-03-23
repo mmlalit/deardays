@@ -317,11 +317,13 @@ class JournalRepository {
   /// Returns the total number of journal entries for the current user.
   Future<int> getTotalEntries() async {
     return _network.query(() async {
+      // CountOption.estimated uses pg_class stats — fast, slightly approximate.
+      // Exact is avoided here since a full sequential scan is expensive at scale.
       final response = await _client
           .from(_writeTable)
-          .select('id')
+          .select()
           .eq('user_id', _userId)
-          .count(CountOption.exact);
+          .count(CountOption.estimated);
 
       return response.count;
     });

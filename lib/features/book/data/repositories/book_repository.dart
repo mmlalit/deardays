@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/models/book_page.dart';
@@ -178,12 +179,22 @@ class BookRepository {
   }
 
   /// Links [chapterIds] to [bookId] for a thematic book.
+  ///
+  /// Note: this is a single batch UPDATE — not a true DB transaction. If the
+  /// call is interrupted, some chapters may remain unlinked. Callers should
+  /// handle errors and retry or surface the failure to the user.
   Future<void> linkChaptersToBook(String bookId, List<String> chapterIds) async {
-    await _client
-        .from('chapters')
-        .update({'book_id': bookId})
-        .inFilter('id', chapterIds)
-        .eq('user_id', _userId);
+    if (chapterIds.isEmpty) return;
+    try {
+      await _client
+          .from('chapters')
+          .update({'book_id': bookId})
+          .inFilter('id', chapterIds)
+          .eq('user_id', _userId);
+    } catch (e) {
+      debugPrint('[BookRepository] linkChaptersToBook failed: $e');
+      rethrow;
+    }
   }
 
   /// Creates a single auto-chapter for a chronological book.

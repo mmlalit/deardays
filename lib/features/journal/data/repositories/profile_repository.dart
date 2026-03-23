@@ -93,11 +93,15 @@ class ProfileRepository {
   Future<Chapter> createChapter(String title) async {
     final userId = _userId;
     if (userId == null) throw StateError('No authenticated user');
-    // Get the current max chapter_number
-    final existing = await getChapters();
-    final nextNumber = existing.isEmpty
-        ? 1
-        : existing.map((c) => c.chapterNumber).reduce((a, b) => a > b ? a : b) + 1;
+    // Fetch only the max chapter_number — avoids loading all chapters + entries counts.
+    final maxRow = await _client
+        .from('chapters')
+        .select('chapter_number')
+        .eq('user_id', userId)
+        .order('chapter_number', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    final nextNumber = (maxRow?['chapter_number'] as int? ?? 0) + 1;
 
     final now = DateTime.now().toUtc();
     final response = await _client
