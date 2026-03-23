@@ -17,6 +17,7 @@ import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart'
     show showMemoryContextMenu;
 import 'package:deardays/core/widgets/force_update_dialog.dart';
+import 'package:deardays/core/onboarding/sample_memory.dart';
 import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/core/providers/onboarding_provider.dart';
 import 'package:deardays/core/onboarding/checklist_card.dart';
@@ -112,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       final notifier = ref.read(onboardingProvider.notifier);
       final tasks = ref.read(onboardingProvider).checklistTasks;
 
-      final realEntries = entries.where((e) => !e.tags.contains('__sample__')).toList();
+      final realEntries = entries.where((e) => !isSampleEntry(e)).toList();
       if (realEntries.isNotEmpty) {
         if (!tasks.any((t) => t.id == 'first_memory' && t.isCompleted)) {
           notifier.completeTask('first_memory');

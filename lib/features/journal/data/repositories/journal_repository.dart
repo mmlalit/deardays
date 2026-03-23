@@ -41,7 +41,7 @@ class JournalRepository {
       return EncryptionService().decryptText(value, key);
     } on EncryptionException catch (e) {
       debugPrint('[JournalRepository] Decryption failed: $e');
-      return '[Unable to decrypt]';
+      return null; // Callers handle null as "content unavailable"
     }
   }
 
@@ -174,8 +174,16 @@ class JournalRepository {
     });
   }
 
-  /// Fetches all entries for a chapter, ordered chronologically (oldest first).
-  Future<List<JournalEntry>> getEntriesByChapter(String chapterId) async {
+  /// Fetches entries for a chapter, ordered chronologically (oldest first).
+  ///
+  /// [offset] and [limit] support pagination for large chapters.
+  /// Default limit is 200 — covers virtually all real chapters while
+  /// preventing runaway queries on pathological data.
+  Future<List<JournalEntry>> getEntriesByChapter(
+    String chapterId, {
+    int offset = 0,
+    int limit = 200,
+  }) async {
     return _network.query(() async {
       final response = await _client
           .from(_readTable)
@@ -183,7 +191,8 @@ class JournalRepository {
           .eq('user_id', _userId)
           .eq('chapter_id', chapterId)
           .order('entry_date', ascending: true)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .range(offset, offset + limit - 1);
 
       return (response as List<dynamic>)
           .map((row) => JournalEntry.fromSupabaseMap(

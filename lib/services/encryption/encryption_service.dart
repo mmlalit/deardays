@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show compute;
+
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
 
@@ -81,7 +83,14 @@ class EncryptionService {
   ///
   /// This is intentionally slow (~100k iterations) to resist brute-force
   /// attacks against stolen encrypted data.
+  ///
+  /// Runs in a background isolate via [compute] to avoid blocking the UI thread.
   Future<String> deriveKey(String password, String salt) async {
+    return compute(_deriveKeyIsolate, (password, salt));
+  }
+
+  // ignore: unused_element
+  Future<String> _deriveKeySync(String password, String salt) async {
     final saltBytes = base64.decode(salt);
     final passwordBytes = utf8.encode(password);
 
@@ -126,6 +135,7 @@ class EncryptionService {
 
     return base64.encode(derivedKey);
   }
+
 
   /// Generates a cryptographically random 16-byte salt and returns it as a
   /// base64-encoded string. Store this in the user's profile row — it is NOT
@@ -227,6 +237,43 @@ class EncryptionService {
       );
     }
   }
+}
+
+/// Top-level function for compute() isolate — derives a PBKDF2 key off the main thread.
+/// Must be top-level (not a closure/method) for Flutter's compute() to work in a new isolate.
+Future<String> _deriveKeyIsolate((String, String) args) async {
+  final (password, salt) = args;
+  final saltBytes = base64.decode(salt);
+  final passwordBytes = utf8.encode(password);
+  const iterations = 100000;
+  const keyLengthBytes = 32;
+
+  final hmacSha256 = Hmac(sha256, passwordBytes);
+  final derivedKey = Uint8List(keyLengthBytes);
+  final blocksNeeded = (keyLengthBytes / sha256.blockSize).ceil().clamp(1, 256);
+  int offset = 0;
+  for (int blockIndex = 1; blockIndex <= blocksNeeded; blockIndex++) {
+    final blockBytes = Uint8List(4);
+    blockBytes[0] = (blockIndex >> 24) & 0xff;
+    blockBytes[1] = (blockIndex >> 16) & 0xff;
+    blockBytes[2] = (blockIndex >> 8) & 0xff;
+    blockBytes[3] = blockIndex & 0xff;
+    final saltAndBlock = Uint8List.fromList([...saltBytes, ...blockBytes]);
+    var u = hmacSha256.convert(saltAndBlock).bytes;
+    final block = Uint8List.fromList(u);
+    for (int i = 1; i < iterations; i++) {
+      u = Hmac(sha256, passwordBytes).convert(u).bytes;
+      for (int j = 0; j < block.length; j++) {
+        block[j] ^= u[j];
+      }
+    }
+    final copyLength = (offset + block.length > keyLengthBytes)
+        ? keyLengthBytes - offset
+        : block.length;
+    derivedKey.setRange(offset, offset + copyLength, block);
+    offset += copyLength;
+  }
+  return base64.encode(derivedKey);
 }
 
 /// Exception thrown when an encryption or decryption operation fails.

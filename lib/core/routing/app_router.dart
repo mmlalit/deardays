@@ -455,19 +455,68 @@ class _E2EGateWidgetState extends State<_E2EGateWidget> {
         e2eSalt: _salt!,
         onUnlocked: widget.onDone,
         onForgot: () async {
-          // Disable E2E and delete encrypted entries, then proceed.
+          // Show typed-confirmation dialog before irreversible deletion.
+          final confirmController = TextEditingController();
+          final confirmed = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => StatefulBuilder(
+              builder: (ctx2, setDialogState) => AlertDialog(
+                title: const Text('Delete All Encrypted Entries?'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'This will permanently delete ALL your encrypted journal entries. '
+                      'This action CANNOT be undone and your entries cannot be recovered.\n\n'
+                      'Type DELETE to confirm:',
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmController,
+                      decoration: const InputDecoration(hintText: 'DELETE'),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx2).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: confirmController.text == 'DELETE'
+                        ? () => Navigator.of(ctx2).pop(true)
+                        : null,
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Delete Everything'),
+                  ),
+                ],
+              ),
+            ),
+          );
+          confirmController.dispose();
+          if (confirmed != true) return;
+          if (!mounted) return;
+
+          // Disable E2E and delete encrypted entries.
           final client = Supabase.instance.client;
           final userId = client.auth.currentUser?.id;
           if (userId != null) {
-            await client.from('journal_entries')
-                .delete()
-                .eq('user_id', userId)
-                .eq('is_client_encrypted', true);
-            await client.from('profiles').update({
-              'e2e_enabled': false,
-              'e2e_salt': null,
-              'e2e_enabled_at': null,
-            }).eq('id', userId);
+            try {
+              await client.from('journal_entries')
+                  .delete()
+                  .eq('user_id', userId)
+                  .eq('is_client_encrypted', true);
+              await client.from('profiles').update({
+                'e2e_enabled': false,
+                'e2e_salt': null,
+                'e2e_enabled_at': null,
+              }).eq('id', userId);
+            } catch (e) {
+              debugPrint('[E2EGate] Failed to clear encrypted data: $e');
+            }
           }
           if (mounted) widget.onDone();
         },

@@ -80,7 +80,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         _biometricLockEnabled = enabled;
         _lockMethod = lockMethod;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Settings] _checkBiometricOptions error: $e');
+    }
   }
 
   Future<void> _toggleBiometric(bool value) async {
@@ -147,7 +149,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           _healthConsent = profile.healthConsentGivenAt != null;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Settings] _loadPrivacyState error: $e');
+    }
   }
 
   Future<void> _signOut() async {
@@ -333,7 +337,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               : 'Mood data consent withdrawn.',
         );
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Settings] _toggleHealthConsent error: $e');
       if (mounted) {
         setState(() => _healthConsent = !value);
         AppSnackBar.error(context, 'Failed to update consent.');
@@ -365,7 +370,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           }
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Settings] _loadNotificationState error: $e');
+    }
 
     try {
       final box = await Hive.openBox('settings');
@@ -374,7 +381,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (saved != null) {
         setState(() => _streakMilestonesEnabled = saved);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Settings] _loadStreakMilestonesState error: $e');
+    }
 
   }
 
@@ -383,7 +392,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     try {
       final box = await Hive.openBox('settings');
       await box.put('streak_milestones_enabled', value);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Settings] _toggleStreakMilestones error: $e');
+    }
   }
 
 
@@ -414,7 +425,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           AppSnackBar.success(context, 'Daily reminder turned off');
         }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Settings] _toggleNotifications error: $e');
       if (mounted) {
         setState(() => _notificationsEnabled = !value);
         AppSnackBar.error(context, 'Failed to update notification settings.');
@@ -443,7 +455,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (mounted) {
         AppSnackBar.success(context, 'Reminder updated to ${picked.format(context)}');
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Settings] _pickReminderTime error: $e');
       if (mounted) {
         AppSnackBar.error(context, 'Failed to update reminder time.');
       }
@@ -532,7 +545,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (mounted) {
         AppSnackBar.success(context, 'Writing style updated to ${picked[0].toUpperCase()}${picked.substring(1)}');
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Settings] _pickWritingStyle error: $e');
       if (mounted) {
         AppSnackBar.error(context, 'Failed to update writing style.');
       }
@@ -601,7 +615,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         final label = options.firstWhere((o) => o['value'] == picked)['label']!;
         AppSnackBar.success(context, 'Books organized by $label');
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Settings] _pickBookOrganization error: $e');
       if (mounted) {
         AppSnackBar.error(context, 'Failed to update book organization.');
       }
@@ -773,7 +788,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       // Clean up temporary export file after sharing.
       try {
         if (await file.exists()) await file.delete();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Settings] cleanup export file error: $e');
+      }
     } catch (e) {
       if (mounted) {
         AppSnackBar.error(context, 'Export failed: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}');

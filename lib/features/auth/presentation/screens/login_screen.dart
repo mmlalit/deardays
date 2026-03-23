@@ -195,25 +195,13 @@ class _LoginScreenState extends State<LoginScreen>
       }
     } on AuthException catch (e) {
       if (mounted) {
-        setState(() {
-          _failedAttempts++;
-          if (_failedAttempts >= 5) {
-            _lockoutUntil = DateTime.now().add(const Duration(seconds: 60));
-            _failedAttempts = 0;
-          }
-        });
+        setState(_recordFailedAttempt);
         _showError(e.message);
       }
     } catch (e) {
+      debugPrint('[LoginScreen] Login error: $e');
       if (mounted) {
-        setState(() {
-          _failedAttempts++;
-          if (_failedAttempts >= 5) {
-            _lockoutUntil = DateTime.now().add(const Duration(seconds: 60));
-            _failedAttempts = 0;
-          }
-        });
-        debugPrint('[LoginScreen] Login error: $e');
+        setState(_recordFailedAttempt);
         _showError('Login failed. Please try again.');
       }
     } finally {
@@ -267,10 +255,19 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[LoginScreen] _handleForgotPassword error: $e');
       if (mounted) {
         _showError('Failed to send reset email. Please try again.');
       }
+    }
+  }
+
+  void _recordFailedAttempt() {
+    _failedAttempts++;
+    if (_failedAttempts >= 5) {
+      _lockoutUntil = DateTime.now().add(const Duration(seconds: 60));
+      _failedAttempts = 0;
     }
   }
 

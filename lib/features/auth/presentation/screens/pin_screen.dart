@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
@@ -30,10 +33,47 @@ class _PinScreenState extends State<PinScreen> {
   bool _hasError = false;
   int _attempts = 0;
 
+  // Timed lockout state — replaces permanent lockout.
+  DateTime? _lockoutUntil;
+  Timer? _lockoutTimer;
+  int _lockoutSecondsRemaining = 0;
+
   @override
   void initState() {
     super.initState();
     _updateTitle();
+  }
+
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
+
+  bool get _isLockedOut =>
+      _lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!);
+
+  void _startLockout() {
+    _lockoutUntil = DateTime.now().add(const Duration(minutes: 30));
+    _lockoutSecondsRemaining = 30 * 60;
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      final remaining = _lockoutUntil!.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        t.cancel();
+        setState(() { _lockoutUntil = null; _lockoutSecondsRemaining = 0; _attempts = 0; });
+      } else {
+        setState(() => _lockoutSecondsRemaining = remaining);
+      }
+    });
+    setState(() {});
+  }
+
+  String get _lockoutMessage {
+    final m = _lockoutSecondsRemaining ~/ 60;
+    final s = _lockoutSecondsRemaining % 60;
+    return 'Too many attempts. Try again in $m:${s.toString().padLeft(2, '0')}';
   }
 
   void _updateTitle() {
@@ -117,17 +157,18 @@ class _PinScreenState extends State<PinScreen> {
           Navigator.of(context).pop(true);
         }
       } else {
+        HapticFeedback.vibrate();
         _attempts++;
-        setState(() {
-          _hasError = true;
-          _enteredPin = '';
-          _subtitle = _attempts >= 3
-              ? 'Too many attempts. Use email login.'
-              : 'Wrong PIN. Try again.';
-        });
-
-        if (_attempts >= 5 && mounted) {
-          Navigator.of(context).pop(false);
+        if (_attempts >= 5) {
+          _startLockout();
+        } else {
+          setState(() {
+            _hasError = true;
+            _enteredPin = '';
+            _subtitle = _attempts >= 3
+                ? 'Too many attempts. Use email login below.'
+                : 'Wrong PIN. Try again.';
+          });
         }
       }
     }
@@ -183,10 +224,13 @@ class _PinScreenState extends State<PinScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _subtitle,
+              _isLockedOut ? _lockoutMessage : _subtitle,
+              textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,
-                color: _hasError ? AppColors.error : colors.textSecondary,
+                color: (_hasError || _isLockedOut)
+                    ? AppColors.error
+                    : colors.textSecondary,
               ),
             ),
             const SizedBox(height: 36),
@@ -222,9 +266,35 @@ class _PinScreenState extends State<PinScreen> {
             ),
             const Spacer(flex: 1),
 
-            // Number pad
-            _buildNumberPad(),
-            const SizedBox(height: 32),
+            // Number pad (disabled during lockout)
+            IgnorePointer(
+              ignoring: _isLockedOut,
+              child: Opacity(
+                opacity: _isLockedOut ? 0.4 : 1.0,
+                child: _buildNumberPad(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Email login fallback (shown after 3 wrong attempts or during lockout)
+            if (widget.mode == PinMode.verify &&
+                (_attempts >= 3 || _isLockedOut))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: TextButton(
+                  onPressed: () => context.go('/login'),
+                  child: Text(
+                    'Use email login instead',
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      color: AppColors.of(context).accent,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              )
+            else
+              const SizedBox(height: 32),
           ],
         ),
       ),

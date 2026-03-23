@@ -342,8 +342,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         _statusMessage = 'Backup complete! $count entries synced.';
       });
     } catch (e) {
+      debugPrint('[BackupRestore] performBackup: $e');
       setState(() {
-        _statusMessage = 'Backup failed. Please try again.';
+        _statusMessage = 'Backup failed: ${e.toString()}';
       });
     } finally {
       setState(() => _isOperating = false);
@@ -401,8 +402,9 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
         _statusMessage = 'Restore complete! $count entries recovered.';
       });
     } catch (e) {
+      debugPrint('[BackupRestore] performRestore: $e');
       setState(() {
-        _statusMessage = 'Restore failed. Please try again.';
+        _statusMessage = 'Restore failed: ${e.toString()}';
       });
     } finally {
       setState(() => _isOperating = false);

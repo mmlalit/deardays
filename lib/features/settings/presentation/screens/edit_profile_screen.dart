@@ -60,7 +60,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[EditProfile] loadProfile: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -110,7 +111,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[EditProfile] updateEmail: $e');
       if (mounted) _showError('Failed to update email.');
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -147,7 +149,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[EditProfile] changePassword: $e');
       if (mounted) _showError('Failed to change password.');
     } finally {
       if (mounted) setState(() => _isChangingPassword = false);

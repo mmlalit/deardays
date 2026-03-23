@@ -208,7 +208,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         _generatedTitle = title;
         _titleEditController.text = title;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ReviewSave] Title generation failed, using fallback: $e');
       final title = _generateFallbackTitle(l10n);
       if (mounted) {
         setState(() {
@@ -430,7 +431,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           final profile = await ref.read(profileProvider.future);
           final organization = profile?.bookOrganization ?? 'yearly';
           await ref.read(bookRepositoryProvider).ensureDefaultBook(organization);
-        } catch (_) {}
+        } catch (e, st) {
+          debugPrint('[ReviewSave] ensureDefaultBook error: $e\n$st');
+        }
 
         if (_attachedPhotoPath != null) {
           if (mounted) setState(() => _isUploadingPhoto = true);
@@ -469,19 +472,26 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               }
             }
             // Cancel streak-at-risk reminder — user wrote today.
-            NotificationService().cancelStreakReminder().ignore();
+            NotificationService().cancelStreakReminder().catchError(
+              (e) { debugPrint('[ReviewSave] Cancel streak reminder failed: $e'); },
+            );
             final profile = await profileRepo.getProfile();
             if (profile?.reminderTime != null) {
               final parts = profile!.reminderTime!.split(':');
               if (parts.length >= 2) {
                 await NotificationService().scheduleDailyReminder(
-                  TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
+                  TimeOfDay(
+                    hour: int.tryParse(parts[0]) ?? 9,
+                    minute: int.tryParse(parts[1]) ?? 0,
+                  ),
                   streak: streak.currentStreak,
                 );
               }
             }
           }
-        } catch (_) {}
+        } catch (e, st) {
+          debugPrint('[ReviewSave] Streak/notification error: $e\n$st');
+        }
       }
 
       // ── Cleanup + navigation (both paths) ──────────────────────────────────
@@ -489,7 +499,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         try {
           final audioFile = File(widget.data.audioPath!);
           if (await audioFile.exists()) await audioFile.delete();
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[ReviewSave] Audio cleanup failed: $e');
+        }
       }
 
       // Auto-delete sample memory on first real save.
@@ -504,7 +516,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             ref.read(onboardingProvider.notifier).markSampleMemorySeeded();
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[ReviewSave] Sample cleanup failed: $e');
+      }
 
       if (mounted) {
         ref.invalidate(todayEntryProvider);
@@ -1702,7 +1716,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       if (location?.locationName != null && mounted) {
         setState(() => _locationName = location!.locationName);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ReviewSave] Location fetch failed: $e');
+    }
   }
 
   Future<void> _addLocation() async {

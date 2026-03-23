@@ -210,11 +210,12 @@ class PhotoCollageCard extends StatelessWidget {
     return FutureBuilder<String>(
       future: future,
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
+        final url = snapshot.data;
+        if (snapshot.hasError || url == null || url.isEmpty) {
           return _photoPlaceholder();
         }
         return CachedNetworkImage(
-          imageUrl: snapshot.data!,
+          imageUrl: url,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,

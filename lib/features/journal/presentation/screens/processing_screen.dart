@@ -194,7 +194,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     if (generatedTitle.isEmpty) {
       final match = RegExp(r'^(.{5,40}[.!?])').firstMatch(cleanedText.trim());
       if (match != null) {
-        generatedTitle = match.group(1)!.replaceAll(RegExp(r'[.!?]$'), '').trim();
+        generatedTitle = (match.group(1) ?? '').replaceAll(RegExp(r'[.!?]$'), '').trim();
       } else {
         final words = cleanedText.trim().split(RegExp(r'\s+'));
         generatedTitle = words.take(4).join(' ');

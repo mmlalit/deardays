@@ -142,7 +142,9 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
           ? photo.storagePath
           : await _mediaService.getSignedUrl(photo.storagePath);
       if (mounted) setState(() => _existingPhotoUrl = url);
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('[EditMemory] Photo load error: $e\n$st');
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -357,7 +359,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
       if (picked != null && mounted) {
         setState(() { _newPhotoPath = picked.path; _removePhoto = false; });
       }
-    } catch (_) {}
+    } catch (e) { debugPrint("[EditMemory] Error: $e"); }
   }
 
   Future<void> _takePhoto() async {
@@ -381,7 +383,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
       if (picked != null && mounted) {
         setState(() { _newPhotoPath = picked.path; _removePhoto = false; });
       }
-    } catch (_) {}
+    } catch (e) { debugPrint("[EditMemory] Error: $e"); }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -444,7 +446,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
                         setState(
                             () => _locationName = loc!.locationName);
                       }
-                    } catch (_) {}
+                    } catch (e) { debugPrint("[EditMemory] Error: $e"); }
                   },
                   icon: Icon(Icons.my_location_rounded,
                       size: 16, color: colors.accent),

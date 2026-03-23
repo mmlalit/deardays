@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/sharing/data/models/memory_share.dart';
@@ -23,7 +24,8 @@ final pendingShareTokenProvider = StateProvider<String?>((ref) => null);
 
 final pendingShareRequestsProvider =
     FutureProvider.autoDispose<List<MemoryShare>>((ref) async {
-  return ref.read(sharingRepositoryProvider).getPendingRequests();
+  return ref.read(sharingRepositoryProvider).getPendingRequests()
+      .timeout(const Duration(seconds: 10));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -32,7 +34,8 @@ final pendingShareRequestsProvider =
 
 final sharesForMemoryProvider =
     FutureProvider.autoDispose.family<List<MemoryShare>, String>((ref, memoryId) async {
-  return ref.read(sharingRepositoryProvider).getSharesForMemory(memoryId);
+  return ref.read(sharingRepositoryProvider).getSharesForMemory(memoryId)
+      .timeout(const Duration(seconds: 10));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +44,8 @@ final sharesForMemoryProvider =
 
 final sharedWithMeProvider =
     FutureProvider.autoDispose<List<SharedMemoryItem>>((ref) async {
-  return ref.read(sharingRepositoryProvider).getSharedWithMe();
+  return ref.read(sharingRepositoryProvider).getSharedWithMe()
+      .timeout(const Duration(seconds: 10));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,6 +65,7 @@ class ShareActionsNotifier extends StateNotifier<AsyncValue<void>> {
       state = const AsyncValue.data(null);
       return share;
     } catch (e, st) {
+      debugPrint('[SharingProvider] createShare: $e');
       state = AsyncValue.error(e, st);
       return null;
     }
@@ -81,6 +86,7 @@ class ShareActionsNotifier extends StateNotifier<AsyncValue<void>> {
       state = const AsyncValue.data(null);
       return true;
     } catch (e, st) {
+      debugPrint('[SharingProvider] requestAccess: $e');
       state = AsyncValue.error(e, st);
       return false;
     }
@@ -97,6 +103,7 @@ class ShareActionsNotifier extends StateNotifier<AsyncValue<void>> {
       state = const AsyncValue.data(null);
       return true;
     } catch (e, st) {
+      debugPrint('[SharingProvider] _respond (approve=$approve): $e');
       state = AsyncValue.error(e, st);
       return false;
     }
@@ -109,6 +116,7 @@ class ShareActionsNotifier extends StateNotifier<AsyncValue<void>> {
       state = const AsyncValue.data(null);
       return true;
     } catch (e, st) {
+      debugPrint('[SharingProvider] revoke: $e');
       state = AsyncValue.error(e, st);
       return false;
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,10 +49,11 @@ class _E2EPassphraseGateScreenState extends State<E2EPassphraseGateScreen> {
       _wrongPassphrase = false;
     });
 
-    try {
-      final enc = EncryptionService();
-      final key = await enc.deriveKey(passphrase, widget.e2eSalt);
+    // Derive key once — reused in both success and network-error paths.
+    final enc = EncryptionService();
+    final key = await enc.deriveKey(passphrase, widget.e2eSalt);
 
+    try {
       // Verify the key by attempting to decrypt the most recent entry.
       // If there are no entries yet, any passphrase is accepted.
       final client = Supabase.instance.client;
@@ -63,9 +66,11 @@ class _E2EPassphraseGateScreenState extends State<E2EPassphraseGateScreen> {
             .eq('user_id', userId)
             .eq('is_client_encrypted', true)
             .order('created_at', ascending: false)
-            .limit(1);
+            .limit(1)
+            .timeout(const Duration(seconds: 10));
 
-        final list = rows as List<dynamic>;
+        // G3-H4: safe List cast — Supabase can return PostgrestList or List
+        final list = List<dynamic>.from(rows as Iterable? ?? []);
         if (list.isNotEmpty) {
           final ciphertext = list.first['content'] as String?;
           if (ciphertext != null && ciphertext.isNotEmpty) {
@@ -84,10 +89,14 @@ class _E2EPassphraseGateScreenState extends State<E2EPassphraseGateScreen> {
           _wrongPassphrase = true;
         });
       }
-    } catch (_) {
+    } on TimeoutException catch (e) {
+      debugPrint('[E2EGate] Supabase query timed out: $e');
+      // Timeout — cannot verify key, accept and proceed.
+      enc.setKey(key);
+      if (mounted) widget.onUnlocked();
+    } catch (e) {
+      debugPrint('[E2EGate] Network/unknown error during unlock: $e');
       // Network error or no entries — accept and proceed.
-      final enc = EncryptionService();
-      final key = await enc.deriveKey(_controller.text.trim(), widget.e2eSalt);
       enc.setKey(key);
       if (mounted) widget.onUnlocked();
     }

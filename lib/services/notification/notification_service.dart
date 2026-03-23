@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:go_router/go_router.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -92,11 +94,60 @@ class NotificationService {
     debugPrint('[NotificationService] Initialized.');
   }
 
-  /// Handles notification tap — navigates to the app's check-in screen.
+  // Stores a pending navigation payload until the navigator is ready.
+  String? _pendingPayload;
+
+  // Optional navigator key for deep-link navigation from notification taps.
+  // Set via [setNavigatorKey] after the app's MaterialApp is built.
+  GlobalKey<NavigatorState>? _navigatorKey;
+
+  /// Register the app's navigator key so notification taps can navigate.
+  void setNavigatorKey(GlobalKey<NavigatorState> key) {
+    _navigatorKey = key;
+    // Process any payload that arrived before the navigator was ready.
+    if (_pendingPayload != null) {
+      _navigateForPayload(_pendingPayload!);
+      _pendingPayload = null;
+    }
+  }
+
+  /// Handles notification tap — deep-links to the relevant screen.
   void _onNotificationTapped(NotificationResponse response) {
-    // The app will already open; GoRouter handles initial routing.
-    // A deep-link payload could be added here later if needed.
-    debugPrint('[NotificationService] Tapped: ${response.payload}');
+    final payload = response.payload;
+    debugPrint('[NotificationService] Tapped: $payload');
+    if (payload == null) return;
+    if (_navigatorKey?.currentContext == null) {
+      // Navigator not ready yet — store and process when setNavigatorKey is called.
+      _pendingPayload = payload;
+      return;
+    }
+    _navigateForPayload(payload);
+  }
+
+  void _navigateForPayload(String payload) {
+    final ctx = _navigatorKey?.currentContext;
+    if (ctx == null) return;
+    try {
+      // Use go_router for deep-link navigation.
+      // ignore: use_build_context_synchronously
+      GoRouter.of(ctx).push(switch (payload) {
+        'checkin' => '/checkin',
+        'timeline' => '/timeline',
+        _ => '/', // Unknown payload — home
+      });
+    } catch (e) {
+      debugPrint('[NotificationService] Deep-link navigation failed: $e');
+    }
+  }
+
+  /// Processes any notification that launched the app (cold start).
+  Future<void> processInitialNotification() async {
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    final response = details?.notificationResponse;
+    if (response != null && response.payload != null) {
+      debugPrint('[NotificationService] App launched via notification: ${response.payload}');
+      _pendingPayload = response.payload;
+    }
   }
 
   // ---------------------------------------------------------------------------

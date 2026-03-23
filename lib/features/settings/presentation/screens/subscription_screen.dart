@@ -41,7 +41,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           _isLoadingProfile = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Subscription] loadProfile: $e');
       if (mounted) setState(() => _isLoadingProfile = false);
     }
   }
@@ -97,10 +98,16 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final notifier = ref.read(subscriptionProvider.notifier);
 
     bool success;
-    if (_selectedPlan == _Plan.yearly) {
-      success = await notifier.purchaseYearly();
-    } else {
-      success = await notifier.purchaseMonthly();
+    try {
+      if (_selectedPlan == _Plan.yearly) {
+        success = await notifier.purchaseYearly();
+      } else {
+        success = await notifier.purchaseMonthly();
+      }
+    } catch (e) {
+      debugPrint('[Subscription] handleSubscribe: $e');
+      if (mounted) _showError('Purchase failed. Please try again.');
+      return;
     }
 
     if (success && mounted) {
@@ -116,7 +123,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
   Future<void> _handleRestore() async {
     final notifier = ref.read(subscriptionProvider.notifier);
-    final restored = await notifier.restorePurchases();
+    bool restored;
+    try {
+      restored = await notifier.restorePurchases();
+    } catch (e) {
+      debugPrint('[Subscription] handleRestore: $e');
+      if (mounted) _showError('Restore failed. Please try again.');
+      return;
+    }
 
     if (mounted) {
       if (restored) {

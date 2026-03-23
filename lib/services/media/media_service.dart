@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -57,23 +58,41 @@ class MediaService {
     final mediaId = const Uuid().v4();
     final storagePath = '$_userId/$entryId/$mediaId.$ext';
 
-    // Upload full-size to Supabase Storage
-    await _client.storage.from(_bucketName).upload(
-      storagePath,
-      file,
-      fileOptions: FileOptions(
-        contentType: 'image/$mimeExt',
-        upsert: false,
-      ),
-    ).timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {
-        throw MediaUploadTimeoutException('Photo upload timed out after 30 seconds.');
-      },
-    );
+    // Read bytes before async gap so file deletion can't affect the thumbnail upload.
+    final fileBytes = await file.readAsBytes();
 
-    // Generate and upload thumbnail (fire-and-forget, don't block)
-    _uploadThumbnail(file.readAsBytesSync(), entryId, mediaId, ext);
+    // Upload full-size to Supabase Storage with retry (3 attempts, exponential backoff).
+    Exception? lastUploadError;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await _client.storage.from(_bucketName).upload(
+          storagePath,
+          file,
+          fileOptions: FileOptions(
+            contentType: 'image/$mimeExt',
+            upsert: attempt > 1, // upsert on retry to avoid duplicate key error
+          ),
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw MediaUploadTimeoutException('Photo upload timed out after 30 seconds (attempt $attempt).');
+          },
+        );
+        lastUploadError = null;
+        break; // success
+      } catch (e) {
+        lastUploadError = e is Exception ? e : Exception(e.toString());
+        debugPrint('[MediaService] Upload attempt $attempt failed: $e');
+        if (attempt < 3) {
+          await Future<void>.delayed(Duration(seconds: attempt * 2));
+        }
+      }
+    }
+    if (lastUploadError != null) throw lastUploadError;
+
+    // Generate and upload thumbnail (fire-and-forget, don't block).
+    // Uses pre-read bytes so file path is no longer needed.
+    unawaited(_uploadThumbnail(fileBytes, entryId, mediaId, ext));
 
     // Create entry_media record
     final now = DateTime.now().toUtc();
@@ -193,11 +212,22 @@ class MediaService {
   /// When CDN is configured, uses CDN thumbnail transforms for faster delivery.
   String getThumbnailUrl(String storagePath) {
     if (storagePath.startsWith('http')) return storagePath;
-    if (CdnConfig.isEnabled) {
-      final fullUrl = _client.storage.from(_bucketName).getPublicUrl(storagePath);
-      return CdnConfig.thumbnailUrl(fullUrl);
+    try {
+      if (CdnConfig.isEnabled) {
+        final fullUrl = _client.storage.from(_bucketName).getPublicUrl(storagePath);
+        return CdnConfig.thumbnailUrl(fullUrl);
+      }
+      return _client.storage.from(_bucketName).getPublicUrl(thumbnailPath(storagePath));
+    } catch (e) {
+      // CDN unavailable — fall back to direct Supabase public URL.
+      debugPrint('[MediaService] getThumbnailUrl CDN error, falling back: $e');
+      try {
+        return _client.storage.from(_bucketName).getPublicUrl(storagePath);
+      } catch (e2) {
+        debugPrint('[MediaService] getThumbnailUrl fallback also failed: $e2');
+        return storagePath; // last resort: return raw path
+      }
     }
-    return _client.storage.from(_bucketName).getPublicUrl(thumbnailPath(storagePath));
   }
 
   /// Removes the given paths from the signed URL cache.

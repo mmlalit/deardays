@@ -90,7 +90,8 @@ class _OnThisDayScreenState extends State<OnThisDayScreen> {
               return null;
             }
           });
-          final results = await Future.wait(futures);
+          final results = await Future.wait(futures)
+              .timeout(const Duration(seconds: 15), onTimeout: () => List.filled(futures.length, null));
           for (final result in results) {
             if (result != null) _photoUrls[result.key] = result.value;
           }

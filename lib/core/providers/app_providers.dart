@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -532,7 +535,13 @@ final weeklyEntriesProvider =
 /// Server limit is 40K chars (~10K tokens). We cap at 35K to leave margin.
 List<String> _sampleTexts(List<String> texts, {int maxTotalChars = 35000}) {
   // Truncate each entry to 2K chars, then take as many as fit in budget.
-  final truncated = texts.map((t) => t.length > 2000 ? t.substring(0, 2000) : t);
+  final truncated = texts.map((t) {
+    if (t.length > 2000) {
+      debugPrint('[AI] Entry truncated from ${t.length} to 2000 chars for AI context');
+      return t.substring(0, 2000);
+    }
+    return t;
+  });
   final result = <String>[];
   var totalLen = 0;
   for (final t in truncated) {
@@ -622,14 +631,20 @@ final reflectionSummaryProvider =
   final ai = ref.watch(aiServiceProvider);
 
   try {
-    final entries = await ref.watch(reflectionEntriesProvider(period).future);
+    final entries = await ref.watch(reflectionEntriesProvider(period).future)
+        .timeout(const Duration(seconds: 10));
     if (entries.isEmpty) return null;
 
     final texts = _sampleTexts(entries.map((e) => e.content).toList());
-    final result = await ai.analyzeEntries(texts, language: language);
+    final result = await ai.analyzeEntries(texts, language: language)
+        .timeout(const Duration(seconds: 30));
     final summary = result['summary'] as String?;
     await cache.save(period: period.name, periodKey: periodKey, summary: summary);
     return summary;
+  } on TimeoutException catch (e, st) {
+    debugPrint('[reflectionSummaryProvider] Timed out: $e');
+    CrashReportingService().recordError(e, st, reason: 'reflectionSummaryProvider timeout');
+    return null;
   } catch (e, st) {
     CrashReportingService().recordError(e, st, reason: 'reflectionSummaryProvider');
     return null;

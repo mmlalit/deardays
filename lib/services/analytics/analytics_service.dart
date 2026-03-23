@@ -110,7 +110,9 @@ class AnalyticsService {
     _events.add(event);
     // Evict oldest events if buffer exceeds cap
     if (_events.length > _maxEvents) {
-      _events.removeRange(0, _events.length - _maxEvents);
+      final evicted = _events.length - _maxEvents;
+      _events.removeRange(0, evicted);
+      debugPrint('[Analytics] Buffer full, evicted $evicted oldest events');
     }
 
     if (kDebugMode) {

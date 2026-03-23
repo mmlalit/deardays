@@ -35,7 +35,9 @@ class ConnectivityService {
   /// Base fallback poll interval — actual interval adds ±25% jitter to
   /// prevent thundering-herd DNS spikes at scale.
   static const _fallbackBaseSeconds = 60;
-  static const _checkTimeout = Duration(seconds: 5);
+  // Increased from 5s to 8s to reduce false-offline detection on slow networks.
+  // TODO: Implement EMA-based adaptive timeout in v2.
+  static const _checkTimeout = Duration(seconds: 8);
 
   // ignore: prefer_const_declarations
 

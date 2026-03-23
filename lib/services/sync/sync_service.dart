@@ -264,7 +264,9 @@ class SyncService {
 
   /// Exponential backoff: 2^retryCount seconds, capped at [_maxBackoff].
   Duration _calculateBackoff(int retryCount) {
-    final seconds = min(pow(2, retryCount).toInt(), _maxBackoff.inSeconds);
+    // Cap at 20 to prevent integer overflow with pow(2, large_number).
+    final cappedCount = retryCount.clamp(0, 20);
+    final seconds = min(pow(2, cappedCount).toInt(), _maxBackoff.inSeconds);
     return Duration(seconds: seconds);
   }
 

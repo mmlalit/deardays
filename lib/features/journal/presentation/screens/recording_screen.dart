@@ -162,7 +162,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Recording unavailable: ${e.toString().substring(0, e.toString().length.clamp(0, 60))}')),
+          SnackBar(content: Text(() { final msg = e.toString(); return 'Recording unavailable: ${msg.substring(0, msg.length.clamp(0, 60))}'; }())),
         );
         Navigator.of(context).maybePop();
       }

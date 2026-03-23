@@ -36,7 +36,12 @@ class ReflectionCacheRepository {
 
   ReflectionCacheRepository(this._client);
 
-  String get _userId => _client.auth.currentUser!.id;
+  /// Returns current user ID or throws if not authenticated.
+  String get _userId {
+    final id = _client.auth.currentUser?.id;
+    if (id == null) throw StateError('[ReflectionCacheRepository] User not authenticated');
+    return id;
+  }
 
   // ── Period key helpers ──────────────────────────────────────────────────────
 

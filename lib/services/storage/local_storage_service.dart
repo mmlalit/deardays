@@ -99,6 +99,10 @@ class LocalStorageService {
       _initialized = false;
     }
     Hive.init(hiveDir);
+    // Delete boxes from disk so each test starts with clean state.
+    await Hive.deleteBoxFromDisk(_entriesBoxName);
+    await Hive.deleteBoxFromDisk(_draftsBoxName);
+    await Hive.deleteBoxFromDisk(_syncMetaBoxName);
     _entriesBox  = await Hive.openBox<String>(_entriesBoxName);
     _draftsBox   = await Hive.openBox<String>(_draftsBoxName);
     _syncMetaBox = await Hive.openBox<String>(_syncMetaBoxName);

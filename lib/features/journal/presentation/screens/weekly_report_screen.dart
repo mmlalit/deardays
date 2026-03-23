@@ -19,7 +19,11 @@ class WeeklyReportScreen extends StatelessWidget {
     // Replace this entry in the navigation stack immediately.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) {
-        context.pushReplacement('/reflection?period=weekly');
+        try {
+          context.pushReplacement('/reflection?period=weekly');
+        } catch (e) {
+          debugPrint('[WeeklyReport] Navigation error: $e');
+        }
       }
     });
     return const Scaffold(

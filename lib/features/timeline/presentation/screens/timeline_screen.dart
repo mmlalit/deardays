@@ -111,15 +111,9 @@ void showMemoryContextMenu(
                 Navigator.pop(sheetCtx);
                 onDelete?.call();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Memory deleted'),
+                  const SnackBar(
+                    content: Text('Memory deleted'),
                     behavior: SnackBarBehavior.floating,
-                    action: SnackBarAction(
-                      label: 'Undo',
-                      onPressed: () {
-                        // Undo not yet wired — placeholder for future implementation
-                      },
-                    ),
                   ),
                 );
               },
@@ -533,7 +527,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (e, st) {
+        debugPrint('[Timeline] weeklySummary error: $e');
+        return const SizedBox.shrink();
+      },
     );
   }
 

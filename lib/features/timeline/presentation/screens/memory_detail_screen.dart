@@ -351,6 +351,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _playerReady = false;
+  bool _audioError = false;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -393,7 +394,10 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           if (mounted) setState(() => _isPlaying = false);
         }
       });
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('[MemoryDetail] AudioPlayer init failed: $e\n$st');
+      if (mounted) setState(() => _audioError = true);
+    }
   }
 
   @override
@@ -752,6 +756,23 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildVoicePlayer(AppPalette colors) {
+    if (_audioError) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: colors.textMuted, size: 20),
+            const SizedBox(width: 8),
+            Text('Audio unavailable', style: GoogleFonts.manrope(color: colors.textMuted, fontSize: 14)),
+          ],
+        ),
+      );
+    }
     final maxMs = _duration.inMilliseconds.toDouble();
     final posMs = _position.inMilliseconds.toDouble().clamp(0.0, maxMs > 0 ? maxMs : 1.0);
 

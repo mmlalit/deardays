@@ -78,8 +78,8 @@ class OnThisDaySection extends StatelessWidget {
         ),
 
         // Horizontal scroll of memory cards
-        SizedBox(
-          height: 260,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 280, minHeight: 200),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 0),

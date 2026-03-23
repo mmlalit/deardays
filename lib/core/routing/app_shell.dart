@@ -129,7 +129,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
             debugPrint('[AppShell] tagEntry error: $e');
           }));
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[AppShell] tagSync error: $e');
+      }
     }
   }
 
@@ -192,14 +194,14 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
   void _triggerProviderFetch() {
     // ignore: unawaited_futures — fire-and-forget prefetch; errors are logged
-    ref.read(timelineEntriesProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
-    ref.read(todayEntryProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
-    ref.read(streakProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
-    ref.read(profileProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
-    ref.read(booksProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
-    ref.read(chaptersProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
-    ref.read(weeklyMoodsProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
-    ref.read(onThisDayProvider.future).then<void>((_) {}).catchError((Object e) { debugPrint('[AppShell] prefetch error: $e'); });
+    ref.read(timelineEntriesProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (timeline): $e\n$st'); });
+    ref.read(todayEntryProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (today): $e\n$st'); });
+    ref.read(streakProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (streak): $e\n$st'); });
+    ref.read(profileProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (profile): $e\n$st'); });
+    ref.read(booksProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (books): $e\n$st'); });
+    ref.read(chaptersProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (chapters): $e\n$st'); });
+    ref.read(weeklyMoodsProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (moods): $e\n$st'); });
+    ref.read(onThisDayProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (onThisDay): $e\n$st'); });
   }
 
   Future<void> _openCameraDirectly() async {

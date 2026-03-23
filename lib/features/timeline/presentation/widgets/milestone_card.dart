@@ -150,11 +150,12 @@ class MilestoneCard extends StatelessWidget {
           FutureBuilder<String>(
             future: future,
             builder: (context, snapshot) {
-              if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
+              final url = snapshot.data;
+              if (snapshot.hasError || url == null || url.isEmpty) {
                 return _buildPhotoPlaceholder();
               }
               return CachedNetworkImage(
-                imageUrl: snapshot.data!,
+                imageUrl: url,
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,

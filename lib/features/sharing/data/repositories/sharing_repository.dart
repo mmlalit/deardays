@@ -108,7 +108,8 @@ class SharingRepository {
         .eq('sharer_id', _userId!)
         .eq('status', 'pending')
         .not('recipient_name', 'is', null)
-        .order('requested_at', ascending: false);
+        .order('requested_at', ascending: false)
+        .limit(100);
     return rows.map((r) => _flattenWithTitle(r)).toList();
   }
 
@@ -123,7 +124,8 @@ class SharingRepository {
         .select()
         .eq('memory_id', memoryId)
         .eq('sharer_id', _userId!)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(100);
     return rows.map((r) => MemoryShare.fromMap(r)).toList();
   }
 
@@ -142,7 +144,8 @@ class SharingRepository {
         ''')
         .eq('recipient_id', _userId!)
         .inFilter('status', ['approved', 'revoked'])
-        .order('approved_at', ascending: false);
+        .order('approved_at', ascending: false)
+        .limit(100);
     return rows.map((r) => SharedMemoryItem.fromMap(r)).toList();
   }
 
@@ -162,11 +165,16 @@ class SharingRepository {
           .eq('id', shareId);
 
   // Realtime stream — Sarah watches for new pending requests
-  Stream<List<Map<String, dynamic>>> watchPendingRequests() =>
-      _client
-          .from('memory_shares')
-          .stream(primaryKey: ['id'])
-          .eq('sharer_id', _userId ?? '');
+  Stream<List<Map<String, dynamic>>> watchPendingRequests() {
+    final uid = _userId;
+    if (uid == null) {
+      return Stream.value([]);
+    }
+    return _client
+        .from('memory_shares')
+        .stream(primaryKey: ['id'])
+        .eq('sharer_id', uid);
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Helper: flatten joined title into the share row

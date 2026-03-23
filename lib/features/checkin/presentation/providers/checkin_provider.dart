@@ -152,9 +152,9 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
             'sections': remote['sections'],
           });
         }
-      } catch (e) {
+      } catch (e, st) {
         // Network unavailable — stay empty, no crash
-        debugPrint('[CheckInNotifier] Error: $e');
+        debugPrint('[CheckIn] loadTodayData (remote fallback): $e\n$st');
       }
     }
   }
@@ -221,7 +221,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
           );
           return;
         }
-      } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
+      } catch (e, st) { debugPrint('[CheckIn] loadDataForDate (remote fallback): $e\n$st'); }
 
       state = CheckInState(
         isFirstCheckInToday: true,
@@ -248,7 +248,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     for (final key in keys) {
       try {
         dates.add(DateTime.parse(key));
-      } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
+      } catch (e, st) { debugPrint('[CheckIn] getAvailableDates (date parse): $e\n$st'); }
     }
     dates.sort((a, b) => b.compareTo(a)); // newest first
     return dates;
@@ -275,8 +275,9 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       _addAiMessage(aiReply);
       state = state.copyWith(isLoading: false, isFirstCheckInToday: false);
       await _persist();
-    } catch (e) {
+    } catch (e, st) {
       // Fallback to local response if AI fails
+      debugPrint('[CheckIn] selectMood (AI response): $e\n$st');
       final fallback = _getFallbackMoodResponse(mood);
       _addAiMessage(fallback);
       state = state.copyWith(isLoading: false, isFirstCheckInToday: false);
@@ -304,7 +305,8 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       _addAiMessage(aiReply);
       state = state.copyWith(isLoading: false);
       await _persist();
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[CheckIn] redoMood (AI response): $e\n$st');
       final fallback = _getFallbackMoodResponse(newMood);
       _addAiMessage(fallback);
       state = state.copyWith(isLoading: false);
@@ -380,8 +382,8 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       )) {
         buffer.write(chunk);
       }
-    } catch (e) {
-      debugPrint('[CheckInNotifier] Stream error: $e');
+    } catch (e, st) {
+      debugPrint('[CheckIn] sendMessage (stream): $e\n$st');
     }
 
     // Reveal word-by-word regardless of how fast the network delivered it
@@ -541,10 +543,10 @@ final availableDatesProvider = FutureProvider<List<DateTime>>((ref) async {
       if (!hiveKeys.contains(key)) {
         try {
           hiveDates.add(DateTime.parse(key));
-        } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
+        } catch (e, st) { debugPrint('[CheckIn] availableDatesProvider (date parse): $e\n$st'); }
       }
     }
-  } catch (e) { debugPrint('[CheckInNotifier] Error: $e'); }
+  } catch (e, st) { debugPrint('[CheckIn] availableDatesProvider (remote fetch): $e\n$st'); }
 
   hiveDates.sort((a, b) => b.compareTo(a)); // newest first
   return hiveDates;

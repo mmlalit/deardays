@@ -27,6 +27,9 @@ class CrashReportingService {
   bool _initialized = false;
   bool get isInitialized => _initialized;
 
+  // Previous Flutter error handler stored so we can restore on dispose.
+  FlutterExceptionHandler? _previousFlutterErrorHandler;
+
   String? _userId;
   final Map<String, String> _userContext = {};
 
@@ -55,6 +58,8 @@ class CrashReportingService {
   Future<void> init() async {
     if (_initialized) return;
 
+    // Store previous handler so dispose() can restore it (prevents accumulation on hot reload).
+    _previousFlutterErrorHandler = FlutterError.onError;
     // Capture Flutter framework errors (rendering, build, etc.)
     FlutterError.onError = _handleFlutterError;
 
@@ -235,6 +240,12 @@ class CrashReportingService {
   /// Records a fatal error that caused the app to crash.
   void recordFatalError(dynamic error, StackTrace stackTrace) {
     recordError(error, stackTrace, reason: 'Fatal error');
+  }
+
+  /// Restores the previous Flutter error handler. Call in tests or on hot reload.
+  void dispose() {
+    FlutterError.onError = _previousFlutterErrorHandler;
+    _initialized = false;
   }
 
   /// Clears all stored reports and breadcrumbs.

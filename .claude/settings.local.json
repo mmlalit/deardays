@@ -51,7 +51,10 @@
       "Bash(do)",
       "Bash(if grep:*)",
       "Bash(then)",
-      "Bash(echo \"FOUND: $dir\")"
+      "Bash(echo \"FOUND: $dir\")",
+      "Bash(find /c/Users/YOGA/Desktop/deardays/.github/workflows -name *.yml -o -name *.yaml)",
+      "Bash(flutter emulators:*)",
+      "WebFetch(domain:unsplash.com)"
     ]
   }
 }
