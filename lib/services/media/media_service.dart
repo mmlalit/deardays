@@ -23,9 +23,13 @@ class MediaService {
 
   final SupabaseClient _client;
 
+  /// Signed URL cache entries older than this are evicted and re-fetched.
+  static const _urlTtl = Duration(minutes: 50);
+
   /// In-memory cache of signed URLs keyed by storagePath.
+  /// Each entry stores both the Future and the time it was cached.
   /// Prevents re-fetching the same URL when widgets rebuild (e.g. on scroll).
-  final Map<String, Future<String>> _signedUrlCache = {};
+  final Map<String, (Future<String>, DateTime)> _signedUrlCache = {};
 
   MediaService({required SupabaseClient client}) : _client = client;
 
@@ -46,6 +50,7 @@ class MediaService {
         '(${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB)',
       );
     }
+    await _validateImageMagicBytes(filePath);
     final ext = p.extension(filePath).toLowerCase().replaceAll('.', '');
     // Normalize jpg → jpeg (Supabase Storage rejects 'image/jpg')
     final mimeExt = ext == 'jpg' ? 'jpeg' : ext;
@@ -60,6 +65,11 @@ class MediaService {
         contentType: 'image/$mimeExt',
         upsert: false,
       ),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw MediaUploadTimeoutException('Photo upload timed out after 30 seconds.');
+      },
     );
 
     // Generate and upload thumbnail (fire-and-forget, don't block)
@@ -108,6 +118,11 @@ class MediaService {
         contentType: 'image/$ext',
         upsert: false,
       ),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw MediaUploadTimeoutException('Photo upload timed out after 30 seconds.');
+      },
     );
 
     final now = DateTime.now().toUtc();
@@ -184,12 +199,25 @@ class MediaService {
   /// Returns a signed URL for a media item (valid for 1 hour).
   /// Results are cached in-memory so repeated calls for the same path
   /// (e.g. on scroll rebuild) reuse the existing Future without a new request.
+  /// Cache entries older than [_urlTtl] (50 minutes) are evicted automatically.
   Future<String> getSignedUrl(String storagePath) {
     if (storagePath.startsWith('http')) return Future.value(storagePath);
-    return _signedUrlCache.putIfAbsent(
-      storagePath,
-      () => _client.storage.from(_bucketName).createSignedUrl(storagePath, 3600),
-    );
+
+    // Evict expired entry if present.
+    final existing = _signedUrlCache[storagePath];
+    if (existing != null) {
+      final cachedAt = existing.$2;
+      if (DateTime.now().difference(cachedAt) >= _urlTtl) {
+        _signedUrlCache.remove(storagePath);
+      }
+    }
+
+    if (!_signedUrlCache.containsKey(storagePath)) {
+      final future =
+          _client.storage.from(_bucketName).createSignedUrl(storagePath, 3600);
+      _signedUrlCache[storagePath] = (future, DateTime.now());
+    }
+    return _signedUrlCache[storagePath]!.$1;
   }
 
   /// Returns the public URL if the bucket is public, otherwise use signed URL.
@@ -209,6 +237,33 @@ class MediaService {
         .delete()
         .eq('id', media.id)
         .eq('user_id', _userId);
+  }
+
+  /// Validates a file by reading its magic bytes to confirm it is a known
+  /// image format (JPEG, PNG, WebP, HEIC/HEIF). Throws [MediaInvalidTypeException]
+  /// if the bytes do not match any supported format.
+  Future<void> _validateImageMagicBytes(String filePath) async {
+    final file = File(filePath);
+    final bytes = await file.openRead(0, 12).expand((b) => b).take(12).toList();
+    if (bytes.length < 4) {
+      throw MediaInvalidTypeException('File is not a valid image.');
+    }
+    // JPEG: FF D8 FF
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return;
+    // PNG: 89 50 4E 47
+    if (bytes[0] == 0x89 && bytes[1] == 0x50 &&
+        bytes[2] == 0x4E && bytes[3] == 0x47) return;
+    // WebP: RIFF????WEBP (bytes 0-3 == RIFF, bytes 8-11 == WEBP)
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 && bytes[1] == 0x49 &&
+        bytes[2] == 0x46 && bytes[3] == 0x46 &&
+        bytes[8] == 0x57 && bytes[9] == 0x45 &&
+        bytes[10] == 0x42 && bytes[11] == 0x50) return;
+    // HEIC/HEIF: ftyp box at offset 4 (bytes 4-7 == 'ftyp')
+    if (bytes.length >= 8 &&
+        bytes[4] == 0x66 && bytes[5] == 0x74 &&
+        bytes[6] == 0x79 && bytes[7] == 0x70) return;
+    throw MediaInvalidTypeException('File is not a valid image.');
   }
 
   /// Deletes all media for a given entry.
@@ -243,4 +298,22 @@ class MediaSizeLimitException implements Exception {
 
   @override
   String toString() => 'MediaSizeLimitException: $message';
+}
+
+/// Thrown when a photo upload exceeds the allowed time limit.
+class MediaUploadTimeoutException implements Exception {
+  final String message;
+  const MediaUploadTimeoutException(this.message);
+
+  @override
+  String toString() => 'MediaUploadTimeoutException: $message';
+}
+
+/// Thrown when a file's magic bytes do not match a supported image format.
+class MediaInvalidTypeException implements Exception {
+  final String message;
+  const MediaInvalidTypeException(this.message);
+
+  @override
+  String toString() => 'MediaInvalidTypeException: $message';
 }

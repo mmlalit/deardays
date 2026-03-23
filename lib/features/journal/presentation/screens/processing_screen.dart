@@ -34,9 +34,6 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   // Local analysis result (instant, free)
   LocalAnalysisResult? _localResult;
 
-  // Tracks whether the polish credit has been consumed this session.
-  bool _creditConsumed = false;
-
   // Step states: 'waiting' | 'active' | 'done'
   final List<String> _stepStates = ['active', 'waiting', 'waiting', 'waiting'];
 
@@ -129,18 +126,12 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     // By starting together the total wait = max(both) instead of sum(both).
 
     final canPolish = _creditService.canUse(AiOperation.polish);
+    if (canPolish) _creditService.consume(AiOperation.polish);
 
     String? aiError;
 
     final lightPolishFuture = canPolish
-        ? _aiService.lightPolish(transcript).then((result) {
-            // Consume credit only after successful API response.
-            if (!_creditConsumed) {
-              _creditService.consume(AiOperation.polish);
-              _creditConsumed = true;
-            }
-            return result;
-          }).catchError((e) {
+        ? _aiService.lightPolish(transcript).catchError((e) {
             aiError = e.toString();
             _offlineQueue.enqueue(AiQueueItem(
               entryId: 'pending_${DateTime.now().millisecondsSinceEpoch}',
@@ -234,7 +225,6 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       isVoice: widget.data.isVoice,
       audioPath: widget.data.audioPath,
       attachedPhotoPath: widget.data.attachedPhotoPath,
-      attachedPhotoPaths: widget.data.attachedPhotoPaths,
       polishWithAI: true,
       mood: _localResult?.mood,
     ));
