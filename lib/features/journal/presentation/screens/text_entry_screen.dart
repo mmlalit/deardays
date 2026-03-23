@@ -422,6 +422,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       child: TextField(
         controller: _textController,
         focusNode: _focusNode,
+        autofocus: true,
         maxLines: null,
         expands: true,
         keyboardType: TextInputType.multiline,

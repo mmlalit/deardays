@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -814,6 +815,20 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   Future<void> _takePhoto() async {
+    if (Platform.isAndroid || Platform.isIOS) {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Camera permission is required.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+    }
     try {
       final picked = await _imagePicker.pickImage(
         source: ImageSource.camera,

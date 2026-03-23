@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -353,6 +354,20 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
   }
 
   Future<void> _takePhoto() async {
+    if (Platform.isAndroid || Platform.isIOS) {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Camera permission is required.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+    }
     try {
       final picked = await _imagePicker.pickImage(
           source: ImageSource.camera, maxWidth: 1920, imageQuality: 75);
