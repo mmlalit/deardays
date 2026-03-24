@@ -63,9 +63,9 @@ void main() {
 
     setUp(() async {
       svc = LocalStorageService();
-      try {
-        await svc.init();
-      } catch (_) {}
+      // Use initForTesting to avoid platform-channel calls (flutter_secure_storage,
+      // Hive.initFlutter) that are unavailable in a unit test context.
+      await svc.initForTesting(hiveDir.path);
     });
 
     test('getLastSyncTime returns null before any sync is recorded', () async {
@@ -100,9 +100,9 @@ void main() {
 
     setUp(() async {
       svc = LocalStorageService();
-      try {
-        await svc.init();
-      } catch (_) {}
+      // Use initForTesting to avoid platform-channel calls (flutter_secure_storage,
+      // Hive.initFlutter) that are unavailable in a unit test context.
+      await svc.initForTesting(hiveDir.path);
     });
 
     test('getCachedEntry returns null for unknown id', () async {

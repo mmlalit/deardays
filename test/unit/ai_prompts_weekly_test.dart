@@ -46,36 +46,36 @@ void main() {
     });
 
     group('style variants', () {
-      test('memoir style includes third-person directive', () {
+      test('memoir style includes friend directive', () {
         final prompt = AiPrompts.weeklyPageChronological(
           weekLabel: 'March 10–16, 2026',
           style: 'memoir',
         );
-        expect(prompt, contains('third-person'));
+        expect(prompt, contains('friend'));
       });
 
-      test('diary style includes first-person directive', () {
+      test('diary style includes diary directive', () {
         final prompt = AiPrompts.weeklyPageChronological(
           weekLabel: 'March 10–16, 2026',
           style: 'diary',
         );
-        expect(prompt, contains('first-person'));
+        expect(prompt, contains('diary'));
       });
 
-      test('story style includes cinematic directive', () {
+      test('story style includes storytelling directive', () {
         final prompt = AiPrompts.weeklyPageChronological(
           weekLabel: 'March 10–16, 2026',
           style: 'story',
         );
-        expect(prompt, contains('cinematic'));
+        expect(prompt, contains('storytelling'));
       });
 
-      test('unknown style falls through to memoir', () {
+      test('unknown style falls through to default (friend directive)', () {
         final prompt = AiPrompts.weeklyPageChronological(
           weekLabel: 'March 10–16, 2026',
           style: 'unknown_style',
         );
-        expect(prompt, contains('third-person'));
+        expect(prompt, contains('friend'));
       });
     });
 

@@ -21,6 +21,10 @@ class SyncQueue {
   static const int maxQueueSize = 10000;
   Box<String>? _box;
 
+  // H-03 FIX: Track evictions so callers can detect data-loss conditions.
+  int _evictionCount = 0;
+  int get evictionCount => _evictionCount;
+
   /// Open the Hive box. Call after `Hive.initFlutter()`.
   Future<void> init(HiveAesCipher cipher) async {
     _box = await Hive.openBox<String>(_boxName, encryptionCipher: cipher);
@@ -42,13 +46,22 @@ class SyncQueue {
   /// offline for extended periods.
   Future<void> enqueue(SyncOperation op) async {
     _ensureOpen();
-    // Evict oldest if at capacity
+    // H-03 FIX: Evict oldest if at capacity — track and warn about data loss.
     if (_box!.length >= maxQueueSize) {
-      final oldestKey = (_box!.keys.cast<String>().toList()..sort()).first;
+      final sortedKeys = _box!.keys.cast<String>().toList()..sort();
+      final oldestKey = sortedKeys.first;
+      // Try to decode evicted op for the warning message
+      String evictedDesc = oldestKey;
+      try {
+        final raw = _box!.get(oldestKey);
+        if (raw != null) {
+          final decoded = jsonDecode(raw) as Map<String, dynamic>;
+          evictedDesc = '${decoded['type']} on ${decoded['tableName']}';
+        }
+      } catch (_) {}
       await _box!.delete(oldestKey);
-      if (kDebugMode) {
-        debugPrint('[SyncQueue] Queue full ($maxQueueSize). Evicted $oldestKey');
-      }
+      _evictionCount++;
+      debugPrint('[SyncQueue] WARNING: Queue full ($maxQueueSize) — evicting oldest operation: $evictedDesc (total evictions: $_evictionCount)');
     }
     final key = '${op.createdAt.millisecondsSinceEpoch}_${op.id}';
     await _box!.put(key, jsonEncode(op.toJson()));

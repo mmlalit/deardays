@@ -327,6 +327,17 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     );
   }
 
+  String _friendlyError(dynamic e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('socket') || msg.contains('network') || msg.contains('connection')) {
+      return 'Network error. Check your connection and try again.';
+    }
+    if (msg.contains('permission') || msg.contains('unauthorized') || msg.contains('403')) {
+      return 'Permission denied. Please sign in again.';
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
   Future<void> _performBackup() async {
     setState(() {
       _isOperating = true;
@@ -344,7 +355,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     } catch (e) {
       debugPrint('[BackupRestore] performBackup: $e');
       setState(() {
-        _statusMessage = 'Backup failed: ${e.toString()}';
+        _statusMessage = 'Backup failed: ${_friendlyError(e)}';
       });
     } finally {
       setState(() => _isOperating = false);
@@ -404,7 +415,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     } catch (e) {
       debugPrint('[BackupRestore] performRestore: $e');
       setState(() {
-        _statusMessage = 'Restore failed: ${e.toString()}';
+        _statusMessage = 'Restore failed: ${_friendlyError(e)}';
       });
     } finally {
       setState(() => _isOperating = false);

@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,22 +18,12 @@ import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
-import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/services/ai/ai_service.dart';
-import 'package:deardays/services/media/media_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/features/journal/data/models/draft_entry.dart';
-import 'package:deardays/services/sync/sync_queue.dart';
-import 'package:deardays/services/sync/sync_operation.dart';
-import 'package:deardays/services/notification/notification_service.dart';
-import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/services/location/location_service.dart';
-import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:deardays/core/onboarding/sample_memory.dart';
-import 'package:deardays/core/providers/onboarding_provider.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 
 /// Data passed between RecordingScreen → ProcessingScreen → ReviewSaveScreen.
 class ReviewData {
@@ -89,12 +78,6 @@ class ReviewSaveScreen extends ConsumerStatefulWidget {
 class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     with SingleTickerProviderStateMixin {
   final _aiService = AiService();
-  late final JournalRepository _repository = JournalRepository(
-    client: Supabase.instance.client,
-  );
-  late final MediaService _mediaService = MediaService(
-    client: Supabase.instance.client,
-  );
   final _imagePicker = ImagePicker();
 
   // Polish state
@@ -121,7 +104,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   bool _isUploadingPhoto = false;
   String? _attachedPhotoPath;
   String? _locationName;
-  String? _selectedChapterId;
   String? _saveError;
   final List<String> _tags = [];
   final _locationService = LocationService();
@@ -137,7 +119,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   /// Stable draft ID for this review session so repeated saves upsert.
   final String _draftId = const Uuid().v4();
-  bool _submitted = false;
+  bool _isNavigating = false; // prevents double-tap to PostSaveScreen
 
   @override
   void initState() {
@@ -202,17 +184,14 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _deleteReviewDraft() async {
-    await LocalStorageService.instance.deleteDraft(_draftId);
-    ref.invalidate(draftsProvider);
-  }
-
   Future<void> _generateTitleOnly() async {
-    final l10n = AppLocalizations.of(context);
     try {
       // Light polish only — title uses the instant fallback (tap to edit inline)
       final cleaned = await _aiService.lightPolish(widget.data.rawText);
       if (!mounted) return;
+      // AppLocalizations.of(context) must be called after the first await so
+      // it does not run synchronously inside initState (inheritFrom restriction).
+      final l10n = AppLocalizations.of(context);
       final title = _generateFallbackTitle(l10n);
       setState(() {
         _cleanedText = cleaned;
@@ -221,8 +200,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       });
     } catch (e) {
       debugPrint('[ReviewSave] Title generation failed, using fallback: $e');
-      final title = _generateFallbackTitle(l10n);
       if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        final title = _generateFallbackTitle(l10n);
         setState(() {
           _generatedTitle = title;
           _titleEditController.text = title;
@@ -232,7 +212,6 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   }
 
   Future<void> _polishText() async {
-    final l10n = AppLocalizations.of(context);
     setState(() {
       _isPolishing = true;
       _polishProgress = 0.0;
@@ -246,6 +225,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       _animateProgress(0.0, 0.4);
       final cleaned = await _aiService.lightPolish(widget.data.rawText);
       if (!mounted) return;
+      // AppLocalizations.of(context) must be called after the first await.
+      final l10n = AppLocalizations.of(context);
       setState(() => _cleanedText = cleaned);
 
       String? body;
@@ -259,6 +240,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           _aiService.generateTitle(cleaned).catchError((_) => ''),
         ]);
 
+        if (results.length < 2) throw Exception('Unexpected Future.wait result count: ${results.length}');
         String raw = results[0].trim();
         aiTitle = results[1];
 
@@ -284,7 +266,12 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           _polishProgress = 1.0;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[ReviewSave] AI polish failed: $e');
+      // Log to crash reporting
+      try {
+        CrashReportingService().recordError(e, st, reason: 'ai_polish_failed');
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _isPolishing = false;
@@ -318,28 +305,26 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     return '$timeOfDay, $month ${now.day}';
   }
 
+  /// Validates the daily limit then hands off to PostSaveScreen which selects
+  /// the chapter and does the actual DB write — keeping the draft alive until
+  /// the save succeeds.
   Future<void> _saveEntry() async {
+    if (_isNavigating) return;
     HapticFeedback.mediumImpact();
     final l10n = AppLocalizations.of(context);
-    setState(() {
-      _isSaving = true;
-      _saveError = null;
-    });
+    setState(() { _isSaving = true; _saveError = null; });
 
     try {
-      // ── Daily memory limit check ─────────────────────────────────────────
-      final db = Supabase.instance.client;
+      // ── Daily memory limit check ──────────────────────────────────────────
+      final db = ref.read(supabaseClientProvider);
       final userId = db.auth.currentUser?.id;
       if (userId != null && ConnectivityService().isOnline) {
-        // Read limit from app_config (default 10 if missing)
         final configRow = await db
             .from('app_config')
             .select('value')
             .eq('key', 'daily_memory_limit')
             .maybeSingle();
         final dailyLimit = int.tryParse(configRow?['value'] as String? ?? '') ?? 10;
-
-        // Count today's entries for this user (UTC day)
         final todayStart = DateTime.now().toUtc().copyWith(
           hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0,
         );
@@ -348,9 +333,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             .select('id')
             .eq('user_id', userId)
             .gte('created_at', todayStart.toIso8601String());
-        final todayCount = (todayRows as List).length;
-
-        if (todayCount >= dailyLimit) {
+        if ((todayRows as List).length >= dailyLimit) {
           setState(() {
             _isSaving = false;
             _saveError = l10n?.dailyLimitReached ??
@@ -359,198 +342,29 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           return;
         }
       }
-      // ────────────────────────────────────────────────────────────────────
+      // ─────────────────────────────────────────────────────────────────────
 
-      final now = DateTime.now().toUtc();
-      final content = _cleanedText ?? widget.data.rawText;
-      final polishedContent = _polishedText != null
-          ? '${_generatedTitle ?? ''}\n\n$_polishedText'
-          : null;
+      if (!mounted) return;
+      _isNavigating = true;
 
-      final isOnline = ConnectivityService().isOnline;
-
-      final entry = JournalEntry(
-        id: const Uuid().v4(),
-        userId: Supabase.instance.client.auth.currentUser!.id,
-        content: content,
-        rawContent: widget.data.rawText,
-        polishedContent: polishedContent,
+      // Draft stays alive — PostSaveScreen deletes it after a successful save.
+      context.go('/post-save', extra: PreSaveData(
+        rawText: widget.data.rawText,
+        cleanedText: _cleanedText,
+        polishedText: _polishedText,
+        generatedTitle: _generatedTitle,
         mood: _selectedMood,
-        entryDate: now,
-        entryTime: TimeOfDay.fromDateTime(now),
-        isAiPolished: _polishedText != null,
         locationName: _locationName,
-        // hasPhoto starts false — updated to true only after successful upload
-        hasPhoto: false,
-        hasVoice: widget.data.isVoice,
-        wordCount: content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length,
-        chapterId: _selectedChapterId,
-        tags: _tags,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      bool savedOffline = false;
-      JournalEntry saved;
-
-      if (!isOnline) {
-        // ── Offline path ────────────────────────────────────────────────────
-        debugPrint('[SAVE] Device offline — saving to local cache + SyncQueue');
-        await LocalStorageService().cacheEntry(entry);
-        if (!mounted) return;
-        try {
-          await SyncQueue().enqueue(SyncOperation.create(
-            id: entry.id,
-            type: SyncOperationType.create,
-            tableName: 'journal_entries',
-            payload: entry.toSupabaseMap(),
-          ));
-        } catch (e) {
-          debugPrint('[ReviewSave] Queue failed: $e');
-        }
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved locally — will sync when online')),
-        );
-        saved = entry;
-        savedOffline = true;
-      } else {
-        // ── Online path ─────────────────────────────────────────────────────
-        try {
-          debugPrint('[SAVE] Online — attempting Supabase save...');
-          saved = await _repository.createEntry(entry);
-          debugPrint('[SAVE] Supabase save SUCCESS');
-        } catch (e) {
-          // Server / auth / validation error — surface to user for retry.
-          // Do NOT silently fall back to offline: the failure cause may mean
-          // the queued operation would also fail on retry.
-          debugPrint('[SAVE] Supabase save FAILED: $e');
-          final msg = e.toString();
-          setState(() => _saveError = msg.length > 100 ? '${msg.substring(0, 100)}…' : msg);
-          return;
-        }
-
-        // Fire-and-forget tagging — skip if already tagged (prevents double-call on retry).
-        if (!saved.tagsGenerated) {
-          unawaited(MemoryTaggingService().tagEntry(
-            entryId: saved.id,
-            content: _cleanedText ?? entry.content,
-          ));
-        }
-
-        try {
-          final profile = await ref.read(profileProvider.future);
-          final organization = profile?.bookOrganization ?? 'yearly';
-          await ref.read(bookRepositoryProvider).ensureDefaultBook(organization);
-        } catch (e, st) {
-          debugPrint('[ReviewSave] ensureDefaultBook error: $e\n$st');
-        }
-
-        if (_attachedPhotoPath != null) {
-          if (mounted) setState(() => _isUploadingPhoto = true);
-          try {
-            await _mediaService.uploadPhoto(
-              entryId: saved.id,
-              filePath: _attachedPhotoPath!,
-              focalAlignment: _focalAlignment,
-            );
-            // Mark hasPhoto true only after successful upload
-            saved = saved.copyWith(hasPhoto: true);
-          } catch (e) {
-            debugPrint('[ReviewSaveScreen] Photo upload failed: $e');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Photo could not be uploaded. The entry was saved without it.'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          } finally {
-            if (mounted) setState(() => _isUploadingPhoto = false);
-          }
-        }
-
-        try {
-          final profileRepo = ProfileRepository(client: Supabase.instance.client);
-          final streak = await profileRepo.getStreak();
-          if (streak != null) {
-            if (NotificationService.isStreakMilestone(streak.currentStreak)) {
-              // Check user preference before firing (fixes toggle being ignored).
-              final box = await Hive.openBox('settings');
-              final milestonesEnabled = box.get('streak_milestones_enabled') as bool? ?? true;
-              if (milestonesEnabled) {
-                await NotificationService().showStreakNotification(streak.currentStreak);
-              }
-            }
-            // Cancel streak-at-risk reminder — user wrote today.
-            NotificationService().cancelStreakReminder().catchError(
-              (e) { debugPrint('[ReviewSave] Cancel streak reminder failed: $e'); },
-            );
-            final profile = await profileRepo.getProfile();
-            if (profile?.reminderTime != null) {
-              final parts = profile!.reminderTime!.split(':');
-              if (parts.length >= 2) {
-                await NotificationService().scheduleDailyReminder(
-                  TimeOfDay(
-                    hour: int.tryParse(parts[0]) ?? 9,
-                    minute: int.tryParse(parts[1]) ?? 0,
-                  ),
-                  streak: streak.currentStreak,
-                );
-              }
-            }
-          }
-        } catch (e, st) {
-          debugPrint('[ReviewSave] Streak/notification error: $e\n$st');
-        }
-      }
-
-      // ── Cleanup + navigation (both paths) ──────────────────────────────────
-      if (widget.data.audioPath != null) {
-        try {
-          final audioFile = File(widget.data.audioPath!);
-          if (await audioFile.exists()) await audioFile.delete();
-        } catch (e) {
-          debugPrint('[ReviewSave] Audio cleanup failed: $e');
-        }
-      }
-
-      // Auto-delete sample memory on first real save.
-      try {
-        final entries = await ref.read(timelineEntriesProvider.future);
-        final realEntries = entries.where((e) => !isSampleEntry(e)).toList();
-        if (realEntries.isEmpty) {
-          // This is the first real entry — delete the sample if present.
-          final sampleExists = entries.any((e) => isSampleEntry(e));
-          if (sampleExists) {
-            await ref.read(journalRepositoryProvider).deleteEntry('sample-onboarding-001');
-            ref.read(onboardingProvider.notifier).markSampleMemorySeeded();
-          }
-        }
-      } catch (e) {
-        debugPrint('[ReviewSave] Sample cleanup failed: $e');
-      }
-
-      if (mounted) {
-        ref.invalidate(todayEntryProvider);
-        ref.invalidate(timelineEntriesProvider);
-        ref.invalidate(booksProvider);
-
-        final postSaveData = PostSaveData(
-          entryId: saved.id,
-          title: _generatedTitle ?? _generateFallbackTitle(),
-          content: _cleanedText ?? widget.data.rawText,
-          attachedPhotoPath: _attachedPhotoPath,
-          savedOffline: savedOffline,
-        );
-        ref.read(postSaveDataProvider.notifier).state = postSaveData;
-        _submitted = true;
-        unawaited(_deleteReviewDraft());
-        context.go('/post-save');
-      }
+        attachedPhotoPath: _attachedPhotoPath,
+        focalAlignment: _focalAlignment,
+        isVoice: widget.data.isVoice,
+        audioPath: widget.data.audioPath,
+        draftId: _draftId,
+        tags: List.unmodifiable(_tags),
+      ));
     } catch (e, stack) {
-      debugPrint('[SAVE] OUTER CATCH: $e\n$stack');
+      debugPrint('[ReviewSave] _saveEntry error: $e\n$stack');
+      _isNavigating = false;
       if (mounted) {
         final msg = e.toString();
         setState(() => _saveError = msg.length > 100 ? '${msg.substring(0, 100)}…' : msg);

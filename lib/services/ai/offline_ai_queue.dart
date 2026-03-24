@@ -96,7 +96,11 @@ class OfflineAiQueue {
 
   /// Enqueue an entry for server-side AI processing (polish, themes, etc).
   Future<void> enqueue(AiQueueItem item) async {
-    if (_box == null || !_box!.isOpen) return; // Not initialized — skip silently.
+    if (_box == null || !_box!.isOpen) {
+      // M-06: don't silently swallow — callers should know queue is not ready
+      debugPrint('[OfflineAiQueue] WARNING: Queue not initialized, cannot enqueue ${item.entryId}');
+      throw StateError('OfflineAiQueue not initialized. Call init() first.');
+    }
     final key = '${item.createdAt.millisecondsSinceEpoch}_${item.entryId}';
     await _box!.put(key, jsonEncode(item.toJson()));
     if (kDebugMode) {

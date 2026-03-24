@@ -360,7 +360,13 @@ void main() {
   group('Golden — RecordingScreen', () {
     testWidgets('light theme renders correctly', (tester) async {
       _setView(tester, _goldenSize);
-      await tester.pumpWidget(_app(const RecordingScreen()));
+      await tester.pumpWidget(_app(
+        const RecordingScreen(),
+        overrides: [
+          ...authenticatedOverrides(),
+          writingPromptProvider.overrideWith((ref) => 'What made today special?'),
+        ],
+      ));
       // Platform channel screen — use pump() not pumpAndSettle()
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pump();

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -114,7 +115,13 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
     try {
       final cipher = LocalStorageService.instance.cipher;
       return await Hive.openBox(name, encryptionCipher: cipher);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[LifeBook] Encryption cipher failed: $e');
+      if (kReleaseMode) {
+        rethrow; // In production, don't silently expose data
+      }
+      // In debug, fall through to unencrypted for development convenience
+      debugPrintStack(stackTrace: st, label: '[LifeBook] cipher stack');
       return await Hive.openBox(name);
     }
   }
@@ -132,8 +139,12 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
         final date = DateTime.parse(key);
         final raw = box.get(key);
         if (raw != null) {
-          dateEntries[date] =
-              jsonDecode(raw as String) as Map<String, dynamic>;
+          if (raw is! String) {
+            debugPrint('[LifeBook] Hive value has wrong type for key $key, skipping');
+            box.delete(key); // Remove corrupted entry
+            continue;
+          }
+          dateEntries[date] = jsonDecode(raw) as Map<String, dynamic>;
         }
       } catch (_) {}
     }

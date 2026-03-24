@@ -20,6 +20,23 @@ class StoryGenerationService {
   final _ai = AiService();
   final _credits = AiCreditService();
 
+  // ── C-14: Simple in-memory rate limit: 1 generation per 10 minutes ────────
+  static DateTime? _lastGenerationTime;
+  static const _generationCooldown = Duration(minutes: 10);
+
+  Future<void> _checkRateLimit() async {
+    if (_lastGenerationTime != null) {
+      final elapsed = DateTime.now().difference(_lastGenerationTime!);
+      if (elapsed < _generationCooldown) {
+        final remaining = _generationCooldown - elapsed;
+        final mins = remaining.inMinutes + 1;
+        throw Exception(
+            'Please wait $mins minute${mins == 1 ? '' : 's'} before generating another story.');
+      }
+    }
+    _lastGenerationTime = DateTime.now();
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Significance scoring
   // ─────────────────────────────────────────────────────────────────────────
@@ -70,6 +87,8 @@ class StoryGenerationService {
       StoryNode.isoWeekNumber(weekDate),
     );
 
+    await _checkRateLimit();
+
     final cached = await _repo.get(key);
     if (cached != null && cached.isGenerated) {
       if (!needsRegeneration(cached, entries)) return cached;
@@ -83,6 +102,7 @@ class StoryGenerationService {
     if (!_credits.canUse(AiOperation.summary)) {
       throw AiServiceException('No summary credits remaining');
     }
+    _credits.consume(AiOperation.summary);
 
     final tags = entries.expand((e) => e.tags).toSet().toList();
     final people = entries.expand((e) => e.people).toSet().toList();
@@ -95,7 +115,6 @@ class StoryGenerationService {
       moods: moods,
       language: language,
     );
-    _credits.consume(AiOperation.summary);
 
     // Analyse story in one call: theme + highlight (replaces two separate calls).
     String? theme;
@@ -143,6 +162,8 @@ class StoryGenerationService {
     List<JournalEntry> allMonthEntries = const [],
     String? language,
   }) async {
+    await _checkRateLimit();
+
     final key = StoryNode.monthKey(year, month);
 
     final cached = await _repo.get(key);
@@ -177,6 +198,7 @@ class StoryGenerationService {
     if (!_credits.canUse(AiOperation.summary)) {
       throw AiServiceException('No summary credits remaining');
     }
+    _credits.consume(AiOperation.summary);
 
     final tags = allMonthEntries.expand((e) => e.tags).toSet().toList();
     final people = allMonthEntries.expand((e) => e.people).toSet().toList();
@@ -189,7 +211,6 @@ class StoryGenerationService {
       moods: moods,
       language: language,
     );
-    _credits.consume(AiOperation.summary);
 
     String? theme;
     try {
@@ -230,6 +251,8 @@ class StoryGenerationService {
     List<JournalEntry> allYearEntries = const [],
     String? language,
   }) async {
+    await _checkRateLimit();
+
     final key = StoryNode.yearKey(year);
 
     final cached = await _repo.get(key);
@@ -251,6 +274,7 @@ class StoryGenerationService {
     if (!_credits.canUse(AiOperation.summary)) {
       throw AiServiceException('No summary credits remaining');
     }
+    _credits.consume(AiOperation.summary);
 
     // Use short summary as input if available — avoids sending full monthly stories
     final monthlySummaries = yearMonthly
@@ -267,7 +291,6 @@ class StoryGenerationService {
       moods: moods,
       language: language,
     );
-    _credits.consume(AiOperation.summary);
 
     String? theme;
     try {

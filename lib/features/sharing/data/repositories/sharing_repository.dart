@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/sharing/data/models/memory_share.dart';
 
@@ -61,21 +62,35 @@ class SharingRepository {
     required String shareId,
     required bool approve,
   }) async {
-    // Chain .select() onto UPDATE to get recipient_id in one round-trip (avoids N+1).
-    final result = await _client.from('memory_shares').update({
-      'status':      approve ? 'approved' : 'denied',
-      if (approve) 'approved_at': DateTime.now().toIso8601String(),
-    }).eq('id', shareId).eq('sharer_id', _userId!).select('recipient_id').maybeSingle();
+    // C-21 FIX: Proper error handling for non-atomic two-step DB update.
+    try {
+      // Chain .select() onto UPDATE to get recipient_id in one round-trip (avoids N+1).
+      final result = await _client.from('memory_shares').update({
+        'status':      approve ? 'approved' : 'denied',
+        if (approve) 'approved_at': DateTime.now().toIso8601String(),
+      }).eq('id', shareId).eq('sharer_id', _userId!).select('recipient_id').maybeSingle();
 
-    // Flag recipient's profile so "Shared with me" appears on their Explore tab
-    if (approve) {
-      final recipientId = result?['recipient_id'] as String?;
-      if (recipientId != null) {
-        await _client
-            .from('profiles')
-            .update({'has_received_share': true})
-            .eq('id', recipientId);
+      if (result == null) {
+        throw Exception('Share not found or not owned by current user');
       }
+
+      // Flag recipient's profile so "Shared with me" appears on their Explore tab
+      if (approve) {
+        final recipientId = result['recipient_id'] as String?;
+        if (recipientId != null) {
+          try {
+            await _client
+                .from('profiles')
+                .update({'has_received_share': true})
+                .eq('id', recipientId);
+          } catch (e) {
+            debugPrint('[Sharing] Profile update failed for recipient $recipientId: $e');
+            // Non-critical: share is approved, just the badge won't show immediately
+          }
+        }
+      }
+    } on PostgrestException catch (e) {
+      throw Exception('Could not respond to share request: ${e.message}');
     }
   }
 

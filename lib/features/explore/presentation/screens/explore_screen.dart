@@ -72,6 +72,12 @@ String? _detectCategory(JournalEntry entry) {
   return null;
 }
 
+/// H-11: safe mood capitalizer — handles null/empty mood.
+String _capitalizeMood(String? mood) {
+  if (mood == null || mood.isEmpty) return '';
+  return '${mood[0].toUpperCase()}${mood.length > 1 ? mood.substring(1) : ''}';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 // Explore Screen
@@ -91,6 +97,21 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   DateTimeRange? _filterDateRange;
   bool _showFilters = false;
 
+  // ── C-10 / M-17: memoized category map — only recomputes when entries change ──
+  Map<String, String?>? _categoryCache;
+  List<JournalEntry>? _lastCategorizedEntries;
+
+  Map<String, String?> _getCategories(List<JournalEntry> entries) {
+    if (_categoryCache != null && identical(_lastCategorizedEntries, entries)) {
+      return _categoryCache!;
+    }
+    _lastCategorizedEntries = entries;
+    _categoryCache = {};
+    for (final entry in entries) {
+      _categoryCache![entry.id] = _detectCategory(entry);
+    }
+    return _categoryCache!;
+  }
 
   bool get _hasActiveFilter =>
       _filterMood != null || _filterHasPhoto || _filterDateRange != null;
@@ -618,7 +639,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               const Spacer(),
               if (dominant != null)
                 Text(
-                  '${moodEmojis[dominant] ?? ''} mostly $dominant',
+                  '${moodEmojis[dominant] ?? ''} mostly ${_capitalizeMood(dominant)}',
                   style: GoogleFonts.manrope(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -674,16 +695,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
   Widget _buildOverview(List<JournalEntry> entries, AppPalette colors) {
     final recent = entries.take(6).toList();
+    final cats = _getCategories(entries);
     final familyEntries = entries
-        .where((e) => _detectCategory(e) == 'family')
+        .where((e) => cats[e.id] == 'family')
         .take(8)
         .toList();
     final travelEntries = entries
-        .where((e) => _detectCategory(e) == 'travel')
+        .where((e) => cats[e.id] == 'travel')
         .take(8)
         .toList();
     final milestoneEntries = entries
-        .where((e) => _detectCategory(e) == 'milestone')
+        .where((e) => cats[e.id] == 'milestone')
         .take(8)
         .toList();
     final onThisDayEntries = ref.watch(onThisDayProvider).valueOrNull ?? [];

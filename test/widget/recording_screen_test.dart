@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:deardays/features/journal/presentation/screens/recording_screen.dart';
 import 'package:deardays/core/theme/app_theme.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 import '../helpers/mock_providers.dart';
 
 void main() {
@@ -10,7 +11,10 @@ void main() {
 
   Widget buildApp() {
     return ProviderScope(
-      overrides: authenticatedOverrides(),
+      overrides: [
+        ...authenticatedOverrides(),
+        writingPromptProvider.overrideWith((ref) => 'What made today special?'),
+      ],
       child: MaterialApp(theme: AppTheme.light, home: const RecordingScreen()),
     );
   }
@@ -89,17 +93,8 @@ void main() {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      final knownPrompts = [
-        'What made today special?',
-        'Who did you spend time with?',
-        'What are you grateful for today?',
-        'What challenged you today?',
-        'Describe one moment from today.',
-      ];
-      final hasPrompt = knownPrompts.any(
-        (p) => find.text(p).evaluate().isNotEmpty,
-      );
-      expect(hasPrompt, isTrue);
+      // writingPromptProvider is overridden to return this specific prompt
+      expect(find.text('What made today special?'), findsOneWidget);
     });
   });
 

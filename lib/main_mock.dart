@@ -109,8 +109,9 @@ List<Override> _mockOverrides() {
     // Today's entry — use the most recent mock
     todayEntryProvider.overrideWith((_) => Stream.value(mockEntries.first)),
 
-    // On this day — pick 2 older entries
-    onThisDayProvider.overrideWith((_) async => [mockEntries[12], mockEntries[13]]),
+    // On this day — pick 2 older entries (safe access in case mock list is short)
+    onThisDayProvider.overrideWith((_) async =>
+        mockEntries.length > 13 ? [mockEntries[12], mockEntries[13]] : mockEntries.take(2).toList()),
 
     // Weekly entries (for AI summary — returns empty to skip real AI call)
     weeklyEntriesProvider.overrideWith((_) async => mockEntries.take(5).toList()),

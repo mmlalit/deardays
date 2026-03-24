@@ -65,12 +65,12 @@ void main() {
         expect(service.breadcrumbs.first.data['screen'], 'home');
       });
 
-      test('limits breadcrumbs to max 50', () {
-        for (int i = 0; i < 60; i++) {
+      test('limits breadcrumbs to max 200', () {
+        for (int i = 0; i < 210; i++) {
           service.addBreadcrumb('crumb $i');
         }
 
-        expect(service.breadcrumbs, hasLength(50));
+        expect(service.breadcrumbs, hasLength(200));
         // First breadcrumb should be crumb 10 (0-9 evicted)
         expect(service.breadcrumbs.first.message, 'crumb 10');
       });

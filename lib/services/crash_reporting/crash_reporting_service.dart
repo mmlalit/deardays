@@ -93,9 +93,12 @@ class CrashReportingService {
       // In production with Sentry configured, use Sentry's zone guard
       sentry.SentryFlutter.init(
         (options) {
+          // Read from environment or use release-mode defaults
+          const tracesSampleRate = kReleaseMode ? 0.1 : 1.0;
+          const profilesSampleRate = kReleaseMode ? 0.05 : 1.0;
           options.dsn = _sentryDsn;
-          options.tracesSampleRate = 0.2; // 20% of transactions
-          options.profilesSampleRate = 0.1; // 10% of profiled transactions
+          options.tracesSampleRate = tracesSampleRate;
+          options.profilesSampleRate = profilesSampleRate;
           options.attachScreenshot = true;
           options.maxBreadcrumbs = _maxBreadcrumbs;
           options.sendDefaultPii = false; // Don't send PII

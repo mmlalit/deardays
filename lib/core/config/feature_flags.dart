@@ -42,7 +42,8 @@ class FeatureFlags {
 
     await refresh();
 
-    // Refresh periodically
+    // M-03: cancel any existing timer before creating a new one (prevents leak on re-init)
+    _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => refresh());
 
     if (kDebugMode) {
@@ -79,8 +80,12 @@ class FeatureFlags {
     if (analytics.isConfigured) {
       try {
         await analytics.reloadFeatureFlags();
-        for (final feature in Feature.values) {
-          _cache[feature.key] = await analytics.isFeatureEnabled(feature.key);
+        // M-04: fetch all flags in parallel instead of sequentially
+        final results = await Future.wait(
+          Feature.values.map((f) async => MapEntry(f.key, await analytics.isFeatureEnabled(f.key))),
+        );
+        for (final entry in results) {
+          _cache[entry.key] = entry.value;
         }
         return;
       } catch (e) {

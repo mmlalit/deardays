@@ -80,6 +80,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return; // guard against disposed widget
       if (_scrollController.hasClients) {
         final pos = _scrollController.position;
         if (pos.pixels >= pos.maxScrollExtent - 100) {

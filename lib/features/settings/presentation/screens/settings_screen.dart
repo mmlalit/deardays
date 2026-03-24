@@ -181,6 +181,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     if (confirmed != true || !mounted) return;
 
+    // Clear all user-scoped Hive data before signing out
+    try {
+      final boxNames = [
+        'checkin_conversations', 'story_nodes', 'life_book_polish_cache',
+        'ai_queue', 'sync_queue', 'offline_entries', 'reflection_cache',
+        'draft_entries',
+      ];
+      for (final name in boxNames) {
+        try {
+          if (Hive.isBoxOpen(name)) {
+            await Hive.box(name).clear();
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+
     try {
       await AuthService().signOut();
       if (mounted) {

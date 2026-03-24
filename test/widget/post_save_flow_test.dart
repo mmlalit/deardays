@@ -90,7 +90,12 @@ void main() {
 
     testWidgets('shows chapter cards from chapters provider', (tester) async {
       await tester.pumpWidget(buildApp(data: testPostSaveData));
-      await tester.pump(const Duration(milliseconds: 500));
+      // initState schedules ref.invalidate(chaptersProvider) via
+      // addPostFrameCallback. Pump multiple frames so the async provider
+      // resolves and the chapter list rebuilds.
+      await tester.pump(); // fire postFrameCallback → invalidate
+      await tester.pump(); // async future resolves
+      await tester.pump(const Duration(milliseconds: 100)); // rebuild
 
       expect(find.textContaining('My Story 2026'), findsWidgets);
       expect(find.textContaining('Travel Memories'), findsWidgets);

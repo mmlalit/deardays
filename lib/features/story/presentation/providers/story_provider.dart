@@ -71,11 +71,13 @@ class HierarchicalBookState {
 class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
   HierarchicalBookNotifier(this._ref, {this.language})
       : super(const HierarchicalBookState()) {
+    _ref.onDispose(() => _disposed = true);
     _loadCached();
   }
 
   final Ref _ref;
   final String? language;
+  bool _disposed = false;
 
   final _repo = StoryNodeRepository();
   final _svc = StoryGenerationService();
@@ -93,7 +95,8 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
     final lifetime = await _repo.get(StoryNode.lifetimeKey);
     if (lifetime != null) all[lifetime.id] = lifetime;
 
-    if (mounted) state = state.copyWith(nodes: all, clearError: true);
+    if (_disposed) return;
+    state = state.copyWith(nodes: all, clearError: true);
   }
 
   // ── Level selection ──────────────────────────────────────────────────────

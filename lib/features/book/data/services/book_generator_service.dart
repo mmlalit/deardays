@@ -4,6 +4,14 @@ import 'package:intl/intl.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/book/data/models/generated_book.dart';
 
+/// Thrown when book generation is attempted without an active subscription.
+class SubscriptionRequiredException implements Exception {
+  final String message;
+  const SubscriptionRequiredException(this.message);
+  @override
+  String toString() => message;
+}
+
 /// Generates a [GeneratedBook] from selected journal entries.
 ///
 /// Takes selected entries/chapters, generates book structure with:
@@ -109,6 +117,7 @@ class BookGeneratorService {
   };
 
   /// Generate a book from manually selected entries, organized into chapters.
+  /// C-07: Callers must verify subscription before invoking this method.
   GeneratedBook generateFromEntries({
     required List<JournalEntry> entries,
     required String title,
@@ -254,6 +263,7 @@ class BookGeneratorService {
   }
 
   /// Generate the auto-book "My Life Story" with both By Year and By Chapter views.
+  /// C-07: Callers must verify subscription before invoking this method.
   GeneratedBook generateAutoBook({
     required List<JournalEntry> allEntries,
     required String author,

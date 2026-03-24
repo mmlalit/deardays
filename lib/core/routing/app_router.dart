@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -50,12 +52,20 @@ import 'package:deardays/features/sharing/presentation/screens/share_approvals_s
 import 'package:deardays/features/journal/presentation/screens/photo_entry_screen.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
+  StreamSubscription<AuthState>? _sub;
+
   _AuthChangeNotifier() {
     if (SupabaseConfig.supabaseUrl.isNotEmpty) {
-      Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+      _sub = Supabase.instance.client.auth.onAuthStateChange.listen((_) {
         notifyListeners();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 }
 
@@ -276,9 +286,12 @@ class AppRouter {
       GoRoute(
         path: '/post-save',
         builder: (context, state) {
-          // Accept data from route extra OR from provider (provider
-          // survives go_router refreshes caused by auth state changes).
           final extra = state.extra;
+          // New flow: chapter selection first, then DB save inside PostSaveScreen
+          if (extra is PreSaveData) {
+            return PostSaveScreen(preSaveData: extra);
+          }
+          // Legacy flow: entry already saved, chapter assignment + confirmation
           if (extra is PostSaveData) {
             return PostSaveScreen(data: extra);
           }
@@ -314,7 +327,10 @@ class AppRouter {
           final periodStr = state.uri.queryParameters['period'] ?? 'weekly';
           final period = ReflectionPeriod.values.firstWhere(
             (p) => p.name == periodStr,
-            orElse: () => ReflectionPeriod.weekly,
+            orElse: () {
+              debugPrint('[AppRouter] Unknown period: $periodStr — defaulting to weekly');
+              return ReflectionPeriod.weekly;
+            },
           );
           return ReflectionScreen(period: period);
         },
@@ -329,7 +345,10 @@ class AppRouter {
           final p = state.uri.queryParameters['period'] ?? 'weekly';
           final period = ReflectionPeriod.values.firstWhere(
             (e) => e.name == p,
-            orElse: () => ReflectionPeriod.weekly,
+            orElse: () {
+              debugPrint('[AppRouter] Unknown story period: $p — defaulting to weekly');
+              return ReflectionPeriod.weekly;
+            },
           );
           return StoryViewerScreen(period: period);
         },

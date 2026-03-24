@@ -11,6 +11,13 @@ class ProfileRepository {
 
   String? get _userId => _client.auth.currentUser?.id;
 
+  /// Returns the current user ID, throwing if the user is not authenticated.
+  String get _requireUserId {
+    final id = _client.auth.currentUser?.id;
+    if (id == null) throw StateError('No authenticated user');
+    return id;
+  }
+
   /// Fetches the current user's profile.
   Future<UserProfile?> getProfile() async {
     final userId = _userId;
@@ -28,8 +35,7 @@ class ProfileRepository {
 
   /// Updates the current user's profile and returns the updated version.
   Future<UserProfile> updateProfile(UserProfile profile) async {
-    final userId = _userId;
-    if (userId == null) throw StateError('No authenticated user');
+    final userId = _requireUserId;
     final map = profile.toMap();
     // Remove fields that should not be overwritten by the client.
     map.remove('created_at');
@@ -91,8 +97,7 @@ class ProfileRepository {
 
   /// Creates a new chapter with the next available chapter_number.
   Future<Chapter> createChapter(String title) async {
-    final userId = _userId;
-    if (userId == null) throw StateError('No authenticated user');
+    final userId = _requireUserId;
     // Fetch only the max chapter_number — avoids loading all chapters + entries counts.
     final maxRow = await _client
         .from('chapters')

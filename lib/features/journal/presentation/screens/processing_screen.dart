@@ -90,8 +90,18 @@ class _ProcessingScreenState extends State<ProcessingScreen>
           transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
         }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Processing] Transcription failed, using raw text: $e');
       transcript = widget.data.rawText;
+      // M-10: notify user of fallback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transcription unavailable — using original text'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
 
     if (transcript.trim().isEmpty && mounted) {

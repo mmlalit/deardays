@@ -9,6 +9,7 @@ import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/models/generated_book.dart';
 import 'package:deardays/features/book/data/services/book_generator_service.dart';
+import 'package:deardays/services/auth/auth_service.dart';
 
 class BookCreationScreen extends ConsumerStatefulWidget {
   const BookCreationScreen({super.key});
@@ -488,6 +489,10 @@ class _ChronologicalFlowState extends ConsumerState<_ChronologicalFlow> {
       // Create a single auto-chapter that the weekly job will use
       await repo.createChronologicalChapter(savedBook.id, title);
 
+      // C-07: Verify subscription before book generation
+      final isSubscribed = await AuthService().hasActiveSubscription();
+      if (!isSubscribed) throw const SubscriptionRequiredException('Book generation requires an active subscription');
+
       // Generate local view for immediate navigation
       final entries = ref.read(timelineEntriesProvider).valueOrNull ?? [];
       final generatedBook = BookGeneratorService().generateFromEntries(
@@ -854,6 +859,10 @@ class _ThematicFlowState extends ConsumerState<_ThematicFlow> {
               e.chapterId != null && _selectedChapterIds.contains(e.chapterId))
           .toList()
         ..sort((a, b) => a.entryDate.compareTo(b.entryDate));
+
+      // C-07: Verify subscription before book generation
+      final isSubscribed = await AuthService().hasActiveSubscription();
+      if (!isSubscribed) throw const SubscriptionRequiredException('Book generation requires an active subscription');
 
       final generatedBook = BookGeneratorService().generateFromEntries(
         entries: selectedEntries,
