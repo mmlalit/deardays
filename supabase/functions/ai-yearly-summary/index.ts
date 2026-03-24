@@ -146,7 +146,19 @@ async function processItem(item: QueueRow): Promise<void> {
   );
   if (upsertErr) throw new Error(`upsert yearly summary: ${upsertErr.message}`);
 
-  // 6. Mark done
+  // 6. Insert push notification record
+  const yearTitle = `✨ Your ${year} year in review`;
+  const yearBody = totalEntries > 0
+    ? `${totalEntries} memories across ${year}. A whole year of your life, in your own words.`
+    : `Your ${year} year in review is ready to read.`;
+  await supabase.from("notifications_log").insert({
+    user_id:           item.user_id,
+    notification_type: "story_ready_yearly",
+    title:             yearTitle,
+    body:              yearBody,
+  });
+
+  // 7. Mark done
   await supabase
     .from("summary_queue")
     .update({ status: "done" })

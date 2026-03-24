@@ -654,7 +654,19 @@ async function processItem(item: QueueRow): Promise<void> {
   const { error: insertErr } = await supabase.from("pages").insert(pageRows);
   if (insertErr) throw new Error(`insert pages: ${insertErr.message}`);
 
-  // 11. Upsert story_context for next week
+  // 11a. Insert push notification record so the delivery function picks it up
+  const weekNotifTitle = "📖 This week's story is ready";
+  const weekNotifBody = orderedEntries.length > 0
+    ? `${orderedEntries.length} memories, woven into one story. See how your week reads.`
+    : "Your weekly reflection is ready to read.";
+  await supabase.from("notifications_log").insert({
+    user_id:           item.user_id,
+    notification_type: "story_ready_weekly",
+    title:             weekNotifTitle,
+    body:              weekNotifBody,
+  });
+
+  // 11b. Upsert story_context for next week
   await supabase.from("story_context").upsert(
     {
       user_id: item.user_id,
@@ -667,7 +679,7 @@ async function processItem(item: QueueRow): Promise<void> {
     { onConflict: "user_id,chapter_id" },
   );
 
-  // 12. Log AI cost (approximate, for monitoring)
+  // 11c. Log AI cost (approximate, for monitoring)
   const inputTokens = estimateTokens(systemPrompt + "\n\n" + userMessage);
   const outputTokens = estimateTokens(rawOutput);
   await supabase.from("ai_cost_log").insert({
@@ -679,7 +691,7 @@ async function processItem(item: QueueRow): Promise<void> {
     cost_usd: estimateCostUsd(inputTokens, outputTokens),
   });
 
-  // 13. Mark queue row as done
+  // 11d. Mark queue row as done
   await supabase
     .from("generation_queue")
     .update({ status: "done" })

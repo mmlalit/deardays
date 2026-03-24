@@ -140,7 +140,21 @@ async function processItem(item: QueueRow): Promise<void> {
   );
   if (upsertErr) throw new Error(`upsert monthly summary: ${upsertErr.message}`);
 
-  // 6. Mark done
+  // 6. Insert push notification record
+  const monthName = new Date(item.period_start + "T00:00:00Z")
+    .toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+  const monthTitle = `📚 Your ${monthName} chapter is written`;
+  const monthBody = totalEntries > 0
+    ? `${totalEntries} entries from ${monthName} — your chapter is written. Tap to read it.`
+    : `Your ${monthName} story is ready to read.`;
+  await supabase.from("notifications_log").insert({
+    user_id:           item.user_id,
+    notification_type: "story_ready_monthly",
+    title:             monthTitle,
+    body:              monthBody,
+  });
+
+  // 7. Mark done
   await supabase
     .from("summary_queue")
     .update({ status: "done" })

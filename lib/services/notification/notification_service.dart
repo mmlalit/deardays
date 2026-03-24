@@ -345,6 +345,33 @@ class NotificationService {
     'What would you tell a friend who felt exactly like you do today?',
   ];
 
+  static const _moodEmoji = {
+    'happy':     '😊',
+    'joy':       '😄',
+    'grateful':  '🙏',
+    'gratitude': '🙏',
+    'love':      '❤️',
+    'excited':   '🎉',
+    'calm':      '😌',
+    'peaceful':  '🌿',
+    'neutral':   '😐',
+    'tired':     '😴',
+    'anxious':   '😰',
+    'sad':       '😔',
+    'angry':     '😤',
+    'stressed':  '😫',
+  };
+
+  static String _emojiFor(String? mood) =>
+      mood == null ? '' : (_moodEmoji[mood.toLowerCase()] ?? '');
+
+  static const _months = [
+    '', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  static String _monthName(int month) =>
+      (month >= 1 && month <= 12) ? _months[month] : 'This month';
+
   /// Schedule a weekly recap notification every Sunday evening at 7pm.
   Future<void> scheduleWeeklyRecap({
     required String weekSummary,
@@ -354,9 +381,10 @@ class NotificationService {
     _ensureInitialized();
     await _plugin.cancel(_weeklyRecapId);
 
+    const title = '📔 How was your week?';
     final body = memoriesCount > 0
-        ? 'Your week: $memoriesCount memories, mostly feeling $topMood. Tap to see your reflection.'
-        : 'Start capturing your week \u2014 your future self will thank you.';
+        ? 'You captured $memoriesCount memories this week — mostly ${_emojiFor(topMood)} $topMood. Tap to see your weekly reflection.'
+        : 'This week is still a blank page. A few words now will mean the world to future you.';
 
     final now = tz.TZDateTime.now(tz.local);
     var sunday = tz.TZDateTime(tz.local, now.year, now.month, now.day, 19, 0);
@@ -366,7 +394,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _weeklyRecapId,
-      'Your Week in Review',
+      title,
       body,
       sunday,
       NotificationDetails(
@@ -375,7 +403,7 @@ class NotificationService {
           channelDescription: _channelDesc,
           importance: Importance.high,
           priority: Priority.high,
-          styleInformation: BigTextStyleInformation(body, contentTitle: 'Your Week in Review'),
+          styleInformation: BigTextStyleInformation(body, contentTitle: title),
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true, presentBadge: true, presentSound: true,
@@ -468,29 +496,47 @@ class NotificationService {
   ///
   /// [period] is "weekly", "monthly", or "yearly".
   /// [entryCount] is how many entries were used.
+  /// [topMood] optional dominant mood — adds an emoji to the body.
+  /// [periodDate] optional date used to personalise the title (e.g. "March", "2025").
   Future<void> showStoryReadyNotification({
     required String period,
     required int entryCount,
+    String? topMood,
+    DateTime? periodDate,
   }) async {
     _ensureInitialized();
 
-    final titles = {
-      'weekly': 'Your week is a story now 📖',
-      'monthly': 'Your monthly chapter is written 📚',
-      'yearly': 'Your year in review is ready ✨',
-    };
-    final bodies = {
-      'weekly': entryCount > 0
-          ? '$entryCount entries. Your weekly reflection is ready to read.'
-          : 'Your weekly reflection is ready to read.',
-      'monthly': entryCount > 0
-          ? '$entryCount entries captured this month. Tap to read your story.'
-          : 'Your monthly story is ready to read.',
-      'yearly': 'A full year of memories. Tap to read your life in review.',
-    };
+    final moodClause = topMood != null && topMood.isNotEmpty
+        ? ' — mostly ${_emojiFor(topMood)} $topMood'
+        : '';
 
-    final title = titles[period] ?? 'Your story is ready 📖';
-    final body = bodies[period] ?? 'Tap to read your reflection.';
+    final String title;
+    final String body;
+
+    switch (period) {
+      case 'weekly':
+        title = '📖 This week\'s story is ready';
+        body = entryCount > 0
+            ? '$entryCount memories, woven into one story$moodClause. See how your week reads.'
+            : 'Your weekly reflection is ready to read.';
+      case 'monthly':
+        final monthName = periodDate != null
+            ? _monthName(periodDate.month)
+            : 'This month';
+        title = '📚 Your $monthName chapter is written';
+        body = entryCount > 0
+            ? '$entryCount entries from $monthName — your chapter is written. Tap to read it.'
+            : 'Your $monthName story is ready to read.';
+      case 'yearly':
+        final year = periodDate?.year.toString() ?? 'This year';
+        title = '✨ Your $year year in review';
+        body = entryCount > 0
+            ? '$entryCount memories across $year. A whole year of your life, in your own words.'
+            : 'Your year in review is ready to read.';
+      default:
+        title = '📖 Your story is ready';
+        body = 'Tap to read your reflection.';
+    }
 
     await _plugin.show(
       _storyReadyId,

@@ -139,6 +139,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
       NotificationService().showStoryReadyNotification(
         period: 'weekly',
         entryCount: entries.length,
+        periodDate: weekDate,
       ).ignore();
     } on AiServiceException catch (e) {
       state = state.copyWith(clearGenerating: true, error: e.message);
@@ -189,6 +190,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
       NotificationService().showStoryReadyNotification(
         period: 'monthly',
         entryCount: allMonthEntries.length,
+        periodDate: DateTime(year, month),
       ).ignore();
     } on AiServiceException catch (e) {
       state = state.copyWith(clearGenerating: true, error: e.message);
@@ -230,6 +232,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
       NotificationService().showStoryReadyNotification(
         period: 'yearly',
         entryCount: allYearEntries.length,
+        periodDate: DateTime(year),
       ).ignore();
     } on AiServiceException catch (e) {
       state = state.copyWith(clearGenerating: true, error: e.message);
