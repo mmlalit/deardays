@@ -11,9 +11,11 @@ import 'package:intl/intl.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/routing/routes.dart';
+import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/core/utils/photo_crop_helper.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
+import 'package:deardays/core/widgets/memory_card.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
@@ -654,7 +656,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     );
   }
 
-  // ── Timeline (existing dot-line style) ────────────────────────────────────
+  // ── Timeline (card style) ─────────────────────────────────────────────────
 
   Widget _buildTimeline(
     BuildContext context,
@@ -663,30 +665,23 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     AppPalette colors,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 19,
-            top: 20,
-            bottom: 20,
-            child: Container(
-              width: 2,
-              decoration: BoxDecoration(
-                color: colors.border,
-                borderRadius: BorderRadius.circular(1),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: entries.map((entry) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: MemoryCard(
+            entry: entry,
+            onTap: () => context.push(
+              AppRoutes.memory,
+              extra: MemoryDetailArgs(
+                entry: entry,
+                allEntries: entries,
+                initialIndex: entries.indexOf(entry),
               ),
             ),
+            onShare: () => context.push('/share-card', extra: entry),
           ),
-          Column(
-            children: List.generate(entries.length, (i) {
-              return _buildTimelineItem(
-                context, entries[i], visual, colors,
-                isLast: i == entries.length - 1,
-              );
-            }),
-          ),
-        ],
+        )).toList(),
       ),
     );
   }
@@ -707,18 +702,25 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final key in keys) ...[
             _buildMonthHeader(key, grouped[key]!.length, visual, colors),
             ...grouped[key]!.map((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _buildTimelineItem(
-                context, entry, visual, colors,
-                isLast: false,
-                showLine: false,
+              padding: const EdgeInsets.only(bottom: 12),
+              child: MemoryCard(
+                entry: entry,
+                onTap: () => context.push(
+                  AppRoutes.memory,
+                  extra: MemoryDetailArgs(
+                    entry: entry,
+                    allEntries: grouped[key]!,
+                    initialIndex: grouped[key]!.indexOf(entry),
+                  ),
+                ),
+                onShare: () => context.push('/share-card', extra: entry),
               ),
             )),
             const SizedBox(height: 8),
@@ -776,137 +778,6 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
           Text(
             'No memories match your search',
             style: GoogleFonts.manrope(fontSize: 14, color: colors.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Timeline item ─────────────────────────────────────────────────────────
-
-  Widget _buildTimelineItem(
-    BuildContext context,
-    JournalEntry entry,
-    ChapterVisual visual,
-    AppPalette colors, {
-    required bool isLast,
-    bool showLine = true,
-  }) {
-    final title = _deriveTitle(entry);
-    final excerpt = _deriveExcerpt(entry, maxChars: 100);
-    final dateLabel = DateFormat('MMM d, y').format(entry.entryDate);
-    final emotion = entry.emotion;
-    final badgeColors = _emotionBadgeColors(emotion, visual);
-    final emotionIcon = _emotionIcon(emotion, visual);
-    final emotionLabel = _emotionLabel(emotion, entry.mood);
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icon circle (sits on the vertical line)
-          Container(
-            width: 40,
-            height: 40,
-            margin: const EdgeInsets.only(top: 2),
-            decoration: BoxDecoration(
-              color: colors.card,
-              shape: BoxShape.circle,
-              border: Border.all(color: visual.primary, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: visual.primary.withAlpha(25),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Icon(emotionIcon, size: 18, color: visual.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => context.push(AppRoutes.memory, extra: entry),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: colors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.textPrimary.withAlpha(8),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: GoogleFonts.newsreader(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: colors.textPrimary,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (emotionLabel != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: badgeColors.$1,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              emotionLabel,
-                              style: GoogleFonts.manrope(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
-                                color: badgeColors.$2,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      dateLabel.toUpperCase(),
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      excerpt,
-                      style: GoogleFonts.newsreader(
-                        fontSize: 13,
-                        color: colors.textSecondary,
-                        height: 1.5,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -1341,21 +1212,6 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     return sorted.first;
   }
 
-  String _deriveTitle(JournalEntry entry) {
-    final text = (entry.polishedContent?.isNotEmpty == true
-            ? entry.polishedContent!
-            : entry.content)
-        .trim();
-    final match = RegExp(r'[.!?]').firstMatch(text);
-    if (match != null && match.start > 8 && match.start <= 72) {
-      return text.substring(0, match.start);
-    }
-    if (text.length <= 65) return text;
-    final cut = text.substring(0, 62);
-    final lastSpace = cut.lastIndexOf(' ');
-    return lastSpace > 20 ? '${cut.substring(0, lastSpace)}…' : '$cut…';
-  }
-
   String _deriveExcerpt(JournalEntry entry, {required int maxChars}) {
     final text = (entry.polishedContent?.isNotEmpty == true
             ? entry.polishedContent!
@@ -1375,65 +1231,6 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     return first == last ? first : '$first – $last';
   }
 
-  (Color, Color) _emotionBadgeColors(String? emotion, ChapterVisual visual) {
-    switch (emotion?.toLowerCase()) {
-      case 'joy':
-      case 'excitement':
-        return (const Color(0xFFFEF9C3), const Color(0xFF854D0E));
-      case 'gratitude':
-      case 'contentment':
-        return (const Color(0xFFD1FAE5), const Color(0xFF065F46));
-      case 'love':
-        return (const Color(0xFFFFE4E6), const Color(0xFF9F1239));
-      case 'pride':
-        return (const Color(0xFFDBEAFE), const Color(0xFF1E40AF));
-      case 'nostalgia':
-        return (const Color(0xFFEDE9FE), const Color(0xFF5B21B6));
-      case 'anxiety':
-      case 'frustration':
-      case 'anger':
-        return (const Color(0xFFFEE2E2), const Color(0xFF991B1B));
-      case 'sadness':
-      case 'loneliness':
-        return (const Color(0xFFE0E7FF), const Color(0xFF3730A3));
-      default:
-        return (visual.primary.withAlpha(20), visual.primary);
-    }
-  }
-
-  String? _emotionLabel(String? emotion, String? mood) {
-    if (emotion != null && emotion != 'neutral') {
-      return emotion[0].toUpperCase() + emotion.substring(1);
-    }
-    if (mood != null) {
-      switch (mood.toLowerCase()) {
-        case 'great': return 'Joyful';
-        case 'good': return 'Happy';
-        case 'okay': return 'Okay';
-        case 'low': return 'Low';
-        case 'tough': return 'Tough';
-      }
-    }
-    return null;
-  }
-
-  IconData _emotionIcon(String? emotion, ChapterVisual visual) {
-    switch (emotion?.toLowerCase()) {
-      case 'joy': return Icons.star_rounded;
-      case 'excitement': return Icons.celebration_rounded;
-      case 'gratitude': return Icons.favorite_rounded;
-      case 'contentment': return Icons.spa_rounded;
-      case 'love': return Icons.favorite_rounded;
-      case 'pride': return Icons.emoji_events_rounded;
-      case 'nostalgia': return Icons.history_rounded;
-      case 'anxiety': return Icons.psychology_rounded;
-      case 'frustration': return Icons.sentiment_dissatisfied_rounded;
-      case 'anger': return Icons.warning_amber_rounded;
-      case 'sadness': return Icons.cloud_rounded;
-      case 'loneliness': return Icons.person_outline_rounded;
-      default: return visual.icon;
-    }
-  }
 }
 
 // ── FAB option pill (label + icon, floats above main FAB) ────────────────────

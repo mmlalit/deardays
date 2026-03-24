@@ -137,7 +137,18 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    if (_attachedPhotoPaths.length >= 5) return;
+    if (_attachedPhotoPaths.length >= 5) {
+      // M-11: notify user instead of silently doing nothing
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Maximum 5 photos per entry'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
     HapticFeedback.selectionClick();
     final XFile? picked;
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {

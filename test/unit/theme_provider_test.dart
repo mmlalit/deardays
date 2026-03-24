@@ -15,9 +15,9 @@ void main() {
   });
 
   group('ThemeState', () {
-    test('defaults to Serene Dusk Blue', () {
+    test('defaults to Warm Indigo', () {
       const state = ThemeState();
-      expect(state.themeColor, equals(AppThemeColor.sereneDuskBlue));
+      expect(state.themeColor, equals(AppThemeColor.warmIndigo));
     });
 
     test('light palette bg is fully opaque', () {
@@ -40,9 +40,9 @@ void main() {
   });
 
   group('ThemeNotifier', () {
-    test('initial state is Serene Dusk Blue', () {
+    test('initial state is Warm Indigo', () {
       final notifier = ThemeNotifier();
-      expect(notifier.debugState.themeColor, equals(AppThemeColor.sereneDuskBlue));
+      expect(notifier.debugState.themeColor, equals(AppThemeColor.warmIndigo));
     });
 
     test('setThemeColor changes state', () {
@@ -64,7 +64,7 @@ void main() {
       addTearDown(container.dispose);
 
       final state = container.read(themeProvider);
-      expect(state.themeColor, equals(AppThemeColor.sereneDuskBlue));
+      expect(state.themeColor, equals(AppThemeColor.warmIndigo));
     });
 
     test('switching theme updates provider state', () {
@@ -78,8 +78,8 @@ void main() {
   });
 
   group('AppThemeColor enum', () {
-    test('has exactly 4 options', () {
-      expect(AppThemeColor.values.length, equals(4));
+    test('has exactly 5 options', () {
+      expect(AppThemeColor.values.length, equals(5));
     });
 
     test('all have non-empty labels', () {

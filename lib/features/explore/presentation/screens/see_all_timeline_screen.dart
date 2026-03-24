@@ -39,8 +39,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
     super.initState();
     // Capitalise to match filter chip labels: 'great' → 'Great'
     final mood = widget.initialMoodFilter;
-    _activeFilter = mood != null
-        ? '${mood[0].toUpperCase()}${mood.substring(1)}'
+    _activeFilter = (mood != null && mood.isNotEmpty)
+        ? '${mood[0].toUpperCase()}${mood.length > 1 ? mood.substring(1) : ''}'
         : 'All';
   }
 

@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 
@@ -25,9 +27,9 @@ class AnalyticsService {
 
   String? _userId;
 
-  // In-memory event buffer (capped to prevent unbounded growth in long sessions).
+  // M-24: In-memory event buffer using Queue for O(1) eviction.
   static const int _maxEvents = 10000;
-  final List<TrackedEvent> _events = [];
+  final Queue<TrackedEvent> _events = Queue<TrackedEvent>();
   List<TrackedEvent> get events => List.unmodifiable(_events);
 
   // User properties (persistent across events)
@@ -108,11 +110,10 @@ class AnalyticsService {
     );
 
     _events.add(event);
-    // Evict oldest events if buffer exceeds cap
+    // M-24: O(1) eviction using Queue.removeFirst() instead of List.removeRange()
     if (_events.length > _maxEvents) {
-      final evicted = _events.length - _maxEvents;
-      _events.removeRange(0, evicted);
-      debugPrint('[Analytics] Buffer full, evicted $evicted oldest events');
+      _events.removeFirst();
+      debugPrint('[Analytics] Buffer full, evicted oldest event');
     }
 
     if (kDebugMode) {

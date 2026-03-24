@@ -8,8 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
@@ -32,14 +30,11 @@ class EditMemoryScreen extends ConsumerStatefulWidget {
 }
 
 class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
-  // ── repository / services ─────────────────────────────────────────────────
-  late final JournalRepository _repository = JournalRepository(
-    client: Supabase.instance.client,
-  );
-  late final MediaService _mediaService = MediaService(
-    client: Supabase.instance.client,
-  );
-  final _locationService = LocationService();
+  // ── repository / services — injected via Riverpod providers ─────────────
+  // (resolved lazily on first use so ref is available after initState)
+  JournalRepository get _repository => ref.read(journalRepositoryProvider);
+  MediaService get _mediaService => ref.read(mediaServiceProvider);
+  LocationService get _locationService => ref.read(locationServiceProvider);
   final _imagePicker = ImagePicker();
 
   // ── story controllers ─────────────────────────────────────────────────────
@@ -174,6 +169,30 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
       final content = widget.entry.content;
       final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
 
+      // C-08 FIX: Upload new photo FIRST. Only update DB after upload succeeds.
+      // This ensures the DB is never written with a storage path that doesn't exist.
+      String? newEntryMediaUploaded; // non-null means upload succeeded
+      if (_newPhotoPath != null) {
+        try {
+          await _mediaService.uploadPhoto(
+            entryId: widget.entry.id,
+            filePath: _newPhotoPath!,
+            focalAlignment: _focalAlignment,
+          );
+          newEntryMediaUploaded = _newPhotoPath;
+        } catch (uploadError) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Photo upload failed. Changes not saved — please try again.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return; // Abort: do NOT update DB if photo upload failed
+        }
+      }
+
       final updated = widget.entry.copyWith(
         polishedContent: polishedContent,
         mood: _selectedMood,
@@ -182,41 +201,27 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
         entryTime: _entryTime,
         wordCount: wordCount,
         tags: _tags,
-        hasPhoto: _newPhotoPath != null ||
+        hasPhoto: newEntryMediaUploaded != null ||
             (!_removePhoto && widget.entry.hasPhoto),
         updatedAt: DateTime.now().toUtc(),
       );
 
+      // Step 2: Update DB only after photo upload has already succeeded (or was not needed)
       final saved = await _repository.updateEntry(updated);
 
-      // Upload new photo if selected — upload first, then delete old ones to avoid data loss
-      if (_newPhotoPath != null) {
-        try {
-          // Upload the new photo first. Only delete old ones after success.
-          await _mediaService.uploadPhoto(
-            entryId: saved.id,
-            filePath: _newPhotoPath!,
-            focalAlignment: _focalAlignment,
-          );
-          // Remove all existing photo media for this entry after the new one is uploaded.
-          // This prevents two photos showing side-by-side on memory cards.
-          final oldPhotos = widget.entry.media.where((m) => m.mediaType == 'photo').toList();
-          for (final old in oldPhotos) {
+      // Step 3: Delete OLD photo ONLY after DB is updated (compensating action — non-critical)
+      if (newEntryMediaUploaded != null) {
+        final oldPhotos = widget.entry.media.where((m) => m.mediaType == 'photo').toList();
+        for (final old in oldPhotos) {
+          try {
             await _mediaService.deleteMedia(old);
-          }
-          _mediaService.clearCachedUrls(
-            widget.entry.media.map((m) => m.storagePath).toList(),
-          );
-        } catch (_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Entry saved but photo upload failed.'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+          } catch (e) {
+            debugPrint('[EditMemory] Old photo cleanup failed (non-critical): $e');
           }
         }
+        _mediaService.clearCachedUrls(
+          widget.entry.media.map((m) => m.storagePath).toList(),
+        );
       }
 
       if (mounted) {
@@ -342,12 +347,14 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
                 title: Text('Remove photo',
                     style: GoogleFonts.manrope(
                         fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.error)),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  setState(() {
-                    _newPhotoPath = null;
-                    _removePhoto = true;
-                  });
+                  if (await _confirmPhotoRemove(context)) {
+                    setState(() {
+                      _newPhotoPath = null;
+                      _removePhoto = true;
+                    });
+                  }
                 },
               ),
             const SizedBox(height: 8),
@@ -355,6 +362,29 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
         ),
       ),
     );
+  }
+
+  Future<bool> _confirmPhotoRemove(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Remove photo?'),
+            content: const Text(
+                'This photo will be permanently removed from your memory.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _pickFromGallery() async {

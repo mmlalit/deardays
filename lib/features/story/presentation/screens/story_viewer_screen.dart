@@ -36,8 +36,13 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
   void _triggerIfNeeded(ReflectionPeriod p) {
     final s = ref.read(storyFamilyProvider(p));
     if (s.status == StoryStatus.ready || s.status == StoryStatus.error) {
-      Future.microtask(
-          () => ref.read(storyFamilyProvider(p).notifier).generateStory());
+      Future.microtask(() async {
+        try {
+          await ref.read(storyFamilyProvider(p).notifier).generateStory();
+        } catch (e, st) {
+          debugPrint('[StoryViewer] Failed to load story: $e\n$st');
+        }
+      });
     }
   }
 

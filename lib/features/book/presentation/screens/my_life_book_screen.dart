@@ -90,7 +90,7 @@ class _MyLifeBookScreenState extends ConsumerState<MyLifeBookScreen>
         subtitle: _chapterSubtitle(chapter.title),
         monthYear: monthYear,
         entryCount: entries.isNotEmpty ? entries.length : chapter.entryCount,
-        mood: mood[0].toUpperCase() + mood.substring(1),
+        mood: mood.isNotEmpty ? '${mood[0].toUpperCase()}${mood.length > 1 ? mood.substring(1) : ''}' : mood,
         moodColor: moodColor,
         body: _buildBody(entries),
         photoUrl: null,

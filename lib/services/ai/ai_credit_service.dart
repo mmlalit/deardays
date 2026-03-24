@@ -24,11 +24,11 @@ class AiCreditService {
 
   static const Map<String, CreditLimits> tierLimits = {
     'free': CreditLimits(
-      polish: 30,
-      summary: 15,
-      chat: 50,
-      themes: 20,
-      transcription: 30,
+      polish: 5,
+      summary: 3,
+      chat: 10,
+      themes: 5,
+      transcription: 5,
     ),
     'premium': CreditLimits(
       polish: 100,
@@ -70,7 +70,10 @@ class AiCreditService {
 
     // Also reset if any usage counter exceeds the current limit (e.g. after a
     // limit increase in an app update) so users don't stay locked out.
-    final usageOverLimit = _getUsed('polish_used') >= (tierLimits[currentTier]?.polish ?? 5);
+    // M-05: use safe tier lookup with 'free' fallback
+    final tier = currentTier.isNotEmpty ? currentTier : 'free';
+    final limit = tierLimits[tier] ?? tierLimits['free']!;
+    final usageOverLimit = _getUsed('polish_used') >= (limit.polish > 0 ? limit.polish : 5);
 
     if (storedMonth != currentMonth || usageOverLimit) {
       // New month or limit increased — reset all usage counters

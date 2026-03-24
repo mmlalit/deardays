@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -6,15 +7,59 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/onboarding/sample_memory.dart';
+import 'package:deardays/core/providers/onboarding_provider.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
+import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
+import 'package:deardays/services/media/media_service.dart';
+import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
+import 'package:deardays/services/notification/notification_service.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/sync/sync_queue.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
 
-/// Lightweight data object passed from ReviewSaveScreen -> PostSaveScreen.
+/// All data needed to create the journal entry.
+/// Passed from ReviewSaveScreen so the chapter can be selected BEFORE
+/// the entry is written to the database.
+class PreSaveData {
+  final String rawText;
+  final String? cleanedText;
+  final String? polishedText;
+  final String? generatedTitle;
+  final String? mood;
+  final String? locationName;
+  final String? attachedPhotoPath;
+  final Alignment focalAlignment;
+  final bool isVoice;
+  final String? audioPath;
+  final String draftId;
+  final List<String> tags;
+
+  const PreSaveData({
+    required this.rawText,
+    this.cleanedText,
+    this.polishedText,
+    this.generatedTitle,
+    this.mood,
+    this.locationName,
+    this.attachedPhotoPath,
+    this.focalAlignment = Alignment.center,
+    this.isVoice = false,
+    this.audioPath,
+    required this.draftId,
+    this.tags = const [],
+  });
+}
+
+/// Lightweight data object used after a successful save (confirmation screen).
 class PostSaveData {
   final String entryId;
   final String title;
@@ -32,9 +77,13 @@ class PostSaveData {
 }
 
 class PostSaveScreen extends ConsumerStatefulWidget {
+  /// Pre-save payload: chapter is selected here, then the entry is saved.
+  final PreSaveData? preSaveData;
+
+  /// Legacy post-save payload: entry already saved, screen shows confirmation.
   final PostSaveData? data;
 
-  const PostSaveScreen({super.key, this.data});
+  const PostSaveScreen({super.key, this.preSaveData, this.data});
 
   @override
   ConsumerState<PostSaveScreen> createState() => _PostSaveScreenState();
@@ -44,41 +93,237 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   int _currentStep = 0; // 0 = chapter, 1 = confirmation
   String? _selectedChapterId;
   bool _isSaving = false;
+  String? _saveError;
 
+  // Filled after a successful save so the confirmation screen can display it.
+  PostSaveData? _confirmedData;
+
+  late final JournalRepository _repository = JournalRepository(
+    client: Supabase.instance.client,
+  );
+  late final MediaService _mediaService = MediaService(
+    client: Supabase.instance.client,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // Force fresh chapter data every time this screen opens so the list is
+    // never stale (e.g. after a new user's default chapters were just seeded).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(chaptersProvider);
+    });
+  }
+
+  /// Called when the user taps Continue after selecting a chapter.
+  /// If [PreSaveData] was supplied, this is where the DB write happens.
   Future<void> _next() async {
     if (_selectedChapterId == null || _isSaving) return;
+    setState(() { _isSaving = true; _saveError = null; });
 
-    final resolvedData = widget.data ?? ref.read(postSaveDataProvider);
-    final entryId = resolvedData?.entryId;
-    if (entryId != null) {
-      setState(() => _isSaving = true);
-      try {
-        if (ConnectivityService().isOnline) {
-          await ref.read(journalRepositoryProvider).updateEntryChapter(
-                entryId,
-                _selectedChapterId!,
-              );
-          ref.invalidate(chaptersProvider);
-          ref.invalidate(chapterEntriesProvider(_selectedChapterId!));
-        } else {
-          // Queue the chapter assignment for when connectivity is restored
-          final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-          await SyncQueue().enqueue(SyncOperation.create(
-            id: entryId,
-            type: SyncOperationType.update,
-            tableName: 'journal_entries',
-            payload: {
-              'chapter_id': _selectedChapterId!,
-              'user_id': userId,
-            },
-          ));
+    try {
+      if (widget.preSaveData != null) {
+        // ── New flow: save entry WITH chapterId already set ──────────────────
+        await _saveNewEntry(widget.preSaveData!, _selectedChapterId!);
+      } else {
+        // ── Legacy flow: entry already saved, just update chapter ────────────
+        final resolvedData = widget.data ?? ref.read(postSaveDataProvider);
+        final entryId = resolvedData?.entryId;
+        if (entryId != null) {
+          if (ConnectivityService().isOnline) {
+            await _repository.updateEntryChapter(entryId, _selectedChapterId!);
+            ref.invalidate(chaptersProvider);
+            ref.invalidate(chapterEntriesProvider(_selectedChapterId!));
+          } else {
+            final userId = ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
+            await SyncQueue().enqueue(SyncOperation.create(
+              id: entryId,
+              type: SyncOperationType.update,
+              tableName: 'journal_entries',
+              payload: {'chapter_id': _selectedChapterId!, 'user_id': userId},
+            ));
+          }
         }
-      } catch (_) {
-        // Non-critical — memory is saved, chapter link is best-effort
-      } finally {
-        if (mounted) setState(() => _isSaving = false);
+        if (mounted) setState(() => _currentStep = 1);
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString();
+        setState(() => _saveError = msg.length > 120 ? '${msg.substring(0, 120)}…' : msg);
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _saveNewEntry(PreSaveData pre, String chapterId) async {
+    final now     = DateTime.now().toUtc();
+    final content = pre.cleanedText ?? pre.rawText;
+    final polishedContent = pre.polishedText != null
+        ? '${pre.generatedTitle ?? ''}\n\n${pre.polishedText}'
+        : null;
+    final isOnline = ConnectivityService().isOnline;
+
+    final entry = JournalEntry(
+      id: const Uuid().v4(),
+      userId: ref.read(supabaseClientProvider).auth.currentUser!.id,
+      content: content,
+      rawContent: pre.rawText,
+      polishedContent: polishedContent,
+      mood: pre.mood,
+      entryDate: now,
+      entryTime: TimeOfDay.fromDateTime(now),
+      isAiPolished: pre.polishedText != null,
+      locationName: pre.locationName,
+      hasPhoto: false,
+      hasVoice: pre.isVoice,
+      wordCount: content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length,
+      chapterId: chapterId,
+      tags: pre.tags,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    bool savedOffline = false;
+    JournalEntry saved;
+
+    if (!isOnline) {
+      await LocalStorageService().cacheEntry(entry);
+      if (!mounted) return;
+      try {
+        await SyncQueue().enqueue(SyncOperation.create(
+          id: entry.id,
+          type: SyncOperationType.create,
+          tableName: 'journal_entries',
+          payload: entry.toSupabaseMap(),
+        ));
+      } catch (e) {
+        debugPrint('[PostSave] Queue failed: $e');
+      }
+      saved = entry;
+      savedOffline = true;
+    } else {
+      saved = await _repository.createEntry(entry);
+
+      // Fire-and-forget tagging
+      if (!saved.tagsGenerated) {
+        unawaited(MemoryTaggingService().tagEntry(
+          entryId: saved.id,
+          content: content,
+        ));
+      }
+
+      // Ensure default book exists
+      try {
+        final profile = await ref.read(profileProvider.future);
+        final organization = profile?.bookOrganization ?? 'yearly';
+        await ref.read(bookRepositoryProvider).ensureDefaultBook(organization);
+      } catch (e) {
+        debugPrint('[PostSave] ensureDefaultBook error: $e');
+      }
+
+      // Photo upload
+      if (pre.attachedPhotoPath != null) {
+        try {
+          await _mediaService.uploadPhoto(
+            entryId: saved.id,
+            filePath: pre.attachedPhotoPath!,
+            focalAlignment: pre.focalAlignment,
+          );
+          saved = saved.copyWith(hasPhoto: true);
+        } catch (e) {
+          debugPrint('[PostSave] Photo upload failed: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Photo could not be uploaded. Memory was saved without it.'),
+              behavior: SnackBarBehavior.floating,
+            ));
+          }
+        }
+      }
+
+      // Streak notification
+      try {
+        final profileRepo = ProfileRepository(client: Supabase.instance.client);
+        final streak = await profileRepo.getStreak();
+        if (streak != null) {
+          if (NotificationService.isStreakMilestone(streak.currentStreak)) {
+            final box = await Hive.openBox('settings');
+            final milestonesEnabled = box.get('streak_milestones_enabled') as bool? ?? true;
+            if (milestonesEnabled) {
+              await NotificationService().showStreakNotification(streak.currentStreak);
+            }
+          }
+          NotificationService().cancelStreakReminder().catchError((e) {
+            debugPrint('[PostSave] Cancel streak reminder failed: $e');
+          });
+          final profile = await profileRepo.getProfile();
+          if (profile?.reminderTime != null) {
+            final parts = profile!.reminderTime!.split(':');
+            if (parts.length >= 2) {
+              await NotificationService().scheduleDailyReminder(
+                TimeOfDay(
+                  hour: int.tryParse(parts[0]) ?? 9,
+                  minute: int.tryParse(parts[1]) ?? 0,
+                ),
+                streak: streak.currentStreak,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[PostSave] Streak/notification error: $e');
       }
     }
+
+    // Audio file cleanup
+    if (pre.audioPath != null) {
+      try {
+        final audioFile = File(pre.audioPath!);
+        if (await audioFile.exists()) await audioFile.delete();
+      } catch (e) {
+        debugPrint('[PostSave] Audio cleanup failed: $e');
+      }
+    }
+
+    // Auto-delete sample memory on first real save
+    try {
+      final entries = await ref.read(timelineEntriesProvider.future);
+      final realEntries = entries.where((e) => !isSampleEntry(e)).toList();
+      if (realEntries.isEmpty) {
+        final sampleExists = entries.any((e) => isSampleEntry(e));
+        if (sampleExists) {
+          await ref.read(journalRepositoryProvider).deleteEntry('sample-onboarding-001');
+          ref.read(onboardingProvider.notifier).markSampleMemorySeeded();
+        }
+      }
+    } catch (e) {
+      debugPrint('[PostSave] Sample cleanup failed: $e');
+    }
+
+    if (!mounted) return;
+
+    // Delete the draft now that the entry is fully saved
+    try {
+      await LocalStorageService.instance.deleteDraft(pre.draftId);
+      ref.invalidate(draftsProvider);
+    } catch (e) {
+      debugPrint('[PostSave] Draft deletion failed: $e');
+    }
+
+    ref.invalidate(todayEntryProvider);
+    ref.invalidate(timelineEntriesProvider);
+    ref.invalidate(booksProvider);
+    ref.invalidate(chaptersProvider);
+    ref.invalidate(chapterEntriesProvider(chapterId));
+
+    _confirmedData = PostSaveData(
+      entryId: saved.id,
+      title: pre.generatedTitle ?? saved.content.split('\n').first,
+      content: content,
+      attachedPhotoPath: pre.attachedPhotoPath,
+      savedOffline: savedOffline,
+    );
 
     if (mounted) setState(() => _currentStep = 1);
   }
@@ -179,6 +424,25 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
         child: _currentStep == 0
             ? _buildChapterScreen(colors)
             : _buildConfirmationScreen(colors),
+      ),
+    );
+  }
+
+  Widget _buildSaveError(AppPalette colors) {
+    if (_saveError == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 16, color: AppColors.error),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              _saveError!,
+              style: GoogleFonts.manrope(fontSize: 12, color: AppColors.error),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -402,6 +666,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              _buildSaveError(colors),
               if (!hasSelection)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -448,7 +713,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildConfirmationScreen(AppPalette colors) {
-    final resolvedData = widget.data ?? ref.read(postSaveDataProvider);
+    final resolvedData = _confirmedData ?? widget.data ?? ref.read(postSaveDataProvider);
     final photoPath = resolvedData?.attachedPhotoPath;
     return Container(
       key: const ValueKey('confirmation'),

@@ -94,9 +94,13 @@ class MediaService {
     }
     if (lastUploadError != null) throw lastUploadError;
 
-    // Generate and upload thumbnail (fire-and-forget, don't block).
-    // Uses pre-read bytes so file path is no longer needed.
-    unawaited(_uploadThumbnail(fileBytes, entryId, mediaId, ext));
+    // H-01 FIX: Await thumbnail upload within its own try-catch (was fire-and-forget).
+    // Non-critical: entry is saved without thumbnail if this fails.
+    try {
+      await _uploadThumbnail(fileBytes, entryId, mediaId, ext);
+    } catch (e, st) {
+      debugPrint('[MediaService] Thumbnail upload failed (non-critical): $e\n$st');
+    }
 
     // Create entry_media record
     final now = DateTime.now().toUtc();
@@ -114,8 +118,21 @@ class MediaService {
     try {
       await _client.from('entry_media').insert(media.toMap());
     } catch (e) {
-      // DB insert failed — delete the already-uploaded storage file to avoid orphans
-      await _client.storage.from(_bucketName).remove([storagePath]);
+      // DB insert failed — delete the already-uploaded storage file to avoid orphans.
+      // H-02 FIX: Log orphaned file if storage cleanup also fails.
+      try {
+        await _client.storage.from(_bucketName).remove([storagePath]);
+      } catch (storageDeleteError) {
+        debugPrint('[MediaService] ORPHANED FILE: $storagePath — DB insert failed and storage cleanup also failed: $storageDeleteError');
+        // Best-effort orphan log for background cleanup
+        try {
+          await _client.from('storage_orphan_log').insert({
+            'path': storagePath,
+            'reason': 'db_insert_failed_cleanup_failed',
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        } catch (_) {} // Table may not exist — ignore
+      }
       rethrow;
     }
 
@@ -169,8 +186,20 @@ class MediaService {
     try {
       await _client.from('entry_media').insert(media.toMap());
     } catch (e) {
-      // DB insert failed — delete the already-uploaded storage file to avoid orphans
-      await _client.storage.from(_bucketName).remove([storagePath]);
+      // DB insert failed — delete the already-uploaded storage file to avoid orphans.
+      // H-02 FIX: Log orphaned file if storage cleanup also fails.
+      try {
+        await _client.storage.from(_bucketName).remove([storagePath]);
+      } catch (storageDeleteError) {
+        debugPrint('[MediaService] ORPHANED FILE: $storagePath — DB insert failed and storage cleanup also failed: $storageDeleteError');
+        try {
+          await _client.from('storage_orphan_log').insert({
+            'path': storagePath,
+            'reason': 'db_insert_failed_cleanup_failed',
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        } catch (_) {} // Table may not exist — ignore
+      }
       rethrow;
     }
 

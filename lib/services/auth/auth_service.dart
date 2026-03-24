@@ -1,3 +1,4 @@
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/services/storage/secure_storage_service.dart';
@@ -147,8 +148,31 @@ class AuthService {
   // Sign out
   // ---------------------------------------------------------------------------
 
+  /// Clears all Hive boxes that store user-scoped data.
+  /// Call before signing out so no stale data leaks to the next user.
+  static Future<void> clearAllUserData() async {
+    const boxNames = [
+      'checkin_conversations',
+      'story_nodes',
+      'life_book_polish_cache',
+      'ai_queue',
+      'sync_queue',
+      'offline_entries',
+      'reflection_cache',
+    ];
+    for (final name in boxNames) {
+      try {
+        final b = await Hive.openBox<dynamic>(name);
+        await b.clear();
+      } catch (_) {}
+    }
+  }
+
   /// Signs the user out and wipes all locally stored sensitive data.
   Future<void> signOut() async {
+    // Clear Hive boxes before invalidating the session.
+    await clearAllUserData();
+
     // Clear all locally stored sensitive data (tokens, etc.).
     await _secureStorage.clearAll();
 

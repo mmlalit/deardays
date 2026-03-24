@@ -144,17 +144,30 @@ class SyncService {
         if (kDebugMode) {
           debugPrint('[SyncService] Synced ${op.type.name} ${op.id}');
         }
-      } catch (e) {
-        // PGRST204 = column not found — schema mismatch, will never succeed.
+      } on PostgrestException catch (e) {
+        // M-07: structured PGRST204 detection — schema mismatch, will never succeed.
         // Discard immediately rather than retrying forever.
-        if (e.toString().contains('PGRST204')) {
+        if (e.code == 'PGRST204' || e.message.contains('PGRST204')) {
           await queue.dequeue(key);
-          if (kDebugMode) {
-            debugPrint('[SyncService] Discarded ${op.id}: schema mismatch (PGRST204) — $e');
-          }
+          debugPrint('[SyncService] Discarded ${op.id}: schema mismatch (PGRST204): ${e.message}');
           continue;
         }
-
+        hadErrors = true;
+        final updated = op.copyWith(
+          retryCount: op.retryCount + 1,
+          lastError: e.toString(),
+          lastRetryAt: DateTime.now(),
+        );
+        await queue.update(key, updated);
+        if (updated.retryCount >= _softRetryThreshold) failedCount++;
+        if (kDebugMode) {
+          debugPrint(
+            '[SyncService] Failed ${op.id}: $e '
+            '(retry ${updated.retryCount}, '
+            'next in ${_calculateBackoff(updated.retryCount).inSeconds}s)',
+          );
+        }
+      } catch (e) {
         hadErrors = true;
         final updated = op.copyWith(
           retryCount: op.retryCount + 1,

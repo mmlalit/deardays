@@ -67,9 +67,12 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
     final today = DateTime.now();
     _currentPrompt = _fallbackPrompts[today.hour % _fallbackPrompts.length];
 
-    // Try to fetch an AI-generated prompt
-    final aiPrompt = ref.read(writingPromptProvider);
-    if (aiPrompt != null) _currentPrompt = aiPrompt;
+    // M-28: use ref.listen so the prompt updates reactively if the provider changes
+    ref.listenManual(writingPromptProvider, (_, next) {
+      if (next != null && mounted) {
+        setState(() => _currentPrompt = next);
+      }
+    }, fireImmediately: true);
 
     _waveController = AnimationController(
       vsync: this,

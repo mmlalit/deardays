@@ -97,7 +97,7 @@ const _returnGreetings = [
 // ---------------------------------------------------------------------------
 
 class CheckInNotifier extends StateNotifier<CheckInState> {
-  CheckInNotifier(this._aiService, {this.language, this.repository, bool loadData = true})
+  CheckInNotifier(this._aiService, {this.language, this.repository, this.userId, bool loadData = true})
       : super(CheckInState()) {
     if (loadData) _loadTodayData();
   }
@@ -106,6 +106,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   final _streamService = AiStreamService();
   final String? language;
   final CheckInRepository? repository;
+  final String? userId;
   static const _uuid = Uuid();
   static const _boxName = 'checkin_conversations';
 
@@ -129,13 +130,21 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
+  /// Returns a Hive key scoped to the current user to prevent data leaking
+  /// between accounts on the same device.
+  String _scopedKey(String key) {
+    final uid = userId;
+    if (uid == null || uid.isEmpty) return key;
+    return '${uid}_$key';
+  }
+
   String get _todayKey => dateKey(DateTime.now());
 
   // ── Persistence ──────────────────────────────────────────────────────
 
   Future<void> _loadTodayData() async {
     final box = await _openBox();
-    final raw = box.get(_todayKey);
+    final raw = box.get(_scopedKey(_todayKey));
 
     if (raw != null) {
       // Hive hit — load locally
@@ -147,7 +156,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
         final remote = await repository?.getConversation(_todayKey);
         if (remote != null) {
           // Write to Hive so future reads are instant
-          await box.put(_todayKey, jsonEncode({
+          await box.put(_scopedKey(_todayKey), jsonEncode({
             'mood': remote['mood'],
             'sections': remote['sections'],
           }));
@@ -180,10 +189,14 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       'mood': state.currentMood,
       'sections': state.sections.map((s) => s.toJson()).toList(),
     };
-    await box.put(_todayKey, jsonEncode(data));
+    await box.put(_scopedKey(_todayKey), jsonEncode(data));
 
-    // Background sync to Supabase — don't await, don't block UI
-    repository?.upsertConversation(_todayKey, data).catchError((Object e) { debugPrint('[CheckInNotifier] Cloud sync failed: $e'); });
+    // Background sync to Supabase — don't await, don't block UI.
+    // C-20 FIX: Capture StackTrace for production visibility.
+    repository?.upsertConversation(_todayKey, data).catchError((Object e, StackTrace st) {
+      debugPrint('[CheckInNotifier] Cloud sync failed: $e\n$st');
+      // Non-critical: local Hive copy is authoritative. Data will sync on next open.
+    });
   }
 
   // ── Load data for a specific date ───────────────────────────────────
@@ -191,7 +204,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
   Future<void> loadDataForDate(DateTime date) async {
     final key = dateKey(date);
     final box = await _openBox();
-    final raw = box.get(key);
+    final raw = box.get(_scopedKey(key));
 
     if (raw != null) {
       final data = jsonDecode(raw as String) as Map<String, dynamic>;
@@ -210,7 +223,7 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
       try {
         final remote = await repository?.getConversation(key);
         if (remote != null) {
-          await box.put(key, jsonEncode({
+          await box.put(_scopedKey(key), jsonEncode({
             'mood': remote['mood'],
             'sections': remote['sections'],
           }));
@@ -525,7 +538,8 @@ final checkInProvider =
     StateNotifierProvider<CheckInNotifier, CheckInState>((ref) {
   final language = ref.watch(localeProvider).languageName;
   final repository = ref.watch(checkInRepositoryProvider);
-  return CheckInNotifier(AiService(), language: language, repository: repository);
+  final userId = Supabase.instance.client.auth.currentUser?.id;
+  return CheckInNotifier(AiService(), language: language, repository: repository, userId: userId);
 });
 
 final checkInRepositoryProvider = Provider<CheckInRepository>((ref) {

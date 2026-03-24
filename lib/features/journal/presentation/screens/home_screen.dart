@@ -22,16 +22,19 @@ import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/core/providers/onboarding_provider.dart';
 import 'package:deardays/core/onboarding/checklist_card.dart';
 
-String _cleanFirstName(String name) {
-  final first = name.split(' ').first;
+String _cleanFirstName(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return 'there';
+  final clean = raw.trim();
   // If it looks like a username (no spaces, has digits), strip digits/symbols
-  if (!name.contains(' ') && first.contains(RegExp(r'[0-9_.]'))) {
-    final clean = first.replaceAll(RegExp(r'[0-9_.]'), '');
-    if (clean.isNotEmpty) {
-      return clean[0].toUpperCase() + clean.substring(1).toLowerCase();
+  if (!clean.contains(' ') && clean.contains(RegExp(r'[0-9_.]'))) {
+    final stripped = clean.replaceAll(RegExp(r'[0-9_.]'), '');
+    if (stripped.isNotEmpty) {
+      return '${stripped[0].toUpperCase()}${stripped.length > 1 ? stripped.substring(1).toLowerCase() : ''}';
     }
   }
-  return first[0].toUpperCase() + first.substring(1);
+  final first = clean.split(' ').first;
+  if (first.isEmpty) return 'there';
+  return '${first[0].toUpperCase()}${first.length > 1 ? first.substring(1).toLowerCase() : ''}';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,6 +50,20 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin {
+
+  // Milestone streak thresholds for celebrations
+  static const List<int> _milestoneDays = [7, 30, 100, 365];
+
+  // In-memory deduplication key for weekly recap scheduling
+  static String? _lastScheduledWeek;
+
+  static String _weekKey() {
+    final now = DateTime.now();
+    // ISO week number: number of days since Jan 4 (always in week 1)
+    final startOfYear = DateTime(now.year, 1, 4);
+    final weekNumber = ((now.difference(startOfYear).inDays) / 7).floor() + 1;
+    return '${now.year}_$weekNumber';
+  }
 
   @override
   void initState() {
@@ -67,8 +84,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ref.listen<AsyncValue<Streak?>>(streakProvider, (previous, next) {
       final streak = next.valueOrNull;
       if (streak != null) {
-        const milestones = [7, 30, 100, 365];
-        if (milestones.contains(streak.currentStreak)) {
+        if (_milestoneDays.contains(streak.currentStreak)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) {
               MilestoneOverlay.show(
@@ -95,13 +111,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final topMood = moodCounts.entries
             .reduce((a, b) => a.value > b.value ? a : b)
             .key;
-        ref.read(notificationServiceProvider).scheduleWeeklyRecap(
-              weekSummary: 'You had a $topMood week',
-              memoriesCount: moods.length,
-              topMood: topMood,
-            ).catchError((_) {
-              // NotificationService may not be initialized (e.g. in tests).
-            });
+        final weekKey = _weekKey();
+        if (_lastScheduledWeek != weekKey) {
+          _lastScheduledWeek = weekKey;
+          ref.read(notificationServiceProvider).scheduleWeeklyRecap(
+                weekSummary: 'You had a $topMood week',
+                memoriesCount: moods.length,
+                topMood: topMood,
+              ).catchError((_) {
+                // NotificationService may not be initialized (e.g. in tests).
+              });
+        }
       }
     });
 

@@ -1,6 +1,8 @@
 // Model: MemoryShare + SharedMemoryItem
 // Represents one share token and its lifecycle.
 
+import 'package:flutter/foundation.dart';
+
 enum ShareStatus {
   pending,
   approved,
@@ -10,7 +12,10 @@ enum ShareStatus {
 
   static ShareStatus fromString(String s) => ShareStatus.values.firstWhere(
         (e) => e.name == s,
-        orElse: () => ShareStatus.pending,
+        orElse: () {
+          debugPrint('[MemoryShare] Unknown share status: "$s" — defaulting to pending');
+          return ShareStatus.pending;
+        },
       );
 }
 

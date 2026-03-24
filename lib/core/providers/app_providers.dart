@@ -483,8 +483,11 @@ class TimelineController extends StateNotifier<TimelineState> {
 
 /// Legacy provider — kept for backward compatibility with screens that use StreamProvider.
 /// Delegates to the paginated controller's current state.
+/// H-15: watches authStateProvider so it auto-resets on logout.
+// TODO: replace with server-side category filter in future sprint
 final timelineEntriesProvider =
     StreamProvider<List<JournalEntry>>((ref) async* {
+  ref.watch(authStateProvider); // H-15: invalidate on auth state change
   final localStorage = ref.watch(localStorageProvider);
 
   // Emit cached data immediately so the UI has something to show
@@ -495,8 +498,9 @@ final timelineEntriesProvider =
   }
 
   // Then fetch fresh data from the network
+  // C-10: limit to 200 entries to cap O(n×m) category detection cost
   try {
-    final entries = await ref.watch(journalRepositoryProvider).getEntries(limit: 50);
+    final entries = await ref.watch(journalRepositoryProvider).getEntries(limit: 200);
     // Cache entries locally for offline access
     for (final entry in entries) {
       await localStorage.cacheEntry(entry);
@@ -515,7 +519,13 @@ final timelineEntriesProvider =
 /// Mood values for the last 7 days (for the weekly bar chart).
 final weeklyMoodsProvider =
     FutureProvider<List<Map<String, String>>>((ref) async {
-  return ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: 7);
+  try {
+    return await ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: 7);
+  } catch (e, st) {
+    debugPrint('[Providers] weeklyMoodsProvider failed: $e');
+    CrashReportingService().recordError(e, st, reason: 'weeklyMoodsProvider');
+    return [];
+  }
 });
 
 /// Mood breakdown for the last 30 days.

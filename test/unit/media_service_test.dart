@@ -200,10 +200,16 @@ void main() {
       expect(media.sortOrder, 0);
     });
 
-    test('equality is based on id only', () {
+    test('equality is based on id and storagePath', () {
+      final a = makeMedia(id: 'same-id', storagePath: 'path/same.jpg');
+      final b = makeMedia(id: 'same-id', storagePath: 'path/same.jpg');
+      expect(a, equals(b));
+    });
+
+    test('same id but different storagePath are not equal', () {
       final a = makeMedia(id: 'same-id', storagePath: 'path/a.jpg');
       final b = makeMedia(id: 'same-id', storagePath: 'path/b.jpg');
-      expect(a, equals(b));
+      expect(a, isNot(equals(b)));
     });
 
     test('different ids are not equal', () {

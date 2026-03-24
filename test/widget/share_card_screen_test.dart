@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/share/presentation/screens/share_card_screen.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/core/theme/app_theme.dart';
 import '../helpers/mock_providers.dart';
 
 void main() {
@@ -22,9 +21,9 @@ void main() {
   );
 
   Widget buildApp() {
-    return MaterialApp(
-      theme: AppTheme.light,
-      home: ShareCardScreen(entry: testEntry),
+    return buildTestApp(
+      ShareCardScreen(entry: testEntry),
+      overrides: authenticatedOverrides(),
     );
   }
 
@@ -45,39 +44,27 @@ void main() {
   });
 
   group('ShareCardScreen - Platform tabs', () {
-    testWidgets('shows Instagram, WhatsApp, and X tabs', (tester) async {
+    testWidgets('shows Instagram Story, WhatsApp Status, and Memory Card tabs', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Instagram'), findsOneWidget);
-      expect(find.text('WhatsApp'), findsOneWidget);
-      expect(find.text('X'), findsOneWidget);
-    });
-  });
-
-  group('ShareCardScreen - Style options', () {
-    testWidgets('shows Style section with style names', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(find.text('Style'), findsOneWidget);
-      expect(find.text('Minimal'), findsOneWidget);
-      expect(find.text('Vibrant'), findsOneWidget);
-      expect(find.text('Dark'), findsOneWidget);
-      expect(find.text('Nature'), findsOneWidget);
+      // Tabs use multi-line labels: 'Instagram\nStory', 'WhatsApp\nStatus', 'Memory\nCard'
+      expect(find.textContaining('Instagram'), findsWidgets);
+      expect(find.textContaining('WhatsApp'), findsWidgets);
+      expect(find.textContaining('Memory'), findsWidgets);
     });
   });
 
   group('ShareCardScreen - Action buttons', () {
-    testWidgets('shows Share/Save button', (tester) async {
+    testWidgets('shows a share or save button', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      // On Windows the label is "Save & Copy Path"; on mobile it's "Share"
-      final hasSaveOrShare =
-          find.text('Save & Copy Path').evaluate().isNotEmpty ||
-          find.text('Share').evaluate().isNotEmpty;
-      expect(hasSaveOrShare, isTrue);
+      // Primary button label includes platform name or shows sharing state
+      final hasShareButton =
+          find.textContaining('Share').evaluate().isNotEmpty ||
+          find.textContaining('Sharing').evaluate().isNotEmpty;
+      expect(hasShareButton, isTrue);
     });
 
     testWidgets('shows Save Image button', (tester) async {

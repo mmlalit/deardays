@@ -11,7 +11,11 @@ class JournalRepository {
 
   JournalRepository({required SupabaseClient client}) : _client = client;
 
-  String get _userId => _client.auth.currentUser?.id ?? (throw StateError('Not authenticated'));
+  String get _userId {
+    final id = _client.auth.currentUser?.id;
+    if (id == null) throw const AuthenticationRequiredException();
+    return id;
+  }
 
   /// The table for both reads and writes.
   static const _readTable = 'journal_entries';
@@ -141,13 +145,15 @@ class JournalRepository {
           .from(_writeTable)
           .insert(map)
           .select('id')
-          .single();
+          .maybeSingle();
+      if (inserted == null) throw Exception('Entry insert failed — no ID returned');
 
       final response = await _client
           .from(_readTable)
           .select('*, entry_media(*)')
           .eq('id', inserted['id'] as String)
-          .single();
+          .maybeSingle();
+      if (response == null) throw Exception('Entry created but could not be retrieved');
 
       return JournalEntry.fromSupabaseMap(_decryptRow(response));
     });
@@ -168,7 +174,8 @@ class JournalRepository {
           .from(_readTable)
           .select('*, entry_media(*)')
           .eq('id', entry.id)
-          .single();
+          .maybeSingle();
+      if (response == null) throw Exception('Entry updated but could not be retrieved');
 
       return JournalEntry.fromSupabaseMap(_decryptRow(response));
     });
@@ -328,4 +335,12 @@ class JournalRepository {
       return response.count;
     });
   }
+}
+
+/// Thrown by [JournalRepository] when a method is called without an active session.
+class AuthenticationRequiredException implements Exception {
+  const AuthenticationRequiredException();
+
+  @override
+  String toString() => 'Authentication required. Please sign in.';
 }

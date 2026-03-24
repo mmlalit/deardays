@@ -85,8 +85,11 @@ void main() {
     testWidgets('AI Story content shown by default for AI-polished entry', (tester) async {
       await tester.pumpWidget(buildAiApp());
       await tester.pump(const Duration(milliseconds: 500));
+      // The body text uses a drop-cap layout: the first character ('T') is
+      // rendered separately as a large drop cap, so the rest of the text starts
+      // with 'he light fell softly…'. Check for the remainder after the drop cap.
       expect(
-        find.textContaining('The light fell softly'),
+        find.textContaining('he light fell softly'),
         findsWidgets,
       );
     });

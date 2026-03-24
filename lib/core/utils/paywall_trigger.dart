@@ -42,10 +42,14 @@ class PaywallTrigger {
     if (_shownThisSession) return false;
     if (await _wasRecentlyDismissed()) return false;
 
-    AnalyticsService().track(AnalyticsEvent.paywallShown, properties: {
-      'trigger': 'feature_gate',
-      'feature': featureName,
-    });
+    try {
+      AnalyticsService().track(AnalyticsEvent.paywallShown, properties: {
+        'trigger': 'feature_gate',
+        'feature': featureName,
+      });
+    } catch (e) {
+      debugPrint('[Paywall] Analytics track failed: $e');
+    }
 
     return true;
   }

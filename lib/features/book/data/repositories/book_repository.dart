@@ -121,11 +121,20 @@ class BookRepository {
   }
 
   /// Updates the photo assignments for a single page (user edits).
+  /// H-20 FIX: Verify ownership with user_id filter and check result to detect
+  /// race conditions or cross-user write attempts.
   Future<void> updatePagePhotos(String pageId, List<PagePhoto> photos) async {
-    await _client
+    final result = await _client
         .from('pages')
         .update({'photos': photos.map((p) => p.toJson()).toList()})
-        .eq('id', pageId);
+        .eq('id', pageId)
+        .eq('user_id', _userId) // Security: prevent cross-user writes
+        .select('id')
+        .maybeSingle();
+
+    if (result == null) {
+      throw Exception('Page not found or not owned by current user');
+    }
   }
 
   /// Ensures a default book exists for the current period based on organization setting.
