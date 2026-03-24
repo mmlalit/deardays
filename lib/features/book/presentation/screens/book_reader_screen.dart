@@ -1171,7 +1171,7 @@ class _IntroPage extends StatelessWidget {
       color: bgColor,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(36, 72, 36, 88),
+          padding: const EdgeInsets.fromLTRB(36, 48, 36, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -1188,7 +1188,7 @@ class _IntroPage extends StatelessWidget {
                   Container(width: 40, height: 1, color: _accentColor.withAlpha(60)),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // ── Title ───────────────────────────────────────────────────
               Text(
@@ -1200,15 +1200,17 @@ class _IntroPage extends StatelessWidget {
                   color: _titleColor,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Container(width: 32, height: 1.5, color: _accentColor.withAlpha(120)),
-              const SizedBox(height: 36),
+              const SizedBox(height: 24),
 
-              // ── Body text ───────────────────────────────────────────────
+              // ── Body text (scrollable so long text never overflows) ─────
               Expanded(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: _bodyText(page.text),
+                child: SingleChildScrollView(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: _bodyText(page.text),
+                  ),
                 ),
               ),
 

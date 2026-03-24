@@ -178,6 +178,26 @@ void main() {
       // shows a gradient banner. Verify the home screen stays alive.
       expect(find.byType(HomeScreen), findsOneWidget);
     });
+
+    testWidgets('photo loading does not show CircularProgressIndicator (shimmer replaces spinner)', (tester) async {
+      final entry = makeEntry(
+        hasPhoto: true,
+        media: [
+          EntryMedia(
+            id: 'm1', entryId: 'e1', userId: 'test-user',
+            mediaType: 'photo',
+            storagePath: 'user-id/entry-id/photo.jpg',
+            createdAt: now,
+          ),
+        ],
+      );
+      await tester.pumpWidget(buildApp(entries: [entry]));
+      // Early pump — catches loading state
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Shimmer replaced the old CircularProgressIndicator loading state
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
   });
 
   // ---------------------------------------------------------------------------

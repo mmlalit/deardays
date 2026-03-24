@@ -45,4 +45,13 @@ void main() {
       expect(find.byIcon(Icons.search_rounded), findsOneWidget);
     });
   });
+
+  group('ExploreScreen - Photo display', () {
+    testWidgets('does not show CircularProgressIndicator while photos load', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(const Duration(milliseconds: 50));
+      // Photo shimmer replaced the spinner — no spinners should appear during load
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+  });
 }

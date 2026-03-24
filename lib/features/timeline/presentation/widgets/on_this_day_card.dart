@@ -240,6 +240,21 @@ class OnThisDaySection extends StatelessWidget {
       child: FutureBuilder<String>(
         future: future,
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colors.accentFaint,
+                    colors.accentFaint.withAlpha(50),
+                    colors.accentFaint,
+                  ],
+                ),
+              ),
+            );
+          }
           if (!snapshot.hasData || snapshot.data!.isEmpty || snapshot.hasError) {
             return _buildDecorativeFallback();
           }
@@ -248,8 +263,9 @@ class OnThisDaySection extends StatelessWidget {
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
-            memCacheWidth: 400,
-            memCacheHeight: 400,
+            memCacheWidth: 480,
+            memCacheHeight: 320,
+            placeholder: (_, __) => Container(color: colors.accentFaint.withAlpha(80)),
             errorWidget: (_, __, ___) => _buildDecorativeFallback(),
           );
         },

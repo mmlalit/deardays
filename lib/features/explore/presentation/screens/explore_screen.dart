@@ -1577,6 +1577,16 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final photo = entry.media.where((m) => m.mediaType == 'photo').firstOrNull;
     if (photo == null) return const SizedBox.shrink();
 
+    Widget shimmer() => Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.highlightFaint, colors.highlightFaint.withAlpha(50), colors.highlightFaint],
+        ),
+      ),
+    );
+
     // If storagePath is already a full URL (demo data), use directly
     if (photo.storagePath.startsWith('http')) {
       return CachedNetworkImage(
@@ -1586,16 +1596,16 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         height: double.infinity,
         memCacheWidth: 400,
         memCacheHeight: 400,
-        errorWidget: (_, __, ___) => Container(color: colors.highlightFaint),
+        placeholder: (_, __) => shimmer(),
+        errorWidget: (_, __, ___) => shimmer(),
       );
     }
 
     return FutureBuilder<String>(
       future: ref.read(mediaServiceProvider).getSignedUrl(photo.storagePath).catchError((_) => ''),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.hasError) {
-          return Container(color: colors.highlightFaint);
-        }
+        if (snapshot.connectionState == ConnectionState.waiting) return shimmer();
+        if (!snapshot.hasData || snapshot.hasError || snapshot.data!.isEmpty) return shimmer();
         return CachedNetworkImage(
           imageUrl: snapshot.data!,
           fit: BoxFit.cover,
@@ -1603,7 +1613,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           height: double.infinity,
           memCacheWidth: 400,
           memCacheHeight: 400,
-          errorWidget: (_, __, ___) => Container(color: colors.highlightFaint),
+          placeholder: (_, __) => shimmer(),
+          errorWidget: (_, __, ___) => shimmer(),
         );
       },
     );

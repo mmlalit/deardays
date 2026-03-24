@@ -134,11 +134,11 @@ class PhotoCollageCard extends StatelessWidget {
   // ── 2 photos: side-by-side ──
   Widget _buildTwoPhotos(List<EntryMedia> photos) {
     return SizedBox(
-      height: 120,
+      height: 140,
       child: Row(
         children: [
           Expanded(child: _photoTile(photos[0].storagePath)),
-          const SizedBox(width: 4),
+          const SizedBox(width: 2),
           Expanded(child: _photoTile(photos[1].storagePath)),
         ],
       ),
@@ -148,17 +148,17 @@ class PhotoCollageCard extends StatelessWidget {
   // ── 3 photos: 1 large left + 2 stacked right ──
   Widget _buildThreePhotos(List<EntryMedia> photos) {
     return SizedBox(
-      height: 180,
+      height: 200,
       child: Row(
         children: [
           Expanded(flex: 3, child: _photoTile(photos[0].storagePath)),
-          const SizedBox(width: 4),
+          const SizedBox(width: 2),
           Expanded(
             flex: 2,
             child: Column(
               children: [
                 Expanded(child: _photoTile(photos[1].storagePath)),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Expanded(child: _photoTile(photos[2].storagePath)),
               ],
             ),
@@ -172,24 +172,24 @@ class PhotoCollageCard extends StatelessWidget {
   Widget _buildFourPhotos(List<EntryMedia> photos) {
     final extra = photos.length - 4;
     return SizedBox(
-      height: 180,
+      height: 200,
       child: Column(
         children: [
           Expanded(
             child: Row(
               children: [
                 Expanded(child: _photoTile(photos[0].storagePath)),
-                const SizedBox(width: 4),
+                const SizedBox(width: 2),
                 Expanded(child: _photoTile(photos[1].storagePath)),
               ],
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Expanded(
             child: Row(
               children: [
                 Expanded(child: _photoTile(photos[2].storagePath)),
-                const SizedBox(width: 4),
+                const SizedBox(width: 2),
                 Expanded(
                   child: extra > 0
                       ? _photoTileWithOverlay(
@@ -212,15 +212,18 @@ class PhotoCollageCard extends StatelessWidget {
       builder: (context, snapshot) {
         final url = snapshot.data;
         if (snapshot.hasError || url == null || url.isEmpty) {
-          return _photoPlaceholder();
+          return snapshot.connectionState == ConnectionState.waiting
+              ? _photoShimmer()
+              : _photoPlaceholder();
         }
         return CachedNetworkImage(
           imageUrl: url,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          memCacheWidth: 400,
-          memCacheHeight: 400,
+          memCacheWidth: 600,
+          memCacheHeight: 600,
+          placeholder: (_, __) => _photoShimmer(),
           errorWidget: (_, __, ___) => _photoPlaceholder(),
         );
       },
@@ -233,12 +236,18 @@ class PhotoCollageCard extends StatelessWidget {
       children: [
         _photoTile(storagePath),
         Container(
-          color: Colors.black45,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black54],
+            ),
+          ),
           alignment: Alignment.center,
           child: Text(
             label,
             style: GoogleFonts.manrope(
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
@@ -248,10 +257,35 @@ class PhotoCollageCard extends StatelessWidget {
     );
   }
 
+  Widget _photoShimmer() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.accentFaint,
+            colors.accentFaint.withAlpha(60),
+            colors.accentFaint,
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _photoPlaceholder() {
     return Container(
-      color: colors.accentFaint,
-      child: Icon(Icons.image_outlined, size: 28, color: colors.textMuted),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.accentFaint,
+            colors.accentFaint.withAlpha(80),
+          ],
+        ),
+      ),
+      child: Icon(Icons.image_outlined, size: 28, color: colors.textMuted.withAlpha(120)),
     );
   }
 

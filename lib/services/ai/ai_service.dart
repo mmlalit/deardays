@@ -603,6 +603,43 @@ class AiService {
     }
   }
 
+  /// Sends an image to the AI backend for vision-based enhancement.
+  ///
+  /// [imageBase64] — the raw image bytes encoded as base64.
+  /// [mimeType] — e.g. `'image/jpeg'` or `'image/png'`.
+  ///
+  /// Returns the optimized image as a base64-encoded string (same format as
+  /// input). Throws [AiServiceException] on failure.
+  ///
+  /// The backend calls a vision-capable model with [AiPrompts.imageOptimization]
+  /// as the system prompt.
+  Future<String> optimizeImage({
+    required String imageBase64,
+    String mimeType = 'image/jpeg',
+  }) async {
+    _ensureConfigured('optimizeImage');
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai-image-optimize',
+        data: {
+          'image': imageBase64,
+          'mime_type': mimeType,
+          'system_prompt': AiPrompts.imageOptimization,
+        },
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
+      );
+      final data = response.data;
+      if (data == null || !data.containsKey('image')) {
+        throw AiServiceException('Missing "image" field in response');
+      }
+      return data['image'] as String;
+    } on DioException catch (e) {
+      throw _handleDioError(e, 'optimizeImage');
+    } catch (e) {
+      throw AiServiceException('Unexpected error: $e');
+    }
+  }
+
   /// Analyses a story text in one call, returning both a 1–3 word theme
   /// AND a highlight (title + quote). Replaces two separate calls to
   /// [extractStoryTheme] + [storyHighlight].

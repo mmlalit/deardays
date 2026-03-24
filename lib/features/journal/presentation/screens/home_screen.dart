@@ -990,6 +990,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           storagePath: photoMedia.first.storagePath)
                       : _GradientBanner(colors: colors, mood: entry.mood),
                 ),
+                // Subtle bottom scrim so text area transitions cleanly
+                if (photoMedia.isNotEmpty)
+                  Positioned(
+                    left: 0, right: 0, bottom: 0,
+                    height: 60,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withAlpha(30),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 if (entry.isAiPolished)
                   Positioned(
                     top: 12,
@@ -1197,8 +1215,9 @@ class _NetworkImage extends ConsumerWidget {
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        memCacheWidth: 600,
-        memCacheHeight: 400,
+        memCacheWidth: 800,
+        memCacheHeight: 600,
+        placeholder: (_, __) => _ImageShimmer(colors: colors),
         errorWidget: (_, __, ___) => _GradientBanner(colors: colors),
       );
     }
@@ -1207,17 +1226,7 @@ class _NetworkImage extends ConsumerWidget {
       future: ref.read(mediaServiceProvider).getSignedUrl(storagePath).catchError((_) => ''),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            color: colors.accentFaint,
-            child: Center(
-              child: SizedBox(
-                width: 16, height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2, color: colors.textMuted,
-                ),
-              ),
-            ),
-          );
+          return _ImageShimmer(colors: colors);
         }
         if (!snapshot.hasData || snapshot.hasError || snapshot.data!.isEmpty) {
           return _GradientBanner(colors: colors);
@@ -1227,11 +1236,35 @@ class _NetworkImage extends ConsumerWidget {
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          memCacheWidth: 600,
-          memCacheHeight: 400,
+          memCacheWidth: 800,
+          memCacheHeight: 600,
+          placeholder: (_, __) => _ImageShimmer(colors: colors),
           errorWidget: (_, __, ___) => _GradientBanner(colors: colors),
         );
       },
+    );
+  }
+}
+
+class _ImageShimmer extends StatelessWidget {
+  final AppPalette colors;
+  const _ImageShimmer({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.accentFaint,
+            colors.accentFaint.withAlpha(50),
+            colors.accentFaint,
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ),
+      ),
     );
   }
 }

@@ -136,6 +136,60 @@ void main() {
       expect(find.byType(FutureBuilder<String>), findsWidgets);
     });
 
+    testWidgets('shows gradient shimmer (not CircularProgressIndicator) while photo loads', (tester) async {
+      final entry = makeEntry(
+        hasPhoto: true,
+        media: [
+          EntryMedia(
+            id: 'm1', entryId: 'e1', userId: 'test-user',
+            mediaType: 'photo',
+            storagePath: 'user-id/entry-id/photo.jpg',
+            createdAt: now,
+          ),
+        ],
+      );
+      await tester.pumpWidget(buildApp(entries: [entry]));
+      // Do NOT pump long — catch the waiting state
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // No spinner should be shown during photo load
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('renders collage card with 2 photos without crash', (tester) async {
+      final entry = makeEntry(
+        hasPhoto: true,
+        media: [
+          EntryMedia(id: 'm1', entryId: 'e1', userId: 'u', mediaType: 'photo',
+              storagePath: 'u/e/p1.jpg', createdAt: now),
+          EntryMedia(id: 'm2', entryId: 'e1', userId: 'u', mediaType: 'photo',
+              storagePath: 'u/e/p2.jpg', createdAt: now),
+        ],
+      );
+      await tester.pumpWidget(buildApp(entries: [entry]));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.byType(TimelineScreen), findsOneWidget);
+    });
+
+    testWidgets('renders collage card with 3 photos without crash', (tester) async {
+      final entry = makeEntry(
+        hasPhoto: true,
+        media: [
+          EntryMedia(id: 'm1', entryId: 'e1', userId: 'u', mediaType: 'photo',
+              storagePath: 'u/e/p1.jpg', createdAt: now),
+          EntryMedia(id: 'm2', entryId: 'e1', userId: 'u', mediaType: 'photo',
+              storagePath: 'u/e/p2.jpg', createdAt: now),
+          EntryMedia(id: 'm3', entryId: 'e1', userId: 'u', mediaType: 'photo',
+              storagePath: 'u/e/p3.jpg', createdAt: now),
+        ],
+      );
+      await tester.pumpWidget(buildApp(entries: [entry]));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.byType(TimelineScreen), findsOneWidget);
+    });
+
     testWidgets('renders without crash when entry has no media', (tester) async {
       final entry = makeEntry(media: [], hasPhoto: false);
       await tester.pumpWidget(buildApp(entries: [entry]));
