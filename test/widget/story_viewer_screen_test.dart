@@ -20,6 +20,12 @@ void main() {
         storyFamilyProvider(ReflectionPeriod.weekly).overrideWith(
           (ref) => _FakeStoryNotifier(initialState),
         ),
+        storyFamilyProvider(ReflectionPeriod.monthly).overrideWith(
+          (ref) => _FakeStoryNotifier(const StoryState()),
+        ),
+        storyFamilyProvider(ReflectionPeriod.yearly).overrideWith(
+          (ref) => _FakeStoryNotifier(const StoryState()),
+        ),
       ],
       child: MaterialApp(
         theme: AppTheme.light,
@@ -35,8 +41,8 @@ void main() {
       ));
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Crafting your story\u2026'), findsOneWidget);
-      expect(find.text('Reading your memories'), findsOneWidget);
+      expect(find.text('Preparing your story\u2026'), findsOneWidget);
+      expect(find.text('Gathering your memories'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 

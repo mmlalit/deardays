@@ -8,6 +8,7 @@ import 'package:deardays/features/book/presentation/providers/life_book_provider
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/story/data/models/life_story.dart';
 import 'package:deardays/features/story/data/models/story_node.dart';
+import 'package:deardays/features/story/data/models/story_summary.dart';
 import 'package:deardays/features/story/data/repositories/story_node_repository.dart';
 import 'package:deardays/features/story/data/services/story_generation_service.dart';
 import 'package:deardays/services/ai/ai_service.dart';
@@ -366,9 +367,16 @@ class StoryNotifier extends StateNotifier<StoryState> {
 
   Future<void> _checkDataAvailability() async {
     try {
+      final now = DateTime.now();
+      final startDate = switch (period) {
+        ReflectionPeriod.weekly  => StoryNode.weekStart(now),
+        ReflectionPeriod.monthly => DateTime(now.year, now.month, 1),
+        ReflectionPeriod.yearly  => DateTime(now.year, 1, 1),
+      };
+      // Check entries within the actual period, not lifetime total
       final entries = await _ref
           .read(journalRepositoryProvider)
-          .getEntries(limit: 5);
+          .getEntries(startDate: startDate, endDate: now, limit: 5);
       if (entries.length >= 3) {
         state = state.copyWith(status: StoryStatus.ready, entriesNeeded: 0);
       } else {
@@ -382,6 +390,29 @@ class StoryNotifier extends StateNotifier<StoryState> {
     }
   }
 
+  /// Fetch a pre-computed [StorySummary] from the `story_summaries` table.
+  /// Returns null if not available (Supabase unreachable, or no row yet).
+  Future<StorySummary?> _fetchServerSummary(DateTime now) async {
+    try {
+      final client = _ref.read(supabaseClientProvider);
+      final periodName = period.name; // 'weekly' | 'monthly' | 'yearly'
+      final year = now.year;
+      final month = period == ReflectionPeriod.weekly ? now.month : null;
+      final response = await client.rpc('get_story_summary', params: {
+        'p_user_id': client.auth.currentUser?.id,
+        'p_period':  periodName,
+        'p_year':    year,
+        if (month != null) 'p_month': month,
+      });
+      final rows = response as List<dynamic>?;
+      if (rows == null || rows.isEmpty) return null;
+      final row = rows.first as Map<String, dynamic>;
+      return StorySummary.fromJson({...row, 'period_type': periodName});
+    } catch (_) {
+      return null; // gracefully degrade to local generation
+    }
+  }
+
   Future<void> generateStory() async {
     state = state.copyWith(status: StoryStatus.generating, progress: 0.1);
     try {
@@ -391,6 +422,10 @@ class StoryNotifier extends StateNotifier<StoryState> {
         ReflectionPeriod.monthly => (DateTime(now.year, now.month, 1), 60),
         ReflectionPeriod.yearly  => (DateTime(now.year, 1, 1), 400),
       };
+
+      // Try server-side summary first (zero AI cost).
+      final serverSummary = await _fetchServerSummary(now);
+
       final entries = await _ref
           .read(journalRepositoryProvider)
           .getEntries(startDate: startDate, endDate: now, limit: limit);
@@ -403,33 +438,79 @@ class StoryNotifier extends StateNotifier<StoryState> {
         return;
       }
 
-      state = state.copyWith(progress: 0.5);
+      state = state.copyWith(progress: 0.4);
 
-      // Build a minimal LifeStory from available data
-      final moods = entries.map((e) => e.mood).whereType<String>().toList();
-      final moodCounts = <String, int>{};
-      for (final m in moods) {
-        moodCounts[m] = (moodCounts[m] ?? 0) + 1;
+      // ── Top mood — server value preferred; fall back to local count ───────
+      final String topMood;
+      if (serverSummary?.topMood != null) {
+        topMood = serverSummary!.topMood!;
+      } else {
+        final moodCounts = <String, int>{};
+        for (final e in entries) {
+          if (e.mood != null) moodCounts[e.mood!] = (moodCounts[e.mood!] ?? 0) + 1;
+        }
+        topMood = moodCounts.isEmpty
+            ? 'okay'
+            : (moodCounts.entries.toList()
+                  ..sort((a, b) => b.value.compareTo(a.value)))
+                .first.key;
       }
-      final topMood = moodCounts.isEmpty
-          ? 'okay'
-          : (moodCounts.entries.toList()
-                ..sort((a, b) => b.value.compareTo(a.value)))
-              .first
-              .key;
 
-      final allTags = entries.expand((e) => e.tags).toList();
-      final tagCounts = <String, int>{};
-      for (final t in allTags) {
-        tagCounts[t] = (tagCounts[t] ?? 0) + 1;
+      // ── Top theme — server value preferred; fall back to local count ──────
+      final String topTheme;
+      if (serverSummary?.topTheme != null) {
+        topTheme = serverSummary!.topTheme!;
+      } else {
+        final tagCounts = <String, int>{};
+        for (final t in entries.expand((e) => e.tags)) {
+          tagCounts[t] = (tagCounts[t] ?? 0) + 1;
+        }
+        topTheme = tagCounts.isEmpty
+            ? 'Everyday Life'
+            : (tagCounts.entries.toList()
+                  ..sort((a, b) => b.value.compareTo(a.value)))
+                .first.key;
       }
-      final topTheme = tagCounts.isEmpty
-          ? 'Everyday Life'
-          : (tagCounts.entries.toList()
-                ..sort((a, b) => b.value.compareTo(a.value)))
-              .first
-              .key;
 
+      // ── Most active time — computed from actual entry timestamps ──────────
+      final hourCounts = <int, int>{};
+      for (final e in entries) {
+        final h = e.entryTime?.hour;
+        if (h != null) hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+      }
+      String mostActiveTime = 'Evening';
+      if (hourCounts.isNotEmpty) {
+        final peakHour = (hourCounts.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+            .first.key;
+        mostActiveTime = peakHour < 12
+            ? 'Morning'
+            : peakHour < 17
+                ? 'Afternoon'
+                : peakHour < 21
+                    ? 'Evening'
+                    : 'Night';
+      }
+
+      // ── Writing streak — consecutive calendar days ────────────────────────
+      final writtenDays = entries
+          .map((e) => DateTime(e.entryDate.year, e.entryDate.month, e.entryDate.day))
+          .toSet()
+          .toList()
+        ..sort();
+      int streak = writtenDays.isEmpty ? 0 : 1;
+      int maxStreak = streak;
+      for (int i = 1; i < writtenDays.length; i++) {
+        final diff = writtenDays[i].difference(writtenDays[i - 1]).inDays;
+        if (diff == 1) {
+          streak++;
+          if (streak > maxStreak) maxStreak = streak;
+        } else {
+          streak = 1;
+        }
+      }
+
+      // ── Highlight entry ───────────────────────────────────────────────────
       final highlight = entries.reduce((a, b) {
         final sa = (a.sentimentScore?.abs() ?? 0) +
             (a.isMilestone ? 0.5 : 0) +
@@ -440,6 +521,33 @@ class StoryNotifier extends StateNotifier<StoryState> {
         return sa >= sb ? a : b;
       });
 
+      // Use first line of content as title (up to first newline or 60 chars)
+      final highlightRaw = highlight.polishedContent ?? highlight.content;
+      final firstLine = highlightRaw.split('\n').first.trim();
+      final highlightTitle = firstLine.length > 60
+          ? '${firstLine.substring(0, 57)}...'
+          : firstLine;
+
+      // ── Narrative — use server summary when available; else local join ────
+      final narrative = serverSummary?.summary ??
+          entries
+              .map((e) => (e.polishedContent ?? e.content).trim())
+              .where((t) => t.isNotEmpty)
+              .join('\n\n');
+
+      // ── Quote — first sentence of highest-sentiment entry ─────────────────
+      final bestEntry = entries.reduce((a, b) =>
+          (a.sentimentScore ?? 0) >= (b.sentimentScore ?? 0) ? a : b);
+      final bestText = (bestEntry.polishedContent ?? bestEntry.content).trim();
+      final sentenceEnd = RegExp(r'[.!?]');
+      final match = sentenceEnd.firstMatch(bestText);
+      final quoteText = match != null && match.end <= 120
+          ? bestText.substring(0, match.end)
+          : bestText.length > 100
+              ? '${bestText.substring(0, 97)}…'
+              : bestText;
+      final quote = '"$quoteText"';
+
       state = state.copyWith(progress: 0.8);
 
       final story = LifeStory(
@@ -449,21 +557,14 @@ class StoryNotifier extends StateNotifier<StoryState> {
         totalEntries: entries.length,
         voiceEntries: entries.where((e) => e.hasVoice).length,
         textEntries: entries.where((e) => !e.hasVoice).length,
-        narrative: entries
-            .map((e) => e.polishedContent ?? e.content)
-            .where((t) => t.isNotEmpty)
-            .join(' '),
-        highlightTitle: highlight.content.length > 60
-            ? '${highlight.content.substring(0, 57)}...'
-            : highlight.content,
+        narrative: narrative,
+        highlightTitle: highlightTitle,
         highlightDate: highlight.entryDate,
         topMood: topMood,
         topTheme: topTheme,
-        mostActiveTime: 'Evening',
-        writingStreak: entries.length,
-        quote: entries.last.content.length > 80
-            ? '"${entries.last.content.substring(0, 77)}…"'
-            : '"${entries.last.content}"',
+        mostActiveTime: mostActiveTime,
+        writingStreak: maxStreak,
+        quote: quote,
         entries: entries,
       );
 
@@ -480,10 +581,6 @@ class StoryNotifier extends StateNotifier<StoryState> {
     }
   }
 }
-
-final storyProvider = StateNotifierProvider<StoryNotifier, StoryState>((ref) {
-  return StoryNotifier(ref);
-});
 
 final storyFamilyProvider = StateNotifierProvider.family<StoryNotifier, StoryState, ReflectionPeriod>(
   (ref, period) => StoryNotifier(ref, period: period),

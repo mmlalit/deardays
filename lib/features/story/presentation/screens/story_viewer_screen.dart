@@ -24,19 +24,32 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
 }
 
 class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
+  late ReflectionPeriod _period;
+
   @override
   void initState() {
     super.initState();
-    final s = ref.read(storyFamilyProvider(widget.period));
+    _period = widget.period;
+    _triggerIfNeeded(_period);
+  }
+
+  void _triggerIfNeeded(ReflectionPeriod p) {
+    final s = ref.read(storyFamilyProvider(p));
     if (s.status == StoryStatus.ready || s.status == StoryStatus.error) {
       Future.microtask(
-          () => ref.read(storyFamilyProvider(widget.period).notifier).generateStory());
+          () => ref.read(storyFamilyProvider(p).notifier).generateStory());
     }
+  }
+
+  void _selectPeriod(ReflectionPeriod p) {
+    if (p == _period) return;
+    setState(() => _period = p);
+    _triggerIfNeeded(p);
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(storyFamilyProvider(widget.period));
+    final state = ref.watch(storyFamilyProvider(_period));
     final colors = AppColors.of(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -81,7 +94,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                   ),
                   const SizedBox(height: 22),
                   Text(
-                    'Crafting your story…',
+                    'Preparing your story…',
                     style: GoogleFonts.newsreader(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -90,7 +103,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Reading your memories',
+                    'Gathering your memories',
                     style: GoogleFonts.manrope(
                         fontSize: 13, color: colors.textMuted),
                   ),
@@ -138,7 +151,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                   const SizedBox(height: 20),
                   TextButton(
                     onPressed: () => ref
-                        .read(storyFamilyProvider(widget.period).notifier)
+                        .read(storyFamilyProvider(_period).notifier)
                         .generateStory(),
                     child: Text(
                       'Try again',
@@ -226,11 +239,11 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                       _buildHighlight(story, colors),
                       const SizedBox(height: 28),
                       _buildInsights(story, colors),
-                      if (widget.period == ReflectionPeriod.monthly) ...[
+                      if (_period == ReflectionPeriod.monthly) ...[
                         const SizedBox(height: 28),
                         _buildWeekBars(story, colors),
                       ],
-                      if (widget.period == ReflectionPeriod.yearly) ...[
+                      if (_period == ReflectionPeriod.yearly) ...[
                         const SizedBox(height: 28),
                         _buildMonthChart(story, colors),
                       ],
@@ -240,8 +253,6 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                       ],
                       const SizedBox(height: 36),
                       _buildQuote(story, colors),
-                      const SizedBox(height: 28),
-                      _buildShareButton(colors),
                     ],
                   ),
                 ),
@@ -256,28 +267,86 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
   // ── Top bar ──────────────────────────────────────────────────────────────────
 
   Widget _topBar(AppPalette colors, {LifeStory? story}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => context.pop(),
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 18, color: colors.textPrimary),
+    final dateRange = story != null
+        ? '${DateFormat('MMM d').format(story.startDate)} – ${DateFormat('MMM d, yyyy').format(story.endDate)}'
+        : null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => context.pop(),
+                icon: Icon(Icons.arrow_back_ios_new_rounded,
+                    size: 18, color: colors.textPrimary),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Your Highlights',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    if (dateRange != null)
+                      Text(
+                        dateRange,
+                        style: GoogleFonts.manrope(
+                          fontSize: 11,
+                          color: colors.textMuted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
-          if (story != null)
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Share coming soon!')),
-                );
-              },
-              child: Icon(Icons.ios_share_rounded,
-                  size: 20, color: colors.textSecondary),
-            ),
-        ],
+        ),
+        // Period switcher tabs
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Row(
+            children: [
+              _periodTab('Week',  ReflectionPeriod.weekly,  colors),
+              const SizedBox(width: 8),
+              _periodTab('Month', ReflectionPeriod.monthly, colors),
+              const SizedBox(width: 8),
+              _periodTab('Year',  ReflectionPeriod.yearly,  colors),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _periodTab(String label, ReflectionPeriod p, AppPalette colors) {
+    final selected = _period == p;
+    return GestureDetector(
+      onTap: () => _selectPeriod(p),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.cardBg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : colors.textSecondary,
+          ),
+        ),
       ),
     );
   }
@@ -287,7 +356,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
   Widget _buildHero(LifeStory story, AppPalette colors) {
     final dateRange =
         '${DateFormat('MMM d').format(story.startDate)} – ${DateFormat('MMM d, yyyy').format(story.endDate)}';
-    final title = switch (widget.period) {
+    final title = switch (_period) {
       ReflectionPeriod.weekly  => 'Your Week',
       ReflectionPeriod.monthly => 'Your Month',
       ReflectionPeriod.yearly  => 'Your Year',
@@ -693,7 +762,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         _eyebrow('MEMORIES', colors),
         const SizedBox(height: 10),
         SizedBox(
-          height: 116,
+          height: 132,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.zero,
@@ -702,7 +771,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
             itemBuilder: (ctx, i) => _MemoryChip(
               entry: chips[i],
               allEntries: story.entries,
-              period: widget.period,
+              period: _period,
               colors: colors,
             ),
           ),
@@ -713,7 +782,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
 
   List<JournalEntry> _filmstripEntries(LifeStory story) {
     final entries = story.entries;
-    return switch (widget.period) {
+    return switch (_period) {
       ReflectionPeriod.weekly  => entries,
       ReflectionPeriod.monthly => (List.of(entries)
             ..sort((a, b) =>
@@ -761,38 +830,6 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ── Share button ──────────────────────────────────────────────────────────────
-
-  Widget _buildShareButton(AppPalette colors) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          HapticFeedback.mediumImpact();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Share coming soon!')),
-          );
-        },
-        icon: const Icon(Icons.ios_share_rounded, size: 18, color: Colors.white),
-        label: Text(
-          'Share Your Story',
-          style: GoogleFonts.manrope(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.white),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colors.accent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
@@ -859,7 +896,7 @@ class _MemoryChip extends ConsumerWidget {
                 entry: entry, allEntries: allEntries, initialIndex: idx));
       },
       child: Container(
-        width: 96,
+        width: 108,
         decoration: BoxDecoration(
           color: colors.cardBg,
           borderRadius: BorderRadius.circular(12),
