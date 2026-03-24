@@ -33,12 +33,12 @@ void main() {
       expect(hasGreeting, isTrue);
     });
 
-    testWidgets('shows WRITE action button in capture grid', (tester) async {
+    testWidgets('shows Write action button in capture grid', (tester) async {
       await tester.pumpWidget(buildApp(overrides: authenticatedOverrides()));
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Capture grid labels are UPPERCASE: SPEAK IT / SNAP IT / WRITE / CHAT
-      expect(find.text('WRITE'), findsOneWidget);
+      // Capture grid buttons: 'Speak it', 'Write', 'Check In'
+      expect(find.text('Write'), findsOneWidget);
     });
 
     testWidgets('shows user first name from profile', (tester) async {

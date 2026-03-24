@@ -1856,15 +1856,15 @@ class _TimelineCardPhotoState extends ConsumerState<_TimelineCardPhoto> {
           return Container(
             height: 140,
             width: double.infinity,
-            color: colors.accentFaint,
-            child: Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.textMuted,
-                ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colors.accentFaint,
+                  colors.accentFaint.withAlpha(50),
+                  colors.accentFaint,
+                ],
               ),
             ),
           );
@@ -1873,7 +1873,7 @@ class _TimelineCardPhotoState extends ConsumerState<_TimelineCardPhoto> {
           return Container(
             height: 100,
             color: colors.accentFaint,
-            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted),
+            child: Icon(Icons.image_outlined, size: 32, color: colors.textMuted.withAlpha(120)),
           );
         }
         return CachedNetworkImage(
