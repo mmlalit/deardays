@@ -1,4 +1,6 @@
 
+import 'dart:ui';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -551,23 +553,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildMoodSummary(List<JournalEntry> entries, AppPalette colors) {
-    final cutoff = DateTime.now().subtract(const Duration(days: 7));
-    final recent = entries.where((e) => !e.entryDate.isBefore(cutoff)).toList();
+    // Build last-7-days array (index 0 = 6 days ago, index 6 = today)
+    final today = DateTime.now();
+    final days = List.generate(7, (i) {
+      final d = today.subtract(Duration(days: 6 - i));
+      return DateTime(d.year, d.month, d.day);
+    });
 
-    final counts = <String, int>{
-      'great': 0, 'good': 0, 'okay': 0, 'low': 0, 'tough': 0,
-    };
-    for (final e in recent) {
-      if (e.mood != null && counts.containsKey(e.mood)) {
-        counts[e.mood!] = counts[e.mood!]! + 1;
-      }
-    }
-    final maxCount = counts.values.fold(0, (a, b) => a > b ? a : b);
-    final hasData = maxCount > 0;
-
-    const moodEmojis = {
-      'great': '🤩', 'good': '😊', 'okay': '😐', 'low': '😔', 'tough': '😢',
-    };
+    const moodScore = {'great': 4, 'good': 3, 'okay': 2, 'low': 1, 'tough': 0};
     const moodColors = {
       'great': Color(0xFF10B981),
       'good':  Color(0xFF34D399),
@@ -575,122 +568,106 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       'low':   Color(0xFFF97316),
       'tough': Color(0xFFEF4444),
     };
+    const moodEmojis = {
+      'great': '🤩', 'good': '😊', 'okay': '😐', 'low': '😔', 'tough': '😢',
+    };
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-    final dominant = hasData
-        ? counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key
-        : null;
+    // Find dominant entry per day
+    final dayEntry = <int, JournalEntry>{};
+    for (final e in entries) {
+      final ed = DateTime(e.entryDate.year, e.entryDate.month, e.entryDate.day);
+      for (int i = 0; i < days.length; i++) {
+        if (ed == days[i]) {
+          final prev = dayEntry[i];
+          final curScore = moodScore[e.mood?.toLowerCase()] ?? -1;
+          final prevScore = moodScore[prev?.mood?.toLowerCase()] ?? -1;
+          if (curScore > prevScore) dayEntry[i] = e;
+        }
+      }
+    }
+
+    // Dominant mood overall
+    final allRecent = entries
+        .where((e) => !e.entryDate.isBefore(today.subtract(const Duration(days: 6))))
+        .toList();
+    final counts = <String, int>{};
+    for (final e in allRecent) {
+      if (e.mood != null) counts[e.mood!] = (counts[e.mood!] ?? 0) + 1;
+    }
+    final dominant = counts.isEmpty
+        ? null
+        : counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'How you\'ve been feeling',
-                  style: GoogleFonts.newsreader(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                  ),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'THIS WEEK\'S MOOD',
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: colors.textMuted,
+                  letterSpacing: 2.0,
                 ),
-                const Spacer(),
-                if (dominant != null)
-                  Text(
-                    '${moodEmojis[dominant]} Mostly',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: moodColors[dominant],
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (!hasData)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'Start journaling to see your mood patterns here.',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    color: colors.textMuted,
-                    height: 1.5,
-                  ),
-                ),
-              )
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: counts.entries.map((entry) {
-                  final count = entry.value;
-                  final barHeight = count > 0
-                      ? (count / maxCount * 48).clamp(4.0, 48.0)
-                      : 4.0;
-                  final color = moodColors[entry.key]!;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: count > 0
-                          ? () {
-                              HapticFeedback.selectionClick();
-                              context.push('/explore/mood/${entry.key}');
-                            }
-                          : null,
-                      child: Column(
-                        children: [
-                          // Count above bar — hidden when 0
-                          SizedBox(
-                            height: 16,
-                            child: count > 0
-                                ? Text(
-                                    '$count',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: color,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(height: 2),
-                          Container(
-                            height: 48,
-                            alignment: Alignment.bottomCenter,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 400),
-                              curve: Curves.easeOut,
-                              height: barHeight,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              decoration: BoxDecoration(
-                                color: count > 0
-                                    ? color.withAlpha(200)
-                                    : colors.highlightFaint,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            moodEmojis[entry.key]!,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
               ),
-          ],
-        ),
+              const Spacer(),
+              if (dominant != null)
+                Text(
+                  '${moodEmojis[dominant] ?? ''} mostly $dominant',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    fontStyle: FontStyle.italic,
+                    color: moodColors[dominant] ?? colors.textMuted,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (i) {
+              final entry = dayEntry[i];
+              final mood = entry?.mood?.toLowerCase();
+              final dotColor = mood != null
+                  ? (moodColors[mood] ?? colors.accent)
+                  : colors.highlightFaint;
+              final isToday = i == 6;
+              final dotSize = isToday ? 12.0 : 10.0;
+
+              return Column(
+                children: [
+                  Container(
+                    width: dotSize,
+                    height: dotSize,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                      border: isToday
+                          ? Border.all(color: colors.accent.withAlpha(120), width: 1.5)
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    dayLabels[i],
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: isToday ? colors.accent : colors.textMuted,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -712,7 +689,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final onThisDayEntries = ref.watch(onThisDayProvider).valueOrNull ?? [];
 
     return ListView(
-      padding: const EdgeInsets.only(bottom: 100),
+      padding: const EdgeInsets.only(bottom: 120),
       children: [
         // ── On This Day ──
         if (onThisDayEntries.isNotEmpty)
@@ -762,10 +739,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: recent.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _buildCompactEntryCard(recent[i], colors),
+            separatorBuilder: (_, __) => const SizedBox(height: 36),
+            itemBuilder: (_, i) => _buildEditorialEntryCard(recent[i], colors),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 40),
         ],
 
         // ── Shared with me + Pending approvals (social/actionable) ──
@@ -800,7 +777,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               itemBuilder: (_, i) => _buildHappyCard(familyEntries[i], colors),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 40),
         ],
 
         // ── Travel Stories ──
@@ -828,7 +805,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               itemBuilder: (_, i) => _buildHappyCard(travelEntries[i], colors),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 40),
         ],
 
         // ── Milestones ──
@@ -853,8 +830,41 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               itemBuilder: (_, i) => _buildHappyCard(milestoneEntries[i], colors),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 40),
         ],
+
+        // End-of-feed accent
+        Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 32),
+          child: Column(
+            children: [
+              Center(
+                child: Container(
+                  width: 1,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [colors.accent.withAlpha(120), Colors.transparent],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  'More memories await discovery',
+                  style: GoogleFonts.newsreader(
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    color: colors.textMuted.withAlpha(120),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
 
       ],
     );
@@ -902,7 +912,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           child: _buildSectionHeader('Your Highlights', colors),
         ),
         SizedBox(
-          height: 200,
+          height: 220,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -939,7 +949,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 40),
       ],
     );
   }
@@ -1009,7 +1019,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
           ),
         ],
-        const SizedBox(height: 28),
+        const SizedBox(height: 40),
       ],
     );
   }
@@ -1019,6 +1029,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final hasMedia = entry.media.any((m) => m.mediaType == 'photo');
     final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate);
     final title = _entryTitle(entry);
+    final excerpt = entry.content.length > 120
+        ? '${entry.content.substring(0, 120)}...'
+        : entry.content;
 
     return GestureDetector(
       onTap: () {
@@ -1033,129 +1046,113 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         );
       },
       child: Container(
-        height: 240,
+        height: 220,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: colors.card,
+          color: colors.textPrimary,
           boxShadow: [
             BoxShadow(
-              color: colors.textPrimary.withAlpha(14),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
+              color: Colors.black.withAlpha(30),
+              blurRadius: 40,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
-          fit: StackFit.expand,
           children: [
-            // Background
-            if (hasMedia)
-              _buildEntryPhoto(entry, colors)
-            else
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: _moodGradient(entry.mood),
+            Row(
+              children: [
+                // Photo — left half
+                Expanded(
+                  child: hasMedia
+                      ? _buildEntryPhoto(entry, colors)
+                      : Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: _moodGradient(entry.mood),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _moodEmoji(entry.mood),
+                              style: const TextStyle(fontSize: 48),
+                            ),
+                          ),
+                        ),
+                ),
+                // Content — right half
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'FEATURED MEMORY',
+                          style: GoogleFonts.manrope(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white.withAlpha(140),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          title,
+                          style: GoogleFonts.newsreader(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.25,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          excerpt,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            color: Colors.white.withAlpha(160),
+                            height: 1.5,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Spacer(),
+                        Text(
+                          dateStr,
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withAlpha(120),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-
-            // Bottom scrim
-            Positioned.fill(
-              child: DecoratedBox(
+              ],
+            ),
+            // Book spine detail on left edge
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 3,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withAlpha(210),
-                    ],
-                    stops: const [0.35, 1.0],
+                    colors: [Colors.white.withAlpha(40), Colors.black.withAlpha(60)],
                   ),
                 ),
-              ),
-            ),
-
-            // FEATURED badge (top-left)
-            Positioned(
-              top: 14,
-              left: 14,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(230),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.auto_awesome_rounded,
-                        size: 11, color: Color(0xFFF59E0B)),
-                    const SizedBox(width: 4),
-                    Text(
-                      'FEATURED',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E293B),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Mood emoji (top-right)
-            Positioned(
-              top: 14,
-              right: 14,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(220),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _moodEmoji(entry.mood),
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-
-            // Title + date (bottom)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.newsreader(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dateStr,
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      color: Colors.white.withAlpha(200),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
@@ -1196,13 +1193,15 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
   Widget _buildSectionHeader(String title, AppPalette colors, {VoidCallback? onSeeAll}) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          title,
-          style: GoogleFonts.newsreader(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: colors.textPrimary,
+          title.toUpperCase(),
+          style: GoogleFonts.manrope(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: colors.textMuted,
+            letterSpacing: 2.0,
           ),
         ),
         const Spacer(),
@@ -1212,20 +1211,20 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               HapticFeedback.selectionClick();
               onSeeAll();
             },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'See all',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.accent,
-                  ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: colors.accent.withAlpha(18),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'See all →',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: colors.accent,
                 ),
-                const SizedBox(width: 2),
-                Icon(Icons.chevron_right_rounded, size: 18, color: colors.accent),
-              ],
+              ),
             ),
           ),
       ],
@@ -1251,12 +1250,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: colors.cardBg,
-          border: Border.all(color: colors.border.withAlpha(80)),
           boxShadow: [
             BoxShadow(
-              color: colors.textPrimary.withAlpha(8),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withAlpha(13),
+              blurRadius: 40,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -1351,11 +1349,328 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // Compact entry card (used in see-all and filter results)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildCompactEntryCard(JournalEntry entry, AppPalette colors) {
-    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate);
+  // ─────────────────────────────────────────────────────────────────────────
+  // Editorial entry cards — used in overview Recent Memories feed
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildEditorialEntryCard(JournalEntry entry, AppPalette colors) {
+    final hasAudio = entry.media.any((m) => m.mediaType == 'audio');
+    final hasPhoto = entry.media.any((m) => m.mediaType == 'photo');
+    if (hasAudio && !hasPhoto) return _buildAudioEntryCard(entry, colors);
+    if (hasPhoto) return _buildPhotoEditorialCard(entry, colors);
+    return _buildTextEditorialCard(entry, colors);
+  }
+
+  Widget _buildPhotoEditorialCard(JournalEntry entry, AppPalette colors) {
+    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate).toUpperCase();
+    final title = _entryTitle(entry);
+    final excerpt = entry.content.length > 160
+        ? '${entry.content.substring(0, 160)}...'
+        : entry.content;
+    final hasAudio = entry.media.any((m) => m.mediaType == 'audio');
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.push('/memory', extra: entry);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Full-bleed photo — 4:3 aspect
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildEntryPhoto(entry, colors),
+                  // Subtle bottom scrim
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black.withAlpha(60)],
+                          stops: const [0.65, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Frosted glass source badge
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(200),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                hasAudio ? Icons.mic_rounded : Icons.photo_camera_rounded,
+                                size: 11,
+                                color: const Color(0xFF1C1917),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                hasAudio ? 'AUDIO' : 'PHOTO',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1C1917),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Date with divider line
+          Row(
+            children: [
+              Container(height: 1, width: 28, color: colors.accent.withAlpha(80)),
+              const SizedBox(width: 8),
+              Text(
+                dateStr,
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textMuted,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: GoogleFonts.newsreader(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.25,
+            ),
+          ),
+          if (excerpt.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              decoration: BoxDecoration(
+                color: colors.highlightFaint,
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
+                  bottomLeft: Radius.circular(8),
+                ),
+                border: Border(left: BorderSide(color: colors.accent, width: 3)),
+              ),
+              child: Text(
+                '"$excerpt"',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.newsreader(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: colors.textSecondary,
+                  height: 1.6,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextEditorialCard(JournalEntry entry, AppPalette colors) {
+    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate).toUpperCase();
+    final title = _entryTitle(entry);
+    final excerpt = entry.content.length > 180
+        ? '${entry.content.substring(0, 180)}...'
+        : entry.content;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.push('/memory', extra: entry);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(height: 1, width: 28, color: colors.accent.withAlpha(80)),
+              const SizedBox(width: 8),
+              Text(
+                dateStr,
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textMuted,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: GoogleFonts.newsreader(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.25,
+            ),
+          ),
+          if (excerpt.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              excerpt,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                color: colors.textSecondary,
+                height: 1.65,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAudioEntryCard(JournalEntry entry, AppPalette colors) {
+    final dateStr = DateFormat('EEE • h:mm a').format(entry.entryDate).toUpperCase();
     final title = _entryTitle(entry);
     final excerpt = entry.content.length > 120
         ? '${entry.content.substring(0, 120)}...'
+        : entry.content;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.push('/memory', extra: entry);
+      },
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Waveform panel
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: colors.highlightFaint,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(Icons.graphic_eq_rounded, size: 48, color: colors.accent.withAlpha(60)),
+                Positioned(
+                  bottom: 12,
+                  left: 10,
+                  right: 10,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: 0.65,
+                      backgroundColor: colors.border,
+                      valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+                      minHeight: 2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.mic_rounded, size: 11, color: colors.accent),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        dateStr,
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: colors.textMuted,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  title,
+                  style: GoogleFonts.newsreader(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  excerpt,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    color: colors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Listen to reflection',
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: colors.accent,
+                    decoration: TextDecoration.underline,
+                    decorationColor: colors.accent.withAlpha(100),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactEntryCard(JournalEntry entry, AppPalette colors) {
+    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate).toUpperCase();
+    final title = _entryTitle(entry);
+    final excerpt = entry.content.length > 160
+        ? '${entry.content.substring(0, 160)}...'
         : entry.content;
     final hasPhoto = entry.media.any((m) => m.mediaType == 'photo');
 
@@ -1368,14 +1683,19 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: colors.cardBg,
-          border: Border.all(color: colors.border.withAlpha(80)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(13),
+              blurRadius: 40,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Photo thumbnail (or mood-colored placeholder)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: SizedBox(
@@ -1400,35 +1720,23 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Text content
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          _moodEmoji(entry.mood),
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.newsreader(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
-                              height: 1.3,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                        height: 1.3,
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
                       excerpt,
                       maxLines: 2,
