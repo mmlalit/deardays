@@ -28,10 +28,13 @@
 
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/journal/presentation/screens/home_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/photo_entry_screen.dart';
 import 'package:deardays/features/timeline/presentation/screens/timeline_screen.dart';
 import 'package:deardays/features/book/presentation/screens/library_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/login_screen.dart';
@@ -853,6 +856,26 @@ void main() {
       await expectLater(
         find.byType(PostSaveScreen),
         matchesGoldenFile('goldens/post_save_screen_with_chapters.png'),
+      );
+    });
+  });
+
+  // ── Photo Entry Screen ──────────────────────────────────────────────────────
+
+  group('Golden — PhotoEntryScreen', () {
+    testWidgets('light theme — default text mode', (tester) async {
+      _setView(tester, _goldenSize);
+      // Non-existent path → broken-image fallback renders (no network needed)
+      final fakePath =
+          '${Directory.systemTemp.path}${Platform.pathSeparator}golden_test_photo.jpg';
+      await tester.pumpWidget(_app(PhotoEntryScreen(photoPath: fakePath)));
+      // autofocused TextField — use pump() not pumpAndSettle()
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(PhotoEntryScreen),
+        matchesGoldenFile('goldens/photo_entry_screen_light.png'),
       );
     });
   });
