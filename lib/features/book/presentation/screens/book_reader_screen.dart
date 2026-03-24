@@ -499,6 +499,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: bgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -511,18 +512,30 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: labelColor.withAlpha(80),
-                      borderRadius: BorderRadius.circular(2),
+                // Handle + close
+                Row(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: labelColor.withAlpha(80),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    IconButton(
+                      icon: Icon(Icons.close, size: 20, color: labelColor.withAlpha(160)),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
 
                 // Reading theme
                 Text(
@@ -989,22 +1002,40 @@ class _CoverPageState extends ConsumerState<_CoverPage> {
   void _showEditSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: const Color(0xFF1C1C1E),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => SafeArea(
+      builder: (sheetCtx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 36, height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(60),
-                  borderRadius: BorderRadius.circular(2),
+              // Handle + close row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 8, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          width: 36, height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(60),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20, color: Colors.white54),
+                      onPressed: () => Navigator.pop(sheetCtx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
                 ),
               ),
               ListTile(
@@ -1845,11 +1876,12 @@ class _MemoryPhoto extends ConsumerWidget {
           child: FutureBuilder<String>(
             future: mediaService.getSignedUrl(photoMedia.first.storagePath),
             builder: (context, snapshot) {
+              final alignment = photoMedia.first.focalAlignment;
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 // Try local file path
                 final path = photoMedia.first.storagePath;
                 if (path.startsWith('/') || path.contains(':\\')) {
-                  return Image.file(File(path), fit: BoxFit.cover);
+                  return Image.file(File(path), fit: BoxFit.cover, alignment: alignment);
                 }
                 return Container(
                   color: AppColors.readingText.withAlpha(15),
@@ -1860,6 +1892,7 @@ class _MemoryPhoto extends ConsumerWidget {
               return CachedNetworkImage(
                 imageUrl: snapshot.data!,
                 fit: BoxFit.cover,
+                alignment: alignment,
                 placeholder: (_, __) =>
                     Container(color: AppColors.readingText.withAlpha(15)),
                 errorWidget: (_, __, ___) =>
@@ -2104,10 +2137,12 @@ class _WeekOpenerPage extends ConsumerWidget {
 class _BookPhotoCell extends ConsumerWidget {
   final String storagePath;
   final BorderRadius borderRadius;
+  final Alignment focalAlignment;
 
   const _BookPhotoCell({
     required this.storagePath,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+    this.focalAlignment = Alignment.center,
   });
 
   @override
@@ -2122,7 +2157,7 @@ class _BookPhotoCell extends ConsumerWidget {
             return ClipRRect(
               borderRadius: borderRadius,
               child: SizedBox.expand(
-                child: Image.file(File(storagePath), fit: BoxFit.cover),
+                child: Image.file(File(storagePath), fit: BoxFit.cover, alignment: focalAlignment),
               ),
             );
           }
@@ -2141,6 +2176,7 @@ class _BookPhotoCell extends ConsumerWidget {
             child: CachedNetworkImage(
               imageUrl: snap.data!,
               fit: BoxFit.cover,
+              alignment: focalAlignment,
               placeholder: (_, __) =>
                   Container(color: Colors.white.withAlpha(10)),
               errorWidget: (_, __, ___) =>

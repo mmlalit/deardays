@@ -68,6 +68,10 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
   String? _existingPhotoUrl;
   bool _removePhoto = false;
 
+  /// Focal alignment for drag-to-reframe; resets to center on photo change.
+  Alignment _focalAlignment = Alignment.center;
+  bool _showDragHint = true;
+
   // ── save state ────────────────────────────────────────────────────────────
   bool _isSaving = false;
 
@@ -192,6 +196,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
           await _mediaService.uploadPhoto(
             entryId: saved.id,
             filePath: _newPhotoPath!,
+            focalAlignment: _focalAlignment,
           );
           // Remove all existing photo media for this entry after the new one is uploaded.
           // This prevents two photos showing side-by-side on memory cards.
@@ -357,7 +362,12 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
       final picked = await _imagePicker.pickImage(
           source: ImageSource.gallery, maxWidth: 1920, imageQuality: 75);
       if (picked != null && mounted) {
-        setState(() { _newPhotoPath = picked.path; _removePhoto = false; });
+        setState(() {
+          _newPhotoPath = picked.path;
+          _removePhoto = false;
+          _focalAlignment = Alignment.center;
+          _showDragHint = true;
+        });
       }
     } catch (e) { debugPrint("[EditMemory] Error: $e"); }
   }
@@ -381,7 +391,12 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
       final picked = await _imagePicker.pickImage(
           source: ImageSource.camera, maxWidth: 1920, imageQuality: 75);
       if (picked != null && mounted) {
-        setState(() { _newPhotoPath = picked.path; _removePhoto = false; });
+        setState(() {
+          _newPhotoPath = picked.path;
+          _removePhoto = false;
+          _focalAlignment = Alignment.center;
+          _showDragHint = true;
+        });
       }
     } catch (e) { debugPrint("[EditMemory] Error: $e"); }
   }
@@ -800,22 +815,43 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
         (_existingPhotoUrl != null && !_removePhoto);
 
     return GestureDetector(
+      // Drag reframes the focal point; tap opens photo options
+      onPanUpdate: hasPhoto
+          ? (details) {
+              final box = context.findRenderObject() as RenderBox?;
+              if (box == null) return;
+              final size = box.size;
+              final dx = -details.delta.dx / size.width * 2.5;
+              final dy = -details.delta.dy / size.height * 2.5;
+              setState(() {
+                _focalAlignment = Alignment(
+                  (_focalAlignment.x + dx).clamp(-1.0, 1.0),
+                  (_focalAlignment.y + dy).clamp(-1.0, 1.0),
+                );
+                _showDragHint = false;
+              });
+            }
+          : null,
       onTap: _showPhotoOptions,
       child: SizedBox(
-        height: 220,
+        height: 260,
         width: double.infinity,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Background
+            // Background photo or placeholder
             if (_newPhotoPath != null)
-              Image.file(File(_newPhotoPath!),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _photoBg(colors))
+              Image.file(
+                File(_newPhotoPath!),
+                fit: BoxFit.cover,
+                alignment: _focalAlignment,
+                errorBuilder: (_, __, ___) => _photoBg(colors),
+              )
             else if (_existingPhotoUrl != null && !_removePhoto)
               CachedNetworkImage(
                 imageUrl: _existingPhotoUrl!,
                 fit: BoxFit.cover,
+                alignment: _focalAlignment,
                 placeholder: (_, __) => _photoBg(colors),
                 errorWidget: (_, __, ___) => _photoBg(colors),
               )
@@ -829,20 +865,57 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withAlpha(120)],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withAlpha(120),
+                    ],
                     stops: const [0.5, 1.0],
                   ),
                 ),
               ),
             ),
 
-            // Edit badge
+            // Drag-to-reframe hint
+            if (hasPhoto && _showDragHint)
+              Positioned(
+                bottom: 44,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(110),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.open_with_rounded,
+                            size: 12, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Drag to reframe',
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Change/Add photo badge (bottom-right)
             Positioned(
               bottom: 12,
               right: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.black.withAlpha(120),
                   borderRadius: BorderRadius.circular(20),
@@ -861,9 +934,10 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
                     Text(
                       hasPhoto ? 'Change photo' : 'Add photo',
                       style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),

@@ -36,6 +36,7 @@ CREATE INDEX IF NOT EXISTS story_summaries_user_period_idx
 -- Auto-updated_at trigger
 -- ============================================================
 
+DROP TRIGGER IF EXISTS story_summaries_updated_at ON public.story_summaries;
 CREATE TRIGGER story_summaries_updated_at
   BEFORE UPDATE ON public.story_summaries
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -47,9 +48,20 @@ CREATE TRIGGER story_summaries_updated_at
 ALTER TABLE public.story_summaries ENABLE ROW LEVEL SECURITY;
 
 -- Users can only read their own summaries
-CREATE POLICY "Users can read own story summaries"
-  ON public.story_summaries FOR SELECT
-  USING (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'story_summaries'
+      AND policyname = 'Users can read own story summaries'
+  ) THEN
+    CREATE POLICY "Users can read own story summaries"
+      ON public.story_summaries FOR SELECT
+      USING (auth.uid() = user_id);
+  END IF;
+END;
+$$;
 
 -- Background service_role jobs write summaries (bypasses RLS)
 -- No INSERT/UPDATE policy needed for authenticated users.

@@ -236,6 +236,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       isVoice: widget.data.isVoice,
       audioPath: widget.data.audioPath,
       attachedPhotoPath: widget.data.attachedPhotoPath,
+      focalAlignment: widget.data.focalAlignment,
       polishWithAI: true,
       mood: _localResult?.mood,
     ));

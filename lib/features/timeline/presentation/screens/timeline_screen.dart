@@ -29,6 +29,7 @@ void showMemoryContextMenu(
 
   showModalBottomSheet(
     context: context,
+    useRootNavigator: true,
     backgroundColor: colors.card,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -50,36 +51,49 @@ void showMemoryContextMenu(
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Header: title + date
+            // Header: title + date + close
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.newsreader(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.newsreader(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          dateStr,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    dateStr,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      color: colors.textMuted,
-                    ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: colors.textMuted),
+                    onPressed: () => Navigator.pop(sheetCtx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Divider(color: colors.border, height: 1),
 
             // Options
@@ -119,31 +133,7 @@ void showMemoryContextMenu(
               },
             ),
 
-            // Cancel button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: GestureDetector(
-                onTap: () => Navigator.pop(sheetCtx),
-                child: Container(
-                  width: double.infinity,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Cancel',
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(height: 8),
           ],
         ),
       );

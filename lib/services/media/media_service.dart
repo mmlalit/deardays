@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Alignment;
 
 import 'package:deardays/core/config/cdn_config.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
@@ -38,10 +39,13 @@ class MediaService {
 
   /// Uploads a photo file and creates an entry_media record.
   /// Also generates and uploads a thumbnail for timeline/gallery use.
+  /// [focalAlignment] is persisted to [EntryMedia.encryptedMetadata] as JSON
+  /// so it can be applied when displaying the photo on detail/book screens.
   /// Returns the created [EntryMedia].
   Future<EntryMedia> uploadPhoto({
     required String entryId,
     required String filePath,
+    Alignment focalAlignment = Alignment.center,
   }) async {
     final file = File(filePath);
     final fileSize = await file.length();
@@ -102,6 +106,7 @@ class MediaService {
       userId: _userId,
       mediaType: 'photo',
       storagePath: storagePath,
+      encryptedMetadata: EntryMedia.encodeFocalAlignment(focalAlignment),
       sortOrder: 0,
       createdAt: now,
     );

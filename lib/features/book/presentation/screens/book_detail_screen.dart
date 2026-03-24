@@ -230,6 +230,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   void _showModeSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -248,16 +249,28 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Reading Mode',
-                style: GoogleFonts.newsreader(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: _inkDark,
-                ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Reading Mode',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: _inkDark,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: _inkLight),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               _modeTile(ctx, BookViewMode.byYear, Icons.calendar_today_rounded,
                   'Memoir', 'Chronological — by year and month'),
               _modeTile(ctx, BookViewMode.byChapter, Icons.folder_outlined,

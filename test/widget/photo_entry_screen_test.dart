@@ -106,6 +106,57 @@ void main() {
     });
   });
 
+  // ── Voice Mode UI ──────────────────────────────────────────────────────────
+
+  group('PhotoEntryScreen — Voice Mode UI', () {
+    testWidgets('shows mic icon button in default state', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(_settle);
+
+      expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
+    });
+
+    testWidgets('mic button has voice_toggle_button key', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(_settle);
+
+      expect(find.byKey(const Key('voice_toggle_button')), findsOneWidget);
+    });
+
+    testWidgets('stop icon is not shown in default (non-recording) state',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(_settle);
+
+      expect(find.byIcon(Icons.stop_rounded), findsNothing);
+    });
+
+    testWidgets('voice badge is not shown in default state', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(_settle);
+
+      expect(find.text('Voice'), findsNothing);
+    });
+
+    testWidgets('recording indicator text not shown in default state',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(_settle);
+
+      expect(find.textContaining('Listening'), findsNothing);
+    });
+
+    testWidgets('Continue button label is "Continue →" in default state',
+        (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(_settle);
+
+      expect(find.text('Continue →'), findsOneWidget);
+    });
+  });
+
+  // ── Text Validation ────────────────────────────────────────────────────────
+
   group('PhotoEntryScreen — Text Validation', () {
     testWidgets('nudge has opacity 0 when text field is empty', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -204,6 +255,8 @@ void main() {
       expect(tester.widget<AnimatedOpacity>(nudgeFinder).opacity, 0.0);
     });
   });
+
+  // ── Layout ─────────────────────────────────────────────────────────────────
 
   group('PhotoEntryScreen — Layout', () {
     testWidgets('photo preview container is at least 100px tall', (tester) async {

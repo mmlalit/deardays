@@ -39,6 +39,7 @@ ALTER TABLE public.summary_queue ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS summary_queue_status_idx
   ON public.summary_queue (status, created_at);
 
+DROP TRIGGER IF EXISTS summary_queue_updated_at ON public.summary_queue;
 CREATE TRIGGER summary_queue_updated_at
   BEFORE UPDATE ON public.summary_queue
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

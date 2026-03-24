@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+
 class EntryMedia {
   final String id;
   final String entryId;
@@ -80,4 +83,22 @@ class EntryMedia {
 
   @override
   int get hashCode => id.hashCode;
+
+  /// Decoded focal alignment from [encryptedMetadata] JSON `{"focalX": x, "focalY": y}`.
+  /// Defaults to [Alignment.center] if unset or malformed.
+  Alignment get focalAlignment {
+    if (encryptedMetadata == null) return Alignment.center;
+    try {
+      final map = jsonDecode(encryptedMetadata!) as Map<String, dynamic>;
+      final x = (map['focalX'] as num?)?.toDouble() ?? 0.0;
+      final y = (map['focalY'] as num?)?.toDouble() ?? 0.0;
+      return Alignment(x, y);
+    } catch (_) {
+      return Alignment.center;
+    }
+  }
+
+  /// Encodes an [Alignment] to the JSON string stored in [encryptedMetadata].
+  static String encodeFocalAlignment(Alignment alignment) =>
+      jsonEncode({'focalX': alignment.x, 'focalY': alignment.y});
 }

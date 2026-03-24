@@ -488,6 +488,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     final styles = ['Memoir', 'Diary', 'Story'];
     final picked = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -503,12 +504,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Writing Style',
-              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(child: Text('Writing Style', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600))),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: AppColors.of(context).textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             ...styles.map((s) => ListTile(
                   leading: Icon(
                     s == 'Memoir'
@@ -567,6 +578,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     final picked = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -582,12 +594,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Organize Books By',
-              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(child: Text('Organize Books By', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600))),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: AppColors.of(context).textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             ...options.map((o) => ListTile(
                   leading: Icon(Icons.library_books_outlined, color: AppColors.of(context).accent),
                   title: Text(o['label']!, style: GoogleFonts.manrope(fontSize: 15)),
@@ -632,6 +654,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     final format = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: colors.bg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -655,14 +678,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Export Your Memories',
-                style: GoogleFonts.newsreader(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Export Your Memories',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: colors.textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -1557,6 +1593,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     final colors = AppColors.of(context);
     await showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: colors.bg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1574,10 +1611,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text('App Lock', style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-              const SizedBox(height: 4),
-              Text('Choose how to protect your journal', style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary)),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('App Lock', style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        const SizedBox(height: 4),
+                        Text('Choose how to protect your journal', style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: colors.textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               _lockOptionTile(ctx, icon: Icons.lock_open_outlined, label: 'No Lock',
                   desc: 'Journal opens without authentication',
@@ -1717,6 +1772,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     final picked = await showModalBottomSheet<AppLocale>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1732,12 +1789,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'App Language',
-              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(child: Text('App Language', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600))),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: AppColors.of(context).textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             ...AppLocale.values.map((locale) => ListTile(
                   leading: Icon(
                     locale == AppLocale.system
@@ -1812,6 +1879,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     final picked = await showModalBottomSheet<AppThemeColor>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1827,12 +1896,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Appearance',
-              style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(child: Text('Appearance', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600))),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: AppColors.of(context).textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             ...AppThemeColor.values.map((palette) => ListTile(
                   leading: Container(
                     width: 32,

@@ -1081,12 +1081,34 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => SafeArea(
+      builder: (sheetCtx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Handle + close
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 8, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          width: 36, height: 4,
+                          decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, size: 20, color: colors.textMuted),
+                      onPressed: () => Navigator.pop(sheetCtx),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
+                ),
+              ),
               ListTile(
                 leading: Icon(Icons.edit_outlined, color: colors.textPrimary),
                 title: Text('Rename Chapter', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
@@ -1184,8 +1206,18 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 20),
-              Text('Chapter Color', style: GoogleFonts.newsreader(fontSize: 20, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: Text('Chapter Color', style: GoogleFonts.newsreader(fontSize: 20, fontWeight: FontWeight.w700, color: colors.textPrimary))),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 20, color: colors.textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 10, runSpacing: 10,

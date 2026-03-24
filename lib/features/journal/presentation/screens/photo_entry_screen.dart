@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
@@ -20,7 +25,8 @@ class PhotoEntryScreen extends ConsumerStatefulWidget {
   ConsumerState<PhotoEntryScreen> createState() => _PhotoEntryScreenState();
 }
 
-class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
+class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
+    with TickerProviderStateMixin {
   late String _photoPath;
   Alignment _focalAlignment = Alignment.center;
   bool _showDragHint = true;
@@ -30,22 +36,55 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
   bool _hasEnoughText = false;
   bool _photoLoadError = false;
 
+  // ── Voice recording state ────────────────────────────────────────────────
+  bool _isRecordingVoice = false;
+  bool _isVoiceMode = false; // true after a voice recording has been completed
+  String? _audioPath;
+  String _liveTranscript = '';
+  String _currentWords = '';
+  int _recordingSeconds = 0;
+  Timer? _recordingTimer;
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechAvailable = false;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnim;
+
   static const _minChars = 10;
 
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
+  String get _formattedTime {
+    final m = (_recordingSeconds ~/ 60).toString().padLeft(2, '0');
+    final s = (_recordingSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
 
   @override
   void initState() {
     super.initState();
     _photoPath = widget.photoPath;
     _textController.addListener(_onTextChanged);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _pulseAnim = Tween<double>(begin: 1.0, end: 0.35).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _textController.dispose();
     _focusNode.dispose();
+    _recordingTimer?.cancel();
+    _pulseController.dispose();
+    _speech.stop();
+    try {
+      _audioRecorder.dispose();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -54,11 +93,150 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
     if (enough != _hasEnoughText) setState(() => _hasEnoughText = enough);
   }
 
-  /// Opens the platform crop UI after picking. Returns original path on desktop.
-  Future<String?> _cropPhoto(String sourcePath) async {
-    if (_isDesktop) {
-      return sourcePath;
+  // ── Voice recording ───────────────────────────────────────────────────────
+
+  Future<void> _startVoiceRecording() async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Voice recording requires the mobile or desktop app.')),
+      );
+      return;
     }
+    try {
+      if (!await _audioRecorder.hasPermission()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission is required.')),
+          );
+        }
+        return;
+      }
+
+      final dir = await getTemporaryDirectory();
+      final path =
+          '${dir.path}/photo_entry_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 64000,
+          sampleRate: 22050,
+        ),
+        path: path,
+      );
+
+      _speechAvailable = await _speech.initialize(
+        onError: (_) {},
+        onStatus: (status) {
+          if (status == 'notListening' && _isRecordingVoice && mounted) {
+            Future.delayed(const Duration(milliseconds: 200), () {
+              if (_isRecordingVoice && mounted) _startListening();
+            });
+          }
+        },
+      );
+      if (_speechAvailable) _startListening();
+
+      if (mounted) {
+        setState(() {
+          _isRecordingVoice = true;
+          _isVoiceMode = false;
+          _recordingSeconds = 0;
+          _liveTranscript = '';
+          _currentWords = '';
+        });
+        _recordingTimer =
+            Timer.periodic(const Duration(seconds: 1), (_) {
+          if (_isRecordingVoice && mounted) {
+            setState(() => _recordingSeconds++);
+          }
+        });
+        _pulseController.repeat(reverse: true);
+        // Dismiss keyboard so the photo preview stays full-height
+        _focusNode.unfocus();
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Recording unavailable: ${msg.substring(0, msg.length.clamp(0, 60))}'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopVoiceRecording() async {
+    _recordingTimer?.cancel();
+    _pulseController
+      ..stop()
+      ..reset();
+
+    if (_speechAvailable) await _speech.stop();
+
+    final transcript = _currentWords.isNotEmpty
+        ? '$_liveTranscript $_currentWords'.trim()
+        : _liveTranscript.trim();
+
+    try {
+      final path = await _audioRecorder.stop();
+      if (mounted) {
+        setState(() {
+          _isRecordingVoice = false;
+          _isVoiceMode = true;
+          _audioPath = path;
+          _textController.text = transcript;
+        });
+        _onTextChanged();
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isRecordingVoice = false;
+          _isVoiceMode = transcript.isNotEmpty;
+          _textController.text = transcript;
+        });
+        _onTextChanged();
+      }
+    }
+  }
+
+  void _startListening() {
+    _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        setState(() {
+          _currentWords = result.recognizedWords;
+          if (result.finalResult) {
+            _liveTranscript = _liveTranscript.isEmpty
+                ? result.recognizedWords
+                : '$_liveTranscript ${result.recognizedWords}';
+            _currentWords = '';
+          }
+        });
+        final combined = _currentWords.isNotEmpty
+            ? '$_liveTranscript $_currentWords'.trim()
+            : _liveTranscript.trim();
+        if (combined != _textController.text) {
+          _textController.text = combined;
+          _onTextChanged();
+        }
+      },
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: stt.ListenMode.dictation,
+        cancelOnError: false,
+        partialResults: true,
+      ),
+    );
+  }
+
+  // ── Photo handling ────────────────────────────────────────────────────────
+
+  Future<String?> _cropPhoto(String sourcePath) async {
+    if (_isDesktop) return sourcePath;
     final cropped = await ImageCropper().cropImage(
       sourcePath: sourcePath,
       uiSettings: [
@@ -84,7 +262,8 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
   Future<void> _changePhoto() async {
     final XFile? photo;
     if (_isDesktop) {
-      photo = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      photo = await _picker.pickImage(
+          source: ImageSource.gallery, imageQuality: 85);
       if (photo != null && mounted) {
         setState(() {
           _photoPath = photo!.path;
@@ -198,19 +377,38 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
     );
   }
 
+  // ── Navigation ────────────────────────────────────────────────────────────
+
   void _onContinue() {
     final text = _textController.text.trim();
     if (text.length < _minChars) return;
     HapticFeedback.mediumImpact();
-    context.push(
-      '/review',
-      extra: ReviewData(
-        rawText: text,
-        attachedPhotoPath: _photoPath,
-        isVoice: false,
-      ),
-    );
+    if (_isVoiceMode && _audioPath != null) {
+      // Voice path: route through ProcessingScreen for AI polish + title gen
+      context.push(
+        '/processing',
+        extra: ReviewData(
+          rawText: text,
+          attachedPhotoPath: _photoPath,
+          audioPath: _audioPath,
+          isVoice: true,
+          focalAlignment: _focalAlignment,
+        ),
+      );
+    } else {
+      context.push(
+        '/review',
+        extra: ReviewData(
+          rawText: text,
+          attachedPhotoPath: _photoPath,
+          isVoice: false,
+          focalAlignment: _focalAlignment,
+        ),
+      );
+    }
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +440,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
             final keyboardOpen = keyboardHeight > 100;
             return Column(
               children: [
-                // Photo collapses to thumbnail when keyboard is open (Instagram-style)
+                // Photo collapses to thumbnail when keyboard is open
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeInOut,
@@ -265,7 +463,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
 
   Widget _buildPhotoPreview(AppPalette colors, {bool compact = false}) {
     return GestureDetector(
-      // Drag to reframe focal point (full-size view only)
       onPanUpdate: compact
           ? null
           : (details) {
@@ -285,7 +482,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Photo with focal-point alignment
           _photoLoadError
               ? Container(
                   color: Colors.black26,
@@ -307,7 +503,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                   ),
                 ),
 
-          // Drag-to-reframe hint (fades after first drag)
+          // Drag-to-reframe hint
           if (!compact && _showDragHint)
             Positioned(
               bottom: 12,
@@ -315,7 +511,8 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
               right: 0,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.black.withAlpha(110),
                     borderRadius: BorderRadius.circular(20),
@@ -323,7 +520,8 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.open_with_rounded, size: 12, color: Colors.white),
+                      const Icon(Icons.open_with_rounded,
+                          size: 12, color: Colors.white),
                       const SizedBox(width: 5),
                       Text(
                         'Drag to reframe',
@@ -346,7 +544,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Crop button — mobile only
                 if (!_isDesktop && !compact)
                   GestureDetector(
                     onTap: () async {
@@ -359,7 +556,8 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.black.withAlpha(140),
                         borderRadius: BorderRadius.circular(20),
@@ -367,7 +565,8 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.crop_rounded, size: 13, color: Colors.white),
+                          const Icon(Icons.crop_rounded,
+                              size: 13, color: Colors.white),
                           const SizedBox(width: 4),
                           Text(
                             'Crop',
@@ -381,13 +580,12 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                       ),
                     ),
                   ),
-                if (!_isDesktop && !compact)
-                  const SizedBox(width: 8),
-                // Change button
+                if (!_isDesktop && !compact) const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _changePhoto,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.black.withAlpha(140),
                       borderRadius: BorderRadius.circular(20),
@@ -395,7 +593,8 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.edit_rounded, size: 13, color: Colors.white),
+                        const Icon(Icons.edit_rounded,
+                            size: 13, color: Colors.white),
                         const SizedBox(width: 5),
                         Text(
                           'Change',
@@ -423,8 +622,9 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label
+          // Label row: "Tell the story *" + optional voice badge + mic/stop button
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'Tell the story',
@@ -435,20 +635,78 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                   letterSpacing: 0.6,
                 ),
               ),
-              const SizedBox(width: 3),
               Text(
-                '*',
+                ' *',
                 style: TextStyle(
                   fontSize: 13,
                   color: colors.accent,
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              // "Voice" badge shown after recording completes
+              if (_isVoiceMode && !_isRecordingVoice) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: colors.accent.withAlpha(60)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.mic_rounded, size: 10, color: colors.accent),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Voice',
+                        style: GoogleFonts.manrope(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: colors.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const Spacer(),
+              // Mic / Stop toggle button
+              GestureDetector(
+                key: const Key('voice_toggle_button'),
+                onTap: _isRecordingVoice
+                    ? _stopVoiceRecording
+                    : _startVoiceRecording,
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isRecordingVoice
+                        ? Colors.red.withAlpha(20)
+                        : colors.accent.withAlpha(18),
+                  ),
+                  child: Icon(
+                    _isRecordingVoice
+                        ? Icons.stop_rounded
+                        : Icons.mic_rounded,
+                    size: 18,
+                    color: _isRecordingVoice ? Colors.red : colors.accent,
+                  ),
+                ),
+              ),
             ],
           ),
+
+          // Pulsing recording indicator shown while actively recording
+          if (_isRecordingVoice) ...[
+            const SizedBox(height: 8),
+            _buildRecordingIndicator(colors),
+          ],
+
           const SizedBox(height: 10),
 
-          // Text field
+          // Text field — read-only while recording (transcript streams in)
           Expanded(
             child: TextField(
               controller: _textController,
@@ -456,6 +714,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
               autofocus: true,
               maxLines: null,
               expands: true,
+              readOnly: _isRecordingVoice,
               textAlignVertical: TextAlignVertical.top,
               style: GoogleFonts.manrope(
                 fontSize: 15,
@@ -463,8 +722,9 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
                 height: 1.65,
               ),
               decoration: InputDecoration(
-                hintText:
-                    'What happened here? What does this moment mean to you?',
+                hintText: _isRecordingVoice
+                    ? 'Listening… speak your memory'
+                    : 'What happened here? What does this moment mean to you?',
                 hintStyle: GoogleFonts.manrope(
                   fontSize: 15,
                   color: colors.textSecondary.withAlpha(110),
@@ -476,9 +736,11 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
             ),
           ),
 
-          // Nudge when text started but too short
+          // Nudge when text is too short (hidden while recording)
           AnimatedOpacity(
-            opacity: _textController.text.isNotEmpty && !_hasEnoughText
+            opacity: _textController.text.isNotEmpty &&
+                    !_hasEnoughText &&
+                    !_isRecordingVoice
                 ? 1.0
                 : 0.0,
             duration: const Duration(milliseconds: 200),
@@ -498,17 +760,62 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
     );
   }
 
+  Widget _buildRecordingIndicator(AppPalette colors) {
+    return AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (context, _) => Row(
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.red.withAlpha((_pulseAnim.value * 220).round()),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Listening…',
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: colors.textSecondary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _formattedTime,
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.red.withAlpha(180),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            'Tap ■ to stop',
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              color: colors.textSecondary.withAlpha(150),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContinueButton(AppPalette colors) {
+    final canContinue = _hasEnoughText && !_isRecordingVoice;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: AnimatedOpacity(
-        opacity: _hasEnoughText ? 1.0 : 0.38,
+        opacity: canContinue ? 1.0 : 0.38,
         duration: const Duration(milliseconds: 200),
         child: SizedBox(
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: _hasEnoughText ? _onContinue : null,
+            onPressed: canContinue ? _onContinue : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: colors.accent,
               disabledBackgroundColor: colors.accent,
@@ -520,7 +827,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen> {
               elevation: 0,
             ),
             child: Text(
-              'Continue →',
+              _isRecordingVoice ? 'Recording… tap ■ to stop' : 'Continue →',
               style: GoogleFonts.manrope(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

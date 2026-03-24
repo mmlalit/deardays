@@ -51,6 +51,11 @@ class ReviewData {
   /// Defaults to false: on-device STT transcript is used instead.
   final bool useWhisper;
 
+  /// Focal alignment set by the user when picking/reframing the photo.
+  /// Carried through the pipeline so ReviewSaveScreen can apply it to
+  /// the banner image. Defaults to Alignment.center.
+  final Alignment focalAlignment;
+
   // Pre-computed by ProcessingScreen so ReviewSaveScreen loads instantly
   final String? cleanedText;     // light polish: grammar/spelling fixed
   final String? polishedText;    // full AI literary narrative
@@ -65,6 +70,7 @@ class ReviewData {
     this.isVoice = false,
     this.polishWithAI = false,
     this.useWhisper = false,
+    this.focalAlignment = Alignment.center,
     this.cleanedText,
     this.polishedText,
     this.generatedTitle,
@@ -125,6 +131,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // Shimmer animation
   late AnimationController _shimmerController;
 
+  // Photo focal-point reframing
+  Alignment _focalAlignment = Alignment.center;
+  bool _showDragHint = true;
+
   /// Stable draft ID for this review session so repeated saves upsert.
   final String _draftId = const Uuid().v4();
   bool _submitted = false;
@@ -134,6 +144,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     super.initState();
     _attachedPhotoPath = widget.data.attachedPhotoPath;
     _locationName = widget.data.locationName;
+    _focalAlignment = widget.data.focalAlignment;
     _titleEditController = TextEditingController();
     // Pre-populate mood from the entry data, or fall back to today's saved mood
     _selectedMood = widget.data.mood ?? ref.read(todayMoodProvider);
@@ -441,6 +452,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
             await _mediaService.uploadPhoto(
               entryId: saved.id,
               filePath: _attachedPhotoPath!,
+              focalAlignment: _focalAlignment,
             );
             // Mark hasPhoto true only after successful upload
             saved = saved.copyWith(hasPhoto: true);
@@ -676,88 +688,145 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   Widget _buildPhotoOrGradientBanner() {
     final colors = AppColors.of(context);
+    final hasPhoto = _attachedPhotoPath != null;
 
-    Widget imageChild;
-    if (_attachedPhotoPath != null) {
-      imageChild = Image.file(
-        File(_attachedPhotoPath!),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: 300,
-        errorBuilder: (_, __, ___) => _fallbackBannerBg(colors),
-      );
-    } else {
-      imageChild = _fallbackBannerBg(colors);
-    }
+    return GestureDetector(
+      // Drag to reframe focal point (only when a photo is attached)
+      onPanUpdate: hasPhoto
+          ? (details) {
+              final box = context.findRenderObject() as RenderBox?;
+              if (box == null) return;
+              final size = box.size;
+              final dx = -details.delta.dx / size.width * 2.5;
+              final dy = -details.delta.dy / size.height * 2.5;
+              setState(() {
+                _focalAlignment = Alignment(
+                  (_focalAlignment.x + dx).clamp(-1.0, 1.0),
+                  (_focalAlignment.y + dy).clamp(-1.0, 1.0),
+                );
+                _showDragHint = false;
+              });
+            }
+          : null,
+      child: ClipRRect(
+        child: SizedBox(
+          height: 260,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Photo or fallback gradient
+              hasPhoto
+                  ? Image.file(
+                      File(_attachedPhotoPath!),
+                      fit: BoxFit.cover,
+                      alignment: _focalAlignment,
+                      errorBuilder: (_, __, ___) => _fallbackBannerBg(colors),
+                    )
+                  : _fallbackBannerBg(colors),
 
-    return ClipRRect(
-      child: Stack(
-        children: [
-          SizedBox(height: 300, width: double.infinity, child: imageChild),
-          // Dark gradient overlay (bottom → transparent)
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withAlpha(180),
-                  ],
-                  stops: const [0.4, 1.0],
+              // Dark gradient scrim (bottom)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withAlpha(180),
+                      ],
+                      stops: const [0.4, 1.0],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Edit photo button (top-right)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: GestureDetector(
-              onTap: _showPhotoOptions,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withAlpha(100),
-                ),
-                child: const Icon(Icons.edit_rounded, size: 18, color: Colors.white),
-              ),
-            ),
-          ),
 
-          // Photo upload progress overlay
-          if (_isUploadingPhoto)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withAlpha(120),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(
-                      width: 36,
-                      height: 36,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: Colors.white,
+              // Drag-to-reframe hint (only when photo present and not yet dragged)
+              if (hasPhoto && _showDragHint)
+                Positioned(
+                  bottom: 44,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(110),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.open_with_rounded,
+                              size: 12, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Drag to reframe',
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Uploading photo...',
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                  ),
+                ),
+
+              // Edit photo button (top-right)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: _showPhotoOptions,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withAlpha(100),
                     ),
-                  ],
+                    child: const Icon(Icons.edit_rounded,
+                        size: 18, color: Colors.white),
+                  ),
                 ),
               ),
-            ),
-        ],
+
+              // Upload progress overlay
+              if (_isUploadingPhoto)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withAlpha(120),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Uploading photo...',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -834,7 +903,11 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       imageQuality: 75,
     );
     if (picked != null && mounted) {
-      setState(() => _attachedPhotoPath = picked.path);
+      setState(() {
+        _attachedPhotoPath = picked.path;
+        _focalAlignment = Alignment.center;
+        _showDragHint = true;
+      });
       _showPhotoConfirmation(true);
       _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
@@ -862,7 +935,11 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
         imageQuality: 75,
       );
       if (picked != null && mounted) {
-        setState(() => _attachedPhotoPath = picked.path);
+        setState(() {
+          _attachedPhotoPath = picked.path;
+          _focalAlignment = Alignment.center;
+          _showDragHint = true;
+        });
         _showPhotoConfirmation(true);
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }

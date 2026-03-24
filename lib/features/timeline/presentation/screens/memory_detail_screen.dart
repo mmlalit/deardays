@@ -522,16 +522,19 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
 
     final mediaService = ref.read(mediaServiceProvider);
 
-    Widget photoWidget(String storagePath) {
+    Widget photoWidget(EntryMedia media) {
+      final storagePath = media.storagePath;
+      final alignment = media.focalAlignment;
       if (storagePath.startsWith('http')) {
         return _tappablePhoto(
           child: CachedNetworkImage(
             imageUrl: storagePath,
-            height: 280,
+            height: 320,
             width: double.infinity,
             fit: BoxFit.cover,
+            alignment: alignment,
             memCacheWidth: 800,
-            memCacheHeight: 560,
+            memCacheHeight: 640,
             errorWidget: (_, __, ___) => _buildGradientBanner(colors),
           ),
           onTap: () => _openFullscreen(context, storagePath),
@@ -544,11 +547,12 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           return _tappablePhoto(
             child: CachedNetworkImage(
               imageUrl: snapshot.data!,
-              height: 280,
+              height: 320,
               width: double.infinity,
               fit: BoxFit.cover,
+              alignment: alignment,
               memCacheWidth: 800,
-              memCacheHeight: 560,
+              memCacheHeight: 640,
               errorWidget: (_, __, ___) => _buildGradientBanner(colors),
             ),
             onTap: () => _openFullscreen(context, snapshot.data!),
@@ -558,19 +562,19 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     }
 
     if (photoMedia.length == 1) {
-      return photoWidget(photoMedia.first.storagePath);
+      return photoWidget(photoMedia.first);
     }
 
     // Multiple photos — swipeable PageView with dot indicators
     return SizedBox(
-      height: 280,
+      height: 320,
       child: Stack(
         children: [
           PageView.builder(
             controller: _photoBannerController,
             itemCount: photoMedia.length,
             onPageChanged: (i) => setState(() => _photoIndex = i),
-            itemBuilder: (_, i) => photoWidget(photoMedia[i].storagePath),
+            itemBuilder: (_, i) => photoWidget(photoMedia[i]),
           ),
           // Dot indicators
           Positioned(

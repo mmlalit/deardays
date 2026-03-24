@@ -363,7 +363,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 110,
+              height: 140,
               width: double.infinity,
               child: photoMedia.isNotEmpty
                   ? _NetworkImage(
