@@ -174,15 +174,22 @@ class MemoryCard extends ConsumerWidget {
                       if (entry.hasVoice) _VoiceIndicator(colors: colors),
                       const Spacer(),
                       if (onShare != null)
-                        GestureDetector(
-                          onTap: onShare,
-                          behavior: HitTestBehavior.opaque,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Icon(
-                              Icons.ios_share_rounded,
-                              size: 18,
-                              color: colors.textMuted,
+                        Semantics(
+                          label: 'Share memory',
+                          button: true,
+                          child: GestureDetector(
+                            onTap: onShare,
+                            behavior: HitTestBehavior.opaque,
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: Center(
+                                child: Icon(
+                                  Icons.ios_share_rounded,
+                                  size: 18,
+                                  color: colors.textMuted,
+                                ),
+                              ),
                             ),
                           ),
                         ),

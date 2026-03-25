@@ -611,7 +611,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           style: GoogleFonts.manrope(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: colors.textSecondary,
+            // Darkened slightly from textSecondary to pass WCAG AA 4.5:1 on #F9F7F3
+            color: const Color(0xFF6B6560),
             height: 1.4,
           ),
         ),
@@ -659,7 +660,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               final color = m['color'] as Color;
               final emoji = m['emoji'] as String;
               final isSelected = selectedMood == label;
-              return GestureDetector(
+              return ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: GestureDetector(
                 onTap: () {
                   HapticFeedback.selectionClick();
                   ref.read(todayMoodProvider.notifier).setMood(label);
@@ -695,6 +698,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ],
                   ),
+                ),
                 ),
               );
             }).toList(),
@@ -821,7 +825,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           const SizedBox(height: 4),
           Text(
             streakCount > 0 ? '🔥 CURRENT STREAK: $streakCount DAYS' : 'START YOUR STREAK TODAY',
-            style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFFF97316), letterSpacing: 0.8),
+            style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFF9A3412), letterSpacing: 0.8),
           ),
           const SizedBox(height: 16),
           Row(
@@ -835,14 +839,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               // Recent = within last 3 days (not today); older done days get tinted style
               final isRecentDone = isDone && !isToday && day.isAfter(todayNorm.subtract(const Duration(days: 3)));
 
-              return Column(
+              return ExcludeSemantics(
+                child: Column(
                 children: [
                   Text(
                     dayName,
                     style: GoogleFonts.manrope(
                       fontSize: 9,
                       fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-                      color: isToday ? colors.accent : colors.textMuted,
+                      color: const Color(0xFF595550),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -871,7 +876,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     ? Icon(Icons.check_rounded, size: 16, color: colors.accent)
                                     : Text(
                                         '${day.day}',
-                                        style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent),
+                                        style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, color: const Color(0xFF4A4540)),
                                       ),
                               ),
                             )
@@ -888,24 +893,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   style: GoogleFonts.manrope(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
-                                    color: isFuture ? colors.textMuted.withAlpha(80) : colors.textMuted,
+                                    color: isFuture ? colors.textMuted.withAlpha(80) : const Color(0xFF595550),
                                   ),
                                 ),
                               ),
                             ),
                 ],
+                ),
               );
             }),
           ),
           const SizedBox(height: 16),
           GestureDetector(
             onTap: () => context.go('/timeline'),
-            child: Row(
-              children: [
-                Text('FULL CALENDAR', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: colors.accent, letterSpacing: 1.0)),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_forward_rounded, size: 14, color: colors.accent),
-              ],
+            child: SizedBox(
+              height: 48,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text('FULL CALENDAR', style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFF4A4540), letterSpacing: 1.0)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF4A4540)),
+                ],
+              ),
             ),
           ),
         ],
@@ -953,7 +963,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: colors.accent,
+                color: const Color(0xFF4A4540),
               ),
             ),
           ),

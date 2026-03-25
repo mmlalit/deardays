@@ -34,6 +34,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         backgroundColor: colors.accent,
         foregroundColor: Colors.white,
         elevation: 4,
+        tooltip: 'New chapter',
         child: const Icon(Icons.add_rounded, size: 28),
       ),
       body: SafeArea(
@@ -297,7 +298,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             // ── Premium label ──
             Text(
               'PREMIUM COLLECTION',
-              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: colors.accent),
+              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: const Color(0xFF4A4540)),
             ),
             const SizedBox(height: 6),
 
@@ -311,7 +312,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             // ── Subtitle ──
             Text(
               'Read your entire life story, chapter by chapter, in one place.',
-              style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary, height: 1.5),
+              style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF4A4540), height: 1.5),
             ),
             const SizedBox(height: 18),
 
@@ -384,7 +385,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     required BookMode mode,
     required AppPalette colors,
   }) {
-    return GestureDetector(
+    return Semantics(
+      label: title,
+      button: true,
+      child: GestureDetector(
       onTap: () => context.push('/book-reader', extra: mode),
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -446,10 +450,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             // Full-width Read button
             SizedBox(
               width: double.infinity,
+              child: ExcludeSemantics(
               child: GestureDetector(
                 onTap: () => context.push('/book-reader', extra: mode),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  constraints: const BoxConstraints(minHeight: 48),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(10),
@@ -465,9 +471,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                 ),
               ),
+              ),
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -485,7 +493,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         const SizedBox(height: 2),
         Text(
           label,
-          style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: colors.textMuted),
+          style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: const Color(0xFF595550)),
         ),
       ],
     );
@@ -669,30 +677,38 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Chapters are born from your memories. Save a few entries and your first chapter will appear here.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: colors.textSecondary,
-                height: 1.5,
+            ExcludeSemantics(
+              child: Text(
+                'Chapters are born from your memories. Save a few entries and your first chapter will appear here.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  color: const Color(0xFF4A4540),
+                  height: 1.5,
+                ),
               ),
             ),
             const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () => context.go('/home'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                decoration: BoxDecoration(
-                  color: colors.accent,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Text(
-                  'Capture a memory',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+            Semantics(
+              button: true,
+              label: 'Capture a memory',
+              child: GestureDetector(
+                onTap: () => context.go('/home'),
+                child: ExcludeSemantics(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Text(
+                      'Capture a memory',
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),

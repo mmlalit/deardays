@@ -240,6 +240,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         onPressed: () => context.push('/write'),
         backgroundColor: colors.accent,
         elevation: 4,
+        tooltip: 'Write entry',
         child: Icon(Icons.edit_rounded, color: colors.bg, size: 22),
       ),
     );
@@ -290,34 +291,46 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     Semantics(
                       label: 'Mood Calendar',
                       button: true,
-                      child: GestureDetector(
-                        onTap: () => _showCalendarOverlay(context, entries, colors),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colors.accent.withAlpha(18),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: GestureDetector(
+                          onTap: () => _showCalendarOverlay(context, entries, colors),
+                          child: Center(
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: colors.accent.withAlpha(18),
+                              ),
+                              child: Icon(Icons.calendar_month_rounded, size: 20, color: colors.accent),
+                            ),
                           ),
-                          child: Icon(Icons.calendar_month_rounded, size: 20, color: colors.accent),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     // Search
                     Semantics(
                       label: 'Search',
                       button: true,
-                      child: GestureDetector(
-                        onTap: () => context.push('/search'),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colors.highlightFaint,
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: GestureDetector(
+                          onTap: () => context.push('/search'),
+                          child: Center(
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: colors.highlightFaint,
+                              ),
+                              child: Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
+                            ),
                           ),
-                          child: Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
                         ),
                       ),
                     ),
@@ -409,7 +422,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   Widget _statCard(String label, String value, AppPalette colors, {VoidCallback? onTap}) {
-    return GestureDetector(
+    return Semantics(
+      button: onTap != null,
+      label: '$value $label',
+      child: GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
@@ -446,6 +462,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -535,12 +552,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 0, 8),
       child: SizedBox(
-        height: 34,
+        height: 50,
         child: Row(
           children: [
             // ── View toggle (icon-only) ──────────────────────────────────────
             Container(
-              height: 34,
+              height: 50,
+              padding: EdgeInsets.zero,
               decoration: BoxDecoration(
                 color: colors.cardBg,
                 borderRadius: BorderRadius.circular(10),
@@ -564,24 +582,28 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 itemBuilder: (_, i) {
                   final (category, label) = _categories[i];
                   final isActive = _categoryFilter == category;
-                  return GestureDetector(
-                    onTap: () => setState(() => _categoryFilter = category),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isActive ? colors.accent : colors.cardBg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isActive ? colors.accent : colors.border,
+                  return Semantics(
+                    label: 'Filter: $label',
+                    button: true,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _categoryFilter = category),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+                        decoration: BoxDecoration(
+                          color: isActive ? colors.accent : colors.cardBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isActive ? colors.accent : colors.border,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isActive ? Colors.white : colors.textSecondary,
+                        child: Text(
+                          label,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isActive ? Colors.white : colors.textSecondary,
+                          ),
                         ),
                       ),
                     ),
@@ -591,21 +613,31 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
             const SizedBox(width: 8),
             // ── Mood filter ──────────────────────────────────────────────────
-            GestureDetector(
-              onTap: () => _showMoodFilterSheet(colors),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: hasMoodFilter ? colors.accent : colors.cardBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
-                ),
-                child: Icon(
-                  Icons.tune_rounded,
-                  size: 17,
-                  color: hasMoodFilter ? Colors.white : colors.textSecondary,
+            Semantics(
+              label: 'Filter by mood',
+              button: true,
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: GestureDetector(
+                  onTap: () => _showMoodFilterSheet(colors),
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: hasMoodFilter ? colors.accent : colors.cardBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
+                      ),
+                      child: Icon(
+                        Icons.tune_rounded,
+                        size: 17,
+                        color: hasMoodFilter ? Colors.white : colors.textSecondary,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -775,7 +807,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     child: Container(width: 2, color: colors.border),
                   ),
                   // Year badge on top
-                  Container(
+                  ExcludeSemantics(
+                  child: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
@@ -797,10 +830,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          color: isCurrentYear ? Colors.white : const Color(0xFF4A4540),
                         ),
                       ),
                     ),
+                  ),
                   ),
                 ],
               ),
@@ -943,16 +977,28 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   Widget _viewToggleTab(IconData icon, {required bool isMonthly, required AppPalette colors}) {
     final isActive = _isMonthly == isMonthly;
-    return GestureDetector(
-      onTap: () => setState(() => _isMonthly = isMonthly),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 36,
-        decoration: BoxDecoration(
-          color: isActive ? colors.accent : Colors.transparent,
-          borderRadius: BorderRadius.circular(9),
+    final label = isMonthly ? 'Month view' : 'Timeline view';
+    return Semantics(
+      label: label,
+      button: true,
+      child: GestureDetector(
+        onTap: () => setState(() => _isMonthly = isMonthly),
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 36,
+              height: 34,
+              decoration: BoxDecoration(
+                color: isActive ? colors.accent : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 15, color: isActive ? Colors.white : colors.textSecondary),
+            ),
+          ),
         ),
-        child: Icon(icon, size: 15, color: isActive ? Colors.white : colors.textSecondary),
       ),
     );
   }
@@ -1392,7 +1438,7 @@ class _MoodCalendarSheetState extends State<_MoodCalendarSheet> {
                       style: GoogleFonts.manrope(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: widget.colors.textMuted,
+                        color: const Color(0xFF595550),
                       ),
                     ),
                   ),
