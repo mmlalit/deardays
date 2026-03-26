@@ -14,7 +14,7 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 // Section type enum
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum SeeAllSection { happiest, family, travel, mood }
+enum SeeAllSection { happiest, family, travel, milestone, mood }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // See All Timeline Screen
@@ -52,6 +52,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return ['All', 'Milestones', 'Travel', 'Holidays'];
       case SeeAllSection.travel:
         return ['All', 'Trips', 'Adventures', 'Walks'];
+      case SeeAllSection.milestone:
+        return ['All', 'Birthday', 'Career', 'Wedding'];
       case SeeAllSection.mood:
         return ['All', 'Great', 'Good', 'Okay', 'Low', 'Tough'];
     }
@@ -65,6 +67,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return 'Family Journey';
       case SeeAllSection.travel:
         return 'Travel Adventures';
+      case SeeAllSection.milestone:
+        return 'Milestones';
       case SeeAllSection.mood:
         final m = widget.initialMoodFilter ?? '';
         final label = m.isEmpty ? '' : '${m[0].toUpperCase()}${m.substring(1)}';
@@ -80,6 +84,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return 'Our shared history';
       case SeeAllSection.travel:
         return 'Exploring the world';
+      case SeeAllSection.milestone:
+        return 'Life\'s biggest moments';
       case SeeAllSection.mood:
         return 'All memories with this mood';
     }
@@ -93,6 +99,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return const Color(0xFFEC4899);
       case SeeAllSection.travel:
         return const Color(0xFFF59E0B);
+      case SeeAllSection.milestone:
+        return const Color(0xFF8B5CF6);
       case SeeAllSection.mood:
         switch (widget.initialMoodFilter) {
           case 'great': return const Color(0xFF10B981);
@@ -113,6 +121,8 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
         return Icons.family_restroom_rounded;
       case SeeAllSection.travel:
         return Icons.location_on_rounded;
+      case SeeAllSection.milestone:
+        return Icons.emoji_events_rounded;
       case SeeAllSection.mood:
         return Icons.mood_rounded;
     }
@@ -543,6 +553,9 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
       case SeeAllSection.travel:
         tags.add('#Travel');
         break;
+      case SeeAllSection.milestone:
+        tags.add('#Milestone');
+        break;
       case SeeAllSection.mood:
         tags.add('#${_moodLabel(entry.mood)}');
         break;
@@ -557,7 +570,7 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
       spacing: 6,
       runSpacing: 6,
       children: tags.map((tag) {
-        final isPrimary = tag.startsWith('#Family') || tag.startsWith('#Travel') || tag.startsWith('#Great') || tag.startsWith('#Good');
+        final isPrimary = tag.startsWith('#Family') || tag.startsWith('#Travel') || tag.startsWith('#Great') || tag.startsWith('#Good') || tag.startsWith('#Milestone');
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -610,6 +623,16 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
           return _travelKeywords.any((kw) => text.contains(kw));
         }).toList();
         break;
+      case SeeAllSection.milestone:
+        base = entries.where((e) {
+          final text = e.content.toLowerCase();
+          return ['birthday', 'anniversary', 'graduation', 'promotion', 'wedding',
+              'engaged', 'engagement', 'new job', 'first day', 'moved', 'born',
+              'achievement', 'milestone', 'celebrate', 'celebration', 'graduated',
+              'promoted', 'got the job', 'passed', 'finished']
+              .any((kw) => text.contains(kw));
+        }).toList();
+        break;
       case SeeAllSection.mood:
         base = entries.toList(); // filter applied below via _activeFilter
         break;
@@ -659,6 +682,26 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
           return base.where((e) {
             final text = e.content.toLowerCase();
             return ['walk', 'stroll', 'park', 'garden', 'trail'].any((kw) => text.contains(kw));
+          }).toList();
+        }
+        break;
+      case SeeAllSection.milestone:
+        if (_activeFilter == 'Birthday') {
+          return base.where((e) {
+            final text = e.content.toLowerCase();
+            return ['birthday', 'born', 'birth'].any((kw) => text.contains(kw));
+          }).toList();
+        }
+        if (_activeFilter == 'Career') {
+          return base.where((e) {
+            final text = e.content.toLowerCase();
+            return ['promotion', 'promoted', 'new job', 'first day', 'got the job', 'career'].any((kw) => text.contains(kw));
+          }).toList();
+        }
+        if (_activeFilter == 'Wedding') {
+          return base.where((e) {
+            final text = e.content.toLowerCase();
+            return ['wedding', 'married', 'engaged', 'engagement'].any((kw) => text.contains(kw));
           }).toList();
         }
         break;

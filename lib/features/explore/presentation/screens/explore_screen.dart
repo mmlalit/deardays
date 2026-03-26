@@ -62,14 +62,16 @@ const _milestoneCategory = _Category(
   ],
 );
 
-String? _detectCategory(JournalEntry entry) {
+// Multi-label category detection — returns ALL matching category ids
+Set<String> _detectCategories(JournalEntry entry) {
   final text = entry.content.toLowerCase();
+  final result = <String>{};
   for (final cat in [_familyCategory, _travelCategory, _milestoneCategory]) {
     for (final kw in cat.keywords) {
-      if (text.contains(kw)) return cat.id;
+      if (text.contains(kw)) { result.add(cat.id); break; }
     }
   }
-  return null;
+  return result;
 }
 
 /// H-11: safe mood capitalizer — handles null/empty mood.
@@ -95,20 +97,20 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   String? _filterMood;
   bool _filterHasPhoto = false;
   DateTimeRange? _filterDateRange;
-  bool _showFilters = false;
+  final bool _showFilters = false;
 
-  // ── C-10 / M-17: memoized category map — only recomputes when entries change ──
-  Map<String, String?>? _categoryCache;
+  // ── Memoized multi-label category map — only recomputes when entries change ──
+  Map<String, Set<String>>? _categoryCache;
   List<JournalEntry>? _lastCategorizedEntries;
 
-  Map<String, String?> _getCategories(List<JournalEntry> entries) {
+  Map<String, Set<String>> _getCategories(List<JournalEntry> entries) {
     if (_categoryCache != null && identical(_lastCategorizedEntries, entries)) {
       return _categoryCache!;
     }
     _lastCategorizedEntries = entries;
     _categoryCache = {};
     for (final entry in entries) {
-      _categoryCache![entry.id] = _detectCategory(entry);
+      _categoryCache![entry.id] = _detectCategories(entry);
     }
     return _categoryCache!;
   }
@@ -176,6 +178,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           children: [
+            // Mood chip — BEFORE photo chip
+            _buildMoodChip(colors),
+            const SizedBox(width: 8),
             // Has Photo chip
             _buildPhotoChip(colors),
             const SizedBox(width: 8),
@@ -219,6 +224,107 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     );
   }
 
+  Widget _buildMoodChip(AppPalette colors) {
+    final selected = _filterMood != null;
+    final label = selected ? '${_moodEmoji(_filterMood)} ${_capitalizeMood(_filterMood)}' : '😊 Mood';
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _showMoodFilterSheet(colors);
+      },
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.highlightFaint,
+          borderRadius: BorderRadius.circular(20),
+          border: selected ? null : Border.all(color: colors.border),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : colors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMoodFilterSheet(AppPalette colors) {
+    const moods = ['great', 'good', 'okay', 'low', 'tough'];
+    const moodLabels = {
+      'great': '🤩 Great', 'good': '😊 Good', 'okay': '😐 Okay',
+      'low': '😔 Low', 'tough': '😢 Tough',
+    };
+    const moodColors = {
+      'great': Color(0xFF10B981), 'good': Color(0xFF3B82F6),
+      'okay': Color(0xFFF59E0B), 'low': Color(0xFFF97316),
+      'tough': Color(0xFFEF4444),
+    };
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: colors.border, borderRadius: BorderRadius.circular(2)))),
+              Text('Filter by Mood', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                children: [
+                  GestureDetector(
+                    onTap: () { setState(() => _filterMood = null); Navigator.pop(context); },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _filterMood == null ? colors.accent : colors.cardBg,
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(color: _filterMood == null ? colors.accent : colors.border),
+                      ),
+                      child: Text('All', style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600,
+                        color: _filterMood == null ? Colors.white : colors.textSecondary)),
+                    ),
+                  ),
+                  ...moods.map((mood) {
+                    final isActive = _filterMood == mood;
+                    final c = moodColors[mood]!;
+                    return GestureDetector(
+                      onTap: () { setState(() => _filterMood = mood); Navigator.pop(context); },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isActive ? c : colors.cardBg,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(color: isActive ? c : colors.border),
+                        ),
+                        child: Text(moodLabels[mood]!, style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600,
+                          color: isActive ? Colors.white : colors.textSecondary)),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildPhotoChip(AppPalette colors) {
     final selected = _filterHasPhoto;
@@ -561,7 +667,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Colors.orange),
+              const Icon(Icons.chevron_right_rounded, color: Colors.orange),
             ],
           ),
         ),
@@ -574,27 +680,25 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildMoodSummary(List<JournalEntry> entries, AppPalette colors) {
-    // Build last-7-days array (index 0 = 6 days ago, index 6 = today)
     final today = DateTime.now();
     final days = List.generate(7, (i) {
       final d = today.subtract(Duration(days: 6 - i));
       return DateTime(d.year, d.month, d.day);
     });
 
-    const moodScore = {'great': 4, 'good': 3, 'okay': 2, 'low': 1, 'tough': 0};
+    const moodScore = {'great': 5, 'good': 4, 'okay': 3, 'low': 2, 'tough': 1};
     const moodColors = {
-      'great': Color(0xFF10B981),
-      'good':  Color(0xFF34D399),
-      'okay':  Color(0xFFF59E0B),
-      'low':   Color(0xFFF97316),
+      'great': Color(0xFF10B981), 'good': Color(0xFF34D399),
+      'okay': Color(0xFFF59E0B), 'low': Color(0xFFF97316),
       'tough': Color(0xFFEF4444),
     };
     const moodEmojis = {
       'great': '🤩', 'good': '😊', 'okay': '😐', 'low': '😔', 'tough': '😢',
     };
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const double maxBarHeight = 40.0;
+    const double minBarHeight = 6.0;
 
-    // Find dominant entry per day
     final dayEntry = <int, JournalEntry>{};
     for (final e in entries) {
       final ed = DateTime(e.entryDate.year, e.entryDate.month, e.entryDate.day);
@@ -608,7 +712,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       }
     }
 
-    // Dominant mood overall
     final allRecent = entries
         .where((e) => !e.entryDate.isBefore(today.subtract(const Duration(days: 6))))
         .toList();
@@ -630,10 +733,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               Text(
                 'THIS WEEK\'S MOOD',
                 style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: colors.textMuted,
-                  letterSpacing: 2.0,
+                  fontSize: 10, fontWeight: FontWeight.w800,
+                  color: colors.textMuted, letterSpacing: 2.0,
                 ),
               ),
               const Spacer(),
@@ -641,8 +742,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 Text(
                   '${moodEmojis[dominant] ?? ''} mostly ${_capitalizeMood(dominant)}',
                   style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11, fontWeight: FontWeight.w600,
                     fontStyle: FontStyle.italic,
                     color: moodColors[dominant] ?? colors.textMuted,
                   ),
@@ -650,69 +750,124 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (i) {
-              final entry = dayEntry[i];
-              final mood = entry?.mood?.toLowerCase();
-              final dotColor = mood != null
-                  ? (moodColors[mood] ?? colors.accent)
-                  : colors.highlightFaint;
-              final isToday = i == 6;
-              final dotSize = isToday ? 12.0 : 10.0;
+          SizedBox(
+            height: maxBarHeight + 44,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(7, (i) {
+                final entry = dayEntry[i];
+                final mood = entry?.mood?.toLowerCase();
+                final score = moodScore[mood];
+                final barHeight = score != null
+                    ? minBarHeight + (maxBarHeight - minBarHeight) * ((score - 1) / 4)
+                    : minBarHeight;
+                final barColor = mood != null
+                    ? (moodColors[mood] ?? colors.accent)
+                    : colors.highlightFaint;
+                final isToday = i == 6;
 
-              return Column(
-                children: [
-                  Container(
-                    width: dotSize,
-                    height: dotSize,
-                    decoration: BoxDecoration(
-                      color: dotColor,
-                      shape: BoxShape.circle,
-                      border: isToday
-                          ? Border.all(color: colors.accent.withAlpha(120), width: 1.5)
-                          : null,
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (mood != null && isToday)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(moodEmojis[mood] ?? '', style: const TextStyle(fontSize: 11)),
+                      ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOut,
+                      width: 28,
+                      height: barHeight,
+                      decoration: BoxDecoration(
+                        color: barColor,
+                        borderRadius: BorderRadius.circular(6),
+                        border: isToday
+                            ? Border.all(color: colors.accent.withAlpha(120), width: 1.5)
+                            : null,
+                        boxShadow: mood != null
+                            ? [BoxShadow(color: barColor.withAlpha(60), blurRadius: 6, offset: const Offset(0, 2))]
+                            : null,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    dayLabels[i],
-                    style: GoogleFonts.manrope(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: isToday ? colors.accent : colors.textMuted,
-                      letterSpacing: 0.5,
+                    const SizedBox(height: 6),
+                    Text(
+                      dayLabels[i],
+                      style: GoogleFonts.manrope(
+                        fontSize: 9, fontWeight: FontWeight.w700,
+                        color: isToday ? colors.accent : colors.textMuted,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
-                ],
-              );
-            }),
+                  ],
+                );
+              }),
+            ),
           ),
         ],
       ),
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Overview — main curated feed with global deduplication
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildOverview(List<JournalEntry> entries, AppPalette colors) {
-    final recent = entries.take(6).toList();
+    // ── Global deduplication ─────────────────────────────────────────────────
+    final seen = <String>{};
+    List<JournalEntry> claim(Iterable<JournalEntry> candidates, {int limit = 8}) {
+      final result = <JournalEntry>[];
+      for (final e in candidates) {
+        if (seen.add(e.id)) {
+          result.add(e);
+          if (result.length >= limit) break;
+        }
+      }
+      return result;
+    }
+
     final cats = _getCategories(entries);
-    final familyEntries = entries
-        .where((e) => cats[e.id] == 'family')
-        .take(8)
-        .toList();
-    final travelEntries = entries
-        .where((e) => cats[e.id] == 'travel')
-        .take(8)
-        .toList();
-    final milestoneEntries = entries
-        .where((e) => cats[e.id] == 'milestone')
-        .take(8)
-        .toList();
     final onThisDayEntries = ref.watch(onThisDayProvider).valueOrNull ?? [];
+    // On This Day never deduped — always shown
+    for (final e in onThisDayEntries) { seen.add(e.id); }
+
+    // Happiest featured card gets first priority
+    final allHappy = entries.where((e) => e.mood == 'great' || e.mood == 'good').toList();
+    final featured = _highestSentimentEntry(allHappy);
+    if (featured != null) seen.add(featured.id);
+
+    // Recent (top 6 of remaining)
+    final recent = claim(entries, limit: 6);
+
+    // Category sections
+    final familyEntries = claim(entries.where((e) => cats[e.id]?.contains('family') == true));
+    final travelEntries = claim(entries.where((e) => cats[e.id]?.contains('travel') == true));
+    final milestoneEntries = claim(entries.where((e) => cats[e.id]?.contains('milestone') == true));
+
+    // Happiest pool (after featured, recent, categories)
+    final happyPool = <JournalEntry>[];
+    if (featured != null && allHappy.isNotEmpty) {
+      final family2 = allHappy.where((e) => _detectCategories(e).contains('family') && seen.add(e.id)).take(2).toList();
+      final travel2 = allHappy.where((e) => _detectCategories(e).contains('travel') && seen.add(e.id)).take(2).toList();
+      final mile2   = allHappy.where((e) => _detectCategories(e).contains('milestone') && seen.add(e.id)).take(2).toList();
+      final extra   = allHappy.where((e) => seen.add(e.id)).take(8).toList();
+      final poolSeen = <String>{};
+      for (final e in [...family2, ...travel2, ...mile2, ...extra]) {
+        if (poolSeen.add(e.id)) happyPool.add(e);
+        if (happyPool.length >= 8) break;
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 120),
       children: [
+        // ── Social (action items — shown first) ──
+        _buildSharedWithMeSection(colors),
+        _buildPendingApprovalsSection(colors),
+
         // ── On This Day ──
         if (onThisDayEntries.isNotEmpty)
           Padding(
@@ -732,13 +887,13 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
           ),
 
-        // ── Your Highlights (week / month / year) ──
+        // ── Your Highlights ──
         _buildHighlightsSection(entries, colors),
 
         // ── Mood Summary ──
         _buildMoodSummary(entries, colors),
 
-        // ── Recent Memories (always shown) ──
+        // ── Recent Memories ──
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: _buildSectionHeader('Recent Memories', colors),
@@ -748,31 +903,55 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
             child: Text(
               'Your memories will appear here once you start journaling.',
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                color: colors.textMuted,
-                height: 1.5,
-              ),
+              style: GoogleFonts.manrope(fontSize: 13, color: colors.textMuted, height: 1.5),
             ),
           )
         else ...[
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: recent.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 36),
-            itemBuilder: (_, i) => _buildEditorialEntryCard(recent[i], colors),
+            child: Column(
+              children: [
+                for (int i = 0; i < recent.length; i++) ...[
+                  _buildEditorialEntryCard(recent[i], colors),
+                  if (i < recent.length - 1) const SizedBox(height: 36),
+                ],
+              ],
+            ),
           ),
           const SizedBox(height: 40),
         ],
 
-        // ── Shared with me + Pending approvals (social/actionable) ──
-        _buildSharedWithMeSection(colors),
-        _buildPendingApprovalsSection(colors),
-
-        // ── Happiest Memories — featured + mixed pool ──
-        _buildHappiestSection(entries, colors),
+        // ── Happiest Memories ──
+        if (featured != null) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: _buildSectionHeader('Happiest Memories', colors, onSeeAll: () {
+              context.push('/explore/see-all/${SeeAllSection.happiest.name}');
+            }),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildFeaturedHappyCard(featured, entries, colors),
+          ),
+          if (happyPool.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 220,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: happyPool.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (_, i) => _buildHappyCard(happyPool[i], colors,
+                  pool: happyPool,
+                  sectionColor: const Color(0xFF10B981),
+                  sectionIcon: Icons.favorite_rounded,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 40),
+        ],
 
         // ── Family Moments ──
         Padding(
@@ -783,11 +962,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               } : null),
         ),
         if (familyEntries.isEmpty)
-          _buildCategoryTeaser(
-            colors: colors,
-            icon: Icons.family_restroom_rounded,
-            message: 'Write about family moments — they\'ll show up here.',
-          )
+          _buildCategoryTeaser(colors: colors, icon: Icons.family_restroom_rounded,
+              message: 'Write about family moments — they\'ll show up here.')
         else ...[
           SizedBox(
             height: 220,
@@ -796,7 +972,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: familyEntries.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => _buildHappyCard(familyEntries[i], colors),
+              itemBuilder: (_, i) => _buildHappyCard(familyEntries[i], colors,
+                pool: familyEntries,
+                sectionColor: const Color(0xFFEC4899),
+                sectionIcon: Icons.family_restroom_rounded,
+              ),
             ),
           ),
           const SizedBox(height: 40),
@@ -811,11 +991,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               } : null),
         ),
         if (travelEntries.isEmpty)
-          _buildCategoryTeaser(
-            colors: colors,
-            icon: Icons.flight_rounded,
-            message: 'Log your next trip or adventure — it\'ll live here.',
-          )
+          _buildCategoryTeaser(colors: colors, icon: Icons.flight_rounded,
+              message: 'Log your next trip or adventure — it\'ll live here.')
         else ...[
           SizedBox(
             height: 220,
@@ -824,7 +1001,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: travelEntries.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => _buildHappyCard(travelEntries[i], colors),
+              itemBuilder: (_, i) => _buildHappyCard(travelEntries[i], colors,
+                pool: travelEntries,
+                sectionColor: const Color(0xFFF59E0B),
+                sectionIcon: Icons.flight_takeoff_rounded,
+              ),
             ),
           ),
           const SizedBox(height: 40),
@@ -833,14 +1014,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         // ── Milestones ──
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: _buildSectionHeader('Milestones', colors),
+          child: _buildSectionHeader('Milestones', colors,
+              onSeeAll: milestoneEntries.isNotEmpty ? () {
+                context.push('/explore/see-all/${SeeAllSection.milestone.name}');
+              } : null),
         ),
         if (milestoneEntries.isEmpty)
-          _buildCategoryTeaser(
-            colors: colors,
-            icon: Icons.star_rounded,
-            message: 'Birthdays, promotions, firsts — write about them and they\'ll appear here.',
-          )
+          _buildCategoryTeaser(colors: colors, icon: Icons.star_rounded,
+              message: 'Birthdays, promotions, firsts — write about them and they\'ll appear here.')
         else ...[
           SizedBox(
             height: 220,
@@ -849,45 +1030,33 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: milestoneEntries.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => _buildHappyCard(milestoneEntries[i], colors),
+              itemBuilder: (_, i) => _buildHappyCard(milestoneEntries[i], colors,
+                pool: milestoneEntries,
+                sectionColor: const Color(0xFF8B5CF6),
+                sectionIcon: Icons.emoji_events_rounded,
+              ),
             ),
           ),
           const SizedBox(height: 40),
         ],
 
-        // End-of-feed accent
+        // End-of-feed
         Padding(
           padding: const EdgeInsets.only(top: 16, bottom: 32),
           child: Column(
             children: [
-              Center(
-                child: Container(
-                  width: 1,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [colors.accent.withAlpha(120), Colors.transparent],
-                    ),
-                  ),
-                ),
-              ),
+              Center(child: Container(width: 1, height: 72,
+                decoration: BoxDecoration(gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [colors.accent.withAlpha(120), Colors.transparent],
+                )))),
               const SizedBox(height: 12),
-              Center(
-                child: Text(
-                  'More memories await discovery',
-                  style: GoogleFonts.newsreader(
-                    fontSize: 14,
-                    fontStyle: FontStyle.italic,
-                    color: colors.textMuted.withAlpha(120),
-                  ),
-                ),
-              ),
+              Center(child: Text('More memories await discovery',
+                style: GoogleFonts.newsreader(fontSize: 14, fontStyle: FontStyle.italic,
+                  color: colors.textMuted.withAlpha(120)))),
             ],
           ),
         ),
-
       ],
     );
   }
@@ -946,7 +1115,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 count: weekEntries.length,
                 colors: colors,
                 photoUrlBuilder: _getPhotoUrl,
-                onTap: () => context.push('/story'),
+                onTap: () => context.push('/story?period=weekly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
@@ -956,7 +1125,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 count: monthEntries.length,
                 colors: colors,
                 photoUrlBuilder: _getPhotoUrl,
-                onTap: () => context.push('/story'),
+                onTap: () => context.push('/story?period=monthly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
@@ -966,7 +1135,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 count: yearEntries.length,
                 colors: colors,
                 photoUrlBuilder: _getPhotoUrl,
-                onTap: () => context.push('/story'),
+                onTap: () => context.push('/story?period=yearly'),
               ),
             ],
           ),
@@ -976,80 +1145,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Happiest Memories — featured card + mixed pool row
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildHappiestSection(List<JournalEntry> entries, AppPalette colors) {
-    final allHappy = entries
-        .where((e) => e.mood == 'great' || e.mood == 'good')
-        .toList();
-    if (allHappy.isEmpty) return const SizedBox.shrink();
-
-    final featured = _highestSentimentEntry(allHappy);
-    if (featured == null) return const SizedBox.shrink();
-
-    // Build mixed pool: top-2 from each category, then fill with happy entries
-    final family = entries
-        .where((e) => _detectCategory(e) == 'family' && e.id != featured.id)
-        .take(2)
-        .toList();
-    final travel = entries
-        .where((e) => _detectCategory(e) == 'travel' && e.id != featured.id)
-        .take(2)
-        .toList();
-    final milestone = entries
-        .where((e) => _detectCategory(e) == 'milestone' && e.id != featured.id)
-        .take(2)
-        .toList();
-    final extra = allHappy.where((e) => e.id != featured.id).take(8).toList();
-
-    final seen = <String>{featured.id};
-    final pool = <JournalEntry>[];
-    for (final e in [...family, ...travel, ...milestone, ...extra]) {
-      if (seen.add(e.id)) pool.add(e);
-      if (pool.length >= 8) break;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: _buildSectionHeader('Happiest Memories', colors, onSeeAll: () {
-            context.push('/explore/see-all/${SeeAllSection.happiest.name}');
-          }),
-        ),
-
-        // Featured card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _buildFeaturedHappyCard(featured, entries, colors),
-        ),
-
-        // Pool row
-        if (pool.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 220,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: pool.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => _buildHappyCard(pool[i], colors),
-            ),
-          ),
-        ],
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-
   Widget _buildFeaturedHappyCard(
       JournalEntry entry, List<JournalEntry> allEntries, AppPalette colors) {
     final hasMedia = entry.media.any((m) => m.mediaType == 'photo');
-    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate);
     final title = _entryTitle(entry);
     final excerpt = entry.content.length > 120
         ? '${entry.content.substring(0, 120)}...'
@@ -1113,6 +1211,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        _buildDatePill(entry.entryDate, colors),
+                        const SizedBox(height: 6),
                         Text(
                           'FEATURED MEMORY',
                           style: GoogleFonts.manrope(
@@ -1144,16 +1244,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                        ),
-                        const Spacer(),
-                        Text(
-                          dateStr,
-                          style: GoogleFonts.manrope(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withAlpha(120),
-                            letterSpacing: 0.5,
-                          ),
                         ),
                       ],
                     ),
@@ -1254,18 +1344,66 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Date pill helper
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildDatePill(DateTime date, AppPalette colors, {Color? accentColor}) {
+    final formatted = DateFormat('MMM d · yyyy').format(date).toUpperCase();
+    final color = accentColor ?? colors.accent;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withAlpha(15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        formatted,
+        style: GoogleFonts.manrope(
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          color: color,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Mood border color helper
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Color _moodBorderColor(String? mood, AppPalette colors) {
+    switch (mood) {
+      case 'great': return const Color(0xFF10B981);
+      case 'good':  return const Color(0xFF3B82F6);
+      case 'okay':  return const Color(0xFFF59E0B);
+      case 'low':   return const Color(0xFFF97316);
+      case 'tough': return const Color(0xFFEF4444);
+      default:      return colors.border;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Happiest Memory card (horizontal scroll)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildHappyCard(JournalEntry entry, AppPalette colors) {
-    final dateStr = DateFormat('MMM d').format(entry.entryDate);
+  Widget _buildHappyCard(JournalEntry entry, AppPalette colors, {
+    List<JournalEntry>? pool,
+    Color? sectionColor,
+    IconData? sectionIcon,
+  }) {
     final title = _entryTitle(entry);
     final hasMedia = entry.media.where((m) => m.mediaType == 'photo').isNotEmpty;
 
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        context.push('/memory', extra: entry);
+        final allEntries = pool ?? [entry];
+        context.push('/memory', extra: MemoryDetailArgs(
+          entry: entry,
+          allEntries: allEntries,
+          initialIndex: allEntries.indexOf(entry),
+        ));
       },
       child: Container(
         width: 160,
@@ -1301,7 +1439,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                       Positioned.fill(
                         child: _buildEntryPhoto(entry, colors),
                       ),
-                    // Gradient overlay at bottom
+                    // Gradient overlay at bottom (tinted by sectionColor)
                     Positioned(
                       left: 0, right: 0, bottom: 0, height: 50,
                       child: Container(
@@ -1309,12 +1447,28 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.black.withAlpha(100)],
+                            colors: [
+                              Colors.transparent,
+                              (sectionColor ?? Colors.black).withAlpha(130),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                    // Mood emoji
+                    // Section icon badge — top left
+                    if (sectionIcon != null)
+                      Positioned(
+                        top: 8, left: 8,
+                        child: Container(
+                          width: 28, height: 28,
+                          decoration: BoxDecoration(
+                            color: (sectionColor ?? colors.accent).withAlpha(220),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(sectionIcon, size: 14, color: Colors.white),
+                        ),
+                      ),
+                    // Mood emoji badge — top right
                     Positioned(
                       top: 8, right: 8,
                       child: Container(
@@ -1323,8 +1477,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           color: Colors.white.withAlpha(200),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(_moodEmoji(entry.mood),
-                            style: const TextStyle(fontSize: 13)),
+                        child: Text(_moodEmoji(entry.mood), style: const TextStyle(fontSize: 13)),
                       ),
                     ),
                   ],
@@ -1337,16 +1490,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    dateStr,
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textMuted,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
+                  _buildDatePill(entry.entryDate, colors, accentColor: sectionColor),
+                  const SizedBox(height: 4),
                   Text(
                     title,
                     maxLines: 2,
@@ -1368,10 +1513,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Compact entry card (used in see-all and filter results)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // ─────────────────────────────────────────────────────────────────────────
   // Editorial entry cards — used in overview Recent Memories feed
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1384,7 +1525,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   Widget _buildPhotoEditorialCard(JournalEntry entry, AppPalette colors) {
-    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate).toUpperCase();
     final title = _entryTitle(entry);
     final excerpt = entry.content.length > 160
         ? '${entry.content.substring(0, 160)}...'
@@ -1464,22 +1604,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          // Date with divider line
-          Row(
-            children: [
-              Container(height: 1, width: 28, color: colors.accent.withAlpha(80)),
-              const SizedBox(width: 8),
-              Text(
-                dateStr,
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textMuted,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ],
-          ),
+          // Date pill (replaces old date row)
+          _buildDatePill(entry.entryDate, colors),
           const SizedBox(height: 8),
           Text(
             title,
@@ -1522,7 +1648,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   Widget _buildTextEditorialCard(JournalEntry entry, AppPalette colors) {
-    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate).toUpperCase();
     final title = _entryTitle(entry);
     final excerpt = entry.content.length > 180
         ? '${entry.content.substring(0, 180)}...'
@@ -1533,54 +1658,51 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         HapticFeedback.selectionClick();
         context.push('/memory', extra: entry);
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(height: 1, width: 28, color: colors.accent.withAlpha(80)),
-              const SizedBox(width: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(12), bottomRight: Radius.circular(12),
+            bottomLeft: Radius.circular(12),
+          ),
+          border: Border(left: BorderSide(color: colors.accent, width: 3)),
+          boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 3))],
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDatePill(entry.entryDate, colors),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: GoogleFonts.newsreader(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+                height: 1.25,
+              ),
+            ),
+            if (excerpt.isNotEmpty) ...[
+              const SizedBox(height: 8),
               Text(
-                dateStr,
+                excerpt,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textMuted,
-                  letterSpacing: 1.5,
+                  fontSize: 14,
+                  color: colors.textSecondary,
+                  height: 1.65,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: GoogleFonts.newsreader(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              height: 1.25,
-            ),
-          ),
-          if (excerpt.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              excerpt,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                color: colors.textSecondary,
-                height: 1.65,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildAudioEntryCard(JournalEntry entry, AppPalette colors) {
-    final dateStr = DateFormat('EEE • h:mm a').format(entry.entryDate).toUpperCase();
     final title = _entryTitle(entry);
     final excerpt = entry.content.length > 120
         ? '${entry.content.substring(0, 120)}...'
@@ -1599,27 +1721,27 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             width: 96,
             height: 96,
             decoration: BoxDecoration(
-              color: colors.highlightFaint,
+              color: colors.accent.withAlpha(20),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Stack(
-              alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.graphic_eq_rounded, size: 48, color: colors.accent.withAlpha(60)),
-                Positioned(
-                  bottom: 12,
-                  left: 10,
-                  right: 10,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: 0.65,
-                      backgroundColor: colors.border,
-                      valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
-                      minHeight: 2,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [0.0, 0.2, 0.4, 0.1, 0.3, 0.5, 0.15].map((delay) =>
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: _AudioWaveBar(color: colors.accent, delay: delay),
                     ),
-                  ),
+                  ).toList(),
                 ),
+                const SizedBox(height: 8),
+                Text('AUDIO', style: GoogleFonts.manrope(
+                  fontSize: 8, fontWeight: FontWeight.w800,
+                  color: colors.accent, letterSpacing: 1.5,
+                )),
               ],
             ),
           ),
@@ -1629,23 +1751,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.mic_rounded, size: 11, color: colors.accent),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        dateStr,
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textMuted,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _buildDatePill(entry.entryDate, colors),
                 const SizedBox(height: 6),
                 Text(
                   title,
@@ -1689,7 +1795,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   Widget _buildCompactEntryCard(JournalEntry entry, AppPalette colors) {
-    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate).toUpperCase();
     final title = _entryTitle(entry);
     final excerpt = entry.content.length > 160
         ? '${entry.content.substring(0, 160)}...'
@@ -1705,6 +1810,12 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: colors.cardBg,
+          border: Border(
+            left: BorderSide(
+              color: _moodBorderColor(entry.mood, colors),
+              width: 3,
+            ),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha(13),
@@ -1747,6 +1858,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildDatePill(entry.entryDate, colors),
+                    const SizedBox(height: 5),
                     Text(
                       title,
                       maxLines: 2,
@@ -1767,16 +1880,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         fontSize: 12,
                         color: colors.textSecondary,
                         height: 1.55,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      dateStr,
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textMuted,
-                        letterSpacing: 1.5,
                       ),
                     ),
                   ],
@@ -2178,6 +2281,53 @@ class _HighlightCardState extends State<_HighlightCard> {
       ),
       child: Center(
         child: Icon(widget.icon, size: 40, color: Colors.white.withAlpha(80)),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Animated audio waveform bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AudioWaveBar extends StatefulWidget {
+  final Color color;
+  final double delay;
+  const _AudioWaveBar({required this.color, required this.delay});
+  @override
+  State<_AudioWaveBar> createState() => _AudioWaveBarState();
+}
+
+class _AudioWaveBarState extends State<_AudioWaveBar> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+    _anim = Tween<double>(begin: 4, end: 20).animate(
+      CurvedAnimation(parent: _ctrl, curve: Interval(widget.delay, 1.0, curve: Curves.easeInOut)),
+    );
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        width: 3,
+        height: _anim.value,
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: BorderRadius.circular(2),
+        ),
       ),
     );
   }
