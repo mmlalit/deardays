@@ -520,6 +520,10 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   Widget _buildBanner(List<EntryMedia> photoMedia, AppPalette colors) {
     if (photoMedia.isEmpty) return _buildGradientBanner(colors);
 
+    // Adaptive height: 50% of screen height, capped between 260–520px
+    final screenH = MediaQuery.of(context).size.height;
+    final bannerH = (screenH * 0.50).clamp(260.0, 520.0);
+
     final mediaService = ref.read(mediaServiceProvider);
 
     Widget photoWidget(EntryMedia media) {
@@ -529,12 +533,12 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
         return _tappablePhoto(
           child: CachedNetworkImage(
             imageUrl: storagePath,
-            height: 320,
+            height: bannerH,
             width: double.infinity,
             fit: BoxFit.cover,
             alignment: alignment,
             memCacheWidth: 800,
-            memCacheHeight: 640,
+            memCacheHeight: (bannerH * 2).toInt(),
             errorWidget: (_, __, ___) => _buildGradientBanner(colors),
           ),
           onTap: () => _openFullscreen(context, storagePath),
@@ -547,12 +551,12 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
           return _tappablePhoto(
             child: CachedNetworkImage(
               imageUrl: snapshot.data!,
-              height: 320,
+              height: bannerH,
               width: double.infinity,
               fit: BoxFit.cover,
               alignment: alignment,
               memCacheWidth: 800,
-              memCacheHeight: 640,
+              memCacheHeight: (bannerH * 2).toInt(),
               errorWidget: (_, __, ___) => _buildGradientBanner(colors),
             ),
             onTap: () => _openFullscreen(context, snapshot.data!),
@@ -567,7 +571,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
 
     // Multiple photos — swipeable PageView with dot indicators
     return SizedBox(
-      height: 320,
+      height: bannerH,
       child: Stack(
         children: [
           PageView.builder(
@@ -640,8 +644,10 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   }
 
   Widget _buildGradientBanner(AppPalette colors) {
+    final screenH = MediaQuery.of(context).size.height;
+    final bannerH = (screenH * 0.50).clamp(260.0, 520.0);
     return Container(
-      height: 320,
+      height: bannerH,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(

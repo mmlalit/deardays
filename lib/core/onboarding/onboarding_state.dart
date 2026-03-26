@@ -21,15 +21,15 @@ class ChecklistTaskDef {
 const kChecklistTaskDefs = [
   ChecklistTaskDef(
     id: 'first_memory',
-    title: 'Record your first memory',
-    subtitle: 'Speak or write about your day',
-    route: '/record',
+    title: 'Create your first memory',
+    subtitle: 'Write, speak, or snap a moment',
+    route: '/write',
   ),
   ChecklistTaskDef(
     id: 'add_photo',
     title: 'Add a photo to a memory',
-    subtitle: 'A picture makes it richer',
-    route: '/photo-entry',
+    subtitle: 'Attach a photo while writing',
+    route: '/write',
   ),
   ChecklistTaskDef(
     id: 'create_chapter',

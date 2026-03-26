@@ -36,6 +36,11 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
   bool _hasEnoughText = false;
   bool _photoLoadError = false;
 
+  // ── Photo adjustment state ────────────────────────────────────────────────
+  double _brightness = 0.0;  // -1.0 to 1.0
+  double _warmth = 0.0;      // -1.0 to 1.0
+  double _contrast = 0.0;    // -1.0 to 1.0
+
   // ── Voice recording state ────────────────────────────────────────────────
   bool _isRecordingVoice = false;
   bool _isVoiceMode = false; // true after a voice recording has been completed
@@ -51,6 +56,20 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
   late Animation<double> _pulseAnim;
 
   static const _minChars = 10;
+
+  /// Builds a 5×4 color matrix combining brightness, warmth and contrast.
+  ColorFilter _buildColorFilter() {
+    final b = _brightness * 0.3;       // brightness offset
+    final w = _warmth * 0.15;          // warmth: warm R+, cool B+
+    final c = 1.0 + _contrast * 0.5;  // contrast scale
+    final t = (1.0 - c) / 2.0;        // translate to keep midpoint
+    return ColorFilter.matrix([
+      c,   0,   0,   0,  (t + b + w) * 255,
+      0,   c,   0,   0,  (t + b)     * 255,
+      0,   0,   c,   0,  (t + b - w) * 255,
+      0,   0,   0,   1,  0,
+    ]);
+  }
 
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -396,8 +415,9 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
         ),
       );
     } else {
+      // Text-only path: route through ProcessingScreen for AI polish + title gen
       context.push(
-        '/review',
+        '/processing',
         extra: ReviewData(
           rawText: text,
           attachedPhotoPath: _photoPath,
@@ -432,35 +452,406 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
           ),
         ),
       ),
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Builder(
-          builder: (context) {
-            final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-            final keyboardOpen = keyboardHeight > 100;
-            return Column(
-              children: [
-                // Photo collapses to thumbnail when keyboard is open
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOut,
-                  height: keyboardOpen ? 100 : 260,
-                  child: _buildPhotoPreview(colors, compact: keyboardOpen),
-                ),
-                Expanded(child: _buildTextArea(colors)),
-                // Continue button sticks above keyboard
-                Padding(
-                  padding: EdgeInsets.only(bottom: keyboardHeight),
-                  child: _buildContinueButton(colors),
-                ),
-              ],
-            );
-          },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildInstagramLayout(colors)),
+            if (_isRecordingVoice)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: _buildRecordingIndicator(colors),
+              ),
+            _buildContinueButton(colors),
+          ],
         ),
       ),
     );
   }
 
+  // ── Instagram-style layout: thumbnail left + text right ───────────────────
+
+  Widget _buildInstagramLayout(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Thumbnail (tap to reframe) ─────────────────────────────────
+          GestureDetector(
+            onTap: () => _showReframeSheet(colors),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: ColorFiltered(
+                    colorFilter: _buildColorFilter(),
+                    child: SizedBox(
+                      width: 90,
+                      height: 90,
+                      child: _photoLoadError
+                          ? Container(
+                              color: Colors.black26,
+                              child: const Center(
+                                child: Icon(Icons.broken_image_rounded,
+                                    size: 28, color: Colors.white54),
+                              ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: FileImage(File(_photoPath)),
+                                  fit: BoxFit.cover,
+                                  alignment: _focalAlignment,
+                                  onError: (_, __) {
+                                    if (mounted) setState(() => _photoLoadError = true);
+                                  },
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Reframe',
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: colors.accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          // ── Text input area ────────────────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Label row + voice badge + mic button
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Tell the story',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textSecondary,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    Text(
+                      ' *',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colors.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (_isVoiceMode && !_isRecordingVoice) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colors.accent.withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              Border.all(color: colors.accent.withAlpha(60)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.mic_rounded,
+                                size: 10, color: colors.accent),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Voice',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: colors.accent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    GestureDetector(
+                      key: const Key('voice_toggle_button'),
+                      onTap: _isRecordingVoice
+                          ? _stopVoiceRecording
+                          : _startVoiceRecording,
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isRecordingVoice
+                              ? Colors.red.withAlpha(20)
+                              : colors.accent.withAlpha(18),
+                        ),
+                        child: Icon(
+                          _isRecordingVoice
+                              ? Icons.stop_rounded
+                              : Icons.mic_rounded,
+                          size: 18,
+                          color: _isRecordingVoice ? Colors.red : colors.accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // Text field — expands to fill remaining space
+                Expanded(
+                  child: TextField(
+                    controller: _textController,
+                    focusNode: _focusNode,
+                    autofocus: true,
+                    maxLines: null,
+                    expands: true,
+                    readOnly: _isRecordingVoice,
+                    textAlignVertical: TextAlignVertical.top,
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      color: colors.textPrimary,
+                      height: 1.65,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: _isRecordingVoice
+                          ? 'Listening… speak your memory'
+                          : 'What happened here? What does this moment mean to you?',
+                      hintStyle: GoogleFonts.manrope(
+                        fontSize: 15,
+                        color: colors.textSecondary.withAlpha(110),
+                        height: 1.65,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+
+                // Nudge when text too short
+                AnimatedOpacity(
+                  opacity: _textController.text.isNotEmpty &&
+                          !_hasEnoughText &&
+                          !_isRecordingVoice
+                      ? 1.0
+                      : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Write a little more to continue…',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: colors.textSecondary.withAlpha(140),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shows a bottom sheet for drag-to-reframe + photo adjustments.
+  void _showReframeSheet(AppPalette colors) {
+    Alignment tempAlignment = _focalAlignment;
+    double tempBrightness = _brightness;
+    double tempWarmth = _warmth;
+    double tempContrast = _contrast;
+
+    ColorFilter buildFilter() {
+      final b = tempBrightness * 0.3;
+      final w = tempWarmth * 0.15;
+      final c = 1.0 + tempContrast * 0.5;
+      final t = (1.0 - c) / 2.0;
+      return ColorFilter.matrix([
+        c, 0, 0, 0, (t + b + w) * 255,
+        0, c, 0, 0, (t + b)     * 255,
+        0, 0, c, 0, (t + b - w) * 255,
+        0, 0, 0, 1, 0,
+      ]);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // Handle
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white30,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Header row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Edit Photo',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!_isDesktop)
+                          GestureDetector(
+                            onTap: () async {
+                              Navigator.of(ctx).pop();
+                              final cropped = await _cropPhoto(_photoPath);
+                              if (cropped != null && mounted) {
+                                setState(() {
+                                  _photoPath = cropped;
+                                  _focalAlignment = Alignment.center;
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withAlpha(30),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.crop_rounded, size: 13, color: Colors.white),
+                                  const SizedBox(width: 4),
+                                  Text('Crop', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _focalAlignment = tempAlignment;
+                              _brightness = tempBrightness;
+                              _warmth = tempWarmth;
+                              _contrast = tempContrast;
+                            });
+                            Navigator.of(ctx).pop();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: colors.accent,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text('Done', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Photo drag area
+                  Expanded(
+                    child: GestureDetector(
+                      onPanUpdate: (details) {
+                        final box = ctx.findRenderObject() as RenderBox?;
+                        if (box == null) return;
+                        final size = box.size;
+                        final dx = -details.delta.dx / size.width * 2.5;
+                        final dy = -details.delta.dy / size.height * 2.5;
+                        setSheetState(() {
+                          tempAlignment = Alignment(
+                            (tempAlignment.x + dx).clamp(-1.0, 1.0),
+                            (tempAlignment.y + dy).clamp(-1.0, 1.0),
+                          );
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+                        child: _photoLoadError
+                            ? const Center(child: Icon(Icons.broken_image_rounded, size: 48, color: Colors.white54))
+                            : ColorFiltered(
+                                colorFilter: buildFilter(),
+                                child: Image.file(
+                                  File(_photoPath),
+                                  fit: BoxFit.cover,
+                                  alignment: tempAlignment,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                  // ── Adjustment sliders ────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    child: Column(
+                      children: [
+                        _AdjustSlider(
+                          label: 'Brightness',
+                          icon: Icons.wb_sunny_outlined,
+                          value: tempBrightness,
+                          onChanged: (v) => setSheetState(() => tempBrightness = v),
+                        ),
+                        const SizedBox(height: 8),
+                        _AdjustSlider(
+                          label: 'Warmth',
+                          icon: Icons.thermostat_outlined,
+                          value: tempWarmth,
+                          onChanged: (v) => setSheetState(() => tempWarmth = v),
+                        ),
+                        const SizedBox(height: 8),
+                        _AdjustSlider(
+                          label: 'Contrast',
+                          icon: Icons.contrast_outlined,
+                          value: tempContrast,
+                          onChanged: (v) => setSheetState(() => tempContrast = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ignore: unused_element — kept for possible future use
   Widget _buildPhotoPreview(AppPalette colors, {bool compact = false}) {
     return GestureDetector(
       onPanUpdate: compact
@@ -616,6 +1007,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     );
   }
 
+  // ignore: unused_element — kept for possible future use
   Widget _buildTextArea(AppPalette colors) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -836,6 +1228,73 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Adjustment slider row ─────────────────────────────────────────────────────
+
+class _AdjustSlider extends StatelessWidget {
+  const _AdjustSlider({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final IconData icon;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.white70),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 64,
+          child: Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.white70,
+            ),
+          ),
+        ),
+        Expanded(
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 2,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              activeTrackColor: Colors.white,
+              inactiveTrackColor: Colors.white24,
+              thumbColor: Colors.white,
+              overlayColor: Colors.white24,
+            ),
+            child: Slider(
+              value: value,
+              min: -1.0,
+              max: 1.0,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 32,
+          child: Text(
+            value == 0 ? '0' : value.toStringAsFixed(1),
+            textAlign: TextAlign.right,
+            style: GoogleFonts.manrope(
+              fontSize: 10,
+              color: Colors.white54,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

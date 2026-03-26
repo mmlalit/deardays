@@ -11,7 +11,11 @@ import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/providers/onboarding_provider.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
+import 'package:deardays/core/utils/chapter_visuals.dart';
+import 'package:deardays/features/book/data/models/book_page.dart';
+import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
 import 'package:deardays/features/timeline/presentation/widgets/on_this_day_card.dart';
@@ -93,6 +97,16 @@ class ExploreScreen extends ConsumerStatefulWidget {
 }
 
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(onboardingProvider.notifier).completeTask('explore_themes');
+      }
+    });
+  }
+
   // Filter state
   String? _filterMood;
   bool _filterHasPhoto = false;
@@ -890,6 +904,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         // ── Your Highlights ──
         _buildHighlightsSection(entries, colors),
 
+        // ── Featured Chapter Postcard ──
+        _buildFeaturedChapterPostcard(entries, colors),
+
         // ── Mood Summary ──
         _buildMoodSummary(entries, colors),
 
@@ -1081,19 +1098,70 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Featured Chapter Postcard
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFeaturedChapterPostcard(
+      List<JournalEntry> entries, AppPalette colors) {
+    final chaptersAsync = ref.watch(chaptersProvider);
+    return chaptersAsync.when(
+      data: (chapters) {
+        if (chapters.isEmpty) return const SizedBox.shrink();
+        // Pick the chapter with the most entries
+        final chapter =
+            chapters.reduce((a, b) => a.entryCount >= b.entryCount ? a : b);
+        // Find first photo entry whose date falls inside this chapter
+        final photoEntry = entries.firstWhere(
+          (e) {
+            final d = e.entryDate;
+            return e.hasPhoto &&
+                !d.isBefore(chapter.startDate) &&
+                (chapter.endDate == null || !d.isAfter(chapter.endDate!));
+          },
+          orElse: () => entries.firstWhere((e) => e.hasPhoto,
+              orElse: () => entries.first),
+        );
+        final accentColor = ChapterVisual.forTitle(chapter.title,
+            colorValue: chapter.colorValue).primary;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+          child: _ChapterPostcard(
+            chapter: chapter,
+            photoEntry: photoEntry.hasPhoto ? photoEntry : null,
+            accent: accentColor,
+            colors: colors,
+            onTap: () =>
+                context.push('/book-reader', extra: BookMode.byChapter),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Your Highlights section — week / month / year photo cards
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildHighlightsSection(List<JournalEntry> entries, AppPalette colors) {
     final now = DateTime.now();
-    final weekStart = DateTime(now.year, now.month,
-        now.day - now.weekday + 1); // ISO Monday
+    final weekStart = DateTime(now.year, now.month, now.day - now.weekday + 1);
     final monthStart = DateTime(now.year, now.month, 1);
     final yearStart = DateTime(now.year, 1, 1);
 
-    final weekEntries = entries.where((e) => !e.entryDate.isBefore(weekStart)).toList();
+    final weekEntries  = entries.where((e) => !e.entryDate.isBefore(weekStart)).toList();
     final monthEntries = entries.where((e) => !e.entryDate.isBefore(monthStart)).toList();
-    final yearEntries = entries.where((e) => !e.entryDate.isBefore(yearStart)).toList();
+    final yearEntries  = entries.where((e) => !e.entryDate.isBefore(yearStart)).toList();
+
+
+    // Best-photo entry for each period (used for full-bleed card background)
+    final weekFeatured  = _highestSentimentEntry(weekEntries);
+    final monthFeatured = _highestSentimentEntry(monthEntries);
+    final yearFeatured  = _highestSentimentEntry(yearEntries);
+    Future<String> urlBuilder(String path) =>
+        ref.read(mediaServiceProvider).getSignedUrl(path);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1111,30 +1179,30 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               _HighlightCard(
                 label: 'This Week',
                 icon: Icons.calendar_view_week_rounded,
-                entry: _highestSentimentEntry(weekEntries),
+                entry: weekFeatured,
                 count: weekEntries.length,
                 colors: colors,
-                photoUrlBuilder: _getPhotoUrl,
+                photoUrlBuilder: urlBuilder,
                 onTap: () => context.push('/story?period=weekly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
                 label: 'This Month',
                 icon: Icons.calendar_month_rounded,
-                entry: _highestSentimentEntry(monthEntries),
+                entry: monthFeatured,
                 count: monthEntries.length,
                 colors: colors,
-                photoUrlBuilder: _getPhotoUrl,
+                photoUrlBuilder: urlBuilder,
                 onTap: () => context.push('/story?period=monthly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
                 label: 'This Year',
                 icon: Icons.auto_stories_rounded,
-                entry: _highestSentimentEntry(yearEntries),
+                entry: yearFeatured,
                 count: yearEntries.length,
                 colors: colors,
-                photoUrlBuilder: _getPhotoUrl,
+                photoUrlBuilder: urlBuilder,
                 onTap: () => context.push('/story?period=yearly'),
               ),
             ],
@@ -1149,8 +1217,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       JournalEntry entry, List<JournalEntry> allEntries, AppPalette colors) {
     final hasMedia = entry.media.any((m) => m.mediaType == 'photo');
     final title = _entryTitle(entry);
-    final excerpt = entry.content.length > 120
-        ? '${entry.content.substring(0, 120)}...'
+    final excerpt = entry.content.length > 100
+        ? '${entry.content.substring(0, 100)}...'
         : entry.content;
 
     return GestureDetector(
@@ -1180,78 +1248,91 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
+          fit: StackFit.expand,
           children: [
-            Row(
-              children: [
-                // Photo — left half
-                Expanded(
-                  child: hasMedia
-                      ? _buildEntryPhoto(entry, colors)
-                      : Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: _moodGradient(entry.mood),
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _moodEmoji(entry.mood),
-                              style: const TextStyle(fontSize: 48),
-                            ),
-                          ),
-                        ),
-                ),
-                // Content — right half
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildDatePill(entry.entryDate, colors),
-                        const SizedBox(height: 6),
-                        Text(
-                          'FEATURED MEMORY',
-                          style: GoogleFonts.manrope(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white.withAlpha(140),
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          title,
-                          style: GoogleFonts.newsreader(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            height: 1.25,
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          excerpt,
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            color: Colors.white.withAlpha(160),
-                            height: 1.5,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+            // Full-width photo background (or mood gradient if no photo)
+            if (hasMedia)
+              _buildEntryPhoto(entry, colors)
+            else
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: _moodGradient(entry.mood),
                   ),
                 ),
-              ],
+                child: Center(
+                  child: Text(
+                    _moodEmoji(entry.mood),
+                    style: const TextStyle(fontSize: 80),
+                  ),
+                ),
+              ),
+            // Bottom gradient scrim — clear top, strong dark bottom
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.3, 1.0],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withAlpha(20),
+                      Colors.black.withAlpha(215),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            // Book spine detail on left edge
+            // Text overlay anchored at bottom-left
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDatePill(entry.entryDate, colors),
+                  const SizedBox(height: 6),
+                  Text(
+                    'FEATURED MEMORY',
+                    style: GoogleFonts.manrope(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white.withAlpha(180),
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    excerpt,
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      color: Colors.white.withAlpha(160),
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            // Left spine accent
             Positioned(
               left: 0,
               top: 0,
@@ -2010,6 +2091,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final photo = entry.media.where((m) => m.mediaType == 'photo').firstOrNull;
     if (photo == null) return const SizedBox.shrink();
 
+    // Use stored focal alignment so faces stay in frame
+    final alignment = photo.focalAlignment;
+
     Widget shimmer() => Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -2025,6 +2109,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       return CachedNetworkImage(
         imageUrl: photo.storagePath,
         fit: BoxFit.cover,
+        alignment: alignment,
         width: double.infinity,
         height: double.infinity,
         memCacheWidth: 400,
@@ -2042,6 +2127,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         return CachedNetworkImage(
           imageUrl: snapshot.data!,
           fit: BoxFit.cover,
+          alignment: alignment,
           width: double.infinity,
           height: double.infinity,
           memCacheWidth: 400,
@@ -2331,4 +2417,209 @@ class _AudioWaveBarState extends State<_AudioWaveBar> with SingleTickerProviderS
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Featured Chapter Postcard
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ChapterPostcard extends ConsumerStatefulWidget {
+  final Chapter chapter;
+  final JournalEntry? photoEntry;
+  final Color accent;
+  final AppPalette colors;
+  final VoidCallback onTap;
+
+  const _ChapterPostcard({
+    required this.chapter,
+    required this.photoEntry,
+    required this.accent,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  ConsumerState<_ChapterPostcard> createState() => _ChapterPostcardState();
+}
+
+class _ChapterPostcardState extends ConsumerState<_ChapterPostcard> {
+  String? _photoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoto();
+  }
+
+  Future<void> _loadPhoto() async {
+    final entry = widget.photoEntry;
+    if (entry == null) return;
+    final photoMedia =
+        entry.media.where((m) => m.mediaType == 'photo').toList();
+    if (photoMedia.isEmpty) return;
+    try {
+      final url = await ref
+          .read(mediaServiceProvider)
+          .getSignedUrl(photoMedia.first.storagePath);
+      if (mounted) setState(() => _photoUrl = url);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chapter = widget.chapter;
+    final accent = widget.accent;
+    // Dark card background — blend accent toward black for a rich feel
+    final cardBg = Color.lerp(accent, Colors.black, 0.5) ?? accent;
+    const textColor = Colors.white;
+
+    final countLabel =
+        '${chapter.entryCount} ${chapter.entryCount == 1 ? 'memory' : 'memories'}';
+
+    return Semantics(
+      label: 'Featured chapter: ${chapter.title}. $countLabel. Tap to read.',
+      button: true,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: SizedBox(
+            height: 200,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // ── Background: user photo or accent gradient ────────────
+                if (_photoUrl != null && _photoUrl!.isNotEmpty)
+                  CachedNetworkImage(
+                    imageUrl: _photoUrl!,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    errorWidget: (_, __, ___) => _gradientBg(accent, cardBg),
+                  )
+                else
+                  _gradientBg(accent, cardBg),
+
+                // ── Right-to-left dark scrim so text is always readable ──
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerRight,
+                      end: Alignment.centerLeft,
+                      colors: [
+                        cardBg.withAlpha(245),
+                        cardBg.withAlpha(200),
+                        cardBg.withAlpha(80),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Book spine (left edge) ───────────────────────────────
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 4,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          accent.withAlpha(200),
+                          accent.withAlpha(80),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ── Content ─────────────────────────────────────────────
+                Positioned(
+                  left: 20,
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'FEATURED CHAPTER',
+                        style: GoogleFonts.manrope(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: accent.withAlpha(210),
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        chapter.title,
+                        style: GoogleFonts.newsreader(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        countLabel,
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: textColor.withAlpha(160),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      // Read Story pill button
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: textColor.withAlpha(30),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: textColor.withAlpha(70), width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Read Story',
+                              style: GoogleFonts.manrope(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.auto_stories_rounded,
+                                size: 14, color: textColor),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _gradientBg(Color accent, Color dark) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [accent.withAlpha(180), dark],
+          ),
+        ),
+      );
 }

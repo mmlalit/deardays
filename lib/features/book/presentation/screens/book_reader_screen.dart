@@ -14,12 +14,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/providers/onboarding_provider.dart';
+import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/core/routing/routes.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/models/book_page.dart';
 import 'package:deardays/features/book/data/services/book_builder_service.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/features/story/presentation/providers/story_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
@@ -57,6 +60,11 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     _pageController = PageController();
     _loadTheme();
     _loadResumePage();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(onboardingProvider.notifier).completeTask('read_book');
+      }
+    });
   }
 
   Future<void> _loadTheme() async {
@@ -240,7 +248,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
               // Overlay: top + bottom bars
               if (_overlayVisible) ...[
-                _buildTopBar(context, pages),
+                _buildTopBar(context, pages, entries),
                 _buildBottomBar(context, pages),
               ],
             ],
@@ -277,8 +285,8 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
       MonthDividerPage p        => _MonthPage(page: p),
       ChapterDividerPage p      => _ChapterPage(page: p),
       WeekOpenerBookPage p      => _WeekOpenerPage(page: p, pageNum: index, bgColor: _readingBg),
-      MemoryBookPage p          => _MemoryPage(page: p, pageNum: index, isDearDays: _isDearDays, bgColor: _readingBg),
-      WeeklyNarrativeBookPage p => _WeeklyNarrativePage(page: p, pageNum: index, isDearDays: _isDearDays, allEntries: entries, bgColor: _readingBg),
+      MemoryBookPage p          => _MemoryPage(page: p, pageNum: index, isDearDays: _isDearDays, bgColor: _readingBg, allEntries: entries),
+      WeeklyNarrativeBookPage p => _WeeklyNarrativePage(page: p, pageNum: index, isDearDays: _isDearDays, allEntries: entries, bgColor: _readingBg, bookId: bookId),
       TimeBridgePage p          => _TimeBridgePage(page: p),
       ClosingBookPage p         => _ClosingPage(page: p, onRecord: () => context.push('/record'), onWrite: () => context.push('/write'), bgColor: _readingBg),
     };
@@ -286,13 +294,14 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
   // ── Overlay: top bar ──────────────────────────────────────────────────────
 
-  Widget _buildTopBar(BuildContext context, List<BookPage> pages) {
+  Widget _buildTopBar(BuildContext context, List<BookPage> pages, List<JournalEntry> entries) {
     final currentPage = _currentPage < pages.length ? pages[_currentPage] : null;
     final isDark = _isDarkPage(currentPage);
     final textColor = isDark ? Colors.white : AppColors.readingText;
     final bgColor = isDark
         ? Colors.black.withAlpha(100)
         : AppColors.readingBg.withAlpha(220);
+    final barColor = isDark ? Colors.white : Colors.black;
 
     return Positioned(
       top: 0,
@@ -320,7 +329,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                   _BarBtn(
                     icon: Icons.menu_rounded,
                     label: 'Contents',
-                    color: isDark ? Colors.white : Colors.black,
+                    color: barColor,
                     onTap: () {
                       final tocIndex = pages.indexWhere((p) => p is TocBookPage);
                       if (tocIndex >= 0) _jumpToPage(tocIndex);
@@ -341,11 +350,29 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                       ),
                     ),
                   ),
+                  // Edit — shown on MemoryBookPage entries
+                  if (currentPage is MemoryBookPage)
+                    _BarBtn(
+                      icon: Icons.edit_outlined,
+                      label: 'Edit',
+                      color: barColor,
+                      onTap: () {
+                        final entry = currentPage.entry;
+                        context.push(
+                          '/memory',
+                          extra: MemoryDetailArgs(
+                            entry: entry,
+                            allEntries: entries,
+                            initialIndex: entries.indexOf(entry),
+                          ),
+                        );
+                      },
+                    ),
                   // X — close reader → Books
                   _BarBtn(
                     icon: Icons.close_rounded,
                     label: 'Close',
-                    color: isDark ? Colors.white : Colors.black,
+                    color: barColor,
                     onTap: () => context.go(AppRoutes.book),
                   ),
                 ],
@@ -1747,7 +1774,8 @@ class _MemoryPage extends ConsumerWidget {
   final int pageNum;
   final bool isDearDays;
   final Color bgColor;
-  const _MemoryPage({required this.page, required this.pageNum, required this.isDearDays, required this.bgColor});
+  final List<JournalEntry> allEntries;
+  const _MemoryPage({required this.page, required this.pageNum, required this.isDearDays, required this.bgColor, required this.allEntries});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1801,7 +1829,18 @@ class _MemoryPage extends ConsumerWidget {
 
               // Photo
               if (entry.media.isNotEmpty)
-                _MemoryPhoto(entry: entry, ref: ref),
+                _MemoryPhoto(
+                  entry: entry,
+                  ref: ref,
+                  onEdit: () => context.push(
+                    '/memory',
+                    extra: MemoryDetailArgs(
+                      entry: entry,
+                      allEntries: allEntries,
+                      initialIndex: allEntries.indexOf(entry),
+                    ),
+                  ),
+                ),
 
               // Body text — drop cap on first para if isFirstInSection
               if (paragraphs.isNotEmpty) ...[
@@ -1858,7 +1897,8 @@ class _MemoryPage extends ConsumerWidget {
 class _MemoryPhoto extends ConsumerWidget {
   final JournalEntry entry;
   final WidgetRef ref;
-  const _MemoryPhoto({required this.entry, required this.ref});
+  final VoidCallback? onEdit;
+  const _MemoryPhoto({required this.entry, required this.ref, this.onEdit});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1869,36 +1909,61 @@ class _MemoryPhoto extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: FutureBuilder<String>(
-            future: mediaService.getSignedUrl(photoMedia.first.storagePath),
-            builder: (context, snapshot) {
-              final alignment = photoMedia.first.focalAlignment;
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                // Try local file path
-                final path = photoMedia.first.storagePath;
-                if (path.startsWith('/') || path.contains(':\\')) {
-                  return Image.file(File(path), fit: BoxFit.cover, alignment: alignment);
+      child: GestureDetector(
+        onTap: onEdit,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: FutureBuilder<String>(
+              future: mediaService.getSignedUrl(photoMedia.first.storagePath),
+              builder: (context, snapshot) {
+                final alignment = photoMedia.first.focalAlignment;
+                Widget photo;
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  final path = photoMedia.first.storagePath;
+                  if (path.startsWith('/') || path.contains(':\\')) {
+                    photo = Image.file(File(path), fit: BoxFit.cover, alignment: alignment);
+                  } else {
+                    photo = Container(
+                      color: AppColors.readingText.withAlpha(15),
+                      child: Icon(Icons.image_outlined,
+                          color: AppColors.readingText.withAlpha(60), size: 32),
+                    );
+                  }
+                } else {
+                  photo = CachedNetworkImage(
+                    imageUrl: snapshot.data!,
+                    fit: BoxFit.cover,
+                    alignment: alignment,
+                    placeholder: (_, __) =>
+                        Container(color: AppColors.readingText.withAlpha(15)),
+                    errorWidget: (_, __, ___) =>
+                        Container(color: AppColors.readingText.withAlpha(15)),
+                  );
                 }
-                return Container(
-                  color: AppColors.readingText.withAlpha(15),
-                  child: Icon(Icons.image_outlined,
-                      color: AppColors.readingText.withAlpha(60), size: 32),
+                if (onEdit == null) return photo;
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    photo,
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(110),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.crop_free_rounded,
+                            color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ],
                 );
-              }
-              return CachedNetworkImage(
-                imageUrl: snapshot.data!,
-                fit: BoxFit.cover,
-                alignment: alignment,
-                placeholder: (_, __) =>
-                    Container(color: AppColors.readingText.withAlpha(15)),
-                errorWidget: (_, __, ___) =>
-                    Container(color: AppColors.readingText.withAlpha(15)),
-              );
-            },
+              },
+            ),
           ),
         ),
       ),
@@ -2312,12 +2377,14 @@ class _WeeklyNarrativePage extends ConsumerStatefulWidget {
   final bool isDearDays;
   final List<JournalEntry> allEntries;
   final Color bgColor;
+  final String? bookId;
   const _WeeklyNarrativePage({
     required this.page,
     required this.pageNum,
     required this.isDearDays,
     required this.allEntries,
     required this.bgColor,
+    this.bookId,
   });
 
   @override
@@ -2427,8 +2494,11 @@ class _WeeklyNarrativePageState
                   const SizedBox(height: 12),
                   ...weekEntries.map((e) => _buildEntryCard(context, e)),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
               ],
+              // Regenerate story button
+              _buildRegenerateButton(context),
+              const SizedBox(height: 24),
               Center(
                 child: Text(
                   '${widget.pageNum + 1}',
@@ -2500,6 +2570,50 @@ class _WeeklyNarrativePageState
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: accent.withAlpha(180),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegenerateButton(BuildContext context) {
+    final accent = AppColors.of(context).accent;
+    return GestureDetector(
+      onTap: () {
+        try {
+          final weekDate = DateTime.parse(_page.weekStart);
+          ref.read(hierarchicalBookProvider.notifier).regenerateWeekly(weekDate);
+          if (widget.bookId != null) {
+            ref.invalidate(weeklyNarrativePagesProvider(widget.bookId!));
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Regenerating story — come back in a moment'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } catch (_) {}
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: accent.withAlpha(8),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: accent.withAlpha(20)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.refresh_rounded, size: 14, color: accent.withAlpha(140)),
+            const SizedBox(width: 6),
+            Text(
+              'Regenerate story',
+              style: GoogleFonts.manrope(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: accent.withAlpha(160),
               ),
             ),
           ],

@@ -25,6 +25,12 @@ ast weak, our famly goed to the beach. It was so sunny and hot! My dad forgotted
 ''';
 
 void main() {
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  if (supabaseUrl.isEmpty) {
+    // No real Supabase credentials — skip all integration tests in CI/local
+    return;
+  }
+
   late AiService ai;
 
   setUpAll(() async {

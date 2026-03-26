@@ -53,28 +53,26 @@ void main() {
       expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
     });
 
-    testWidgets('shows photo preview container', (tester) async {
+    testWidgets('shows photo thumbnail (ClipRRect)', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(_settle);
 
-      // Photo is rendered via DecorationImage in a Container (not Image widget).
-      // Verify the AnimatedContainer wrapping the photo area is present and tall.
-      final animated = find.byType(AnimatedContainer);
-      expect(animated.evaluate().isNotEmpty, isTrue);
+      // Instagram-style layout: 90×90 ClipRRect thumbnail on the left.
+      expect(find.byType(ClipRRect), findsWidgets);
     });
 
-    testWidgets('shows Change pill button on the photo', (tester) async {
+    testWidgets('shows Reframe label below the thumbnail', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(_settle);
 
-      expect(find.text('Change'), findsOneWidget);
+      expect(find.text('Reframe'), findsOneWidget);
     });
 
-    testWidgets('shows edit icon inside Change pill', (tester) async {
+    testWidgets('shows mic icon button beside the text field', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(_settle);
 
-      expect(find.byIcon(Icons.edit_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
     });
 
     testWidgets('shows "Tell the story" label', (tester) async {
@@ -259,19 +257,15 @@ void main() {
   // ── Layout ─────────────────────────────────────────────────────────────────
 
   group('PhotoEntryScreen — Layout', () {
-    testWidgets('photo preview container is at least 100px tall', (tester) async {
+    testWidgets('photo thumbnail is 90px wide (Instagram-style)', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pump(_settle);
 
-      // Photo preview now uses AnimatedContainer (height: 260 normal, 100 when
-      // keyboard open). Verify the container is in the tree and the rendered
-      // size is at least 100px tall.
-      final containers = tester.widgetList<AnimatedContainer>(
-        find.byType(AnimatedContainer),
-      ).toList();
-      // At least one AnimatedContainer should exist (the photo preview)
-      expect(containers, isNotEmpty,
-          reason: 'Expected an AnimatedContainer for the photo preview');
+      // Instagram-style layout: fixed 90×90 thumbnail on the left.
+      // ClipRRect is the outermost widget clipping the thumbnail.
+      final clipRRects = find.byType(ClipRRect);
+      expect(clipRRects.evaluate().isNotEmpty, isTrue,
+          reason: 'Expected a ClipRRect for the photo thumbnail');
     });
 
     testWidgets('Continue button is full-width (ElevatedButton present)',

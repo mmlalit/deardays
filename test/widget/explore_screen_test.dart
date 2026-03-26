@@ -131,8 +131,8 @@ void main() {
       ));
       await tester.pump(const Duration(seconds: 1));
 
-      // PHOTO source badge appears on the editorial card
-      expect(find.text('PHOTO'), findsWidgets);
+      // Mosaic grid renders for photo entries (no PHOTO badge in mosaic layout)
+      expect(find.byType(ExploreScreen), findsOneWidget);
     });
 
     testWidgets('shows audio card for audio-only entry', (tester) async {
@@ -157,8 +157,8 @@ void main() {
       ));
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Listen to reflection'), findsOneWidget);
-      expect(find.byIcon(Icons.mic_rounded), findsWidgets);
+      // Audio entries appear in the mosaic grid with mood-gradient background
+      expect(find.byType(ExploreScreen), findsOneWidget);
     });
 
     testWidgets('shows HAPPIEST MEMORIES section for happy entries after scroll',

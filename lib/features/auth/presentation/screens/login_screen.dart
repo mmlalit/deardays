@@ -438,7 +438,8 @@ class _LoginScreenState extends State<LoginScreen>
                           textAlign: TextAlign.center,
                           style: GoogleFonts.manrope(
                             fontSize: 11,
-                            color: colors.textMuted,
+                            // Hardcoded to pass WCAG AA 4.5:1 on #F9F7F3 bg (ratio ~6.0)
+                            color: const Color(0xFF595550),
                             height: 1.5,
                           ),
                         ),
@@ -1011,7 +1012,8 @@ class _LoginScreenState extends State<LoginScreen>
                 textAlign: TextAlign.center,
                 style: GoogleFonts.manrope(
                   fontSize: 11,
-                  color: colors.textMuted,
+                  // Hardcoded to pass WCAG AA 4.5:1 on #F9F7F3 bg (ratio ~6.0)
+                  color: const Color(0xFF595550),
                   height: 1.5,
                 ),
               ),
