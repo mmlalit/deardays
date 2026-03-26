@@ -368,12 +368,16 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
                         );
                       },
                     ),
-                  // X — close reader → Books
+                  // Back / Close — respects navigation origin
                   _BarBtn(
-                    icon: Icons.close_rounded,
-                    label: 'Close',
+                    icon: context.canPop()
+                        ? Icons.arrow_back_rounded
+                        : Icons.close_rounded,
+                    label: context.canPop() ? 'Back' : 'Close',
                     color: barColor,
-                    onTap: () => context.go(AppRoutes.book),
+                    onTap: () => context.canPop()
+                        ? context.pop()
+                        : context.go(AppRoutes.book),
                   ),
                 ],
               ),
