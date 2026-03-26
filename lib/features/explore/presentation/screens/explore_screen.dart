@@ -101,8 +101,25 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(onboardingProvider.notifier).completeTask('explore_themes');
+      if (!mounted) return;
+
+      // Check before completing so we know if this is the first visit
+      final alreadyComplete = ref
+          .read(onboardingProvider)
+          .checklistTasks
+          .where((t) => t.id == 'explore_themes')
+          .firstOrNull
+          ?.isCompleted ?? false;
+
+      ref.read(onboardingProvider.notifier).completeTask('explore_themes');
+
+      // If opened from the Getting Started checklist (has a previous route on the
+      // stack) and this is the first completion, pop back to HOME after a brief
+      // delay so the user sees the checklist item tick off.
+      if (!alreadyComplete && context.canPop()) {
+        Future.delayed(const Duration(milliseconds: 1400), () {
+          if (mounted && context.canPop()) context.pop();
+        });
       }
     });
   }
