@@ -148,5 +148,30 @@ void main() {
         isTrue,
       );
     });
+
+    testWidgets('tapping Continue with fewer than 5 words shows snackbar', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Type fewer than 5 words
+      await tester.enterText(find.byType(TextField), 'Too short');
+      await tester.pump();
+
+      await tester.tap(find.text('Continue'));
+      await tester.pump();
+
+      expect(find.text('Write at least 5 words to continue.'), findsOneWidget);
+    });
+
+    testWidgets('tapping Continue with empty text shows snackbar', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Do not type anything
+      await tester.tap(find.text('Continue'));
+      await tester.pump();
+
+      expect(find.text('Write at least 5 words to continue.'), findsOneWidget);
+    });
   });
 }

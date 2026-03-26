@@ -127,7 +127,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       return;
     }
     await _saveDraftIfNeeded();
-    if (mounted) Navigator.of(context).maybePop();
+    if (mounted) context.pop();
   }
 
   void _refreshPrompts() {
@@ -651,7 +651,14 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
               const Spacer(),
               // Continue button
               GestureDetector(
-                onTap: enabled ? _goToReview : null,
+                onTap: enabled
+                    ? _goToReview
+                    : () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Write at least 5 words to continue.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        ),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   height: 48,

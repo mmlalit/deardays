@@ -180,7 +180,7 @@ void writeEntryFlowTests() {
   });
 
   group('Write Entry — Validation', () {
-    testWidgets('Continue button is disabled with empty text', (tester) async {
+    testWidgets('Continue button shows snackbar with empty text', (tester) async {
       await tester.pumpWidget(buildE2EApp());
       await tester.pumpAndSettle();
 
@@ -188,10 +188,32 @@ void writeEntryFlowTests() {
       await tester.pump(_settle);
 
       // Continue button exists but has dimmed opacity when word count < 5.
-      // Tapping it does nothing — app stays on TextEntryScreen.
+      // Tapping it shows a snackbar and keeps the user on TextEntryScreen.
       await tester.tap(find.text('Continue'));
       await tester.pump();
 
+      expect(find.text('Write at least 5 words to continue.'), findsOneWidget);
+      expect(find.byType(TextEntryScreen), findsOneWidget);
+
+      await _closeTextEntryIfOpen(tester);
+    });
+
+    testWidgets('Continue button shows snackbar with fewer than 5 words', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('WRITE'));
+      await tester.pump(_settle);
+
+      final mainField = find.byType(TextField).first;
+      await tester.tap(mainField);
+      await tester.enterText(mainField, 'Only four words here');
+      await tester.pump();
+
+      await tester.tap(find.text('Continue'));
+      await tester.pump();
+
+      expect(find.text('Write at least 5 words to continue.'), findsOneWidget);
       expect(find.byType(TextEntryScreen), findsOneWidget);
 
       await _closeTextEntryIfOpen(tester);
