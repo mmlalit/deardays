@@ -15,7 +15,7 @@ import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/core/utils/photo_crop_helper.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
-import 'package:deardays/core/widgets/memory_card.dart';
+import 'package:deardays/core/widgets/timeline_list.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
@@ -656,7 +656,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     );
   }
 
-  // ── Timeline (card style) ─────────────────────────────────────────────────
+  // ── Timeline (dot + line + year headers) ─────────────────────────────────
 
   Widget _buildTimeline(
     BuildContext context,
@@ -664,25 +664,16 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     ChapterVisual visual,
     AppPalette colors,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: entries.map((entry) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: MemoryCard(
-            entry: entry,
-            onTap: () => context.push(
-              AppRoutes.memory,
-              extra: MemoryDetailArgs(
-                entry: entry,
-                allEntries: entries,
-                initialIndex: entries.indexOf(entry),
-              ),
-            ),
-            onShare: () => context.push('/share-card', extra: entry),
-          ),
-        )).toList(),
+    return TimelineList(
+      entries: entries,
+      colors: colors,
+      accentColor: visual.primary,
+      horizontalPadding: 16,
+      onEntryTap: (entry, all, index) => context.push(
+        AppRoutes.memory,
+        extra: MemoryDetailArgs(entry: entry, allEntries: all, initialIndex: index),
       ),
+      onShare: (entry) => context.push('/share-card', extra: entry),
     );
   }
 
@@ -694,75 +685,16 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     ChapterVisual visual,
     AppPalette colors,
   ) {
-    final grouped = <String, List<JournalEntry>>{};
-    for (final e in entries) {
-      final key = '${e.entryDate.year}-${e.entryDate.month.toString().padLeft(2, '0')}';
-      grouped.putIfAbsent(key, () => []).add(e);
-    }
-    final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final key in keys) ...[
-            _buildMonthHeader(key, grouped[key]!.length, visual, colors),
-            ...grouped[key]!.map((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: MemoryCard(
-                entry: entry,
-                onTap: () => context.push(
-                  AppRoutes.memory,
-                  extra: MemoryDetailArgs(
-                    entry: entry,
-                    allEntries: grouped[key]!,
-                    initialIndex: grouped[key]!.indexOf(entry),
-                  ),
-                ),
-                onShare: () => context.push('/share-card', extra: entry),
-              ),
-            )),
-            const SizedBox(height: 8),
-          ],
-        ],
+    return TimelineMonthlyList(
+      entries: entries,
+      colors: colors,
+      accentColor: visual.primary,
+      horizontalPadding: 16,
+      onEntryTap: (entry, all, index) => context.push(
+        AppRoutes.memory,
+        extra: MemoryDetailArgs(entry: entry, allEntries: all, initialIndex: index),
       ),
-    );
-  }
-
-  Widget _buildMonthHeader(String key, int count, ChapterVisual visual, AppPalette colors) {
-    final parts = key.split('-');
-    final date = DateTime(int.parse(parts[0]), int.parse(parts[1]));
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 4, 0, 10),
-      child: Row(
-        children: [
-          Text(
-            DateFormat('MMMM yyyy').format(date),
-            style: GoogleFonts.newsreader(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: visual.primary.withAlpha(18),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '$count',
-              style: GoogleFonts.manrope(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: visual.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
+      onShare: (entry) => context.push('/share-card', extra: entry),
     );
   }
 
