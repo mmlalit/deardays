@@ -1172,11 +1172,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final monthEntries = entries.where((e) => !e.entryDate.isBefore(monthStart)).toList();
     final yearEntries  = entries.where((e) => !e.entryDate.isBefore(yearStart)).toList();
 
-    // Ready = enough data has accumulated for the period
-    final weekReady  = now.weekday >= 5 && weekEntries.length  >= 3;
-    final monthReady = now.day    >= 25 && monthEntries.length >= 5;
-    final yearReady  = now.month  >= 11 && yearEntries.length  >= 20;
-
     // Date range sublabels
     final weekEnd       = weekStart.add(const Duration(days: 6));
     final weekSubLabel  = '${DateFormat('MMM d').format(weekStart)} – ${DateFormat('d').format(weekEnd)}';
@@ -1199,30 +1194,33 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               _HighlightCard(
                 label: 'This Week',
                 sublabel: weekSubLabel,
-                icon: Icons.calendar_view_week_rounded,
+                period: _HighlightPeriod.week,
+                periodStart: weekStart,
+                entryDates: weekEntries.map((e) => e.entryDate).toList(),
                 count: weekEntries.length,
                 colors: colors,
-                isReady: weekReady,
                 onTap: () => context.push('/story?period=weekly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
                 label: 'This Month',
                 sublabel: monthSubLabel,
-                icon: Icons.calendar_month_rounded,
+                period: _HighlightPeriod.month,
+                periodStart: monthStart,
+                entryDates: monthEntries.map((e) => e.entryDate).toList(),
                 count: monthEntries.length,
                 colors: colors,
-                isReady: monthReady,
                 onTap: () => context.push('/story?period=monthly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
                 label: 'This Year',
                 sublabel: yearSubLabel,
-                icon: Icons.auto_stories_rounded,
+                period: _HighlightPeriod.year,
+                periodStart: yearStart,
+                entryDates: yearEntries.map((e) => e.entryDate).toList(),
                 count: yearEntries.length,
                 colors: colors,
-                isReady: yearReady,
                 onTap: () => context.push('/story?period=yearly'),
               ),
             ],
@@ -2226,29 +2224,41 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 // Highlight card — thematic gradient for week/month/year
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Highlight card period type
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _HighlightPeriod { week, month, year }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Highlight card — activity dot grid cover (GitHub-style, personal)
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _HighlightCard extends StatelessWidget {
   final String label;
   final String sublabel;
-  final IconData icon;
+  final _HighlightPeriod period;
+  final DateTime periodStart;
+  final List<DateTime> entryDates;
   final int count;
   final AppPalette colors;
-  final bool isReady;
   final VoidCallback onTap;
 
   const _HighlightCard({
     required this.label,
     required this.sublabel,
-    required this.icon,
+    required this.period,
+    required this.periodStart,
+    required this.entryDates,
     required this.count,
     required this.colors,
-    required this.isReady,
     required this.onTap,
   });
 
-  List<Color> get _gradient => switch (label) {
-    'This Week'  => [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
-    'This Month' => [const Color(0xFF0EA5E9), const Color(0xFF2DD4BF)],
-    _            => [const Color(0xFFF59E0B), const Color(0xFFEF4444)],
+  List<Color> get _gradient => switch (period) {
+    _HighlightPeriod.week  => [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
+    _HighlightPeriod.month => [const Color(0xFF0EA5E9), const Color(0xFF2DD4BF)],
+    _HighlightPeriod.year  => [const Color(0xFFF59E0B), const Color(0xFFEF4444)],
   };
 
   @override
@@ -2276,7 +2286,7 @@ class _HighlightCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Thematic gradient background
+              // Gradient background
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -2287,15 +2297,12 @@ class _HighlightCard extends StatelessWidget {
                 ),
               ),
 
-              // Watermark icon — large, faint, top-right
+              // Activity dot grid — top section
               Positioned(
-                top: -10,
-                right: -10,
-                child: Icon(
-                  icon,
-                  size: 90,
-                  color: Colors.white.withAlpha(20),
-                ),
+                top: 16,
+                left: 14,
+                right: 14,
+                child: _buildDotGrid(),
               ),
 
               // Bottom scrim for text legibility
@@ -2305,69 +2312,18 @@ class _HighlightCard extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withAlpha(120)],
-                      stops: const [0.35, 1.0],
+                      colors: [Colors.transparent, Colors.black.withAlpha(140)],
+                      stops: const [0.45, 1.0],
                     ),
                   ),
                 ),
               ),
 
-              // Status badge: top-left
-              Positioned(
-                top: 12,
-                left: 12,
-                child: isReady
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(230),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Color(0xFF10B981),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Ready',
-                              style: GoogleFonts.manrope(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1E293B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(50),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'In progress',
-                          style: GoogleFonts.manrope(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withAlpha(220),
-                          ),
-                        ),
-                      ),
-              ),
-
               // Bottom text block
               Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
+                left: 14,
+                right: 14,
+                bottom: 14,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -2386,10 +2342,10 @@ class _HighlightCard extends StatelessWidget {
                       style: GoogleFonts.manrope(
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withAlpha(200),
+                        color: Colors.white.withAlpha(190),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       count == 0
                           ? 'No entries yet'
@@ -2397,7 +2353,7 @@ class _HighlightCard extends StatelessWidget {
                       style: GoogleFonts.manrope(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white.withAlpha(180),
+                        color: Colors.white.withAlpha(170),
                       ),
                     ),
                   ],
@@ -2409,6 +2365,138 @@ class _HighlightCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildDotGrid() {
+    return switch (period) {
+      _HighlightPeriod.week  => _buildWeekGrid(),
+      _HighlightPeriod.month => _buildMonthGrid(),
+      _HighlightPeriod.year  => _buildYearGrid(),
+    };
+  }
+
+  /// Week: 7 dots (Mon–Sun) with day-initial labels above.
+  Widget _buildWeekGrid() {
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final activeDays = entryDates.map((d) => d.weekday).toSet(); // 1=Mon…7=Sun
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Day labels
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: dayLabels
+              .map((l) => SizedBox(
+                    width: 18,
+                    child: Text(
+                      l,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.manrope(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withAlpha(130),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 5),
+        // Dots
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(
+            7,
+            (i) => _dot(active: activeDays.contains(i + 1), size: 14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Month: days-of-month in a 7-column grid (one dot per day).
+  Widget _buildMonthGrid() {
+    final daysInMonth =
+        DateUtils.getDaysInMonth(periodStart.year, periodStart.month);
+    final activeDays = entryDates.map((d) => d.day).toSet();
+
+    final allDots = List.generate(
+      daysInMonth,
+      (i) => _dot(active: activeDays.contains(i + 1), size: 11),
+    );
+
+    const cols = 7;
+    final rows = <Widget>[];
+    for (int i = 0; i < allDots.length; i += cols) {
+      final slice = allDots.sublist(i, (i + cols).clamp(0, allDots.length));
+      // Pad last row so spaceBetween stays uniform
+      final row = [
+        ...slice,
+        ...List.generate(cols - slice.length,
+            (_) => const SizedBox(width: 11, height: 11)),
+      ];
+      rows.add(Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: row,
+      ));
+      if (i + cols < allDots.length) rows.add(const SizedBox(height: 4));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: rows,
+    );
+  }
+
+  /// Year: 52 dots (one per week), in a 13×4 grid.
+  Widget _buildYearGrid() {
+    const totalWeeks = 52;
+    const cols = 13;
+    const rows = 4;
+
+    final activeWeeks = <int>{};
+    for (final d in entryDates) {
+      final offset = d.difference(periodStart).inDays;
+      if (offset >= 0) {
+        final week = offset ~/ 7;
+        if (week < totalWeeks) activeWeeks.add(week);
+      }
+    }
+
+    final allDots = List.generate(
+      totalWeeks,
+      (i) => _dot(active: activeWeeks.contains(i), size: 8),
+    );
+
+    final rowWidgets = <Widget>[];
+    for (int r = 0; r < rows; r++) {
+      final start = r * cols;
+      final end = (start + cols).clamp(0, totalWeeks);
+      rowWidgets.add(Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: allDots.sublist(start, end),
+      ));
+      if (r < rows - 1) rowWidgets.add(const SizedBox(height: 4));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: rowWidgets,
+    );
+  }
+
+  Widget _dot({required bool active, required double size}) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: active
+              ? Colors.white.withAlpha(230)
+              : Colors.white.withAlpha(40),
+        ),
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
