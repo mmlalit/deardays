@@ -1164,21 +1164,24 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
   Widget _buildHighlightsSection(List<JournalEntry> entries, AppPalette colors) {
     final now = DateTime.now();
-    final weekStart = DateTime(now.year, now.month, now.day - now.weekday + 1);
+    final weekStart  = DateTime(now.year, now.month, now.day - now.weekday + 1);
     final monthStart = DateTime(now.year, now.month, 1);
-    final yearStart = DateTime(now.year, 1, 1);
+    final yearStart  = DateTime(now.year, 1, 1);
 
     final weekEntries  = entries.where((e) => !e.entryDate.isBefore(weekStart)).toList();
     final monthEntries = entries.where((e) => !e.entryDate.isBefore(monthStart)).toList();
     final yearEntries  = entries.where((e) => !e.entryDate.isBefore(yearStart)).toList();
 
+    // Ready = enough data has accumulated for the period
+    final weekReady  = now.weekday >= 5 && weekEntries.length  >= 3;
+    final monthReady = now.day    >= 25 && monthEntries.length >= 5;
+    final yearReady  = now.month  >= 11 && yearEntries.length  >= 20;
 
-    // Best-photo entry for each period (used for full-bleed card background)
-    final weekFeatured  = _highestSentimentEntry(weekEntries);
-    final monthFeatured = _highestSentimentEntry(monthEntries);
-    final yearFeatured  = _highestSentimentEntry(yearEntries);
-    Future<String> urlBuilder(String path) =>
-        ref.read(mediaServiceProvider).getSignedUrl(path);
+    // Date range sublabels
+    final weekEnd       = weekStart.add(const Duration(days: 6));
+    final weekSubLabel  = '${DateFormat('MMM d').format(weekStart)} – ${DateFormat('d').format(weekEnd)}';
+    final monthSubLabel = DateFormat('MMMM yyyy').format(monthStart);
+    final yearSubLabel  = '${now.year}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1195,31 +1198,31 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             children: [
               _HighlightCard(
                 label: 'This Week',
+                sublabel: weekSubLabel,
                 icon: Icons.calendar_view_week_rounded,
-                entry: weekFeatured,
                 count: weekEntries.length,
                 colors: colors,
-                photoUrlBuilder: urlBuilder,
+                isReady: weekReady,
                 onTap: () => context.push('/story?period=weekly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
                 label: 'This Month',
+                sublabel: monthSubLabel,
                 icon: Icons.calendar_month_rounded,
-                entry: monthFeatured,
                 count: monthEntries.length,
                 colors: colors,
-                photoUrlBuilder: urlBuilder,
+                isReady: monthReady,
                 onTap: () => context.push('/story?period=monthly'),
               ),
               const SizedBox(width: 12),
               _HighlightCard(
                 label: 'This Year',
+                sublabel: yearSubLabel,
                 icon: Icons.auto_stories_rounded,
-                entry: yearFeatured,
                 count: yearEntries.length,
                 colors: colors,
-                photoUrlBuilder: urlBuilder,
+                isReady: yearReady,
                 onTap: () => context.push('/story?period=yearly'),
               ),
             ],
@@ -1634,13 +1637,25 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         HapticFeedback.selectionClick();
         context.push('/memory', extra: entry);
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Full-bleed photo — 4:3 aspect
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: AspectRatio(
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: colors.textPrimary.withAlpha(8),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Photo bleeds to card top edge
+            AspectRatio(
               aspectRatio: 4 / 3,
               child: Stack(
                 fit: StackFit.expand,
@@ -1700,47 +1715,54 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          // Date pill (replaces old date row)
-          _buildDatePill(entry.entryDate, colors),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: GoogleFonts.newsreader(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              height: 1.25,
-            ),
-          ),
-          if (excerpt.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-              decoration: BoxDecoration(
-                color: colors.highlightFaint,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(8),
-                  bottomRight: Radius.circular(8),
-                  bottomLeft: Radius.circular(8),
-                ),
-                border: Border(left: BorderSide(color: colors.accent, width: 3)),
-              ),
-              child: Text(
-                '"$excerpt"',
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.newsreader(
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  color: colors.textSecondary,
-                  height: 1.6,
-                ),
+            // Text section — clearly inside the same card
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDatePill(entry.entryDate, colors),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                      height: 1.25,
+                    ),
+                  ),
+                  if (excerpt.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                      decoration: BoxDecoration(
+                        color: colors.highlightFaint,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                          bottomLeft: Radius.circular(8),
+                        ),
+                        border: Border(left: BorderSide(color: colors.accent, width: 3)),
+                      ),
+                      child: Text(
+                        '"$excerpt"',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.newsreader(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: colors.textSecondary,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -2201,189 +2223,189 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Highlight card — full-bleed photo for week/month/year
+// Highlight card — thematic gradient for week/month/year
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _HighlightCard extends StatefulWidget {
+class _HighlightCard extends StatelessWidget {
   final String label;
+  final String sublabel;
   final IconData icon;
-  final JournalEntry? entry;
   final int count;
   final AppPalette colors;
-  final Future<String> Function(String path) photoUrlBuilder;
+  final bool isReady;
   final VoidCallback onTap;
 
   const _HighlightCard({
     required this.label,
+    required this.sublabel,
     required this.icon,
-    required this.entry,
     required this.count,
     required this.colors,
-    required this.photoUrlBuilder,
+    required this.isReady,
     required this.onTap,
   });
 
-  @override
-  State<_HighlightCard> createState() => _HighlightCardState();
-}
-
-class _HighlightCardState extends State<_HighlightCard> {
-  String? _photoUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPhoto();
-  }
-
-  Future<void> _loadPhoto() async {
-    final entry = widget.entry;
-    if (entry == null) return;
-    final photo = entry.media.where((m) => m.mediaType == 'photo').firstOrNull;
-    if (photo == null) return;
-    try {
-      final url = photo.storagePath.startsWith('http')
-          ? photo.storagePath
-          : await widget.photoUrlBuilder(photo.storagePath);
-      if (mounted) setState(() { _photoUrl = url; });
-    } catch (_) {
-      // leave _photoUrl null → falls back to gradient
-    }
-  }
-
-  List<Color> _periodGradient() {
-    switch (widget.label) {
-      case 'This Week':
-        return [const Color(0xFF6366F1), const Color(0xFF8B5CF6)];
-      case 'This Month':
-        return [const Color(0xFF0EA5E9), const Color(0xFF2DD4BF)];
-      default: // This Year
-        return [const Color(0xFFF59E0B), const Color(0xFFEF4444)];
-    }
-  }
+  List<Color> get _gradient => switch (label) {
+    'This Week'  => [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
+    'This Month' => [const Color(0xFF0EA5E9), const Color(0xFF2DD4BF)],
+    _            => [const Color(0xFFF59E0B), const Color(0xFFEF4444)],
+  };
 
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = _photoUrl != null && _photoUrl!.isNotEmpty;
-
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        widget.onTap();
+        onTap();
       },
-      child: Container(
-        width: 170,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(30),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background: photo or gradient
-            if (hasPhoto)
-              CachedNetworkImage(
-                imageUrl: _photoUrl!,
-                fit: BoxFit.cover,
-                memCacheWidth: 340,
-                errorWidget: (_, __, ___) => _gradientBg(),
-              )
-            else
-              _gradientBg(),
-
-            // Bottom scrim
-            Positioned.fill(
-              child: DecoratedBox(
+      child: Opacity(
+        opacity: count == 0 ? 0.55 : 1.0,
+        child: Container(
+          width: 170,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: _gradient.first.withAlpha(60),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Thematic gradient background
+              Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withAlpha(190),
-                    ],
-                    stops: const [0.4, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: _gradient,
                   ),
                 ),
               ),
-            ),
 
-            // Count badge (top-right)
-            if (widget.count > 0)
+              // Watermark icon — large, faint, top-right
+              Positioned(
+                top: -10,
+                right: -10,
+                child: Icon(
+                  icon,
+                  size: 90,
+                  color: Colors.white.withAlpha(20),
+                ),
+              ),
+
+              // Bottom scrim for text legibility
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withAlpha(120)],
+                      stops: const [0.35, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Status badge: top-left
               Positioned(
                 top: 12,
+                left: 12,
+                child: isReady
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(230),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFF10B981),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Ready',
+                              style: GoogleFonts.manrope(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1E293B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(50),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'In progress',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withAlpha(220),
+                          ),
+                        ),
+                      ),
+              ),
+
+              // Bottom text block
+              Positioned(
+                left: 12,
                 right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(220),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${widget.count}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E293B),
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      sublabel,
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withAlpha(200),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      count == 0
+                          ? 'No entries yet'
+                          : '$count ${count == 1 ? 'memory' : 'memories'}',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withAlpha(180),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-            // Period label + memory count (bottom-left)
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.label,
-                    style: GoogleFonts.newsreader(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    widget.count == 0
-                        ? 'No entries yet'
-                        : '${widget.count} ${widget.count == 1 ? 'memory' : 'memories'}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white.withAlpha(200),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _gradientBg() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: _periodGradient(),
-        ),
-      ),
-      child: Center(
-        child: Icon(widget.icon, size: 40, color: Colors.white.withAlpha(80)),
       ),
     );
   }

@@ -35,7 +35,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
 
   void _triggerIfNeeded(ReflectionPeriod p) {
     final s = ref.read(storyFamilyProvider(p));
-    if (s.status == StoryStatus.ready || s.status == StoryStatus.error) {
+    if (s.status == StoryStatus.ready) {
       Future.microtask(() async {
         try {
           await ref.read(storyFamilyProvider(p).notifier).generateStory();
@@ -758,25 +758,33 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
   // ── Memory filmstrip ──────────────────────────────────────────────────────────
 
   Widget _buildMemoryFilmstrip(LifeStory story, AppPalette colors) {
-    final chips = _filmstripEntries(story);
-    if (chips.isEmpty) return const SizedBox.shrink();
+    if (story.entries.isEmpty) return const SizedBox.shrink();
+    return switch (_period) {
+      ReflectionPeriod.weekly  => _buildWeeklyFilmstrip(story, colors),
+      ReflectionPeriod.monthly => _buildMonthlyFilmstrip(story, colors),
+      ReflectionPeriod.yearly  => _buildYearlyFilmstrip(story, colors),
+    };
+  }
 
+  // Weekly: horizontal scrollable chips, one per entry, improved size
+  Widget _buildWeeklyFilmstrip(LifeStory story, AppPalette colors) {
+    final entries = story.entries;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _eyebrow('MEMORIES', colors),
         const SizedBox(height: 10),
         SizedBox(
-          height: 132,
+          height: 192,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.zero,
-            itemCount: chips.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemCount: entries.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (ctx, i) => _MemoryChip(
-              entry: chips[i],
-              allEntries: story.entries,
-              period: _period,
+              entry: entries[i],
+              allEntries: entries,
+              dateLabel: DateFormat('EEE d').format(entries[i].entryDate),
               colors: colors,
             ),
           ),
@@ -785,20 +793,77 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
     );
   }
 
-  List<JournalEntry> _filmstripEntries(LifeStory story) {
+  // Monthly: 4 week columns, best entry per week
+  Widget _buildMonthlyFilmstrip(LifeStory story, AppPalette colors) {
     final entries = story.entries;
-    return switch (_period) {
-      ReflectionPeriod.weekly  => entries,
-      ReflectionPeriod.monthly => (List.of(entries)
-            ..sort((a, b) =>
-                (b.sentimentScore ?? 0).compareTo(a.sentimentScore ?? 0)))
-          .take(8)
-          .toList(),
-      ReflectionPeriod.yearly => _bestPerMonth(entries),
-    };
+    // Group entries by week-of-month (1–4)
+    final byWeek = <int, List<JournalEntry>>{1: [], 2: [], 3: [], 4: []};
+    for (final e in entries) {
+      final week = ((e.entryDate.day - 1) ~/ 7 + 1).clamp(1, 4);
+      byWeek[week]!.add(e);
+    }
+    // Pick best (highest sentiment) per week
+    JournalEntry? bestInWeek(List<JournalEntry> list) {
+      if (list.isEmpty) return null;
+      return list.reduce((a, b) =>
+          (a.sentimentScore ?? 0) >= (b.sentimentScore ?? 0) ? a : b);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _eyebrow('MEMORIES', colors),
+        const SizedBox(height: 10),
+        Row(
+          children: List.generate(4, (i) {
+            final week = i + 1;
+            final best = bestInWeek(byWeek[week]!);
+            final count = byWeek[week]!.length;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: i < 3 ? 8.0 : 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'W$week',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textMuted,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (best != null)
+                      GestureDetector(
+                        onTap: () => context.push('/memory',
+                            extra: MemoryDetailArgs(
+                                entry: best,
+                                allEntries: entries,
+                                initialIndex: entries.indexOf(best))),
+                        child: _MonthWeekCell(
+                          entry: best,
+                          count: count,
+                          colors: colors,
+                        ),
+                      )
+                    else
+                      _MonthWeekEmpty(colors: colors),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
   }
 
-  List<JournalEntry> _bestPerMonth(List<JournalEntry> entries) {
+  // Yearly: 2 rows × 6 columns, best entry per month, no scroll needed
+  Widget _buildYearlyFilmstrip(LifeStory story, AppPalette colors) {
+    final entries = story.entries;
+    // Best entry per month
     final byMonth = <int, JournalEntry>{};
     for (final e in entries) {
       final m = e.entryDate.month;
@@ -808,9 +873,82 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         byMonth[m] = e;
       }
     }
-    return (byMonth.entries.toList()..sort((a, b) => a.key.compareTo(b.key)))
-        .map((e) => e.value)
-        .toList();
+
+    const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    Widget monthCell(int month) {
+      final entry = byMonth[month];
+      return GestureDetector(
+        onTap: entry == null
+            ? null
+            : () => context.push('/memory',
+                extra: MemoryDetailArgs(
+                    entry: entry,
+                    allEntries: entries,
+                    initialIndex: entries.indexOf(entry))),
+        child: Column(
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: entry != null
+                    ? (() {
+                        final photo = entry.media
+                            .where((m) => m.mediaType == 'photo')
+                            .firstOrNull;
+                        return photo != null
+                            ? _StorySignedPhoto(storagePath: photo.storagePath)
+                            : _StoryMoodGradient(mood: entry.mood);
+                      })()
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: colors.border.withAlpha(60),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              labels[month - 1],
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: entry != null ? FontWeight.w700 : FontWeight.w400,
+                color: entry != null ? colors.accent : colors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _eyebrow('MEMORIES', colors),
+        const SizedBox(height: 10),
+        // Row 1: Jan–Jun
+        Row(
+          children: List.generate(6, (i) => Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i < 5 ? 6.0 : 0),
+              child: monthCell(i + 1),
+            ),
+          )),
+        ),
+        const SizedBox(height: 8),
+        // Row 2: Jul–Dec
+        Row(
+          children: List.generate(6, (i) => Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i < 5 ? 6.0 : 0),
+              child: monthCell(i + 7),
+            ),
+          )),
+        ),
+      ],
+    );
   }
 
   // ── Quote ────────────────────────────────────────────────────────────────────
@@ -871,27 +1009,27 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
       };
 }
 
-// ── Memory chip ───────────────────────────────────────────────────────────────
+// ── Memory chip (weekly) ──────────────────────────────────────────────────────
 
 class _MemoryChip extends ConsumerWidget {
   final JournalEntry entry;
   final List<JournalEntry> allEntries;
-  final ReflectionPeriod period;
+  final String dateLabel;
   final AppPalette colors;
 
   const _MemoryChip({
     required this.entry,
     required this.allEntries,
-    required this.period,
+    required this.dateLabel,
     required this.colors,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final photo = entry.media.where((m) => m.mediaType == 'photo').firstOrNull;
-    final label = period == ReflectionPeriod.yearly
-        ? DateFormat('MMM').format(entry.entryDate)
-        : DateFormat('EEE d').format(entry.entryDate);
+    // Extract a short title/excerpt for the label row
+    final lines = entry.content.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final excerpt = lines.isNotEmpty ? lines.first.trim() : '';
 
     return GestureDetector(
       onTap: () {
@@ -901,38 +1039,48 @@ class _MemoryChip extends ConsumerWidget {
                 entry: entry, allEntries: allEntries, initialIndex: idx));
       },
       child: Container(
-        width: 108,
+        width: 140,
         decoration: BoxDecoration(
           color: colors.cardBg,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
+            // Fixed 4:3 photo area — predictable, no aggressive crop
+            AspectRatio(
+              aspectRatio: 4 / 3,
               child: photo != null
                   ? _StorySignedPhoto(storagePath: photo.storagePath)
                   : _StoryMoodGradient(mood: entry.mood),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 5, 8, 6),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 7),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: colors.accent,
-                      ),
+                  Text(
+                    dateLabel,
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: colors.accent,
                     ),
                   ),
-                  Text(
-                    _moodEmoji(entry.mood),
-                    style: const TextStyle(fontSize: 10),
-                  ),
+                  if (excerpt.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      excerpt,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -941,15 +1089,108 @@ class _MemoryChip extends ConsumerWidget {
       ),
     );
   }
+}
 
-  String _moodEmoji(String? mood) => switch (mood?.toLowerCase()) {
-        'great' => '😍',
-        'good'  => '😊',
-        'okay'  => '😐',
-        'low'   => '😔',
-        'tough' => '😢',
-        _       => '·',
-      };
+// ── Month week cell ───────────────────────────────────────────────────────────
+
+class _MonthWeekCell extends ConsumerWidget {
+  final JournalEntry entry;
+  final int count;
+  final AppPalette colors;
+
+  const _MonthWeekCell({
+    required this.entry,
+    required this.count,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final photo = entry.media.where((m) => m.mediaType == 'photo').firstOrNull;
+    final lines = entry.content.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final excerpt = lines.isNotEmpty ? lines.first.trim() : '';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                photo != null
+                    ? _StorySignedPhoto(storagePath: photo.storagePath)
+                    : _StoryMoodGradient(mood: entry.mood),
+                if (count > 1)
+                  Positioned(
+                    top: 5,
+                    right: 5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(160),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: GoogleFonts.manrope(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 5, 6, 6),
+            child: Text(
+              excerpt.isNotEmpty ? excerpt : DateFormat('MMM d').format(entry.entryDate),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                color: colors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Month week empty cell ─────────────────────────────────────────────────────
+
+class _MonthWeekEmpty extends StatelessWidget {
+  final AppPalette colors;
+  const _MonthWeekEmpty({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.border.withAlpha(40),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.border.withAlpha(60)),
+        ),
+        child: Center(
+          child: Icon(Icons.edit_note_rounded, size: 20, color: colors.textMuted.withAlpha(100)),
+        ),
+      ),
+    );
+  }
 }
 
 // ── Signed photo ──────────────────────────────────────────────────────────────

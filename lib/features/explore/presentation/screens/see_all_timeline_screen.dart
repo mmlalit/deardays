@@ -220,41 +220,56 @@ class _SeeAllTimelineScreenState extends ConsumerState<SeeAllTimelineScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildFilterChips(AppPalette colors) {
-    return Container(
-      color: colors.bg,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-        child: Row(
-          children: _filters.map((filter) {
-            final isActive = _activeFilter == filter;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _activeFilter = filter);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isActive ? colors.accent : colors.highlightFaint,
-                    borderRadius: BorderRadius.circular(20),
-                    border: isActive ? null : Border.all(color: colors.border),
-                  ),
-                  child: Text(
-                    filter,
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                      color: isActive ? Colors.white : colors.textSecondary,
+    return ShaderMask(
+      shaderCallback: (bounds) => LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        stops: const [0.0, 0.85, 1.0],
+        colors: [Colors.white, Colors.white, Colors.white.withAlpha(0)],
+      ).createShader(bounds),
+      blendMode: BlendMode.dstIn,
+      child: Container(
+        color: colors.bg,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          // Left/top/bottom padding only — trailing gap is a SizedBox inside Row
+          // so it renders correctly even when chips overflow the viewport.
+          padding: const EdgeInsets.fromLTRB(16, 8, 0, 14),
+          child: Row(
+            children: [
+              ..._filters.map((filter) {
+                final isActive = _activeFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _activeFilter = filter);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isActive ? colors.accent : colors.highlightFaint,
+                        borderRadius: BorderRadius.circular(20),
+                        border: isActive ? null : Border.all(color: colors.border),
+                      ),
+                      child: Text(
+                        filter,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                          color: isActive ? Colors.white : colors.textSecondary,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            );
-          }).toList(),
+                );
+              }),
+              // Guaranteed trailing gap — renders even when overflowing viewport
+              const SizedBox(width: 32),
+            ],
+          ),
         ),
       ),
     );
