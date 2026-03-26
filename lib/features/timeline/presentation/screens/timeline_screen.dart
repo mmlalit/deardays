@@ -14,6 +14,7 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/timeline/presentation/widgets/milestone_card.dart';
 import 'package:deardays/features/timeline/presentation/widgets/photo_collage_card.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
+import 'package:deardays/core/utils/entry_categories.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Context-menu helper (shared with home_screen.dart via top-level function)
@@ -124,11 +125,58 @@ void showMemoryContextMenu(
               isDestructive: true,
               onTap: () {
                 Navigator.pop(sheetCtx);
-                onDelete?.call();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Memory deleted'),
-                    behavior: SnackBarBehavior.floating,
+                showDialog<bool>(
+                  context: context,
+                  builder: (dialogCtx) => AlertDialog(
+                    backgroundColor: colors.card,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: Text(
+                      'Delete memory?',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    content: Text(
+                      'This memory will be permanently deleted and cannot be recovered.',
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        color: colors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx, false),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w600,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(dialogCtx, true);
+                          onDelete?.call();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Memory deleted'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Delete',
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFEF4444),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -211,6 +259,7 @@ class TimelineScreen extends ConsumerStatefulWidget {
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   String? _categoryFilter;
   bool _isMonthly = false;
+  bool _isGrid = false;
   String? _moodFilter;
 
   static const _categories = [
@@ -311,29 +360,39 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    // Search
+                    // Search pill button
                     Semantics(
-                      label: 'Search',
+                      label: 'Search memories',
                       button: true,
-                      child: SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: GestureDetector(
-                          onTap: () => context.push('/search'),
-                          child: Center(
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: colors.highlightFaint,
+                      child: GestureDetector(
+                        onTap: () => context.push('/search'),
+                        child: Container(
+                          height: 36,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: colors.highlightFaint,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: colors.border),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.search_rounded, size: 16, color: colors.textSecondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Search',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: colors.textSecondary,
+                                ),
                               ),
-                              child: Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
-                            ),
+                            ],
                           ),
                         ),
                       ),
                     ),
+                    const SizedBox(width: 4),
                   ],
                 ),
               ),
@@ -347,6 +406,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
         if (filtered.isEmpty)
           SliverToBoxAdapter(child: _buildEmptyState(colors))
+        else if (_isGrid)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+            sliver: _buildGridSliver(filtered, colors),
+          )
         else if (_isMonthly)
           _buildMonthlySliver(filtered, colors)
         else
@@ -406,6 +470,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           Expanded(
             child: _statCard(
               'Months', '$chapters', colors,
+              hint: 'monthly',
               onTap: () => setState(() => _isMonthly = true),
             ),
           ),
@@ -413,6 +478,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           Expanded(
             child: _statCard(
               'Years', '$years', colors,
+              hint: 'yearly',
               onTap: () => setState(() => _isMonthly = false),
             ),
           ),
@@ -421,48 +487,66 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     );
   }
 
-  Widget _statCard(String label, String value, AppPalette colors, {VoidCallback? onTap}) {
+  Widget _statCard(String label, String value, AppPalette colors, {VoidCallback? onTap, String? hint}) {
     return Semantics(
       button: onTap != null,
       label: '$value $label',
       child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: colors.cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(
-              color: colors.textPrimary.withAlpha(6),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: GoogleFonts.manrope(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: colors.accent,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: colors.cardBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.border),
+            boxShadow: [
+              BoxShadow(
+                color: colors.textPrimary.withAlpha(6),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: colors.textSecondary,
+            ],
+          ),
+          child: Column(
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.manrope(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: colors.accent,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: colors.textSecondary,
+                ),
+              ),
+              if (hint != null) ...[
+                const SizedBox(height: 3),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      hint,
+                      style: GoogleFonts.manrope(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        color: colors.accent.withAlpha(160),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_rounded, size: 8, color: colors.accent.withAlpha(160)),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -534,7 +618,29 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
         );
       },
-      loading: () => const SizedBox.shrink(),
+      loading: () => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: colors.accent.withAlpha(8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.accent.withAlpha(20)),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(width: 120, height: 10, borderRadius: 5),
+              SizedBox(height: 12),
+              SkeletonBox(width: double.infinity, height: 12, borderRadius: 5),
+              SizedBox(height: 6),
+              SkeletonBox(width: double.infinity, height: 12, borderRadius: 5),
+              SizedBox(height: 6),
+              SkeletonBox(width: 180, height: 12, borderRadius: 5),
+            ],
+          ),
+        ),
+      ),
       error: (e, st) {
         debugPrint('[Timeline] weeklySummary error: $e');
         return const SizedBox.shrink();
@@ -569,6 +675,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 children: [
                   _viewToggleTab(Icons.timeline_rounded, isMonthly: false, colors: colors),
                   _viewToggleTab(Icons.calendar_view_month_rounded, isMonthly: true, colors: colors),
+                  _gridToggleTab(colors),
                 ],
               ),
             ),
@@ -589,7 +696,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       onTap: () => setState(() => _categoryFilter = category),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: isActive ? colors.accent : colors.cardBg,
                           borderRadius: BorderRadius.circular(8),
@@ -622,20 +729,39 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 child: GestureDetector(
                   onTap: () => _showMoodFilterSheet(colors),
                   child: Center(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: hasMoodFilter ? colors.accent : colors.cardBg,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
-                      ),
-                      child: Icon(
-                        Icons.tune_rounded,
-                        size: 17,
-                        color: hasMoodFilter ? Colors.white : colors.textSecondary,
-                      ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: hasMoodFilter ? colors.accent : colors.cardBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
+                          ),
+                          child: Icon(
+                            Icons.tune_rounded,
+                            size: 17,
+                            color: hasMoodFilter ? Colors.white : colors.textSecondary,
+                          ),
+                        ),
+                        if (hasMoodFilter)
+                          Positioned(
+                            top: -4,
+                            right: -4,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: colors.accent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: colors.bg, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -946,7 +1072,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           // Card
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.only(bottom: 12),
               child: cardWidget,
             ),
           ),
@@ -975,8 +1101,39 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     );
   }
 
+  Widget _gridToggleTab(AppPalette colors) {
+    final isActive = _isGrid;
+    return Semantics(
+      label: 'Grid view',
+      button: true,
+      child: GestureDetector(
+        onTap: () => setState(() {
+          _isGrid = !_isGrid;
+          if (_isGrid) _isMonthly = false;
+        }),
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 36,
+              height: 34,
+              decoration: BoxDecoration(
+                color: isActive ? colors.accent : Colors.transparent,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(Icons.grid_view_rounded, size: 15,
+                  color: isActive ? Colors.white : colors.textSecondary),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _viewToggleTab(IconData icon, {required bool isMonthly, required AppPalette colors}) {
-    final isActive = _isMonthly == isMonthly;
+    final isActive = !_isGrid && (_isMonthly == isMonthly);
     final label = isMonthly ? 'Month view' : 'Timeline view';
     return Semantics(
       label: label,
@@ -999,6 +1156,109 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Grid View Sliver (2-col portrait grid with title + date overlay)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildGridSliver(List<JournalEntry> entries, AppPalette colors) {
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+        childAspectRatio: 3 / 4,
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (_, i) {
+          final entry = entries[i];
+          final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
+          final hasPhoto = photoMedia.isNotEmpty;
+          final dateStr = DateFormat('MMM d').format(entry.entryDate).toUpperCase();
+          final title = MemoryCard.extractTitle(entry);
+
+          return GestureDetector(
+            onTap: () => context.push('/memory',
+                extra: MemoryDetailArgs(entry: entry, allEntries: entries, initialIndex: i)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Photo or mood gradient background
+                  if (hasPhoto)
+                    _GridPhoto(
+                      storagePath: photoMedia.first.storagePath,
+                      focalAlignment: photoMedia.first.focalAlignment,
+                    )
+                  else
+                    _GridMoodTile(entry: entry, colors: colors),
+
+                  // Bottom gradient + title + date
+                  Positioned(
+                    bottom: 0, left: 0, right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(8, 32, 8, 8),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [Color(0xDD000000), Colors.transparent],
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: GoogleFonts.newsreader(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dateStr,
+                            style: GoogleFonts.manrope(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white70,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Voice indicator dot
+                  if (entry.hasVoice)
+                    Positioned(
+                      top: 8, right: 8,
+                      child: Container(
+                        width: 20, height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.graphic_eq_rounded,
+                            size: 12, color: Colors.white),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+        childCount: entries.length,
       ),
     );
   }
@@ -1243,22 +1503,88 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
 
-  String? _primaryCategory(JournalEntry entry) {
-    final text = entry.content.toLowerCase();
-    if (text.contains('travel') || text.contains('trip') || text.contains('vacation') || text.contains('flight')) {
-      return 'Travel';
-    }
-    if (text.contains('work') || text.contains('job') || text.contains('career') || text.contains('promotion')) {
-      return 'Career';
-    }
-    if (text.contains('family') || text.contains('mom') || text.contains('dad') ||
-        text.contains('daughter') || text.contains('son') || text.contains('child')) {
-      return 'Family';
-    }
-    if (entry.mood == 'great' || entry.mood == 'good') return 'Personal Growth';
-    return null;
+  String? _primaryCategory(JournalEntry entry) => EntryCategories.primary(entry);
+
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grid helper widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GridPhoto extends ConsumerStatefulWidget {
+  const _GridPhoto({required this.storagePath, this.focalAlignment});
+  final String storagePath;
+  final Alignment? focalAlignment;
+
+  @override
+  ConsumerState<_GridPhoto> createState() => _GridPhotoState();
+}
+
+class _GridPhotoState extends ConsumerState<_GridPhoto> {
+  late Future<String> _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = _fetchUrl();
   }
 
+  Future<String> _fetchUrl() async {
+    if (widget.storagePath.startsWith('http')) return widget.storagePath;
+    try {
+      return await ref.read(mediaServiceProvider).getSignedUrl(widget.storagePath);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _urlFuture,
+      builder: (context, snapshot) {
+        final url = snapshot.data ?? '';
+        if (url.isEmpty) {
+          return Container(color: Colors.black12);
+        }
+        return CachedNetworkImage(
+          imageUrl: url,
+          fit: BoxFit.cover,
+          alignment: widget.focalAlignment ?? Alignment.center,
+          memCacheWidth: 400,
+          memCacheHeight: 530,
+          errorWidget: (_, __, ___) => Container(color: Colors.black12),
+        );
+      },
+    );
+  }
+}
+
+class _GridMoodTile extends StatelessWidget {
+  const _GridMoodTile({required this.entry, required this.colors});
+  final JournalEntry entry;
+  final AppPalette colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final moodColor = switch (entry.mood) {
+      'great' => AppColors.moodGreat,
+      'good'  => AppColors.moodGood,
+      'okay'  => AppColors.moodOkay,
+      'low'   => AppColors.moodLow,
+      'tough' => AppColors.moodTough,
+      _       => colors.accent,
+    };
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [moodColor.withAlpha(180), moodColor.withAlpha(100)],
+        ),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

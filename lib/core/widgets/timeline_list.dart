@@ -218,15 +218,6 @@ class _YearHeaderRow extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             Expanded(child: Container(height: 1, color: colors.border)),
-            const SizedBox(width: 8),
-            Text(
-              '$year',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isCurrentYear ? accentColor : colors.textMuted,
-              ),
-            ),
           ],
         ),
       ),
@@ -301,7 +292,7 @@ class _CardRow extends StatelessWidget {
           // Card
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.only(bottom: 12),
               child: card,
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/utils/entry_categories.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
 
@@ -349,30 +350,7 @@ class PhotoCollageCard extends StatelessWidget {
     );
   }
 
-  List<(String, Color)> _entryTags(JournalEntry e) {
-    final tags = <(String, Color)>[];
-    switch (e.mood) {
-      case 'great':
-        tags.add(('Joy', AppColors.moodOkay));
-      case 'good':
-        tags.add(('Happy', AppColors.moodGood));
-      case 'okay':
-        tags.add(('Serene', AppColors.moodGood));
-      case 'low':
-        tags.add(('Sad', AppColors.indigo));
-      case 'tough':
-        tags.add(('Growth', AppColors.orange));
-    }
-    final text = e.content.toLowerCase();
-    if (text.contains('travel') || text.contains('trip') || text.contains('vacation')) {
-      tags.add(('Travel', AppColors.blue));
-    } else if (text.contains('work') || text.contains('job') || text.contains('career')) {
-      tags.add(('Career', AppColors.blue));
-    } else if (text.contains('family') || text.contains('mom') || text.contains('dad')) {
-      tags.add(('Family', AppColors.blue));
-    }
-    return tags.take(2).toList();
-  }
+  List<(String, Color)> _entryTags(JournalEntry e) => EntryCategories.tagChips(e);
 
   String _extractTitle(JournalEntry e) {
     final lines = e.content.split('\n').where((l) => l.trim().isNotEmpty).toList();

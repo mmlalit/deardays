@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/core/utils/entry_categories.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
 /// Full-width memory card matching the Timeline tab card design.
@@ -49,28 +50,8 @@ class MemoryCard extends ConsumerWidget {
     return body.length > 120 ? '${body.substring(0, 120)}...' : body;
   }
 
-  static List<(String, Color)> entryTags(JournalEntry entry) {
-    final tags = <(String, Color)>[];
-    switch (entry.mood) {
-      case 'great': tags.add(('Joy', AppColors.moodOkay));
-      case 'good':  tags.add(('Happy', AppColors.moodGood));
-      case 'okay':  tags.add(('Serene', AppColors.moodGood));
-      case 'low':   tags.add(('Sad', AppColors.indigo));
-      case 'tough': tags.add(('Growth', AppColors.orange));
-    }
-    final text = entry.content.toLowerCase();
-    if (text.contains('travel') || text.contains('trip') ||
-        text.contains('vacation')) {
-      tags.add(('Travel', AppColors.blue));
-    } else if (text.contains('work') || text.contains('job') ||
-        text.contains('career') || text.contains('promotion')) {
-      tags.add(('Career', AppColors.blue));
-    } else if (text.contains('family') || text.contains('mom') ||
-        text.contains('dad')) {
-      tags.add(('Family', AppColors.blue));
-    }
-    return tags.take(2).toList();
-  }
+  static List<(String, Color)> entryTags(JournalEntry entry) =>
+      EntryCategories.tagChips(entry);
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -117,7 +98,7 @@ class MemoryCard extends ConsumerWidget {
               _MoodBand(mood: entry.mood!, colors: colors),
 
             Padding(
-              padding: EdgeInsets.fromLTRB(16, hasPhoto ? 14 : 18, 16, 16),
+              padding: EdgeInsets.fromLTRB(16, hasPhoto ? 14 : 18, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -167,34 +148,35 @@ class MemoryCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
 
-                  // Voice indicator + share icon
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      if (entry.hasVoice) _VoiceIndicator(colors: colors),
-                      const Spacer(),
-                      if (onShare != null)
-                        Semantics(
-                          label: 'Share memory',
-                          button: true,
-                          child: GestureDetector(
-                            onTap: onShare,
-                            behavior: HitTestBehavior.opaque,
-                            child: SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: Center(
-                                child: Icon(
-                                  Icons.ios_share_rounded,
-                                  size: 18,
-                                  color: colors.textMuted,
+                  if (entry.hasVoice || onShare != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        if (entry.hasVoice) _VoiceIndicator(colors: colors),
+                        const Spacer(),
+                        if (onShare != null)
+                          Semantics(
+                            label: 'Share memory',
+                            button: true,
+                            child: GestureDetector(
+                              onTap: onShare,
+                              behavior: HitTestBehavior.opaque,
+                              child: SizedBox(
+                                width: 48,
+                                height: 36,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.ios_share_rounded,
+                                    size: 18,
+                                    color: colors.textMuted,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -385,12 +367,11 @@ class _MemoryCardPhotoState extends ConsumerState<MemoryCardPhoto> {
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    return FutureBuilder<String>(
+    final child = FutureBuilder<String>(
       future: _urlFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
-            height: widget.height,
             width: double.infinity,
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -407,7 +388,6 @@ class _MemoryCardPhotoState extends ConsumerState<MemoryCardPhoto> {
         }
         if (!snapshot.hasData || snapshot.hasError || snapshot.data!.isEmpty) {
           return Container(
-            height: 100,
             color: colors.accentFaint,
             child: Icon(
               Icons.image_outlined,
@@ -418,13 +398,11 @@ class _MemoryCardPhotoState extends ConsumerState<MemoryCardPhoto> {
         }
         return CachedNetworkImage(
           imageUrl: snapshot.data!,
-          height: widget.height,
           width: double.infinity,
           fit: BoxFit.cover,
           memCacheWidth: 600,
-          memCacheHeight: (widget.height * 2).toInt(),
+          memCacheHeight: 338,
           errorWidget: (_, __, ___) => Container(
-            height: 100,
             color: colors.accentFaint,
             child: Icon(
               Icons.image_outlined,
@@ -434,6 +412,11 @@ class _MemoryCardPhotoState extends ConsumerState<MemoryCardPhoto> {
           ),
         );
       },
+    );
+    // 16:9 landscape — cinematic header, lets text show below the fold
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: child,
     );
   }
 }

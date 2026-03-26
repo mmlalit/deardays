@@ -145,29 +145,28 @@ class MilestoneCard extends StatelessWidget {
 
     return Stack(
       children: [
-        // Photo
-        if (future != null)
-          FutureBuilder<String>(
-            future: future,
-            builder: (context, snapshot) {
-              final url = snapshot.data;
-              if (snapshot.hasError || url == null || url.isEmpty) {
-                return _buildPhotoPlaceholder();
-              }
-              return CachedNetworkImage(
-                imageUrl: url,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                memCacheWidth: 600,
-                memCacheHeight: 360,
-                errorWidget: (_, __, ___) => _buildPhotoPlaceholder(),
-              );
-            },
-          )
-        else
-          _buildPhotoPlaceholder(),
-
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: future != null
+              ? FutureBuilder<String>(
+                  future: future,
+                  builder: (context, snapshot) {
+                    final url = snapshot.data;
+                    if (snapshot.hasError || url == null || url.isEmpty) {
+                      return _buildPhotoPlaceholder();
+                    }
+                    return CachedNetworkImage(
+                      imageUrl: url,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 800,
+                      memCacheHeight: 450,
+                      errorWidget: (_, __, ___) => _buildPhotoPlaceholder(),
+                    );
+                  },
+                )
+              : _buildPhotoPlaceholder(),
+        ),
         // Gradient overlay
         Positioned(
           left: 0,
@@ -192,20 +191,22 @@ class MilestoneCard extends StatelessWidget {
   }
 
   Widget _buildPhotoPlaceholder() {
-    return Container(
-      height: 180,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.accent.withAlpha(30),
-            colors.accentFaint,
-          ],
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colors.accent.withAlpha(30),
+              colors.accentFaint,
+            ],
+          ),
         ),
+        child: Icon(Icons.photo_rounded, size: 48, color: colors.accent.withAlpha(60)),
       ),
-      child: Icon(Icons.photo_rounded, size: 48, color: colors.accent.withAlpha(60)),
     );
   }
 
