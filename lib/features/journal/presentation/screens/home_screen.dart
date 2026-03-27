@@ -21,6 +21,8 @@ import 'package:deardays/core/onboarding/sample_memory.dart';
 import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/core/providers/onboarding_provider.dart';
 import 'package:deardays/core/onboarding/checklist_card.dart';
+import 'package:deardays/features/timeline/presentation/widgets/on_this_day_card.dart';
+import 'package:deardays/features/journal/presentation/widgets/draft_history_sheet.dart';
 
 String _cleanFirstName(String? raw) {
   if (raw == null || raw.trim().isEmpty) return 'there';
@@ -64,6 +66,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final weekNumber = ((now.difference(startOfYear).inDays) / 7).floor() + 1;
     return '${now.year}_$weekNumber';
   }
+
+  bool _moodExpanded = false;
 
   @override
   void initState() {
@@ -182,24 +186,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     const SizedBox(height: 20),
                     // 1. Greeting
                     _buildGreeting(firstName, colors),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // Mood check-in
-                    _buildMoodRow(colors),
-                    const SizedBox(height: 16),
-
-                    // 2. Capture grid (2x2)
+                    // 2. Capture buttons — primary CTA, right below greeting
                     _buildCaptureHero(context, colors),
                     const SizedBox(height: 16),
 
-                    // 3. Getting Started checklist (new users only)
+                    // 3. Mood check-in
+                    _buildMoodRow(colors),
+                    const SizedBox(height: 16),
+
+                    // 4. Getting Started checklist (new users only)
                     _buildChecklistSection(),
 
-                    // 4. Journal Activity
+                    // 5. Journal Activity
                     _buildJournalActivityCard(colors),
                     const SizedBox(height: 16),
 
-                    // 6. Recent Memories header
+                    // 6. On This Day (conditional)
+                    _buildOnThisDaySection(entriesAsync.valueOrNull ?? [], colors),
+
+                    // 7. Continue Writing (drafts)
+                    _buildContinueWritingSection(colors),
+
+                    // 8. Recent Memories header
                     _buildSectionHeader(context, colors),
                     const SizedBox(height: 16),
                   ],
@@ -634,6 +644,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildMoodRow(AppPalette colors) {
     final selectedMood = ref.watch(todayMoodProvider);
+
+    // Collapsed state — one line after mood is picked
+    if (selectedMood != null && selectedMood.isNotEmpty && !_moodExpanded) {
+      final moodItem = _moodData.firstWhere(
+        (m) => m['label'] == selectedMood,
+        orElse: () => _moodData[2],
+      );
+      final emoji = moodItem['emoji'] as String;
+      final color = moodItem['color'] as Color;
+      return GestureDetector(
+        onTap: () => setState(() => _moodExpanded = true),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border),
+          ),
+          child: Row(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Feeling ${selectedMood.toLowerCase()} today',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                'Change',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Expanded state — full emoji picker
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -663,42 +720,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               return ConstrainedBox(
                 constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 child: GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  ref.read(todayMoodProvider.notifier).setMood(label);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isSelected ? color.withAlpha(30) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected ? color : Colors.transparent,
-                      width: 1.5,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    ref.read(todayMoodProvider.notifier).setMood(label);
+                    setState(() => _moodExpanded = false);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? color.withAlpha(30) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? color : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(emoji, style: const TextStyle(fontSize: 28)),
+                        const SizedBox(height: 4),
+                        Text(
+                          label,
+                          style: GoogleFonts.manrope(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                            color: isSelected ? color : colors.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    children: [
-                      Text(
-                        emoji,
-                        style: const TextStyle(
-                          fontSize: 28,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        style: GoogleFonts.manrope(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                          color: isSelected ? color : colors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 ),
               );
             }).toList(),
@@ -919,6 +972,113 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 5b. On This Day (memories from past years on today's date)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<String> _getPhotoUrl(String storagePath) async {
+    try {
+      return await ref.read(mediaServiceProvider).getSignedUrl(storagePath);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Widget _buildOnThisDaySection(List<JournalEntry> allEntries, AppPalette colors) {
+    final today = DateTime.now();
+    final pastEntries = allEntries.where((e) {
+      return e.entryDate.month == today.month &&
+          e.entryDate.day == today.day &&
+          e.entryDate.year < today.year;
+    }).toList();
+
+    if (pastEntries.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: OnThisDaySection(
+        entries: pastEntries,
+        colors: colors,
+        onEntryTap: (entry) {
+          context.push(
+            '/memory/${entry.id}',
+            extra: MemoryDetailArgs(
+              entry: entry,
+              allEntries: pastEntries,
+              initialIndex: pastEntries.indexOf(entry),
+            ),
+          );
+        },
+        photoUrlBuilder: _getPhotoUrl,
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 5c. Continue Writing (pending drafts banner)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildContinueWritingSection(AppPalette colors) {
+    final drafts = ref.watch(draftsProvider).valueOrNull ?? [];
+    if (drafts.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: GestureDetector(
+        onTap: () => showDraftHistorySheet(context, ref),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEC4899).withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.edit_note_rounded,
+                  size: 20,
+                  color: Color(0xFFEC4899),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Continue Writing',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${drafts.length} draft${drafts.length == 1 ? '' : 's'} saved',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded, size: 14, color: colors.textMuted),
+            ],
+          ),
+        ),
       ),
     );
   }
