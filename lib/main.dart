@@ -62,10 +62,19 @@ void main() async {
       ReflectionOverrideRepository().init(),
     ]);
 
-    // ── Phase 2: Everything else in parallel ────────────────────────────────
-    // These services are independent of each other and can init concurrently.
-    // This cuts startup time from ~1100ms to ~500ms.
-    await Future.wait([
+    // ── Phase 2: Wire up sync (depends on Phase 1) ──────────────────────────
+    unawaited(OfflineAiQueue().pruneStale()); // non-blocking housekeeping
+    await SyncService().init();
+    SyncService().enableQueue();
+
+    // ── Launch the app immediately ───────────────────────────────────────────
+    // All remaining services (analytics, notifications, connectivity, etc.) are
+    // started fire-and-forget AFTER runApp so that permission dialogs and slow
+    // network calls never block the first frame on Android.
+    runApp(const ProviderScope(child: DearDaysApp()));
+
+    // ── Phase 3: Background services (fire-and-forget) ──────────────────────
+    unawaited(Future.wait([
       AnalyticsService().init(),
       RevenueCatService().init(),
       NotificationService().init(),
@@ -75,19 +84,8 @@ void main() async {
       OfflineAiQueue().init(),
       FeatureFlags().init(),
       VersionCheckService().check(),
-    ]);
-
-    // Location permission is requested lazily (on first location use) because
-    // requesting it here — before runApp — blocks the Android permission dialog
-    // from rendering, causing an indefinite white screen on first launch.
+    ]));
     unawaited(LocationService().requestPermission());
-
-    // ── Phase 3: Wire up sync (depends on connectivity) ─────────────────────
-    unawaited(OfflineAiQueue().pruneStale()); // non-blocking housekeeping
-    await SyncService().init();
-    SyncService().enableQueue();
-
-    runApp(const ProviderScope(child: DearDaysApp()));
   });
 }
 
