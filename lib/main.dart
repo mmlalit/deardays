@@ -69,7 +69,6 @@ void main() async {
       AnalyticsService().init(),
       RevenueCatService().init(),
       NotificationService().init(),
-      LocationService().requestPermission(),
       ConnectivityService().init(),
       BackupService().init(),
       AiCreditService().init(),
@@ -77,6 +76,11 @@ void main() async {
       FeatureFlags().init(),
       VersionCheckService().check(),
     ]);
+
+    // Location permission is requested lazily (on first location use) because
+    // requesting it here — before runApp — blocks the Android permission dialog
+    // from rendering, causing an indefinite white screen on first launch.
+    unawaited(LocationService().requestPermission());
 
     // ── Phase 3: Wire up sync (depends on connectivity) ─────────────────────
     unawaited(OfflineAiQueue().pruneStale()); // non-blocking housekeeping
