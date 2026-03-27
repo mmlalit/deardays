@@ -22,6 +22,7 @@ dependencies:
 
   # Backend & Auth
   supabase_flutter: ^2.8.4
+  google_sign_in: ^6.2.1
 
   # Local Storage (Encrypted)
   hive_flutter: ^1.1.0

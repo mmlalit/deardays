@@ -1,3 +1,4 @@
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -124,14 +125,45 @@ class AuthService {
     return AuthResponse(session: _client.auth.currentSession, user: currentUser);
   }
 
-  /// Signs in with Google.
+  /// Signs in with Google using the native Google Sign-In flow.
   Future<AuthResponse> signInWithGoogle() async {
-    await _client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: 'io.deardays://callback',
+    const webClientId = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+
+    final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      // User cancelled the sign-in
+      return AuthResponse(session: _client.auth.currentSession, user: currentUser);
+    }
+
+    final googleAuth = await googleUser.authentication;
+    final response = await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: googleAuth.idToken!,
+      accessToken: googleAuth.accessToken,
     );
 
-    return AuthResponse(session: _client.auth.currentSession, user: currentUser);
+    if (response.user != null) {
+      try {
+        await _client.from('profiles').upsert(
+          {
+            'id': response.user!.id,
+            'display_name': googleUser.displayName,
+            'encryption_salt': 'server-side',
+            'trial_started_at': DateTime.now().toUtc().toIso8601String(),
+            'consent_given_at': DateTime.now().toUtc().toIso8601String(),
+          },
+          onConflict: 'id',
+          ignoreDuplicates: true,
+        );
+      } catch (_) {}
+
+      try {
+        await _revenueCat.login(response.user!.id);
+      } catch (_) {}
+    }
+
+    return response;
   }
 
   // ---------------------------------------------------------------------------

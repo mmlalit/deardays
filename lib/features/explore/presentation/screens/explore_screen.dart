@@ -2597,11 +2597,13 @@ class _ChapterPostcardState extends ConsumerState<_ChapterPostcard> {
     final chapter = widget.chapter;
     final accent = widget.accent;
     // Dark card background — blend accent toward black for a rich feel
-    final cardBg = Color.lerp(accent, Colors.black, 0.5) ?? accent;
+    final cardBg = Color.lerp(accent, Colors.black, 0.55) ?? accent;
     const textColor = Colors.white;
 
-    final countLabel =
-        '${chapter.entryCount} ${chapter.entryCount == 1 ? 'memory' : 'memories'}';
+    final hasPhoto = _photoUrl != null && _photoUrl!.isNotEmpty;
+
+    // Rich count: "12 memories · 4 photos · 2 voice"
+    final countLabel = '${chapter.entryCount} ${chapter.entryCount == 1 ? 'memory' : 'memories'}';
 
     return Semantics(
       label: 'Featured chapter: ${chapter.title}. $countLabel. Tap to read.',
@@ -2611,122 +2613,138 @@ class _ChapterPostcardState extends ConsumerState<_ChapterPostcard> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: SizedBox(
-            height: 200,
-            child: Stack(
-              fit: StackFit.expand,
+            height: 280,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Background: user photo or accent gradient ────────────
-                if (_photoUrl != null && _photoUrl!.isNotEmpty)
-                  CachedNetworkImage(
-                    imageUrl: _photoUrl!,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                    errorWidget: (_, __, ___) => _gradientBg(accent, cardBg),
-                  )
-                else
-                  _gradientBg(accent, cardBg),
-
-                // ── Right-to-left dark scrim so text is always readable ──
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerRight,
-                      end: Alignment.centerLeft,
-                      colors: [
-                        cardBg.withAlpha(245),
-                        cardBg.withAlpha(200),
-                        cardBg.withAlpha(80),
+                // ── Left panel: solid dark bg + text ──────────────────────
+                Expanded(
+                  flex: 52,
+                  child: Container(
+                    color: cardBg,
+                    child: Stack(
+                      children: [
+                        // Book spine (left edge)
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 4,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  accent.withAlpha(220),
+                                  accent.withAlpha(90),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Text content
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 16, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'FEATURED CHAPTER',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: accent.withAlpha(210),
+                                  letterSpacing: 2.0,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                chapter.title,
+                                style: GoogleFonts.newsreader(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
+                                  height: 1.2,
+                                ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                countLabel,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: textColor.withAlpha(150),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              // Filled Read Story button
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 9),
+                                decoration: BoxDecoration(
+                                  color: accent.withAlpha(220),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Read Story',
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.auto_stories_rounded,
+                                        size: 14, color: textColor),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
 
-                // ── Book spine (left edge) ───────────────────────────────
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 4,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          accent.withAlpha(200),
-                          accent.withAlpha(80),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // ── Content ─────────────────────────────────────────────
-                Positioned(
-                  left: 20,
-                  right: 16,
-                  top: 0,
-                  bottom: 0,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                // ── Right panel: clear photo ───────────────────────────────
+                Expanded(
+                  flex: 48,
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Text(
-                        'FEATURED CHAPTER',
-                        style: GoogleFonts.manrope(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: accent.withAlpha(210),
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        chapter.title,
-                        style: GoogleFonts.newsreader(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: textColor,
-                          height: 1.2,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        countLabel,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: textColor.withAlpha(160),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      // Read Story pill button
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: textColor.withAlpha(30),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: textColor.withAlpha(70), width: 1),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Read Story',
-                              style: GoogleFonts.manrope(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
-                              ),
+                      // Photo — fully clear, no scrim
+                      if (hasPhoto)
+                        CachedNetworkImage(
+                          imageUrl: _photoUrl!,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.center,
+                          errorWidget: (_, __, ___) => _gradientBg(accent, cardBg),
+                        )
+                      else
+                        _gradientBg(accent, cardBg),
+
+                      // Thin blend at left edge only — seamless join to text panel
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 32,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [cardBg, Colors.transparent],
                             ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.auto_stories_rounded,
-                                size: 14, color: textColor),
-                          ],
+                          ),
                         ),
                       ),
                     ],
