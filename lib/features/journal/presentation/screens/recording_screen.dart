@@ -12,8 +12,10 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:uuid/uuid.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 
 class RecordingScreen extends ConsumerStatefulWidget {
@@ -102,6 +104,35 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
       _audioRecorder.dispose();
     } catch (_) {}
     super.dispose();
+  }
+
+  Future<void> _saveDraftAndClose() async {
+    _timer?.cancel();
+    _waveTimer?.cancel();
+    if (_speechAvailable) await _speech.stop();
+
+    final transcript = _currentWords.isNotEmpty
+        ? '$_liveTranscript $_currentWords'.trim()
+        : _liveTranscript.trim();
+
+    try { await _audioRecorder.stop(); } catch (_) {}
+
+    if (transcript.length >= 10 || _elapsedSeconds >= 5) {
+      final draft = DraftEntry(
+        id: const Uuid().v4(),
+        type: DraftType.voice,
+        rawText: transcript.isNotEmpty
+            ? transcript
+            : '[Voice recording – ${_elapsedSeconds}s]',
+        savedAt: DateTime.now(),
+        entryDate: DateTime.now(),
+        isVoice: true,
+      );
+      await ref.read(draftSyncServiceProvider).saveDraft(draft);
+      ref.invalidate(draftsProvider);
+    }
+
+    if (mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _startRecording() async {
@@ -413,7 +444,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: _saveDraftAndClose,
             child: Container(
               width: 40,
               height: 40,

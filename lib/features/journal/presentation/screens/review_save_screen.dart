@@ -19,7 +19,6 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/presentation/screens/post_save_screen.dart';
 import 'package:deardays/services/ai/ai_service.dart';
-import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
@@ -186,7 +185,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       attachedPhotoPath: _attachedPhotoPath,
       isVoice: widget.data.isVoice,
     );
-    await LocalStorageService.instance.saveDraft(draft);
+    await ref.read(draftSyncServiceProvider).saveDraft(draft);
     ref.invalidate(draftsProvider);
     if (mounted) Navigator.of(context).pop();
   }

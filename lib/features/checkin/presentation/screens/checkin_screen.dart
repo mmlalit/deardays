@@ -7,7 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:uuid/uuid.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/checkin/data/models/chat_message.dart';
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
@@ -154,7 +157,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       ),
       child: Row(
         children: [
-          _iconBtn(Icons.arrow_back_rounded, colors, () { if (context.canPop()) context.pop(); }),
+          _iconBtn(Icons.arrow_back_rounded, colors, _saveDraftAndPop),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -643,6 +646,28 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       ref.read(checkInProvider.notifier).sendMessage(text);
     }
     _textController.clear();
+  }
+
+  Future<void> _saveDraftAndPop() async {
+    final state = ref.read(checkInProvider);
+    final userText = state.allMessages
+        .where((m) => m.isUser)
+        .map((m) => m.text)
+        .join('\n\n');
+
+    if (userText.trim().length >= 10) {
+      final draft = DraftEntry(
+        id: const Uuid().v4(),
+        type: DraftType.checkin,
+        rawText: userText,
+        savedAt: DateTime.now(),
+        entryDate: DateTime.now(),
+      );
+      await ref.read(draftSyncServiceProvider).saveDraft(draft);
+      ref.invalidate(draftsProvider);
+    }
+
+    if (mounted && context.canPop()) context.pop();
   }
 
   void _handleVoiceRecord() => context.push('/record');

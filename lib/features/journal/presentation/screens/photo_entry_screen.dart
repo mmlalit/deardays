@@ -18,7 +18,6 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
-import 'package:deardays/services/storage/local_storage_service.dart';
 
 class PhotoEntryScreen extends ConsumerStatefulWidget {
   final String photoPath;
@@ -416,7 +415,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
       entryDate: DateTime.now(),
       attachedPhotoPath: _photoPath,
     );
-    await LocalStorageService.instance.saveDraft(draft);
+    await ref.read(draftSyncServiceProvider).saveDraft(draft);
     ref.invalidate(draftsProvider);
   }
 

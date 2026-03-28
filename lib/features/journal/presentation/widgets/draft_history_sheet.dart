@@ -11,7 +11,6 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
-import 'package:deardays/services/storage/local_storage_service.dart';
 
 void showDraftHistorySheet(BuildContext context, WidgetRef ref) {
   showModalBottomSheet(
@@ -143,31 +142,49 @@ class _DraftHistorySheet extends ConsumerWidget {
   void _openDraft(BuildContext context, WidgetRef ref, DraftEntry draft) {
     HapticFeedback.selectionClick();
     Navigator.of(context).pop();
-    if (draft.type == DraftType.text) {
-      context.push('/write', extra: draft);
-    } else {
-      context.push(
-        '/review',
-        extra: ReviewData(
-          rawText: draft.rawText,
-          cleanedText: draft.cleanedText,
-          polishedText: draft.polishedText,
-          generatedTitle: draft.generatedTitle,
-          mood: draft.mood,
-          locationName: draft.locationName,
-          attachedPhotoPath: draft.attachedPhotoPath,
-          isVoice: draft.isVoice,
-          polishWithAI: false,
-          existingDraftId: draft.id,
-        ),
-      );
+    switch (draft.type) {
+      case DraftType.text:
+        context.push('/write', extra: draft);
+      case DraftType.review:
+        context.push(
+          '/review',
+          extra: ReviewData(
+            rawText: draft.rawText,
+            cleanedText: draft.cleanedText,
+            polishedText: draft.polishedText,
+            generatedTitle: draft.generatedTitle,
+            mood: draft.mood,
+            locationName: draft.locationName,
+            attachedPhotoPath: draft.attachedPhotoPath,
+            isVoice: draft.isVoice,
+            polishWithAI: false,
+            existingDraftId: draft.id,
+          ),
+        );
+      case DraftType.voice:
+        context.push(
+          '/processing',
+          extra: ReviewData(
+            rawText: draft.rawText,
+            isVoice: true,
+            existingDraftId: draft.id,
+          ),
+        );
+      case DraftType.checkin:
+        context.push(
+          '/processing',
+          extra: ReviewData(
+            rawText: draft.rawText,
+            existingDraftId: draft.id,
+          ),
+        );
     }
   }
 
   Future<void> _deleteDraft(
       BuildContext context, WidgetRef ref, DraftEntry draft) async {
     HapticFeedback.lightImpact();
-    await LocalStorageService.instance.deleteDraft(draft.id);
+    await ref.read(draftSyncServiceProvider).deleteDraft(draft.id);
     ref.invalidate(draftsProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,7 +237,12 @@ class _DraftCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isReview = draft.type == DraftType.review;
+    final typeBadge = switch (draft.type) {
+      DraftType.review  => ('AI polished', colors.accent),
+      DraftType.voice   => ('Voice', Colors.orange),
+      DraftType.checkin  => ('Reflect', Colors.teal),
+      DraftType.text    => (null, null),
+    };
     return Dismissible(
       key: ValueKey(draft.id),
       direction: DismissDirection.endToStart,
@@ -259,20 +281,20 @@ class _DraftCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  if (isReview)
+                  if (typeBadge.$1 != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: colors.accent.withAlpha(18),
+                        color: typeBadge.$2!.withAlpha(18),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        'AI polished',
+                        typeBadge.$1!,
                         style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: colors.accent,
+                          color: typeBadge.$2!,
                         ),
                       ),
                     ),

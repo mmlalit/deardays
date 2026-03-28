@@ -312,7 +312,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
 
     // Delete the draft now that the entry is fully saved
     try {
-      await LocalStorageService.instance.deleteDraft(pre.draftId);
+      await ref.read(draftSyncServiceProvider).deleteDraft(pre.draftId);
       ref.invalidate(draftsProvider);
     } catch (e) {
       debugPrint('[PostSave] Draft deletion failed: $e');
