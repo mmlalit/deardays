@@ -464,43 +464,40 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
       onPopInvokedWithResult: (_, __) => _saveDraftIfNeeded(),
       child: Scaffold(
         backgroundColor: colors.bg,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          backgroundColor: colors.bg,
+          backgroundColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
-            onPressed: _onBack,
-          ),
-          title: Text(
-            'Add a Memory',
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: _changePhoto,
-              child: Text(
-                'Change',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colors.accent,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: GestureDetector(
+              onTap: _onBack,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withAlpha(90),
                 ),
+                child: const Icon(Icons.arrow_back_rounded, size: 20, color: Colors.white),
               ),
             ),
-          ],
+          ),
         ),
         resizeToAvoidBottomInset: true,
         body: SafeArea(
+          top: false,
           child: Column(
             children: [
               _buildPhotoHero(colors),
-              Expanded(child: _buildTextAndVoiceArea(colors)),
-              _buildContinueButton(colors),
+              Expanded(child: _buildTextArea(colors)),
+              if (_isRecordingVoice)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: _buildRecordingIndicator(colors),
+                ),
+              _buildBottomActions(colors),
             ],
           ),
         ),
@@ -508,12 +505,13 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     );
   }
 
-  // ── Photo hero (full-width, ~45% screen height) ───────────────────────────
+  // ── Photo hero (full-width, 4:5 aspect — taller, immersive) ──────────────
 
   Widget _buildPhotoHero(AppPalette colors) {
     return AspectRatio(
-      aspectRatio: 16 / 9,
+      aspectRatio: 4 / 3,
       child: GestureDetector(
+        onTap: () => _showReframeSheet(colors),
         onPanUpdate: (details) {
           final box = context.findRenderObject() as RenderBox?;
           if (box == null) return;
@@ -531,7 +529,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Photo
             _photoLoadError
                 ? Container(
                     color: Colors.black26,
@@ -554,64 +551,63 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
                       },
                     ),
                   ),
-            // Bottom gradient for hint readability
+            // Bottom gradient
             Positioned(
               bottom: 0, left: 0, right: 0,
               child: Container(
-                height: 48,
+                height: 64,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withAlpha(100)],
+                    colors: [Colors.transparent, Colors.black.withAlpha(120)],
                   ),
                 ),
               ),
             ),
-            // Drag hint
-            if (_showDragHint)
-              Positioned(
-                bottom: 10, left: 0, right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(110),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.open_with_rounded, size: 12, color: Colors.white),
-                        const SizedBox(width: 5),
-                        Text('Drag to reframe',
-                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            // Reframe pill — top right
+            // Bottom pills: Change + Drag hint
             Positioned(
-              top: 12, right: 12,
-              child: GestureDetector(
-                onTap: () => _showReframeSheet(colors),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withAlpha(140),
-                    borderRadius: BorderRadius.circular(20),
+              bottom: 10, left: 16, right: 16,
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: _changePhoto,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(120),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.edit_rounded, size: 13, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text('Change',
+                              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.crop_free_rounded, size: 13, color: Colors.white),
-                      const SizedBox(width: 5),
-                      Text('Reframe',
-                          style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
-                    ],
-                  ),
-                ),
+                  const Spacer(),
+                  if (_showDragHint)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(110),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.open_with_rounded, size: 12, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text('Drag to reframe',
+                              style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -620,31 +616,20 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     );
   }
 
-  // ── Text + voice area (scrollable, below photo) ───────────────────────────
+  // ── Borderless text area ──────────────────────────────────────────────────
 
-  Widget _buildTextAndVoiceArea(AppPalette colors) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Label row
-          Row(
-            children: [
-              Text(
-                'Tell the story',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textSecondary,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              Text(' *',
-                  style: TextStyle(fontSize: 13, color: colors.accent, fontWeight: FontWeight.w700)),
-              if (_isVoiceMode && !_isRecordingVoice) ...[
-                const SizedBox(width: 8),
-                Container(
+  Widget _buildTextArea(AppPalette colors) {
+    return GestureDetector(
+      onTap: () => _focusNode.requestFocus(),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isVoiceMode && !_isRecordingVoice)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
                     color: colors.accent.withAlpha(20),
@@ -656,110 +641,121 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
                     children: [
                       Icon(Icons.mic_rounded, size: 10, color: colors.accent),
                       const SizedBox(width: 3),
-                      Text('Voice',
+                      Text('Voice transcription',
                           style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: colors.accent)),
                     ],
                   ),
                 ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Text field
-          TextField(
-            controller: _textController,
-            focusNode: _focusNode,
-            autofocus: true,
-            minLines: 4,
-            maxLines: 8,
-            readOnly: _isRecordingVoice,
-            style: GoogleFonts.manrope(fontSize: 15, color: colors.textPrimary, height: 1.65),
-            decoration: InputDecoration(
-              hintText: _isRecordingVoice
-                  ? 'Listening… speak your memory'
-                  : 'What happened here? What does this moment mean to you?',
-              hintStyle: GoogleFonts.manrope(
-                  fontSize: 15, color: colors.textSecondary.withAlpha(110), height: 1.65),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colors.border),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colors.border),
+            TextField(
+              controller: _textController,
+              focusNode: _focusNode,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 12,
+              readOnly: _isRecordingVoice,
+              style: GoogleFonts.newsreader(fontSize: 17, color: colors.textPrimary, height: 1.7),
+              decoration: InputDecoration(
+                hintText: _isRecordingVoice
+                    ? 'Listening… speak your memory'
+                    : 'What happened here?\nTell the story of this moment…',
+                hintStyle: GoogleFonts.newsreader(
+                    fontSize: 17, color: colors.textSecondary.withAlpha(100), height: 1.7),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colors.accent, width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
-          ),
-          // Nudge
-          AnimatedOpacity(
-            opacity: _textController.text.isNotEmpty && !_hasEnoughText && !_isRecordingVoice ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text('Write a little more to continue…',
-                  style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary.withAlpha(140))),
+            AnimatedOpacity(
+              opacity: _textController.text.isNotEmpty && !_hasEnoughText && !_isRecordingVoice ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Write a little more to continue…',
+                    style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary.withAlpha(140))),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          // Recording state OR divider + record button
-          if (_isRecordingVoice)
-            _buildRecordingIndicator(colors)
-          else ...[
-            _buildOrSpeakDivider(colors),
-            const SizedBox(height: 12),
-            _buildRecordButton(colors),
           ],
-          const SizedBox(height: 8),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildOrSpeakDivider(AppPalette colors) {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: colors.border)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'or speak instead',
-            style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
-          ),
-        ),
-        Expanded(child: Divider(color: colors.border)),
-      ],
-    );
-  }
+  // ── Bottom action bar: Record (outline) + Continue (filled) ───────────────
 
-  Widget _buildRecordButton(AppPalette colors) {
-    return GestureDetector(
-      key: const Key('voice_toggle_button'),
-      onTap: _startVoiceRecording,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: colors.accent.withAlpha(13),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.accent.withAlpha(51)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.mic_rounded, size: 20, color: colors.accent),
-            const SizedBox(width: 8),
-            Text(
-              'Record voice',
-              style: GoogleFonts.manrope(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: colors.accent),
+  Widget _buildBottomActions(AppPalette colors) {
+    final canContinue = _hasEnoughText && !_isRecordingVoice;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      child: Row(
+        children: [
+          // Record / Stop button (outline)
+          Expanded(
+            flex: 4,
+            child: GestureDetector(
+              key: const Key('voice_toggle_button'),
+              onTap: _isRecordingVoice ? _stopVoiceRecording : _startVoiceRecording,
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _isRecordingVoice ? Colors.red.withAlpha(160) : colors.border,
+                    width: _isRecordingVoice ? 1.5 : 1,
+                  ),
+                  color: _isRecordingVoice ? Colors.red.withAlpha(15) : Colors.transparent,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _isRecordingVoice ? Icons.stop_rounded : Icons.mic_rounded,
+                      size: 18,
+                      color: _isRecordingVoice ? Colors.red : colors.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isRecordingVoice ? 'Stop' : 'Record',
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _isRecordingVoice ? Colors.red : colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 10),
+          // Continue button (filled)
+          Expanded(
+            flex: 6,
+            child: AnimatedOpacity(
+              opacity: canContinue ? 1.0 : 0.4,
+              duration: const Duration(milliseconds: 200),
+              child: GestureDetector(
+                onTap: canContinue ? _onContinue : null,
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Continue →',
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1008,40 +1004,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     );
   }
 
-  Widget _buildContinueButton(AppPalette colors) {
-    final canContinue = _hasEnoughText && !_isRecordingVoice;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-      child: AnimatedOpacity(
-        opacity: canContinue ? 1.0 : 0.38,
-        duration: const Duration(milliseconds: 200),
-        child: SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: canContinue ? _onContinue : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.accent,
-              disabledBackgroundColor: colors.accent,
-              foregroundColor: Colors.white,
-              disabledForegroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              elevation: 0,
-            ),
-            child: Text(
-              _isRecordingVoice ? 'Recording… tap ■ to stop' : 'Continue →',
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ── Adjustment slider row ─────────────────────────────────────────────────────

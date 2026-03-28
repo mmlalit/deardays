@@ -284,7 +284,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
       YearDividerPage p         => _YearPage(page: p),
       MonthDividerPage p        => _MonthPage(page: p),
       ChapterDividerPage p      => _ChapterPage(page: p),
-      WeekOpenerBookPage p      => _WeekOpenerPage(page: p, pageNum: index, bgColor: _readingBg),
+      WeekOpenerBookPage p      => _WeekOpenerPage(page: p, pageNum: index, bgColor: _readingBg, isChapterMode: widget.mode == BookMode.byChapter),
       MemoryBookPage p          => _MemoryPage(page: p, pageNum: index, isDearDays: _isDearDays, bgColor: _readingBg, allEntries: entries),
       WeeklyNarrativeBookPage p => _WeeklyNarrativePage(page: p, pageNum: index, isDearDays: _isDearDays, allEntries: entries, bgColor: _readingBg, bookId: bookId),
       TimeBridgePage p          => _TimeBridgePage(page: p),
@@ -2026,13 +2026,28 @@ class _WeekOpenerPage extends ConsumerWidget {
   final WeekOpenerBookPage page;
   final int pageNum;
   final Color bgColor;
-  const _WeekOpenerPage({required this.page, required this.pageNum, required this.bgColor});
+  final bool isChapterMode;
+  const _WeekOpenerPage({
+    required this.page,
+    required this.pageNum,
+    required this.bgColor,
+    this.isChapterMode = false,
+  });
 
-  static const _ink = AppColors.readingText; // same as all other book pages
+  // Design tokens from the Memoir AI reference design
+  static const _deepGreen = Color(0xFF2C4132);
+  static const _sage = Color(0xFF95AD9A);
+  static const _gold = Color(0xFFFFDEA5);
+  static const _textLight = Colors.white;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasPhoto = page.photoPaths.isNotEmpty;
+
+    // Dark background: deep green for chronological, theme-derived for chapters
+    final darkBg = isChapterMode
+        ? Color.lerp(bgColor, Colors.black, 0.65)!
+        : _deepGreen;
 
     // Use page summary if available, else try weekly reflection provider, else fallback
     final weeklySummaryAsync = ref.watch(reflectionSummaryProvider(ReflectionPeriod.weekly));
@@ -2046,34 +2061,74 @@ class _WeekOpenerPage extends ConsumerWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: bgColor,
+      color: darkBg,
       child: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header: ◆ WEEK ◆ label ────────────────────────────────────
+            // ── Hero photo (top ~45%) ──────────────────────────────────────
+            if (hasPhoto)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 10,
+                    child: _BookPhotoCell(
+                      storagePath: page.photoPaths.first,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+
+            if (!hasPhoto)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: _textLight.withAlpha(10),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _textLight.withAlpha(20)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '· · ·',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 22,
+                        letterSpacing: 8,
+                        color: _textLight.withAlpha(50),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 20),
+
+            // ── WEEK label ─────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Row(
                 children: [
-                  Text('◆', style: GoogleFonts.manrope(fontSize: 8, color: _ink.withAlpha(80))),
+                  Text('◆', style: GoogleFonts.manrope(fontSize: 8, color: _sage.withAlpha(120))),
                   const SizedBox(width: 6),
                   Text(
                     'WEEK',
                     style: GoogleFonts.manrope(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 3,
-                      color: _ink.withAlpha(140),
+                      color: _sage,
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text('◆', style: GoogleFonts.manrope(fontSize: 8, color: _ink.withAlpha(80))),
+                  Text('◆', style: GoogleFonts.manrope(fontSize: 8, color: _sage.withAlpha(120))),
                 ],
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             // ── Date + memory pill ─────────────────────────────────────────
             Padding(
@@ -2085,26 +2140,26 @@ class _WeekOpenerPage extends ConsumerWidget {
                     child: Text(
                       page.weekRange,
                       style: GoogleFonts.newsreader(
-                        fontSize: 26,
+                        fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: _ink,
-                        height: 1.1,
+                        color: _textLight,
+                        height: 1.15,
                       ),
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withAlpha(20),
+                      color: _gold.withAlpha(30),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF6366F1).withAlpha(60)),
+                      border: Border.all(color: _gold.withAlpha(80)),
                     ),
                     child: Text(
                       '${page.memoryCount} ${page.memoryCount == 1 ? "memory" : "memories"}',
                       style: GoogleFonts.manrope(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF6366F1),
+                        color: _gold,
                         letterSpacing: 0.4,
                       ),
                     ),
@@ -2113,70 +2168,30 @@ class _WeekOpenerPage extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // ── Hero photo — single full-width 4:3 ─────────────────────────
-            if (hasPhoto)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: AspectRatio(
-                    aspectRatio: 4 / 3,
-                    child: _BookPhotoCell(
-                      storagePath: page.photoPaths.first,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ),
-
-            if (!hasPhoto)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: _ink.withAlpha(8),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _ink.withAlpha(20)),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '· · ·',
+            // ── Summary (scrollable) ───────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(width: 32, height: 1, color: _sage.withAlpha(80)),
+                    const SizedBox(height: 14),
+                    Text(
+                      summaryText,
                       style: GoogleFonts.newsreader(
-                        fontSize: 22,
-                        letterSpacing: 8,
-                        color: _ink.withAlpha(60),
+                        fontSize: 16,
+                        color: _textLight.withAlpha(210),
+                        height: 1.8,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-
-            const SizedBox(height: 20),
-
-            // ── Summary / fallback ─────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(width: 32, height: 1, color: _ink.withAlpha(40)),
-                  const SizedBox(height: 14),
-                  Text(
-                    summaryText,
-                    style: GoogleFonts.newsreader(
-                      fontSize: 17,
-                      color: _ink.withAlpha(200),
-                      height: 1.75,
-                    ),
-                  ),
-                ],
-              ),
             ),
-
-            const Spacer(),
 
             // ── Page number ─────────────────────────────────────────────────
             Padding(
@@ -2187,7 +2202,7 @@ class _WeekOpenerPage extends ConsumerWidget {
                   style: GoogleFonts.newsreader(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
-                    color: _ink.withAlpha(100),
+                    color: _textLight.withAlpha(80),
                   ),
                 ),
               ),
