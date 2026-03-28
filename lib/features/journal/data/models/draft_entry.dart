@@ -1,17 +1,19 @@
 import 'dart:convert';
 
-enum DraftType { text, review }
+/// [DraftType.text]    — user wrote in TextEntryScreen and left.
+/// [DraftType.review]  — AI processing completed; user left ReviewSaveScreen.
+/// [DraftType.voice]   — user abandoned a recording with a transcript.
+/// [DraftType.checkin] — user left a check-in chat without saving as memory.
+enum DraftType { text, review, voice, checkin }
 
 /// A saved-but-not-submitted journal entry draft.
-///
-/// [DraftType.text]   — user wrote in TextEntryScreen and left.
-/// [DraftType.review] — AI processing completed; user left ReviewSaveScreen.
 class DraftEntry {
   final String id;
   final DraftType type;
   final String rawText;
   final DateTime savedAt;
   final DateTime entryDate;
+  final String? userId;
 
   // Review-stage extras (null for text drafts)
   final String? cleanedText;
@@ -28,6 +30,7 @@ class DraftEntry {
     required this.rawText,
     required this.savedAt,
     required this.entryDate,
+    this.userId,
     this.cleanedText,
     this.polishedText,
     this.generatedTitle,
@@ -49,12 +52,15 @@ class DraftEntry {
     return text.split(RegExp(r'\s+')).length;
   }
 
+  // ── Hive JSON (camelCase, backward-compatible) ────────────────────────
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'type': type.name,
         'rawText': rawText,
         'savedAt': savedAt.toIso8601String(),
         'entryDate': entryDate.toIso8601String(),
+        'userId': userId,
         'cleanedText': cleanedText,
         'polishedText': polishedText,
         'generatedTitle': generatedTitle,
@@ -73,6 +79,7 @@ class DraftEntry {
         rawText: json['rawText'] as String,
         savedAt: DateTime.parse(json['savedAt'] as String),
         entryDate: DateTime.parse(json['entryDate'] as String),
+        userId: json['userId'] as String?,
         cleanedText: json['cleanedText'] as String?,
         polishedText: json['polishedText'] as String?,
         generatedTitle: json['generatedTitle'] as String?,
@@ -86,4 +93,42 @@ class DraftEntry {
 
   factory DraftEntry.fromJsonString(String s) =>
       DraftEntry.fromJson(jsonDecode(s) as Map<String, dynamic>);
+
+  // ── Supabase (snake_case) ─────────────────────────────────────────────
+
+  Map<String, dynamic> toSupabaseMap() => {
+        'id': id,
+        'user_id': userId,
+        'type': type.name,
+        'raw_text': rawText,
+        'saved_at': savedAt.toIso8601String(),
+        'entry_date': entryDate.toIso8601String(),
+        'cleaned_text': cleanedText,
+        'polished_text': polishedText,
+        'generated_title': generatedTitle,
+        'mood': mood,
+        'location_name': locationName,
+        'attached_photo_path': attachedPhotoPath,
+        'is_voice': isVoice,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+  factory DraftEntry.fromSupabaseMap(Map<String, dynamic> map) => DraftEntry(
+        id: map['id'] as String,
+        type: DraftType.values.firstWhere(
+          (e) => e.name == map['type'],
+          orElse: () => DraftType.text,
+        ),
+        rawText: map['raw_text'] as String,
+        savedAt: DateTime.parse(map['saved_at'] as String),
+        entryDate: DateTime.parse(map['entry_date'] as String),
+        userId: map['user_id'] as String?,
+        cleanedText: map['cleaned_text'] as String?,
+        polishedText: map['polished_text'] as String?,
+        generatedTitle: map['generated_title'] as String?,
+        mood: map['mood'] as String?,
+        locationName: map['location_name'] as String?,
+        attachedPhotoPath: map['attached_photo_path'] as String?,
+        isVoice: map['is_voice'] as bool? ?? false,
+      );
 }

@@ -1,4 +1,5 @@
 
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -1101,10 +1102,15 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           final windows = _buildTimeWindows(entries);
           final chapters =
               ref.watch(chaptersProvider).valueOrNull ?? <Chapter>[];
-          final items = <Widget>[];
-          for (final window in windows) {
-            items.add(_buildBlockSeparator(window, colors));
-            items.addAll(_buildPastBlock(window, entries, colors, chapters));
+          if (windows.isEmpty) return <Widget>[];
+          final items = <Widget>[
+            // ── Era transition: strong separator between current & past ──
+            _buildEraTransition(colors),
+          ];
+          for (int i = 0; i < windows.length; i++) {
+            if (i > 0) items.add(_buildBlockSeparator(windows[i], colors));
+            items.add(_buildBlockHeader(windows[i], colors));
+            items.addAll(_buildPastBlock(windows[i], entries, colors, chapters));
           }
           return items;
         }(),
@@ -1299,6 +1305,94 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     return windows;
   }
 
+  /// Strong visual break between Block 1 (current) and past eras.
+  Widget _buildEraTransition(AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 32, bottom: 8),
+      child: Column(
+        children: [
+          // Gradient accent line
+          Center(
+            child: Container(
+              width: 48,
+              height: 3,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(2),
+                gradient: LinearGradient(
+                  colors: [
+                    colors.accent.withAlpha(60),
+                    colors.accent.withAlpha(180),
+                    colors.accent.withAlpha(60),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Looking Back',
+            style: GoogleFonts.newsreader(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              fontStyle: FontStyle.italic,
+              color: colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Your story, chapter by chapter',
+            style: GoogleFonts.manrope(
+              fontSize: 11,
+              color: colors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  /// Header label for each past time-window block.
+  Widget _buildBlockHeader(_TimeWindow window, AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 32,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              color: colors.accent.withAlpha(140),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                window.label,
+                style: GoogleFonts.newsreader(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+              Text(
+                '${window.relativeLabel} · ${window.entryCount} memories',
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Thin divider between two past blocks (not the first one).
   Widget _buildBlockSeparator(_TimeWindow window, AppPalette colors) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28),
@@ -2536,7 +2630,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 enum _HighlightPeriod { week, month, year }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Highlight card — activity dot grid cover (GitHub-style, personal)
+// Highlight card — progress ring + period label
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _HighlightCard extends StatelessWidget {
@@ -2566,8 +2660,26 @@ class _HighlightCard extends StatelessWidget {
     _HighlightPeriod.year  => [const Color(0xFFF59E0B), const Color(0xFFEF4444)],
   };
 
+  /// Total slots and active slots for the progress ring.
+  (int total, int active) get _progress {
+    switch (period) {
+      case _HighlightPeriod.week:
+        // 7 days, count unique weekdays with entries
+        return (7, entryDates.map((d) => d.weekday).toSet().length);
+      case _HighlightPeriod.month:
+        final daysInMonth = DateUtils.getDaysInMonth(
+            periodStart.year, periodStart.month);
+        return (daysInMonth, entryDates.map((d) => d.day).toSet().length);
+      case _HighlightPeriod.year:
+        return (12, entryDates.map((d) => d.month).toSet().length);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final (total, active) = _progress;
+    final fraction = total > 0 ? (active / total).clamp(0.0, 1.0) : 0.0;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -2602,12 +2714,35 @@ class _HighlightCard extends StatelessWidget {
                 ),
               ),
 
-              // Activity dot grid — top section
+              // Progress ring — centred in top section
               Positioned(
-                top: 16,
-                left: 14,
-                right: 14,
-                child: _buildDotGrid(),
+                top: 20,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: CustomPaint(
+                      painter: _ProgressRingPainter(
+                        fraction: fraction,
+                        trackColor: Colors.white.withAlpha(40),
+                        fillColor: Colors.white.withAlpha(230),
+                        strokeWidth: 5,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$active/$total',
+                          style: GoogleFonts.manrope(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
 
               // Bottom scrim for text legibility
@@ -2670,138 +2805,59 @@ class _HighlightCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildDotGrid() {
-    return switch (period) {
-      _HighlightPeriod.week  => _buildWeekGrid(),
-      _HighlightPeriod.month => _buildMonthGrid(),
-      _HighlightPeriod.year  => _buildYearGrid(),
-    };
-  }
+/// Circular progress ring painter — draws a track arc and a filled arc on top.
+class _ProgressRingPainter extends CustomPainter {
+  final double fraction;
+  final Color trackColor;
+  final Color fillColor;
+  final double strokeWidth;
 
-  /// Week: 7 dots (Mon–Sun) with day-initial labels above.
-  Widget _buildWeekGrid() {
-    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final activeDays = entryDates.map((d) => d.weekday).toSet(); // 1=Mon…7=Sun
+  _ProgressRingPainter({
+    required this.fraction,
+    required this.trackColor,
+    required this.fillColor,
+    required this.strokeWidth,
+  });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Day labels
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: dayLabels
-              .map((l) => SizedBox(
-                    width: 18,
-                    child: Text(
-                      l,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.manrope(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white.withAlpha(130),
-                      ),
-                    ),
-                  ))
-              .toList(),
-        ),
-        const SizedBox(height: 5),
-        // Dots
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(
-            7,
-            (i) => _dot(active: activeDays.contains(i + 1), size: 14),
-          ),
-        ),
-      ],
-    );
-  }
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final deflated = rect.deflate(strokeWidth / 2);
 
-  /// Month: days-of-month in a 7-column grid (one dot per day).
-  Widget _buildMonthGrid() {
-    final daysInMonth =
-        DateUtils.getDaysInMonth(periodStart.year, periodStart.month);
-    final activeDays = entryDates.map((d) => d.day).toSet();
-
-    final allDots = List.generate(
-      daysInMonth,
-      (i) => _dot(active: activeDays.contains(i + 1), size: 11),
+    // Track (full circle)
+    canvas.drawArc(
+      deflated,
+      -math.pi / 2,
+      2 * math.pi,
+      false,
+      Paint()
+        ..color = trackColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round,
     );
 
-    const cols = 7;
-    final rows = <Widget>[];
-    for (int i = 0; i < allDots.length; i += cols) {
-      final slice = allDots.sublist(i, (i + cols).clamp(0, allDots.length));
-      // Pad last row so spaceBetween stays uniform
-      final row = [
-        ...slice,
-        ...List.generate(cols - slice.length,
-            (_) => const SizedBox(width: 11, height: 11)),
-      ];
-      rows.add(Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: row,
-      ));
-      if (i + cols < allDots.length) rows.add(const SizedBox(height: 4));
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: rows,
-    );
-  }
-
-  /// Year: 52 dots (one per week), in a 13×4 grid.
-  Widget _buildYearGrid() {
-    const totalWeeks = 52;
-    const cols = 13;
-    const rows = 4;
-
-    final activeWeeks = <int>{};
-    for (final d in entryDates) {
-      final offset = d.difference(periodStart).inDays;
-      if (offset >= 0) {
-        final week = offset ~/ 7;
-        if (week < totalWeeks) activeWeeks.add(week);
-      }
-    }
-
-    final allDots = List.generate(
-      totalWeeks,
-      (i) => _dot(active: activeWeeks.contains(i), size: 8),
-    );
-
-    final rowWidgets = <Widget>[];
-    for (int r = 0; r < rows; r++) {
-      final start = r * cols;
-      final end = (start + cols).clamp(0, totalWeeks);
-      rowWidgets.add(Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: allDots.sublist(start, end),
-      ));
-      if (r < rows - 1) rowWidgets.add(const SizedBox(height: 4));
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: rowWidgets,
-    );
-  }
-
-  Widget _dot({required bool active, required double size}) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: active
-              ? Colors.white.withAlpha(230)
-              : Colors.white.withAlpha(40),
-        ),
+    // Filled arc
+    if (fraction > 0) {
+      canvas.drawArc(
+        deflated,
+        -math.pi / 2,
+        2 * math.pi * fraction,
+        false,
+        Paint()
+          ..color = fillColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round,
       );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ProgressRingPainter old) =>
+      old.fraction != fraction || old.fillColor != fillColor;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

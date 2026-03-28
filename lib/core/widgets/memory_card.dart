@@ -90,9 +90,19 @@ class MemoryCard extends ConsumerWidget {
           children: [
             // Photo bleeds to card edges, or mood-colour band as visual anchor
             if (hasPhoto)
-              MemoryCardPhoto(
-                storagePath: photoMedia.first.storagePath,
-                colors: colors,
+              Stack(
+                children: [
+                  MemoryCardPhoto(
+                    storagePath: photoMedia.first.storagePath,
+                    colors: colors,
+                  ),
+                  if (onShare != null)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: _FrostedShareButton(onTap: onShare!),
+                    ),
+                ],
               )
             else if (entry.mood != null)
               _MoodBand(mood: entry.mood!, colors: colors),
@@ -148,33 +158,16 @@ class MemoryCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
 
-                  if (entry.hasVoice || onShare != null) ...[
+                  if (entry.hasVoice) ...[
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        if (entry.hasVoice) _VoiceIndicator(colors: colors),
-                        const Spacer(),
-                        if (onShare != null)
-                          Semantics(
-                            label: 'Share memory',
-                            button: true,
-                            child: GestureDetector(
-                              onTap: onShare,
-                              behavior: HitTestBehavior.opaque,
-                              child: SizedBox(
-                                width: 48,
-                                height: 36,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.ios_share_rounded,
-                                    size: 18,
-                                    color: colors.textMuted,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    _VoiceIndicator(colors: colors),
+                  ],
+                  // Share on text-only cards (no photo to overlay)
+                  if (onShare != null && !hasPhoto) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _FrostedShareButton(onTap: onShare!, muted: true, colors: colors),
                     ),
                   ],
                 ],
