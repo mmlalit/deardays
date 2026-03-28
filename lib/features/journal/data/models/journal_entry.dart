@@ -200,7 +200,12 @@ class JournalEntry {
   /// Converts to a map suitable for Supabase insert/update.
   /// Uses actual DB table column names (not decrypted-view aliases).
   /// Only includes columns that exist on the raw `journal_entries` table.
-  Map<String, dynamic> toSupabaseMap() {
+  /// Converts to a map suitable for Supabase insert/update.
+  ///
+  /// When [forUpdate] is true, null values are preserved so that fields can be
+  /// explicitly cleared on UPDATE. When false (the default, for INSERTs), nulls
+  /// are stripped so Supabase applies DB defaults.
+  Map<String, dynamic> toSupabaseMap({bool forUpdate = false}) {
     final map = <String, dynamic>{
       'id': id,
       'user_id': userId,
@@ -223,9 +228,11 @@ class JournalEntry {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
-    if (tags.isNotEmpty) map['tags'] = tags;
-    // Remove null values so Supabase uses DB defaults
-    map.removeWhere((_, v) => v == null);
+    if (forUpdate || tags.isNotEmpty) map['tags'] = tags;
+    if (!forUpdate) {
+      // Remove null values so Supabase uses DB defaults on INSERT
+      map.removeWhere((_, v) => v == null);
+    }
     return map;
   }
 
@@ -300,5 +307,5 @@ class JournalEntry {
   }
 
   @override
-  int get hashCode => id.hashCode;
+  int get hashCode => Object.hash(id, updatedAt);
 }

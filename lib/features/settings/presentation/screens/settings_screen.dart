@@ -14,6 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/core/providers/theme_provider.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
@@ -32,6 +33,7 @@ import 'package:deardays/features/settings/presentation/screens/subscription_scr
 // TODO(post-launch): restore e2e_encryption_screen import
 // import 'package:deardays/features/settings/presentation/screens/e2e_encryption_screen.dart';
 import 'package:deardays/core/widgets/snack_bar_helper.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:deardays/core/providers/subscription_providers.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -50,10 +52,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _notificationsEnabled = false;
   bool _streakMilestonesEnabled = true;
   bool _isDialogOpen = false;
+  String _appVersion = '';
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 30);
   final _secureStorage = SecureStorageService();
   final _localAuth = LocalAuthentication();
+
+  /// Returns a Hive key scoped to the current user to prevent settings
+  /// leaking between accounts on the same device.
+  String _settingsKey(String key) {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return key;
+    return '${uid}_$key';
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -64,6 +75,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     _loadBiometricState();
     _loadPrivacyState();
     _loadNotificationState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+      }
+    } catch (_) {
+      // Non-fatal — fall back to empty string
+    }
   }
 
   Future<void> _loadBiometricState() async {
@@ -161,10 +184,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Sign Out?',
+        title: Text(AppLocalizations.of(context)?.signOutTitle ?? 'Sign Out?',
             style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.of(context).textPrimary)),
         content: Text(
-          'You will need to sign in again to access your journal.',
+          AppLocalizations.of(context)?.signOutMessage ?? 'You will need to sign in again to access your journal.',
           style: GoogleFonts.manrope(fontSize: 14, height: 1.5, color: AppColors.of(context).textSecondary),
         ),
         actions: [
@@ -174,7 +197,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Sign Out',
+            child: Text(AppLocalizations.of(context)?.signOut ?? 'Sign Out',
                 style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.error)),
           ),
         ],
@@ -278,13 +301,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
       );
 
-      final publicUrl =
-          client.storage.from('media').getPublicUrl(storagePath);
-
+      // Store the storage path (not a signed URL) so it never expires.
+      // Signed URLs are generated on-the-fly at display time.
       final profileRepo = ref.read(profileRepositoryProvider);
       final profile = await ref.read(profileProvider.future);
       if (profile != null) {
-        await profileRepo.updateProfile(profile.copyWith(avatarUrl: publicUrl));
+        await profileRepo.updateProfile(profile.copyWith(avatarUrl: storagePath));
         ref.invalidate(profileProvider);
       }
     } catch (e) {
@@ -395,7 +417,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     try {
       final box = await Hive.openBox('settings');
       if (!mounted) return;
-      final saved = box.get('streak_milestones_enabled') as bool?;
+      final saved = box.get(_settingsKey('streak_milestones_enabled')) as bool?;
       if (saved != null) {
         setState(() => _streakMilestonesEnabled = saved);
       }
@@ -409,7 +431,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     setState(() => _streakMilestonesEnabled = value);
     try {
       final box = await Hive.openBox('settings');
-      await box.put('streak_milestones_enabled', value);
+      await box.put(_settingsKey('streak_milestones_enabled'), value);
     } catch (e) {
       debugPrint('[Settings] _toggleStreakMilestones error: $e');
     }
@@ -949,17 +971,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       // Delete profile (cascades to entries, media, streaks, etc.)
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser?.id;
-      if (userId != null) {
-        await client.from('profiles').delete().eq('id', userId);
+      if (userId == null) {
+        if (mounted) AppSnackBar.error(context, 'No authenticated user found.');
+        return;
       }
 
-      // Sign out
+      await client.from('profiles').delete().eq('id', userId);
+
+      // Verify the profile was actually deleted
+      final check = await client
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+      if (check != null) {
+        if (mounted) {
+          AppSnackBar.error(context, 'Account deletion failed. Please contact support.');
+        }
+        return;
+      }
+
+      // Sign out only after confirmed deletion
       await client.auth.signOut();
 
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
+      debugPrint('[Settings] Account deletion error: $e');
       if (mounted) {
         AppSnackBar.error(context, 'Failed to delete account. Please try again.');
       }
@@ -988,7 +1027,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   _buildProfileSection(textColor, subtextColor),
                   const SizedBox(height: 24),
                   // ACCOUNT
-                  _buildSectionLabel('Account'),
+                  _buildSectionLabel(AppLocalizations.of(context)?.account ?? 'Account'),
                   _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.person_outline_rounded,
@@ -1029,7 +1068,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     _buildCardRow(
                       icon: Icons.logout_rounded,
                       iconColor: AppColors.error,
-                      label: 'Sign Out',
+                      label: AppLocalizations.of(context)?.signOut ?? 'Sign Out',
                       textColor: AppColors.error,
                       trailing: const SizedBox.shrink(),
                       onTap: _signOut,
@@ -1038,7 +1077,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ]),
                   const SizedBox(height: 24),
                   // NOTIFICATIONS
-                  _buildSectionLabel('Notifications'),
+                  _buildSectionLabel(AppLocalizations.of(context)?.notifications ?? 'Notifications'),
                   _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.notifications_outlined,
@@ -1047,6 +1086,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       trailing: _buildCustomToggle(
                         value: _notificationsEnabled,
                         onChanged: _toggleNotifications,
+                        semanticLabel: 'Daily Reminder',
                       ),
                     ),
                     if (_notificationsEnabled)
@@ -1078,6 +1118,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       trailing: _buildCustomToggle(
                         value: _streakMilestonesEnabled,
                         onChanged: _toggleStreakMilestones,
+                        semanticLabel: 'Streak Milestones',
                       ),
                       isLast: true,
                     ),
@@ -1087,14 +1128,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   // TODO(post-launch): re-enable Journaling section
                   const SizedBox(height: 0),
                   // PREFERENCES
-                  _buildSectionLabel('Preferences'),
+                  _buildSectionLabel(AppLocalizations.of(context)?.preferences ?? 'Preferences'),
                   _buildCardGroup(cardColor, [
                     _buildLanguageSelector(textColor, subtextColor),
                     _buildAppearanceDropdown(textColor, subtextColor),
                   ]),
                   const SizedBox(height: 24),
                   // PRIVACY & SECURITY
-                  _buildSectionLabel('Privacy & Security'),
+                  _buildSectionLabel(AppLocalizations.of(context)?.privacySecurity ?? 'Privacy & Security'),
                   _buildCardGroup(cardColor, [
                     _buildCardRow(
                       icon: Icons.lock_outline_rounded,
@@ -1131,7 +1172,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       label: 'Mood Data Consent',
                       textColor: textColor,
                       subtitle: 'Allow mood analytics to improve AI insights',
-                      trailing: _buildCustomToggle(value: _healthConsent, onChanged: _toggleHealthConsent),
+                      trailing: _buildCustomToggle(value: _healthConsent, onChanged: _toggleHealthConsent, semanticLabel: 'Mood Data Consent'),
                       isLast: true,
                     ),
                   ]),
@@ -1194,7 +1235,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       icon: null,
                       label: 'Version',
                       textColor: textColor,
-                      trailing: Text('1.2.0', style: GoogleFonts.manrope(fontSize: 12, color: AppColors.of(context).textMuted)),
+                      trailing: Text(_appVersion.isNotEmpty ? _appVersion : '...', style: GoogleFonts.manrope(fontSize: 12, color: AppColors.of(context).textMuted)),
                     ),
                     _buildCardRow(
                       icon: null,
@@ -1323,7 +1364,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         : '?';
 
     final profileAsync = ref.watch(profileProvider);
-    final avatarUrl = profileAsync.valueOrNull?.avatarUrl;
+    final avatarPath = profileAsync.valueOrNull?.avatarUrl;
+
+    // Resolve avatar: if the stored value is a storage path (not a full URL),
+    // generate a signed URL on-the-fly so it never expires in the DB.
+    final Future<String?> avatarUrlFuture = () async {
+      if (avatarPath == null || avatarPath.isEmpty) return null;
+      if (avatarPath.startsWith('http')) return avatarPath; // legacy full URL
+      try {
+        return await Supabase.instance.client.storage
+            .from('media')
+            .createSignedUrl(avatarPath, 3600);
+      } catch (_) {
+        return null;
+      }
+    }();
 
     return Padding(
       padding: const EdgeInsets.only(top: 28),
@@ -1342,8 +1397,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.of(context).accent, width: 2),
                     ),
-                    child: avatarUrl != null && avatarUrl.isNotEmpty
-                        ? ClipOval(
+                    child: FutureBuilder<String?>(
+                      future: avatarUrlFuture,
+                      builder: (context, snapshot) {
+                        final avatarUrl = snapshot.data;
+                        if (avatarUrl != null && avatarUrl.isNotEmpty) {
+                          return ClipOval(
                             child: CachedNetworkImage(
                               imageUrl: avatarUrl,
                               width: 90,
@@ -1353,8 +1412,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                               memCacheHeight: 180,
                               errorWidget: (_, __, ___) => _buildInitialsCircle(initials),
                             ),
-                          )
-                        : _buildInitialsCircle(initials),
+                          );
+                        }
+                        return _buildInitialsCircle(initials);
+                      },
+                    ),
                   ),
                   Positioned(
                     bottom: 0,
@@ -1645,8 +1707,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget _buildCustomToggle({
     required bool value,
     ValueChanged<bool>? onChanged,
+    String? semanticLabel,
   }) {
-    return GestureDetector(
+    return Semantics(
+      label: semanticLabel,
+      toggled: value,
+      child: GestureDetector(
       onTap: onChanged != null ? () => onChanged(!value) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1669,6 +1735,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
           ),
         ),
+      ),
       ),
     );
   }

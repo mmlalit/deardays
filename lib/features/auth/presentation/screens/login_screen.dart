@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/services/auth/auth_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/core/utils/password_validator.dart';
@@ -51,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _loadLockoutState();
     _checkLockOptions();
   }
 
@@ -98,7 +100,16 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
-        try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
+        try {
+          await Supabase.instance.client.auth.refreshSession();
+        } catch (_) {
+          // Refresh failed — check if we still have a valid session
+          final session = Supabase.instance.client.auth.currentSession;
+          if (session == null) {
+            if (mounted) _showError('Session expired. Please log in with email and password.');
+            return;
+          }
+        }
         if (mounted) widget.onLogin();
       } else {
         if (mounted) _showError('Session expired. Please log in with email and password.');
@@ -184,6 +195,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.signInWithApple();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null && mounted) {
+        setState(() { _failedAttempts = 0; _lockoutUntil = null; });
+        widget.onLogin();
+      }
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
     } catch (e) {
@@ -197,6 +213,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.signInWithGoogle();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null && mounted) {
+        setState(() { _failedAttempts = 0; _lockoutUntil = null; });
+        widget.onLogin();
+      }
     } on AuthException catch (e) {
       if (mounted) _showError(e.message);
     } catch (e) {
@@ -211,6 +232,45 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_failedAttempts >= 5) {
       _lockoutUntil = DateTime.now().add(const Duration(minutes: 30));
       _failedAttempts = 0;
+    }
+    _persistLockoutState();
+  }
+
+  Future<void> _loadLockoutState() async {
+    try {
+      final attemptsStr = await _secureStorage.read('login_failed_attempts');
+      final lockoutStr = await _secureStorage.read('login_lockout_until');
+      if (mounted) {
+        setState(() {
+          _failedAttempts = int.tryParse(attemptsStr ?? '') ?? 0;
+          if (lockoutStr != null) {
+            final parsed = DateTime.tryParse(lockoutStr);
+            if (parsed != null && parsed.isAfter(DateTime.now())) {
+              _lockoutUntil = parsed;
+            } else {
+              // Expired lockout — clear it
+              _lockoutUntil = null;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[LoginScreen] _loadLockoutState error: $e');
+    }
+  }
+
+  Future<void> _persistLockoutState() async {
+    try {
+      await _secureStorage.write(
+          'login_failed_attempts', _failedAttempts.toString());
+      if (_lockoutUntil != null) {
+        await _secureStorage.write(
+            'login_lockout_until', _lockoutUntil!.toIso8601String());
+      } else {
+        await _secureStorage.delete('login_lockout_until');
+      }
+    } catch (e) {
+      debugPrint('[LoginScreen] _persistLockoutState error: $e');
     }
   }
 
@@ -227,11 +287,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AuthShell(
-      title: _isSignUp ? 'Start your\nstory.' : 'Welcome\nback.',
+      title: _isSignUp
+          ? l10n?.startYourStory ?? 'Start your\nstory.'
+          : l10n?.welcomeBack ?? 'Welcome\nback.',
       subtitle: _isSignUp
-          ? 'Every great life deserves a journal.'
-          : 'Pick up where you left off.',
+          ? l10n?.everyGreatLife ?? 'Every great life deserves a journal.'
+          : l10n?.pickUpWhereYouLeftOff ?? 'Pick up where you left off.',
       cardContent: _buildCardContent(),
     );
   }
@@ -325,7 +388,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 )),
               ),
               child: Text(
-                'Forgot password?',
+                AppLocalizations.of(context)?.forgotPassword ?? 'Forgot password?',
                 style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -371,7 +434,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // ── CTA ──────────────────────────────────────────────────────────
         AuthButton(
-          label: _isSignUp ? 'Create Account' : 'Log In',
+          label: _isSignUp
+              ? AppLocalizations.of(context)?.createAccount ?? 'Create Account'
+              : AppLocalizations.of(context)?.logIn ?? 'Log In',
           onTap: _isLoading ? null : _handleEmailAuth,
           isLoading: _isLoading,
         ),
@@ -401,9 +466,13 @@ class _LoginScreenState extends State<LoginScreen> {
               text: TextSpan(
                 style: GoogleFonts.manrope(fontSize: 13, color: colors.textSecondary),
                 children: [
-                  TextSpan(text: _isSignUp ? 'Already have an account? ' : "Don't have an account? "),
+                  TextSpan(text: _isSignUp
+                      ? AppLocalizations.of(context)?.alreadyHaveAccount ?? 'Already have an account? '
+                      : AppLocalizations.of(context)?.dontHaveAccount ?? "Don't have an account? "),
                   TextSpan(
-                    text: _isSignUp ? 'Log in →' : 'Sign up →',
+                    text: _isSignUp
+                        ? AppLocalizations.of(context)?.logInArrow ?? 'Log in →'
+                        : AppLocalizations.of(context)?.signUpArrow ?? 'Sign up →',
                     style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

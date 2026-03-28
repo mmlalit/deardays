@@ -102,6 +102,11 @@ class NotificationService {
   GlobalKey<NavigatorState>? _navigatorKey;
 
   /// Register the app's navigator key so notification taps can navigate.
+  /// TODO: Ensure setNavigatorKey is called after MaterialApp is built
+  /// (e.g. in AppShell.initState or via a GlobalKey passed from main.dart).
+  /// Without this, notification taps that arrive before the navigator is ready
+  /// will be queued in [_pendingPayload] but never delivered if the key is
+  /// never set.
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     _navigatorKey = key;
     // Process any payload that arrived before the navigator was ready.

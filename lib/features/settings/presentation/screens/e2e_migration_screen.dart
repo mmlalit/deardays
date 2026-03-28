@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
+import 'package:deardays/services/analytics/analytics_service.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 
 /// Re-encrypts all journal entries client-side (enabling E2E) or
 /// server-side (disabling E2E). Shows a progress indicator while running.
@@ -43,6 +46,11 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
   bool _failed = false;
   String? _errorMessage;
 
+  static const _checkpointBoxName = 'e2e_migration';
+  static const _checkpointKey = 'last_migrated_id';
+  static const _checkpointTotalKey = 'total_entries';
+  static const _checkpointDirectionKey = 'is_disabling';
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +67,10 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
       });
       return;
     }
+
+    final analytics = AnalyticsService();
+    final crashReporting = CrashReportingService();
+    final migrationStopwatch = Stopwatch()..start();
 
     try {
       // Fetch all entry IDs + content columns in pages to avoid OOM.
@@ -81,9 +93,33 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
 
       if (mounted) setState(() => _total = allEntries.length);
 
+      analytics.track('e2e_migration_started', properties: {
+        'direction': widget.isDisabling ? 'disable' : 'enable',
+        'entry_count': allEntries.length.toString(),
+      });
+
       final enc = EncryptionService();
 
-      for (final row in allEntries) {
+      // Resume from checkpoint if a previous migration was interrupted.
+      final checkpointBox = await Hive.openBox(_checkpointBoxName);
+      final lastMigratedId = checkpointBox.get(_checkpointKey) as String?;
+      final checkpointDirection = checkpointBox.get(_checkpointDirectionKey) as bool?;
+
+      // Only resume if the direction matches (enabling vs disabling).
+      int skipCount = 0;
+      if (lastMigratedId != null && checkpointDirection == widget.isDisabling) {
+        final idx = allEntries.indexWhere((r) => r['id'] == lastMigratedId);
+        if (idx >= 0) {
+          skipCount = idx + 1;
+          if (mounted) setState(() => _done = skipCount);
+        }
+      }
+
+      // Store migration direction for checkpoint validation.
+      await checkpointBox.put(_checkpointDirectionKey, widget.isDisabling);
+      await checkpointBox.put(_checkpointTotalKey, allEntries.length);
+
+      for (final row in allEntries.skip(skipCount)) {
         final id = row['id'] as String;
         final isAlreadyClient = (row['is_client_encrypted'] as bool?) ?? false;
 
@@ -131,8 +167,13 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
           }).eq('id', id).eq('user_id', userId);
         }
 
+        // Checkpoint: record last successfully migrated entry.
+        await checkpointBox.put(_checkpointKey, id);
         if (mounted) setState(() => _done++);
       }
+
+      // Clear checkpoint on successful completion.
+      await checkpointBox.deleteAll([_checkpointKey, _checkpointTotalKey, _checkpointDirectionKey]);
 
       // Update profile to reflect the new E2E state.
       if (widget.isDisabling) {
@@ -154,8 +195,17 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
       // Invalidate the profile cache so settings screen refreshes.
       ref.invalidate(profileProvider);
 
+      migrationStopwatch.stop();
+      analytics.track('e2e_migration_completed', properties: {
+        'duration_ms': migrationStopwatch.elapsedMilliseconds.toString(),
+      });
+
       if (mounted) widget.onComplete();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      crashReporting.recordError(e, stackTrace, reason: 'E2E migration failed', extras: {
+        'entries_migrated': _done.toString(),
+        'total': _total.toString(),
+      });
       if (mounted) {
         setState(() {
           _failed = true;

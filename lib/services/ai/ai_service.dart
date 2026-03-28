@@ -11,12 +11,13 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide MultipartFile;
 
 import 'package:deardays/services/ai/ai_prompts.dart';
 import 'package:deardays/services/ai/prompt_sanitizer.dart';
+import 'package:deardays/core/domain/services/ai_service_interface.dart';
 
 /// AI service for narrative generation, transcription, and writing assistance.
 ///
 /// All text passed to this service must already be decrypted in memory.
 /// Encryption keys are NEVER sent to the AI backend.
-class AiService {
+class AiService implements IAiService {
   AiService._internal() {
     _dio = Dio(
       BaseOptions(

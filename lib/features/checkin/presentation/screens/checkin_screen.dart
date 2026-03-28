@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
@@ -725,7 +726,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   // ── History sheet ─────────────────────────────────────────────────────────
 
   Future<void> _showHistorySheet() async {
-    final dates = await CheckInNotifier.getAvailableDates();
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    final dates = await CheckInNotifier.getAvailableDates(userId: uid);
     if (!mounted) return;
     final colors = AppColors.of(context);
     await showModalBottomSheet(

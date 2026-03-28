@@ -37,7 +37,10 @@ class ImageCompressor {
   /// Compresses raw image bytes by decoding and re-encoding at a target size.
   /// Uses dart:ui which strips EXIF metadata as a side benefit.
   ///
-  /// Returns compressed PNG bytes (dart:ui only supports PNG encoding).
+  /// Returns PNG bytes because dart:ui's [Image.toByteData] only supports
+  /// PNG and raw RGBA formats — there is no JPEG encoder in dart:ui.
+  /// TODO(perf): Consider using the `image` package (or `flutter_image_compress`)
+  /// for JPEG encoding, which would reduce output size by 3-10x for photos.
   /// If the image is already smaller than [maxDim], it is still re-encoded
   /// to strip EXIF and normalize format.
   static Future<Uint8List> compress(

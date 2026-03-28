@@ -13,7 +13,7 @@ import 'package:deardays/features/journal/data/models/entry_media.dart';
 ///   2 photos → side-by-side
 ///   3 photos → 1 large left + 2 stacked right
 ///   4+ photos → 2×2 grid with "+N" overlay on 4th if > 4
-class PhotoCollageCard extends StatelessWidget {
+class PhotoCollageCard extends StatefulWidget {
   const PhotoCollageCard({
     super.key,
     required this.entry,
@@ -26,6 +26,31 @@ class PhotoCollageCard extends StatelessWidget {
   final AppPalette colors;
   final VoidCallback onTap;
   final Future<String> Function(String storagePath)? photoUrlBuilder;
+
+  @override
+  State<PhotoCollageCard> createState() => _PhotoCollageCardState();
+}
+
+class _PhotoCollageCardState extends State<PhotoCollageCard> {
+  final Map<String, Future<String>> _photoFutureCache = {};
+
+  Future<String>? _getCachedFuture(String storagePath) {
+    if (widget.photoUrlBuilder == null) return null;
+    return _photoFutureCache.putIfAbsent(
+        storagePath, () => widget.photoUrlBuilder!(storagePath));
+  }
+
+  @override
+  void didUpdateWidget(PhotoCollageCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.photoUrlBuilder != widget.photoUrlBuilder) {
+      _photoFutureCache.clear();
+    }
+  }
+
+  JournalEntry get entry => widget.entry;
+  AppPalette get colors => widget.colors;
+  VoidCallback get onTap => widget.onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +231,7 @@ class PhotoCollageCard extends StatelessWidget {
   }
 
   Widget _photoTile(String storagePath) {
-    final future = photoUrlBuilder?.call(storagePath);
+    final future = _getCachedFuture(storagePath);
     if (future == null) return _photoPlaceholder();
     return FutureBuilder<String>(
       future: future,

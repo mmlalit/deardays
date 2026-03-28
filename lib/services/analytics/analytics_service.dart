@@ -83,10 +83,11 @@ class AnalyticsService {
     );
   }
 
-  /// Clears user identity (e.g., on logout).
+  /// Clears user identity and buffered events (e.g., on logout).
   void reset() {
     _userId = null;
     _userProperties.clear();
+    _events.clear();
     track(AnalyticsEvent.userLoggedOut);
     _posthog?.reset();
   }

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/services/ai/ai_prompts.dart';
+import 'package:deardays/services/ai/prompt_sanitizer.dart';
 
 /// Streaming AI service that returns tokens as they arrive via SSE.
 ///
@@ -58,7 +59,7 @@ class AiStreamService {
   /// Streams a light polish response token-by-token.
   Stream<String> streamPolish(String rawText, {String? language}) {
     return _streamRequest('/ai-polish', {
-      'text': rawText,
+      'text': PromptSanitizer.sanitize(rawText),
       'style': 'clean',
       'system_prompt': AiPrompts.polishClean,
       'stream': true,
@@ -73,7 +74,7 @@ class AiStreamService {
     String? language,
   }) {
     return _streamRequest('/ai-polish', {
-      'text': rawText,
+      'text': PromptSanitizer.sanitize(rawText),
       'style': style,
       'system_prompt': AiPrompts.polishMemoir,
       'stream': true,
@@ -88,8 +89,15 @@ class AiStreamService {
     bool isFirstCheckIn = false,
     String? language,
   }) {
+    // Sanitize user-provided text in chat messages.
+    final sanitizedMessages = messages.map((m) {
+      if (m['role'] == 'user' && m['content'] != null) {
+        return {...m, 'content': PromptSanitizer.sanitize(m['content']!)};
+      }
+      return m;
+    }).toList();
     return _streamRequest('/ai-chat', {
-      'messages': messages,
+      'messages': sanitizedMessages,
       'mood': mood,
       'is_first_checkin': isFirstCheckIn,
       'stream': true,

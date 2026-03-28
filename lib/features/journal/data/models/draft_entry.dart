@@ -110,7 +110,7 @@ class DraftEntry {
         'location_name': locationName,
         'attached_photo_path': attachedPhotoPath,
         'is_voice': isVoice,
-        'updated_at': DateTime.now().toIso8601String(),
+        // updated_at omitted — let the DB default/trigger handle it.
       };
 
   factory DraftEntry.fromSupabaseMap(Map<String, dynamic> map) => DraftEntry(

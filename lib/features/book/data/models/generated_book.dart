@@ -34,6 +34,8 @@ class ThemeChapter {
 }
 
 /// A page within a generated book.
+// TODO: Rename to GeneratedBookPage to avoid conflict with the sealed
+// BookPage class in book_page.dart (requires updating all import sites).
 class BookPage {
   final int pageNumber;
   final BookPageType type;

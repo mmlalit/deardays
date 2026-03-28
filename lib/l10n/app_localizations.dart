@@ -644,6 +644,234 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 year ago} other{{count} years ago}}'**
   String yearsAgo(int count);
 
+  /// Home screen section header for recent memories
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Memories'**
+  String get recentMemories;
+
+  /// Link text to view all items
+  ///
+  /// In en, this message translates to:
+  /// **'View All'**
+  String get viewAll;
+
+  /// Home screen journal activity card title
+  ///
+  /// In en, this message translates to:
+  /// **'Journal Activity'**
+  String get journalActivity;
+
+  /// Home screen drafts section title
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Writing'**
+  String get continueWriting;
+
+  /// Home screen empty state title
+  ///
+  /// In en, this message translates to:
+  /// **'Your story starts here'**
+  String get yourStoryStartsHere;
+
+  /// Home screen empty state subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Speak, snap, or write your first memory above. It takes less than a minute.'**
+  String get emptyHomeSubtitle;
+
+  /// Morning tagline on home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Start your day with a memory'**
+  String get startYourDayWithMemory;
+
+  /// Afternoon tagline on home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a moment from today'**
+  String get captureAMoment;
+
+  /// Evening tagline on home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to reflect on your day?'**
+  String get readyToReflect;
+
+  /// Late evening tagline on home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect time to journal'**
+  String get perfectTimeToJournal;
+
+  /// Speak capture button label
+  ///
+  /// In en, this message translates to:
+  /// **'Speak'**
+  String get speak;
+
+  /// Write capture button label
+  ///
+  /// In en, this message translates to:
+  /// **'Write'**
+  String get write;
+
+  /// Check-in capture button label
+  ///
+  /// In en, this message translates to:
+  /// **'Check In'**
+  String get checkIn;
+
+  /// Timeline empty state title
+  ///
+  /// In en, this message translates to:
+  /// **'Your timeline is empty'**
+  String get timelineEmptyTitle;
+
+  /// Timeline empty state subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Start recording memories to see them here.'**
+  String get timelineEmptySubtitle;
+
+  /// Timeline empty state CTA button
+  ///
+  /// In en, this message translates to:
+  /// **'Write your first memory'**
+  String get writeFirstMemory;
+
+  /// Settings section header for notifications
+  ///
+  /// In en, this message translates to:
+  /// **'NOTIFICATIONS'**
+  String get notifications;
+
+  /// Settings section header for preferences
+  ///
+  /// In en, this message translates to:
+  /// **'PREFERENCES'**
+  String get preferences;
+
+  /// Sign out button label
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Out'**
+  String get signOut;
+
+  /// Sign out confirmation dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Out?'**
+  String get signOutTitle;
+
+  /// Sign out confirmation dialog message
+  ///
+  /// In en, this message translates to:
+  /// **'You will need to sign in again to access your journal.'**
+  String get signOutMessage;
+
+  /// Login screen title for returning users
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome\nback.'**
+  String get welcomeBack;
+
+  /// Login screen title for new users
+  ///
+  /// In en, this message translates to:
+  /// **'Start your\nstory.'**
+  String get startYourStory;
+
+  /// Signup screen subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Every great life deserves a journal.'**
+  String get everyGreatLife;
+
+  /// Login screen subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Pick up where you left off.'**
+  String get pickUpWhereYouLeftOff;
+
+  /// Signup button label
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get createAccount;
+
+  /// Login button label
+  ///
+  /// In en, this message translates to:
+  /// **'Log In'**
+  String get logIn;
+
+  /// Forgot password link text
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPassword;
+
+  /// Name field placeholder on signup
+  ///
+  /// In en, this message translates to:
+  /// **'Full name'**
+  String get fullName;
+
+  /// Email field placeholder
+  ///
+  /// In en, this message translates to:
+  /// **'Email address'**
+  String get emailAddress;
+
+  /// Password field placeholder
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordPlaceholder;
+
+  /// Toggle to login text prefix
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? '**
+  String get alreadyHaveAccount;
+
+  /// Toggle to signup text prefix
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account? '**
+  String get dontHaveAccount;
+
+  /// Toggle to login link text
+  ///
+  /// In en, this message translates to:
+  /// **'Log in →'**
+  String get logInArrow;
+
+  /// Toggle to signup link text
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up →'**
+  String get signUpArrow;
+
+  /// Legal disclaimer prefix
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing, you agree to our '**
+  String get byContAcceptTerms;
+
+  /// Terms of service link text
+  ///
+  /// In en, this message translates to:
+  /// **'Terms'**
+  String get terms;
+
+  /// Conjunction between Terms and Privacy
+  ///
+  /// In en, this message translates to:
+  /// **' and '**
+  String get andWord;
+
   /// No description provided for @noEntries.
   ///
   /// In en, this message translates to:

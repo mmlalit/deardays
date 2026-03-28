@@ -3,13 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
+import 'package:deardays/core/domain/repositories/profile_repository_interface.dart';
 
-class ProfileRepository {
+class ProfileRepository implements IProfileRepository {
   final SupabaseClient _client;
 
   ProfileRepository({required SupabaseClient client}) : _client = client;
-
-  String? get _userId => _client.auth.currentUser?.id;
 
   /// Returns the current user ID, throwing if the user is not authenticated.
   String get _requireUserId {
@@ -20,8 +19,7 @@ class ProfileRepository {
 
   /// Fetches the current user's profile.
   Future<UserProfile?> getProfile() async {
-    final userId = _userId;
-    if (userId == null) return null;
+    final userId = _requireUserId;
     final response = await _client
         .from('profiles')
         .select()
@@ -52,8 +50,7 @@ class ProfileRepository {
 
   /// Fetches the current user's streak data.
   Future<Streak?> getStreak() async {
-    final userId = _userId;
-    if (userId == null) return null;
+    final userId = _requireUserId;
     final response = await _client
         .from('streaks')
         .select()
@@ -68,8 +65,7 @@ class ProfileRepository {
   /// Fetches all chapters for the current user once (ordered by chapter number).
   /// Used for mutations (create/update) and one-off reads.
   Future<List<Chapter>> getChapters() async {
-    final userId = _userId;
-    if (userId == null) return [];
+    final userId = _requireUserId;
     final response = await _client
         .from('chapters')
         .select('*, journal_entries(count)')
@@ -85,8 +81,7 @@ class ProfileRepository {
   /// Automatically pushes updates when chapters are added, edited, or deleted.
   /// This is the primary source used by [chaptersProvider].
   Stream<List<Chapter>> watchChapters() {
-    final userId = _userId;
-    if (userId == null) return Stream.value([]);
+    final userId = _requireUserId;
     return _client
         .from('chapters')
         .stream(primaryKey: ['id'])
@@ -96,7 +91,8 @@ class ProfileRepository {
   }
 
   /// Creates a new chapter with the next available chapter_number.
-  Future<Chapter> createChapter(String title) async {
+  /// Retries once on duplicate chapter_number conflict (race condition).
+  Future<Chapter> createChapter(String title, {int retryCount = 0}) async {
     final userId = _requireUserId;
     // Fetch only the max chapter_number — avoids loading all chapters + entries counts.
     final maxRow = await _client
@@ -109,19 +105,27 @@ class ProfileRepository {
     final nextNumber = (maxRow?['chapter_number'] as int? ?? 0) + 1;
 
     final now = DateTime.now().toUtc();
-    final response = await _client
-        .from('chapters')
-        .insert({
-          'user_id': userId,
-          'title': title,
-          'chapter_number': nextNumber,
-          'start_date': now.toIso8601String().split('T').first,
-          'entry_count': 0,
-        })
-        .select()
-        .single();
+    try {
+      final response = await _client
+          .from('chapters')
+          .insert({
+            'user_id': userId,
+            'title': title,
+            'chapter_number': nextNumber,
+            'start_date': now.toIso8601String().split('T').first,
+            'entry_count': 0,
+          })
+          .select()
+          .single();
 
-    return Chapter.fromMap(response);
+      return Chapter.fromMap(response);
+    } on PostgrestException catch (e) {
+      // Retry on unique constraint violation (duplicate chapter_number from race).
+      if (retryCount < 2 && (e.code == '23505' || e.message.contains('duplicate'))) {
+        return createChapter(title, retryCount: retryCount + 1);
+      }
+      rethrow;
+    }
   }
 
   /// Updates a chapter's title and/or color.
@@ -135,6 +139,7 @@ class ProfileRepository {
         .from('chapters')
         .update(updates)
         .eq('id', chapterId)
+        .eq('user_id', _requireUserId)
         .select('*, journal_entries(count)')
         .single();
 
@@ -143,7 +148,7 @@ class ProfileRepository {
 
   /// Deletes a chapter by id. Does NOT delete its entries — they remain with chapter_id still set.
   Future<void> deleteChapter(String chapterId) async {
-    await _client.from('chapters').delete().eq('id', chapterId);
+    await _client.from('chapters').delete().eq('id', chapterId).eq('user_id', _requireUserId);
   }
 
   /// Seeds default chapters (defined in Supabase RPC) if user has none.
@@ -152,8 +157,7 @@ class ProfileRepository {
     final existing = await getChapters();
     if (existing.isNotEmpty) return existing;
 
-    final userId = _userId;
-    if (userId == null) return [];
+    final userId = _requireUserId;
     await _client.rpc('seed_default_chapters', params: {'p_user_id': userId});
 
     return getChapters();

@@ -8,24 +8,30 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/core/config/feature_flags.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/services/ai/ai_stream_service.dart';
 import 'package:deardays/services/ai/ai_credit_service.dart';
 import 'package:deardays/services/ai/offline_ai_queue.dart';
+import 'package:deardays/services/analytics/analytics_service.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 
 /// Processing screen shown after recording or writing ends.
 /// Runs transcription + AI polish while showing animated 3-step progress.
 /// Uses green accent for voice entries and blue accent for text entries.
-class ProcessingScreen extends StatefulWidget {
+class ProcessingScreen extends ConsumerStatefulWidget {
   final ReviewData data;
   const ProcessingScreen({super.key, required this.data});
 
   @override
-  State<ProcessingScreen> createState() => _ProcessingScreenState();
+  ConsumerState<ProcessingScreen> createState() => _ProcessingScreenState();
 }
 
-class _ProcessingScreenState extends State<ProcessingScreen>
+class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
     with TickerProviderStateMixin {
+  // AiService is a singleton (factory AiService() => _instance) and cannot be
+  // provided via Riverpod. Same for the other AI singletons below.
   final _aiService = AiService();
   final _streamService = AiStreamService();
   final _creditService = AiCreditService();
@@ -71,6 +77,10 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   }
 
   Future<void> _runProcessing() async {
+    final analytics = AnalyticsService();
+    final crashReporting = CrashReportingService();
+    analytics.startTimedEvent('ai_processing');
+
     // ── Step 1: Transcribe voice ──────────────────────────────────────────
     _setStep(0, 'active');
 
@@ -86,11 +96,12 @@ class _ProcessingScreenState extends State<ProcessingScreen>
           widget.data.useWhisper) {
         // User explicitly consented to AI transcription — send audio to Whisper.
         if (_creditService.canUse(AiOperation.transcription)) {
-          _creditService.consume(AiOperation.transcription);
           transcript = await _aiService.transcribeAudio(widget.data.audioPath!);
+          _creditService.consume(AiOperation.transcription);
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      crashReporting.recordError(e, stackTrace, reason: 'AI processing failed', extras: {'operation': 'transcription'});
       debugPrint('[Processing] Transcription failed, using raw text: $e');
       transcript = widget.data.rawText;
       // M-10: notify user of fallback
@@ -136,13 +147,20 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     // By starting together the total wait = max(both) instead of sum(both).
 
     final canPolish = _creditService.canUse(AiOperation.polish);
-    if (canPolish) _creditService.consume(AiOperation.polish);
+    bool polishCreditConsumed = false;
 
     String? aiError;
 
     final lightPolishFuture = canPolish
         ? _aiService.lightPolish(transcript)
             .timeout(const Duration(seconds: 30))
+            .then((result) {
+            if (!polishCreditConsumed) {
+              _creditService.consume(AiOperation.polish);
+              polishCreditConsumed = true;
+            }
+            return result;
+          })
             .catchError((e) {
             aiError = e.toString();
             _offlineQueue.enqueue(AiQueueItem(
@@ -220,6 +238,19 @@ class _ProcessingScreenState extends State<ProcessingScreen>
 
     if (!mounted) return;
     _setStep(3, 'done');
+
+    // Track AI processing result
+    if (aiError != null) {
+      crashReporting.recordError(
+        Exception(aiError),
+        StackTrace.current,
+        reason: 'AI processing failed',
+        extras: {'operation': 'polish'},
+      );
+    } else {
+      analytics.endTimedEvent('ai_processing', properties: {'operation': 'polish'});
+      crashReporting.addBreadcrumb('AI operation completed', data: {'operation': 'polish'});
+    }
 
     // Show AI error as a dismissible banner so the user knows what failed
     if (aiError != null) {

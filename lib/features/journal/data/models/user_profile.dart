@@ -58,15 +58,16 @@ class UserProfile {
   });
 
   /// Whether the user is still within the free trial period.
-  bool get isInTrial {
+  /// Pass [now] to override the current time (useful for testing).
+  bool isInTrial({DateTime? now}) {
     final trialEnd = trialStartedAt.add(
       const Duration(days: AppConstants.freeTrialDays),
     );
-    return DateTime.now().isBefore(trialEnd);
+    return (now ?? DateTime.now()).isBefore(trialEnd);
   }
 
   /// Whether the user has active access (subscribed or in trial).
-  bool get hasAccess => isSubscribed || isInTrial;
+  bool hasAccess({DateTime? now}) => isSubscribed || isInTrial(now: now);
 
   UserProfile copyWith({
     String? id,

@@ -82,7 +82,7 @@ class EntryMedia {
   }
 
   @override
-  int get hashCode => id.hashCode;
+  int get hashCode => Object.hash(id, storagePath);
 
   /// Decoded focal alignment from [encryptedMetadata] JSON `{"focalX": x, "focalY": y}`.
   /// Defaults to [Alignment.center] if unset or malformed.

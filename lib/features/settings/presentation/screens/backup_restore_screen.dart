@@ -299,6 +299,10 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
   }
 
   Widget _buildInfoCard(AppPalette colors) {
+    final isE2E = ref.watch(profileProvider).valueOrNull?.e2eEnabled ?? false;
+    final infoText = isE2E
+        ? 'Your data is encrypted end-to-end. Only you can read your journal entries.'
+        : 'Your data is stored securely in the cloud. Enable E2E encryption in settings for additional protection.';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -314,7 +318,7 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Your data is encrypted end-to-end. Only you can read your journal entries.',
+              infoText,
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 color: colors.textSecondary,

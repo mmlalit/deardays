@@ -67,9 +67,17 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     });
   }
 
+  /// Returns a Hive key scoped to the current user to prevent data leaking
+  /// between accounts on the same device.
+  String _readerKey(String key) {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return key;
+    return '${uid}_$key';
+  }
+
   Future<void> _loadTheme() async {
     final box = await Hive.openBox<int>('reader_prefs');
-    final saved = box.get('themeIndex', defaultValue: 0)!;
+    final saved = box.get(_readerKey('themeIndex'), defaultValue: 0)!;
     if (mounted && saved != _themeIndex) {
       setState(() => _themeIndex = saved.clamp(0, _readingThemes.length - 1));
     }
@@ -77,12 +85,12 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
   Future<void> _saveTheme(int index) async {
     final box = await Hive.openBox<int>('reader_prefs');
-    await box.put('themeIndex', index);
+    await box.put(_readerKey('themeIndex'), index);
   }
 
   Future<void> _loadResumePage() async {
     final box = await Hive.openBox<int>('reader_prefs');
-    final saved = box.get('resumePage');
+    final saved = box.get(_readerKey('resumePage'));
     if (mounted && saved != null) {
       setState(() => _resumePage = saved);
     }
@@ -90,7 +98,7 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
 
   Future<void> _saveResumePage(int page) async {
     final box = await Hive.openBox<int>('reader_prefs');
-    await box.put('resumePage', page);
+    await box.put(_readerKey('resumePage'), page);
     if (mounted) setState(() => _resumePage = page);
   }
 

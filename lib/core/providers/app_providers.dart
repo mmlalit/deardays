@@ -15,6 +15,11 @@ import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/location/location_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
+import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
+import 'package:deardays/core/domain/repositories/profile_repository_interface.dart';
+import 'package:deardays/core/domain/repositories/book_repository_interface.dart';
+import 'package:deardays/core/domain/services/ai_service_interface.dart';
+import 'package:deardays/core/domain/services/media_service_interface.dart';
 import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/repositories/reflection_cache_repository.dart';
@@ -152,7 +157,7 @@ final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
 
-final aiServiceProvider = Provider<AiService>((ref) {
+final aiServiceProvider = Provider<IAiService>((ref) {
   return AiService();
 });
 
@@ -168,7 +173,7 @@ final locationServiceProvider = Provider<LocationService>((ref) {
   return LocationService();
 });
 
-final mediaServiceProvider = Provider<MediaService>((ref) {
+final mediaServiceProvider = Provider<IMediaService>((ref) {
   return MediaService(client: ref.watch(supabaseClientProvider));
 });
 
@@ -216,11 +221,11 @@ final offlineAiQueueProvider = Provider<OfflineAiQueue>((ref) {
 
 // --- Repositories ---
 
-final journalRepositoryProvider = Provider<JournalRepository>((ref) {
+final journalRepositoryProvider = Provider<IJournalRepository>((ref) {
   return JournalRepository(client: ref.watch(supabaseClientProvider));
 });
 
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+final profileRepositoryProvider = Provider<IProfileRepository>((ref) {
   return ProfileRepository(client: ref.watch(supabaseClientProvider));
 });
 
@@ -272,7 +277,7 @@ final chapterEntriesProvider =
 
 // --- Books ---
 
-final bookRepositoryProvider = Provider<BookRepository>((ref) {
+final bookRepositoryProvider = Provider<IBookRepository>((ref) {
   return BookRepository(client: ref.watch(supabaseClientProvider));
 });
 
@@ -545,7 +550,8 @@ final weeklyMoodsProvider =
 final monthlyMoodStatsProvider =
     FutureProvider<Map<String, int>>((ref) async {
   final now = DateTime.now();
-  final start = DateTime(now.month == 1 ? now.year - 1 : now.year, now.month == 1 ? 12 : now.month - 1, now.day);
+  // Dart normalizes month=0 to Dec of prior year, and month=13 to Jan of next year
+  final start = DateTime(now.year, now.month - 1, 1);
   return ref
       .watch(journalRepositoryProvider)
       .getMoodStatsByRange(start: start, end: now);
@@ -598,7 +604,7 @@ final reflectionEntriesProvider =
     case ReflectionPeriod.weekly:
       start = now.subtract(const Duration(days: 6));
     case ReflectionPeriod.monthly:
-      start = DateTime(now.month == 1 ? now.year - 1 : now.year, now.month == 1 ? 12 : now.month - 1, now.day);
+      start = DateTime(now.year, now.month - 1, 1);
     case ReflectionPeriod.yearly:
       start = DateTime(now.year - 1, now.month, (now.month == 2 && now.day > 28) ? 28 : now.day);
   }

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/l10n/app_localizations.dart';
 import 'package:deardays/core/utils/chapter_visuals.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/widgets/skeleton.dart';
@@ -15,6 +16,7 @@ import 'package:deardays/features/timeline/presentation/widgets/milestone_card.d
 import 'package:deardays/features/timeline/presentation/widgets/photo_collage_card.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/core/utils/entry_categories.dart';
+import 'package:deardays/services/analytics/analytics_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Context-menu helper (shared with home_screen.dart via top-level function)
@@ -27,7 +29,7 @@ void showMemoryContextMenu(
   VoidCallback? onDelete,
 }) {
   final title = _contextMenuTitle(entry);
-  final dateStr = DateFormat('MMMM d, yyyy').format(entry.entryDate);
+  final dateStr = DateFormat.yMMMMd(Localizations.localeOf(context).toString()).format(entry.entryDate);
 
   showModalBottomSheet(
     context: context,
@@ -261,6 +263,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   bool _isMonthly = false;
   bool _isGrid = false;
   String? _moodFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService().trackScreen('timeline');
+  }
 
   static const _categories = [
     (null, 'All'),
@@ -1057,59 +1065,59 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     required AppPalette colors,
     Widget? cardWidget,
   }) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Left column: vertical line + dot
-          SizedBox(
-            width: 40,
-            child: Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                // Continuous vertical line
-                if (!isLast)
-                  Positioned(
-                    top: 0,
-                    bottom: 0,
-                    left: 19,
-                    child: Container(width: 2, color: colors.border),
-                  )
-                else
-                  Positioned(
-                    top: 0,
-                    bottom: 24, // stop before padding
-                    left: 19,
-                    child: Container(width: 2, color: colors.border),
-                  ),
-                // Dot at top of card (offset 22px down)
+    // IntrinsicHeight removed — CrossAxisAlignment.stretch lets the Row's
+    // children match the tallest sibling without the double-layout-pass cost.
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Left column: vertical line + dot
+        SizedBox(
+          width: 40,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              // Continuous vertical line
+              if (!isLast)
                 Positioned(
-                  top: 22,
-                  left: 14,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: ChapterVisual.forTitle(MemoryCard.extractTitle(entry)).primary,
-                      // White ring effect (covers the line behind the dot)
-                      border: Border.all(color: colors.bg, width: 3),
-                    ),
+                  top: 0,
+                  bottom: 0,
+                  left: 19,
+                  child: Container(width: 2, color: colors.border),
+                )
+              else
+                Positioned(
+                  top: 0,
+                  bottom: 24, // stop before padding
+                  left: 19,
+                  child: Container(width: 2, color: colors.border),
+                ),
+              // Dot at top of card (offset 22px down)
+              Positioned(
+                top: 22,
+                left: 14,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: ChapterVisual.forTitle(MemoryCard.extractTitle(entry)).primary,
+                    // White ring effect (covers the line behind the dot)
+                    border: Border.all(color: colors.bg, width: 3),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          // Card
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: cardWidget,
-            ),
+        ),
+        const SizedBox(width: 12),
+        // Card
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: cardWidget,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1128,7 +1136,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           initialIndex: allEntries.indexOf(entry),
         ),
       ),
-      onLongPress: () => showMemoryContextMenu(context, entry, colors),
+      onLongPress: () => showMemoryContextMenu(context, entry, colors,
+        onDelete: () async {
+          await ref.read(journalRepositoryProvider).deleteEntry(entry.id);
+          ref.invalidate(timelineEntriesProvider);
+          ref.invalidate(todayEntryProvider);
+        },
+      ),
       onShare: () => context.push('/share-card', extra: entry),
     );
   }
@@ -1150,7 +1164,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           final entry = entries[i];
           final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
           final hasPhoto = photoMedia.isNotEmpty;
-          final dateStr = DateFormat('MMM d').format(entry.entryDate).toUpperCase();
+          final dateStr = DateFormat.MMMd(Localizations.localeOf(context).toString()).format(entry.entryDate).toUpperCase();
           final title = MemoryCard.extractTitle(entry);
 
           return GestureDetector(
@@ -1280,7 +1294,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       child: Row(
         children: [
           Text(
-            DateFormat('MMMM yyyy').format(date),
+            DateFormat.yMMMM(Localizations.localeOf(context).toString()).format(date),
             style: GoogleFonts.newsreader(
               fontSize: 19,
               fontWeight: FontWeight.w700,
@@ -1320,7 +1334,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           Icon(Icons.timeline_rounded, size: 64, color: colors.textMuted.withAlpha(80)),
           const SizedBox(height: 20),
           Text(
-            'Your timeline is empty',
+            AppLocalizations.of(context)?.timelineEmptyTitle ?? 'Your timeline is empty',
             style: GoogleFonts.newsreader(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -1329,7 +1343,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Start recording memories to see them here.',
+            AppLocalizations.of(context)?.timelineEmptySubtitle ?? 'Start recording memories to see them here.',
             textAlign: TextAlign.center,
             style: GoogleFonts.manrope(
               fontSize: 14,
@@ -1347,7 +1361,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Text(
-                'Write your first memory',
+                AppLocalizations.of(context)?.writeFirstMemory ?? 'Write your first memory',
                 style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -1630,7 +1644,7 @@ class _MoodCalendarSheetState extends State<_MoodCalendarSheet> {
   Widget build(BuildContext context) {
     final year = _viewMonth.year;
     final month = _viewMonth.month;
-    final monthName = DateFormat('MMMM yyyy').format(_viewMonth);
+    final monthName = DateFormat.yMMMM(Localizations.localeOf(context).toString()).format(_viewMonth);
     final now = DateTime.now();
 
     final moodMap = <int, String>{};

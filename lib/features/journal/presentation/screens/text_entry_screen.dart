@@ -70,10 +70,22 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
+  int _lastWordCount = 0;
+
   int get _wordCount {
     final text = _textController.text.trim();
     if (text.isEmpty) return 0;
     return text.split(RegExp(r'\s+')).length;
+  }
+
+  /// Only calls setState when the word count actually changes, avoiding
+  /// unnecessary rebuilds on every keystroke.
+  void _onTextChanged() {
+    final current = _wordCount;
+    if (current != _lastWordCount) {
+      _lastWordCount = current;
+      setState(() {});
+    }
   }
 
   @override
@@ -86,7 +98,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
     } else {
       _draftId = const Uuid().v4();
     }
-    _textController.addListener(() => setState(() {}));
+    _textController.addListener(_onTextChanged);
     _focusNode.addListener(() {
       if (_focusNode.hasFocus && _promptsExpanded) {
         setState(() => _promptsExpanded = false);
@@ -96,6 +108,7 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
 
   @override
   void dispose() {
+    _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _focusNode.dispose();
     super.dispose();

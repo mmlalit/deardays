@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/utils/password_validator.dart';
 import 'package:deardays/services/auth/auth_service.dart';
@@ -144,6 +145,11 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() { _isLoading = true; _globalError = null; });
     try {
       await _authService.signInWithGoogle();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null && mounted) {
+        setState(() { _failedAttempts = 0; _lockoutUntil = null; });
+        widget.onLogin();
+      }
     } on AuthException catch (e) {
       if (mounted) setState(() => _globalError = e.message);
     } catch (e) {
@@ -157,6 +163,11 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() { _isLoading = true; _globalError = null; });
     try {
       await _authService.signInWithApple();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null && mounted) {
+        setState(() { _failedAttempts = 0; _lockoutUntil = null; });
+        widget.onLogin();
+      }
     } on AuthException catch (e) {
       if (mounted) setState(() => _globalError = e.message);
     } catch (e) {

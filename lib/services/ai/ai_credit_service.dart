@@ -68,15 +68,8 @@ class AiCreditService {
     final currentMonth = '${now.year}-${now.month}';
     final storedMonth = _box?.get('credit_month') as String?;
 
-    // Also reset if any usage counter exceeds the current limit (e.g. after a
-    // limit increase in an app update) so users don't stay locked out.
-    // M-05: use safe tier lookup with 'free' fallback
-    final tier = currentTier.isNotEmpty ? currentTier : 'free';
-    final limit = tierLimits[tier] ?? tierLimits['free']!;
-    final usageOverLimit = _getUsed('polish_used') >= (limit.polish > 0 ? limit.polish : 5);
-
-    if (storedMonth != currentMonth || usageOverLimit) {
-      // New month or limit increased — reset all usage counters
+    if (storedMonth != currentMonth) {
+      // New month — reset all usage counters
       _box?.put('credit_month', currentMonth);
       _box?.put('polish_used', 0);
       _box?.put('summary_used', 0);

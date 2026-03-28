@@ -4,8 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/models/book_page.dart';
+import 'package:deardays/core/domain/repositories/book_repository_interface.dart';
 
-class BookRepository {
+class BookRepository implements IBookRepository {
   final SupabaseClient _client;
 
   BookRepository({required SupabaseClient client}) : _client = client;
@@ -25,14 +26,15 @@ class BookRepository {
         .toList();
   }
 
-  Future<Book> getBook(String id) async {
+  Future<Book?> getBook(String id) async {
     final response = await _client
         .from('books')
         .select()
         .eq('id', id)
         .eq('user_id', _userId)
-        .single();
+        .maybeSingle();
 
+    if (response == null) return null;
     return Book.fromMap(response);
   }
 
@@ -52,7 +54,7 @@ class BookRepository {
     return Book.fromMap(response);
   }
 
-  Future<Book> updateBook(Book book) async {
+  Future<Book?> updateBook(Book book) async {
     final map = <String, dynamic>{
       'title': book.title,
       'cover_color': book.coverColor,
@@ -71,8 +73,9 @@ class BookRepository {
         .eq('id', book.id)
         .eq('user_id', _userId)
         .select()
-        .single();
+        .maybeSingle();
 
+    if (response == null) return null;
     return Book.fromMap(response);
   }
 
@@ -99,6 +102,7 @@ class BookRepository {
         .from('pages')
         .select('id, content, week_start, page_number, word_count, photos')
         .eq('book_id', bookId)
+        .eq('user_id', _userId)
         .order('week_start', ascending: true)
         .order('page_number', ascending: true)
         .range(offset, offset + limit - 1);
@@ -116,6 +120,7 @@ class BookRepository {
         .from('pages')
         .select()
         .eq('book_id', bookId)
+        .eq('user_id', _userId)
         .count(CountOption.exact);
     return response.count;
   }

@@ -358,9 +358,11 @@ class _EnabledState extends ConsumerWidget {
           isDisabling: true,
           onComplete: () {
             EncryptionService().clearKey();
-            Navigator.of(context)
-                .popUntil((r) => r.isFirst || r.settings.name == '/settings');
-            AppSnackBar.success(context, 'E2E encryption disabled.');
+            if (context.mounted) {
+              Navigator.of(context)
+                  .popUntil((r) => r.isFirst || r.settings.name == '/settings');
+              AppSnackBar.success(context, 'E2E encryption disabled.');
+            }
           },
         ),
       ),

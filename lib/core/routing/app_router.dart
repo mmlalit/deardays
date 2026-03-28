@@ -454,10 +454,37 @@ class _E2EGateWidgetState extends State<_E2EGateWidget> {
           _salt = salt;
         });
       }
-    } catch (_) {
-      // On any error (network, etc.) let the user through without E2E.
-      if (mounted) widget.onDone();
+    } catch (e) {
+      // Network error when E2E status is unknown — do NOT let user through.
+      // Show retry dialog so they can try again once connectivity is restored.
+      debugPrint('[E2EGate] Network error checking E2E status: $e');
+      if (mounted) {
+        _showRetryDialog();
+      }
     }
+  }
+
+  void _showRetryDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Network Error'),
+        content: const Text(
+          'Could not verify your encryption status. '
+          'Please check your internet connection and try again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _check();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

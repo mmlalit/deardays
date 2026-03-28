@@ -258,13 +258,21 @@ class CheckInNotifier extends StateNotifier<CheckInState> {
     state = CheckInState();
   }
 
-  static Future<List<DateTime>> getAvailableDates() async {
+  static Future<List<DateTime>> getAvailableDates({String? userId}) async {
     final box = await _openBox();
     final keys = box.keys.cast<String>().toList();
     final dates = <DateTime>[];
     for (final key in keys) {
       try {
-        dates.add(DateTime.parse(key));
+        // Keys are stored as "${userId}_YYYY-MM-DD". Filter by userId prefix
+        // so we only return dates belonging to the current user.
+        if (userId != null && userId.isNotEmpty) {
+          final prefix = '${userId}_';
+          if (!key.startsWith(prefix)) continue;
+          dates.add(DateTime.parse(key.substring(prefix.length)));
+        } else {
+          dates.add(DateTime.parse(key));
+        }
       } catch (e, st) { debugPrint('[CheckIn] getAvailableDates (date parse): $e\n$st'); }
     }
     dates.sort((a, b) => b.compareTo(a)); // newest first
@@ -551,7 +559,8 @@ final availableDatesProvider = FutureProvider<List<DateTime>>((ref) async {
   ref.watch(checkInProvider);
 
   // Merge Hive local dates with Supabase remote dates
-  final hiveDates = await CheckInNotifier.getAvailableDates();
+  final uid = Supabase.instance.client.auth.currentUser?.id;
+  final hiveDates = await CheckInNotifier.getAvailableDates(userId: uid);
   final hiveKeys = hiveDates.map(CheckInNotifier.dateKey).toSet();
 
   try {

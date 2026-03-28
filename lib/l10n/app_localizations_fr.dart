@@ -316,6 +316,123 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get recentMemories => 'Recent Memories';
+
+  @override
+  String get viewAll => 'View All';
+
+  @override
+  String get journalActivity => 'Journal Activity';
+
+  @override
+  String get continueWriting => 'Continue Writing';
+
+  @override
+  String get yourStoryStartsHere => 'Your story starts here';
+
+  @override
+  String get emptyHomeSubtitle =>
+      'Speak, snap, or write your first memory above. It takes less than a minute.';
+
+  @override
+  String get startYourDayWithMemory => 'Start your day with a memory';
+
+  @override
+  String get captureAMoment => 'Capture a moment from today';
+
+  @override
+  String get readyToReflect => 'Ready to reflect on your day?';
+
+  @override
+  String get perfectTimeToJournal => 'Perfect time to journal';
+
+  @override
+  String get speak => 'Speak';
+
+  @override
+  String get write => 'Write';
+
+  @override
+  String get checkIn => 'Check In';
+
+  @override
+  String get timelineEmptyTitle => 'Your timeline is empty';
+
+  @override
+  String get timelineEmptySubtitle =>
+      'Start recording memories to see them here.';
+
+  @override
+  String get writeFirstMemory => 'Write your first memory';
+
+  @override
+  String get notifications => 'NOTIFICATIONS';
+
+  @override
+  String get preferences => 'PREFERENCES';
+
+  @override
+  String get signOut => 'Sign Out';
+
+  @override
+  String get signOutTitle => 'Sign Out?';
+
+  @override
+  String get signOutMessage =>
+      'You will need to sign in again to access your journal.';
+
+  @override
+  String get welcomeBack => 'Welcome\nback.';
+
+  @override
+  String get startYourStory => 'Start your\nstory.';
+
+  @override
+  String get everyGreatLife => 'Every great life deserves a journal.';
+
+  @override
+  String get pickUpWhereYouLeftOff => 'Pick up where you left off.';
+
+  @override
+  String get createAccount => 'Create Account';
+
+  @override
+  String get logIn => 'Log In';
+
+  @override
+  String get forgotPassword => 'Forgot password?';
+
+  @override
+  String get fullName => 'Full name';
+
+  @override
+  String get emailAddress => 'Email address';
+
+  @override
+  String get passwordPlaceholder => 'Password';
+
+  @override
+  String get alreadyHaveAccount => 'Already have an account? ';
+
+  @override
+  String get dontHaveAccount => 'Don\'t have an account? ';
+
+  @override
+  String get logInArrow => 'Log in →';
+
+  @override
+  String get signUpArrow => 'Sign up →';
+
+  @override
+  String get byContAcceptTerms => 'By continuing, you agree to our ';
+
+  @override
+  String get terms => 'Terms';
+
+  @override
+  String get andWord => ' and ';
+
+  @override
   String get noEntries => 'Aucune entrée';
 
   @override

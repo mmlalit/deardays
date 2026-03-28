@@ -129,11 +129,11 @@ void backendLiveTests() {
       expect(find.text('Write'), findsOneWidget);
     });
 
-    testWidgets('shows Speak it capture button', (tester) async {
+    testWidgets('shows Speak capture button', (tester) async {
       await tester.pumpWidget(buildBackendApp());
       await tester.pump(const Duration(seconds: 4));
 
-      expect(find.text('Speak it'), findsOneWidget);
+      expect(find.text('Speak'), findsOneWidget);
     });
 
     testWidgets('shows Check In capture button', (tester) async {
@@ -143,11 +143,11 @@ void backendLiveTests() {
       expect(find.text('Check In'), findsOneWidget);
     });
 
-    testWidgets('tapping Speak it leaves home without crash', (tester) async {
+    testWidgets('tapping Speak leaves home without crash', (tester) async {
       await tester.pumpWidget(buildBackendApp());
       await tester.pump(const Duration(seconds: 4));
 
-      await tester.tap(find.text('Speak it'));
+      await tester.tap(find.text('Speak'));
       await tester.pump(const Duration(seconds: 3));
 
       expect(find.byType(MaterialApp), findsOneWidget);

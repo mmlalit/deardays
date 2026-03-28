@@ -8,6 +8,8 @@ import 'package:deardays/services/connectivity/connectivity_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/sync/sync_queue.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
+import 'package:deardays/services/analytics/analytics_service.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 
 /// Sync status exposed to the UI layer.
 enum SyncStatus { synced, pending, syncing, error, failedItems }
@@ -99,6 +101,9 @@ class SyncService {
     _syncing = true;
     _setStatus(SyncStatus.syncing);
 
+    final analytics = AnalyticsService();
+    final crashReporting = CrashReportingService();
+
     final queue = SyncQueue();
     final entries = queue.getAll();
 
@@ -107,6 +112,8 @@ class SyncService {
       _setStatus(SyncStatus.synced);
       return;
     }
+
+    crashReporting.addBreadcrumb('Sync started', data: {'pending_count': entries.length.toString()});
 
     bool hadErrors = false;
     bool hadSuccess = false;
@@ -144,7 +151,8 @@ class SyncService {
         if (kDebugMode) {
           debugPrint('[SyncService] Synced ${op.type.name} ${op.id}');
         }
-      } on PostgrestException catch (e) {
+      } on PostgrestException catch (e, stackTrace) {
+        crashReporting.recordError(e, stackTrace, reason: 'Sync failed');
         // M-07: structured PGRST204 detection — schema mismatch, will never succeed.
         // Discard immediately rather than retrying forever.
         if (e.code == 'PGRST204' || e.message.contains('PGRST204')) {
@@ -167,7 +175,8 @@ class SyncService {
             'next in ${_calculateBackoff(updated.retryCount).inSeconds}s)',
           );
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
+        crashReporting.recordError(e, stackTrace, reason: 'Sync failed');
         hadErrors = true;
         final updated = op.copyWith(
           retryCount: op.retryCount + 1,
@@ -199,6 +208,13 @@ class SyncService {
 
     _syncing = false;
     _updateStatus();
+
+    // Track sync completion
+    if (hadSuccess) {
+      analytics.track(AnalyticsEvent.syncCompleted, properties: {
+        'synced_count': syncedCreatedIds.length.toString(),
+      });
+    }
 
     // Notify the UI to refresh data after successful syncs
     if (hadSuccess) {

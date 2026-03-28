@@ -207,6 +207,25 @@ class SecureStorageService {
   }
 
   // ---------------------------------------------------------------------------
+  // Generic key-value access
+  // ---------------------------------------------------------------------------
+
+  /// Reads an arbitrary key from secure storage.
+  Future<String?> read(String key) async {
+    return await _storage.read(key: key);
+  }
+
+  /// Writes an arbitrary key-value pair to secure storage.
+  Future<void> write(String key, String value) async {
+    await _storage.write(key: key, value: value);
+  }
+
+  /// Deletes a single key from secure storage.
+  Future<void> delete(String key) async {
+    await _storage.delete(key: key);
+  }
+
+  // ---------------------------------------------------------------------------
   // Logout / wipe
   // ---------------------------------------------------------------------------
 

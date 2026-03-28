@@ -22,6 +22,7 @@ import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/services/sync/sync_service.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
+import 'package:deardays/core/widgets/offline_banner.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   final Widget child;
@@ -116,21 +117,29 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   }
 
   Future<void> _tagSyncedEntries(List<String> entryIds) async {
-    for (final id in entryIds) {
-      if (!mounted) return;
-      try {
-        final entry = await ref.read(journalRepositoryProvider).getEntry(id);
+    if (!mounted || entryIds.isEmpty) return;
+    try {
+      // Fetch all synced entries in parallel instead of sequential N+1 queries.
+      final repo = ref.read(journalRepositoryProvider);
+      final entries = await Future.wait(
+        entryIds.map((id) => repo.getEntry(id).catchError((Object e) {
+          debugPrint('[AppShell] tagSync fetch error for $id: $e');
+          return null;
+        })),
+      );
+      for (final entry in entries) {
+        if (!mounted) return;
         if (entry != null && !entry.tagsGenerated) {
           unawaited(MemoryTaggingService().tagEntry(
-            entryId: id,
+            entryId: entry.id,
             content: entry.content,
           ).catchError((Object e) {
             debugPrint('[AppShell] tagEntry error: $e');
           }));
         }
-      } catch (e) {
-        debugPrint('[AppShell] tagSync error: $e');
       }
+    } catch (e) {
+      debugPrint('[AppShell] tagSync error: $e');
     }
   }
 
@@ -149,11 +158,16 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
   /// Seeds the 4 default chapters (Family, Career, Travel, Personal Growth)
   /// if the user has none, then invalidates chaptersProvider so the UI reloads.
+  /// Gated behind onboarding state so we don't call on every mount.
+  bool _chaptersSeeded = false;
   Future<void> _ensureDefaultChapters() async {
+    if (_chaptersSeeded) return;
+    _chaptersSeeded = true;
     try {
       await ref.read(profileRepositoryProvider).seedDefaultChapters();
       ref.invalidate(chaptersProvider);
     } catch (e) {
+      _chaptersSeeded = false; // allow retry on next mount
       if (kDebugMode) debugPrint('[AppShell] seedDefaultChapters error: $e');
     }
   }
@@ -232,8 +246,13 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     }
 
     if (photo != null && mounted) {
-      final cropped = await cropPhoto(photo.path);
-      final finalPath = cropped ?? photo.path;
+      String finalPath = photo.path;
+      try {
+        final cropped = await cropPhoto(photo.path);
+        finalPath = cropped ?? photo.path;
+      } catch (e) {
+        debugPrint('[AppShell] cropPhoto failed, using original: $e');
+      }
       if (mounted) context.push('/photo-entry', extra: finalPath);
     }
   }
@@ -264,6 +283,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       body: Column(
         children: [
           _GlassHeader(colors: colors),
+          const OfflineBanner(),
           Expanded(child: childWithoutTopPad),
         ],
       ),
@@ -526,55 +546,62 @@ class _NavItem extends StatelessWidget {
     final activeColor = colors.accent;
     final inactiveColor = colors.iconInactive;
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isActive ? activeColor.withAlpha(20) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isActive ? activeIcon : icon,
-                  color: isActive ? activeColor : inactiveColor,
-                  size: 22,
-                ),
-              ),
-              if (showBadge && !isActive)
-                Positioned(
-                  top: 2,
-                  right: 8,
-                  child: Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: colors.accent,
-                      shape: BoxShape.circle,
-                    ),
+    return Semantics(
+      label: label,
+      button: true,
+      selected: isActive,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isActive ? activeColor.withAlpha(20) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isActive ? activeIcon : icon,
+                    color: isActive ? activeColor : inactiveColor,
+                    size: 22,
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label.toUpperCase(),
-            style: GoogleFonts.manrope(
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              letterSpacing: 1.2,
-              color: isActive ? activeColor : inactiveColor,
+                if (showBadge && !isActive)
+                  Positioned(
+                    top: 2,
+                    right: 8,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            ExcludeSemantics(
+              child: Text(
+                label.toUpperCase(),
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  letterSpacing: 1.2,
+                  color: isActive ? activeColor : inactiveColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

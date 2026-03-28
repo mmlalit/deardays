@@ -25,11 +25,31 @@ class _SetPassphraseScreenState extends State<SetPassphraseScreen> {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
-        await Supabase.instance.client.from('profiles').upsert({
-          'id': user.id,
-          'encryption_salt': 'server-side',
-          'trial_started_at': DateTime.now().toUtc().toIso8601String(),
-        });
+        // Check if profile already exists (and has trial_started_at)
+        final existing = await Supabase.instance.client
+            .from('profiles')
+            .select('id, trial_started_at')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (existing == null) {
+          // No profile yet — create with trial_started_at
+          await Supabase.instance.client.from('profiles').upsert({
+            'id': user.id,
+            'encryption_salt': 'server-side',
+            'trial_started_at': DateTime.now().toUtc().toIso8601String(),
+          });
+        } else if (existing['trial_started_at'] == null) {
+          // Profile exists but has no trial start — set it now
+          await Supabase.instance.client
+              .from('profiles')
+              .update({
+                'encryption_salt': 'server-side',
+                'trial_started_at': DateTime.now().toUtc().toIso8601String(),
+              })
+              .eq('id', user.id);
+        }
+        // If profile exists with trial_started_at, do nothing (preserve it)
       }
     } catch (_) {
       // Non-fatal — profile may already exist from the signup trigger.

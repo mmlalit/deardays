@@ -9,7 +9,7 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 /// A visually prominent card for life milestones — birthdays, promotions,
 /// graduations, etc.  Features a hero photo area with gradient overlay,
 /// accent left border, and a milestone type badge.
-class MilestoneCard extends StatelessWidget {
+class MilestoneCard extends StatefulWidget {
   const MilestoneCard({
     super.key,
     required this.entry,
@@ -22,6 +22,31 @@ class MilestoneCard extends StatelessWidget {
   final AppPalette colors;
   final VoidCallback onTap;
   final Future<String> Function(String storagePath)? photoUrlBuilder;
+
+  @override
+  State<MilestoneCard> createState() => _MilestoneCardState();
+}
+
+class _MilestoneCardState extends State<MilestoneCard> {
+  final Map<String, Future<String>> _photoFutureCache = {};
+
+  Future<String>? _getCachedFuture(String storagePath) {
+    if (widget.photoUrlBuilder == null) return null;
+    return _photoFutureCache.putIfAbsent(
+        storagePath, () => widget.photoUrlBuilder!(storagePath));
+  }
+
+  @override
+  void didUpdateWidget(MilestoneCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.photoUrlBuilder != widget.photoUrlBuilder) {
+      _photoFutureCache.clear();
+    }
+  }
+
+  JournalEntry get entry => widget.entry;
+  AppPalette get colors => widget.colors;
+  VoidCallback get onTap => widget.onTap;
 
   // Milestone type → icon mapping
   static const _milestoneIcons = <String, IconData>{
@@ -37,7 +62,7 @@ class MilestoneCard extends StatelessWidget {
   };
 
   String _milestoneLabel(String? type) {
-    if (type == null) return 'Milestone';
+    if (type == null || type.isEmpty) return 'Milestone';
     return type[0].toUpperCase() + type.substring(1);
   }
 
@@ -141,7 +166,7 @@ class MilestoneCard extends StatelessWidget {
   }
 
   Widget _buildHeroPhoto(String storagePath) {
-    final future = photoUrlBuilder?.call(storagePath);
+    final future = _getCachedFuture(storagePath);
 
     return Stack(
       children: [

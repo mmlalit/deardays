@@ -1,5 +1,8 @@
 /// Typed route path constants to eliminate magic strings.
 ///
+/// TODO: Migrate all raw string route paths in GoRouter config and navigation
+/// calls to use these AppRoutes constants for consistency and refactor safety.
+///
 /// Usage:
 /// ```dart
 /// context.go(AppRoutes.home);

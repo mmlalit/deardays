@@ -176,4 +176,10 @@ class RevenueCatService {
     if (!_isConfigured) return;
     Purchases.addCustomerInfoUpdateListener(listener);
   }
+
+  /// Removes a previously registered customer info listener.
+  void removeCustomerInfoListener(void Function(CustomerInfo) listener) {
+    if (!_isConfigured) return;
+    Purchases.removeCustomerInfoUpdateListener(listener);
+  }
 }

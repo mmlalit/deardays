@@ -51,7 +51,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final sub = ref.read(subscriptionProvider);
     if (sub.isPremium) return 'Active';
     if (_profile == null) return 'Unknown';
-    if (_profile!.isInTrial) return 'Free Trial';
+    if (_profile!.isInTrial()) return 'Free Trial';
     return 'Expired';
   }
 
@@ -59,7 +59,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final sub = ref.read(subscriptionProvider);
     if (sub.isPremium) return AppColors.success;
     if (_profile == null) return AppColors.of(context).textMuted;
-    if (_profile!.isInTrial) return AppColors.of(context).accent;
+    if (_profile!.isInTrial()) return AppColors.of(context).accent;
     return AppColors.error;
   }
 
@@ -70,7 +70,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           ? 'Annual (${sub.yearlyPrice}/year)'
           : 'Monthly (${sub.monthlyPrice}/month)';
     }
-    if (_profile != null && _profile!.isInTrial) return '7-Day Free Trial';
+    if (_profile != null && _profile!.isInTrial()) return '7-Day Free Trial';
     return 'No Plan';
   }
 
@@ -78,7 +78,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     if (isPremium && expiresAt != null) {
       return '${_monthName(expiresAt.month)} ${expiresAt.day}, ${expiresAt.year}';
     }
-    if (_profile != null && _profile!.isInTrial) {
+    if (_profile != null && _profile!.isInTrial()) {
       final trialEnd = _profile!.trialStartedAt.add(const Duration(days: 7));
       final remaining = trialEnd.difference(DateTime.now()).inDays;
       return '$remaining days remaining';

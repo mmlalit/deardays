@@ -132,7 +132,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
       ref.invalidate(draftsProvider);
     }
 
-    if (mounted) Navigator.of(context).maybePop();
+    if (mounted && context.canPop()) context.pop();
   }
 
   Future<void> _startRecording() async {
@@ -141,7 +141,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Voice recording requires the mobile app.')),
         );
-        Navigator.of(context).maybePop();
+        if (context.canPop()) context.pop();
       }
       return;
     }
@@ -190,7 +190,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Microphone permission is required.')),
           );
-          Navigator.of(context).maybePop();
+          if (context.canPop()) context.pop();
         }
       }
     } catch (e) {
@@ -198,7 +198,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(() { final msg = e.toString(); return 'Recording unavailable: ${msg.substring(0, msg.length.clamp(0, 60))}'; }())),
         );
-        Navigator.of(context).maybePop();
+        if (context.canPop()) context.pop();
       }
     }
   }

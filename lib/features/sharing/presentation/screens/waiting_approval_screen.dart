@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,6 +28,7 @@ class _WaitingApprovalScreenState
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnim;
+  StreamSubscription<List<Map<String, dynamic>>>? _shareSubscription;
 
   @override
   void initState() {
@@ -42,6 +45,7 @@ class _WaitingApprovalScreenState
 
   @override
   void dispose() {
+    _shareSubscription?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
@@ -49,7 +53,7 @@ class _WaitingApprovalScreenState
   // Watch Supabase Realtime for status change
   void _listenForApproval() {
     final repo = ref.read(sharingRepositoryProvider);
-    repo.watchShare(widget.share.id).listen((rows) {
+    _shareSubscription = repo.watchShare(widget.share.id).listen((rows) {
       if (!mounted || rows.isEmpty) return;
       final status = ShareStatus.fromString(rows.first['status'] as String);
       if (status == ShareStatus.approved) {

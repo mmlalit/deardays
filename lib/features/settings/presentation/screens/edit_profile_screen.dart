@@ -120,8 +120,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _changePassword() async {
+    final currentPassword = _currentPasswordController.text;
     final newPassword = _newPasswordController.text;
     final confirmPassword = _confirmPasswordController.text;
+
+    if (currentPassword.isEmpty) {
+      _showError('Please enter your current password.');
+      return;
+    }
 
     final pwError = PasswordValidator.validate(newPassword);
     if (pwError != null) {
@@ -137,6 +143,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isChangingPassword = true);
 
     try {
+      // Verify current password before allowing change.
+      final email = Supabase.instance.client.auth.currentUser?.email;
+      if (email == null) {
+        _showError('Could not determine your email address.');
+        return;
+      }
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: currentPassword,
+      );
+
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: newPassword),
       );

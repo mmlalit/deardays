@@ -184,6 +184,12 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     }
   }
 
+  @override
+  void dispose() {
+    _service.removeCustomerInfoListener(_onCustomerInfoUpdate);
+    super.dispose();
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------

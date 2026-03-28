@@ -26,6 +26,8 @@ import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/media/pending_photo_uploads.dart';
 import 'package:deardays/services/sync/sync_queue.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
+import 'package:deardays/services/analytics/analytics_service.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 
 /// All data needed to create the journal entry.
 /// Passed from ReviewSaveScreen so the chapter can be selected BEFORE
@@ -99,9 +101,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   // Filled after a successful save so the confirmation screen can display it.
   PostSaveData? _confirmedData;
 
-  late final JournalRepository _repository = JournalRepository(
-    client: Supabase.instance.client,
-  );
+  JournalRepository get _repository => ref.read(journalRepositoryProvider);
   late final MediaService _mediaService = MediaService(
     client: Supabase.instance.client,
   );
@@ -147,7 +147,8 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
         }
         if (mounted) setState(() => _currentStep = 1);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      CrashReportingService().recordError(e, stackTrace, reason: 'Entry save failed');
       if (mounted) {
         final msg = e.toString();
         setState(() => _saveError = msg.length > 120 ? '${msg.substring(0, 120)}…' : msg);
@@ -158,6 +159,10 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   }
 
   Future<void> _saveNewEntry(PreSaveData pre, String chapterId) async {
+    final analytics = AnalyticsService();
+    final crashReporting = CrashReportingService();
+    analytics.startTimedEvent('entry_save');
+
     final now     = DateTime.now().toUtc();
     final content = pre.cleanedText ?? pre.rawText;
     final polishedContent = pre.polishedText != null
@@ -167,7 +172,9 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
 
     final entry = JournalEntry(
       id: const Uuid().v4(),
-      userId: ref.read(supabaseClientProvider).auth.currentUser!.id,
+      userId: ref.read(supabaseClientProvider).auth.currentUser?.id ?? (() {
+        throw StateError('No authenticated user — cannot save entry. Please sign in again.');
+      })(),
       content: content,
       rawContent: pre.rawText,
       polishedContent: polishedContent,
@@ -323,6 +330,13 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     ref.invalidate(booksProvider);
     ref.invalidate(chaptersProvider);
     ref.invalidate(chapterEntriesProvider(chapterId));
+
+    final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    analytics.endTimedEvent('entry_save', properties: {
+      'has_media': (pre.attachedPhotoPath != null).toString(),
+      'word_count': wordCount.toString(),
+    });
+    crashReporting.addBreadcrumb('Entry saved', data: {'entry_id': saved.id});
 
     _confirmedData = PostSaveData(
       entryId: saved.id,

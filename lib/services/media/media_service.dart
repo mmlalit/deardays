@@ -11,9 +11,10 @@ import 'package:flutter/material.dart' show Alignment;
 import 'package:deardays/core/config/cdn_config.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
 import 'package:deardays/services/media/image_compressor.dart';
+import 'package:deardays/core/domain/services/media_service_interface.dart';
 
 /// Handles photo/voice upload to Supabase Storage and entry_media records.
-class MediaService {
+class MediaService implements IMediaService {
   static const _bucketName = 'entry-media';
   static const _thumbSuffix = '_thumb';
 
@@ -31,6 +32,8 @@ class MediaService {
   /// In-memory cache of signed URLs keyed by storagePath.
   /// Each entry stores both the Future and the time it was cached.
   /// Prevents re-fetching the same URL when widgets rebuild (e.g. on scroll).
+  /// Capped at [_maxCacheSize] entries; oldest entries evicted when full.
+  static const _maxCacheSize = 200;
   final Map<String, (Future<String>, DateTime)> _signedUrlCache = {};
 
   MediaService({required SupabaseClient client}) : _client = client;
@@ -289,6 +292,11 @@ class MediaService {
     }
 
     if (!_signedUrlCache.containsKey(storagePath)) {
+      // Evict oldest entries when cache exceeds max size (simple LRU by insert order).
+      if (_signedUrlCache.length >= _maxCacheSize) {
+        final oldest = _signedUrlCache.keys.first;
+        _signedUrlCache.remove(oldest);
+      }
       final future =
           _client.storage.from(_bucketName).createSignedUrl(storagePath, 3600);
       _signedUrlCache[storagePath] = (future, DateTime.now());

@@ -118,6 +118,8 @@ class BookGeneratorService {
 
   /// Generate a book from manually selected entries, organized into chapters.
   /// C-07: Callers must verify subscription before invoking this method.
+  /// TODO(perf): Move heavy entry processing to compute() isolate to avoid
+  /// blocking the main isolate when generating books with many entries.
   GeneratedBook generateFromEntries({
     required List<JournalEntry> entries,
     required String title,

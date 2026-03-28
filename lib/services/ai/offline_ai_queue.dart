@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:deardays/services/ai/ai_service.dart';
 import 'package:deardays/services/ai/mood_detection_service.dart';
 import 'package:deardays/services/ai/highlight_service.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 
 /// Manages offline-first AI processing for journal entries.
@@ -29,7 +30,8 @@ class OfflineAiQueue {
 
   /// Initialize the queue. Call after Hive.initFlutter().
   Future<void> init() async {
-    _box = await Hive.openBox<String>(_boxName);
+    final cipher = LocalStorageService().cipher;
+    _box = await Hive.openBox<String>(_boxName, encryptionCipher: cipher);
     if (kDebugMode) {
       debugPrint('[OfflineAiQueue] ${_box!.length} pending items');
     }

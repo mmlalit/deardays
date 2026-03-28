@@ -15,6 +15,22 @@
 class SupabaseConfig {
   SupabaseConfig._();
 
+  /// The current environment (development, staging, or production).
+  /// Set via `--dart-define=APP_ENV=development`.
+  static const String environment = String.fromEnvironment(
+    'APP_ENV',
+    defaultValue: 'production',
+  );
+
+  /// Whether the app is running in development mode.
+  static bool get isDev => environment == 'development';
+
+  /// Whether the app is running in staging mode.
+  static bool get isStaging => environment == 'staging';
+
+  /// Whether the app is running in production mode.
+  static bool get isProd => environment == 'production' || environment.isEmpty;
+
   /// The Supabase project URL (e.g., https://abc123.supabase.co).
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',

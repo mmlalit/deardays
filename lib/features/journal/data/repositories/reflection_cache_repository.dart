@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Cached AI reflection for one user + period + period_key.
@@ -104,17 +105,22 @@ class ReflectionCacheRepository {
     String? summary,
     List<String> themes = const [],
   }) async {
-    await _client.from(_table).upsert(
-      {
-        'user_id': _userId,
-        'period': period,
-        'period_key': periodKey,
-        'summary': summary,
-        'themes': themes,
-        'generated_at': DateTime.now().toIso8601String(),
-      },
-      onConflict: 'user_id, period, period_key',
-    );
+    try {
+      await _client.from(_table).upsert(
+        {
+          'user_id': _userId,
+          'period': period,
+          'period_key': periodKey,
+          'summary': summary,
+          'themes': themes,
+          'generated_at': DateTime.now().toIso8601String(),
+        },
+        onConflict: 'user_id, period, period_key',
+      );
+    } catch (e) {
+      debugPrint('[ReflectionCache] save failed for $period/$periodKey: $e');
+      // Cache write is non-critical — the reflection will be regenerated next time.
+    }
   }
 
   /// Fetches all cached weekly summaries for the given month.

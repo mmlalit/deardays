@@ -38,7 +38,8 @@ class CrashReportingService {
   final List<Breadcrumb> _breadcrumbs = [];
   List<Breadcrumb> get breadcrumbs => List.unmodifiable(_breadcrumbs);
 
-  // Error log for the current session
+  // Error log for the current session (capped at 500 to prevent unbounded growth)
+  static const int _maxReports = 500;
   final List<CrashReport> _reports = [];
   List<CrashReport> get reports => List.unmodifiable(_reports);
 
@@ -197,6 +198,9 @@ class CrashReportingService {
     );
 
     _reports.add(report);
+    while (_reports.length > _maxReports) {
+      _reports.removeAt(0);
+    }
 
     if (kDebugMode) {
       debugPrint('[CrashReportingService] Error: $error');

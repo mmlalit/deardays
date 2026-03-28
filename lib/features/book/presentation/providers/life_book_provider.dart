@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:deardays/features/checkin/data/models/conversation_section.dart';
 import 'package:deardays/features/checkin/presentation/providers/checkin_provider.dart';
 import 'package:deardays/services/ai/ai_service.dart';
@@ -127,16 +129,27 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
   }
 
   /// Load all conversation dates from Hive and group by month.
+  /// Only loads entries scoped to the current userId, consistent with
+  /// CheckInNotifier._scopedKey pattern.
   Future<void> _loadAllEntries() async {
     final box = await _openBox(_conversationsBox);
     final cacheBox = await _openBox(_polishCacheBox);
     final keys = box.keys.cast<String>().toList();
+    final uid = Supabase.instance.client.auth.currentUser?.id;
 
     // Parse dates and sort newest first
     final dateEntries = <DateTime, Map<String, dynamic>>{};
     for (final key in keys) {
       try {
-        final date = DateTime.parse(key);
+        // Keys are stored as "${userId}_YYYY-MM-DD". Filter by userId prefix
+        // so we only load entries belonging to the current user.
+        String dateStr = key;
+        if (uid != null && uid.isNotEmpty) {
+          final prefix = '${uid}_';
+          if (!key.startsWith(prefix)) continue;
+          dateStr = key.substring(prefix.length);
+        }
+        final date = DateTime.parse(dateStr);
         final raw = box.get(key);
         if (raw != null) {
           if (raw is! String) {
@@ -176,7 +189,9 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
       if (userMessages.isEmpty) continue;
 
       final rawText = userMessages.join('\n\n');
-      final cacheKey = CheckInNotifier.dateKey(date);
+      final cacheKey = uid != null && uid.isNotEmpty
+          ? '${uid}_${CheckInNotifier.dateKey(date)}'
+          : CheckInNotifier.dateKey(date);
       final cached = cacheBox.get(cacheKey) as String?;
 
       final entry = LifeBookEntry(
@@ -274,9 +289,12 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
         language: language,
       );
 
-      // Cache the result
+      // Cache the result (userId-scoped)
       final cacheBox = await _openBox(_polishCacheBox);
-      final cacheKey = CheckInNotifier.dateKey(entry.date);
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      final cacheKey = uid != null && uid.isNotEmpty
+          ? '${uid}_${CheckInNotifier.dateKey(entry.date)}'
+          : CheckInNotifier.dateKey(entry.date);
       await cacheBox.put(cacheKey, polished);
 
       // Update state
@@ -326,9 +344,12 @@ class LifeBookNotifier extends StateNotifier<LifeBookState> {
     final entries = chapters[chapterIdx].entries;
     if (entryIdx >= entries.length) return;
 
-    // Clear cache
+    // Clear cache (userId-scoped)
     final cacheBox = await _openBox(_polishCacheBox);
-    final cacheKey = CheckInNotifier.dateKey(entries[entryIdx].date);
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    final cacheKey = uid != null && uid.isNotEmpty
+        ? '${uid}_${CheckInNotifier.dateKey(entries[entryIdx].date)}'
+        : CheckInNotifier.dateKey(entries[entryIdx].date);
     await cacheBox.delete(cacheKey);
 
     // Reset polished text

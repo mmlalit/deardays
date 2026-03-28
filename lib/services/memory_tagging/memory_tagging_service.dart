@@ -17,6 +17,8 @@ class MemoryTaggingService {
 
   // In-memory set of entry IDs tagged this session — prevents double-calls
   // when the same entry is saved or navigated to multiple times.
+  // Capped at [_maxTaggedCacheSize] to bound memory usage in long sessions.
+  static const _maxTaggedCacheSize = 500;
   final _taggedThisSession = <String>{};
 
   /// Sends the entry content to the ai-tag edge function for async tagging.
@@ -29,6 +31,9 @@ class MemoryTaggingService {
     if (!_aiService.isConfigured) return;
     if (content.trim().isEmpty) return;
     if (_taggedThisSession.contains(entryId)) return; // session dedup
+    if (_taggedThisSession.length >= _maxTaggedCacheSize) {
+      _taggedThisSession.clear(); // reset to avoid unbounded growth
+    }
     _taggedThisSession.add(entryId);
 
     try {

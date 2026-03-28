@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:deardays/services/encryption/encryption_service.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
+import 'package:deardays/services/analytics/analytics_service.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 
 /// Authentication service wrapping Supabase Auth.
 ///
@@ -85,12 +91,17 @@ class AuthService {
 
   /// Signs in with [email] and [password].
   Future<AuthResponse> signInWithEmail(String email, String password) async {
+    CrashReportingService().addBreadcrumb('Sign-in attempted', data: {'method': 'email'});
+
     final response = await _client.auth.signInWithPassword(
       email: email,
       password: password,
     );
 
     if (response.user != null) {
+      CrashReportingService().addBreadcrumb('Sign-in successful');
+      CrashReportingService().setUser(response.user!.id);
+      AnalyticsService().track(AnalyticsEvent.userLoggedIn, properties: {'method': 'email'});
       // Ensure profile row exists (may be missing if data was cleared).
       try {
         await _client.from('profiles').upsert(
@@ -116,13 +127,46 @@ class AuthService {
   // ---------------------------------------------------------------------------
 
   /// Signs in with Apple.
+  ///
+  /// `signInWithOAuth` opens the system browser and returns before the OAuth
+  /// callback completes, so `currentSession` is stale at that point. We listen
+  /// for the next `signedIn` auth state change to capture the real session.
   Future<AuthResponse> signInWithApple() async {
+    CrashReportingService().addBreadcrumb('Sign-in attempted', data: {'method': 'apple'});
+
+    final completer = Completer<AuthResponse>();
+
+    // Listen for the auth callback that fires once the OAuth redirect lands.
+    late final StreamSubscription<AuthState> sub;
+    sub = _client.auth.onAuthStateChange.listen((state) {
+      if (state.event == AuthChangeEvent.signedIn && !completer.isCompleted) {
+        sub.cancel();
+        final session = state.session;
+        final user = session?.user;
+        if (user != null) {
+          CrashReportingService().addBreadcrumb('Sign-in successful');
+          CrashReportingService().setUser(user.id);
+          AnalyticsService().track(AnalyticsEvent.userLoggedIn, properties: {'method': 'apple'});
+        }
+        completer.complete(
+          AuthResponse(session: session, user: session?.user),
+        );
+      }
+    });
+
     await _client.auth.signInWithOAuth(
       OAuthProvider.apple,
       redirectTo: 'io.deardays://callback',
     );
 
-    return AuthResponse(session: _client.auth.currentSession, user: currentUser);
+    // If the user cancels or the callback never fires, time out after 2 min.
+    return completer.future.timeout(
+      const Duration(minutes: 2),
+      onTimeout: () {
+        sub.cancel();
+        return AuthResponse(session: _client.auth.currentSession, user: currentUser);
+      },
+    );
   }
 
   /// Signs in with Google using the native Google Sign-In flow.
@@ -130,6 +174,8 @@ class AuthService {
   /// The web client ID must be passed via `--dart-define=GOOGLE_WEB_CLIENT_ID=...`
   /// at build time. Without it, Google Sign-In will throw.
   Future<AuthResponse> signInWithGoogle() async {
+    CrashReportingService().addBreadcrumb('Sign-in attempted', data: {'method': 'google'});
+
     const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
     if (webClientId.isEmpty) {
       throw AuthException('Google Sign-In is not configured.');
@@ -150,6 +196,10 @@ class AuthService {
     );
 
     if (response.user != null) {
+      CrashReportingService().addBreadcrumb('Sign-in successful');
+      CrashReportingService().setUser(response.user!.id);
+      AnalyticsService().track(AnalyticsEvent.userLoggedIn, properties: {'method': 'google'});
+
       try {
         await _client.from('profiles').upsert(
           {
@@ -197,6 +247,9 @@ class AuthService {
       'sync_queue',
       'offline_entries',
       'reflection_cache',
+      'entries',
+      'drafts',
+      'sync_meta',
     ];
     for (final name in boxNames) {
       try {
@@ -208,6 +261,16 @@ class AuthService {
 
   /// Signs the user out and wipes all locally stored sensitive data.
   Future<void> signOut() async {
+    // Clear encryption key from memory immediately.
+    EncryptionService().clearKey();
+
+    // Clear local storage (entries, drafts, sync_meta).
+    try {
+      await LocalStorageService().clearAll();
+    } catch (_) {
+      // LocalStorageService may not be initialized if user never wrote entries.
+    }
+
     // Clear Hive boxes before invalidating the session.
     await clearAllUserData();
 
@@ -219,6 +282,9 @@ class AuthService {
 
     // Sign out from Supabase (revokes refresh token on server).
     await _client.auth.signOut();
+
+    CrashReportingService().addBreadcrumb('Sign-out completed');
+    CrashReportingService().clearUser();
   }
 
   // ---------------------------------------------------------------------------

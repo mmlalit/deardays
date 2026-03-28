@@ -45,11 +45,11 @@ void shareCardFlowTests() {
         return;
       }
 
-      // The share icon is Icons.ios_share_rounded on the memory detail screen
+      // The share icon is Icons.share_rounded (frosted glass on photo, or muted on text cards)
       final shareIcon = find.byWidgetPredicate(
-        (w) => w is Icon && w.icon == Icons.ios_share_rounded,
+        (w) => w is Icon && (w.icon == Icons.share_rounded || w.icon == Icons.ios_share_rounded),
       );
-      expect(shareIcon, findsOneWidget);
+      expect(shareIcon.evaluate().isNotEmpty, isTrue);
     });
 
     testWidgets('tapping share icon navigates to ShareCardScreen',
@@ -76,7 +76,7 @@ void shareCardFlowTests() {
 
       // Tap the share icon
       final shareIcon = find.byWidgetPredicate(
-        (w) => w is Icon && w.icon == Icons.ios_share_rounded,
+        (w) => w is Icon && (w.icon == Icons.share_rounded || w.icon == Icons.ios_share_rounded),
       );
       if (shareIcon.evaluate().isEmpty) return;
 

@@ -23,12 +23,14 @@ import 'package:deardays/services/media/pending_photo_uploads.dart';
 import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/services/version/version_check_service.dart';
+import 'package:deardays/services/sync/offline_write_service.dart';
 import 'package:deardays/features/journal/data/repositories/reflection_override_repository.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
   // Run app inside crash reporting zone (binding must be in the same zone as runApp)
   CrashReportingService().runGuarded(() async {
+    final startupStopwatch = Stopwatch()..start();
     WidgetsFlutterBinding.ensureInitialized();
 
     // ── Phase 1: Sequential dependencies ────────────────────────────────────
@@ -62,6 +64,8 @@ void main() async {
       ReflectionOverrideRepository().init(),
     ]);
 
+    final phase1Ms = startupStopwatch.elapsedMilliseconds;
+
     // ── Phase 2: Wire up sync (depends on Phase 1) ──────────────────────────
     await SyncService().init();
     SyncService().enableQueue();
@@ -73,19 +77,33 @@ void main() async {
     runApp(const ProviderScope(child: DearDaysApp()));
 
     // ── Phase 3: Background services (fire-and-forget) ──────────────────────
+    // Each service is wrapped in its own try-catch so one failure doesn't
+    // prevent others from initializing.
     // OfflineAiQueue.init() must complete before pruneStale() is called.
-    unawaited(OfflineAiQueue().init().then((_) => OfflineAiQueue().pruneStale()));
-    unawaited(Future.wait([
-      AnalyticsService().init(),
-      RevenueCatService().init(),
-      NotificationService().init(),
-      ConnectivityService().init(),
-      BackupService().init(),
-      AiCreditService().init(),
-      FeatureFlags().init(),
-      VersionCheckService().check(),
-    ]));
-    unawaited(PendingPhotoUploads().init());
+    unawaited(OfflineAiQueue().init().then((_) => OfflineAiQueue().pruneStale())
+        .catchError((e) { debugPrint('[main] OfflineAiQueue init failed: $e'); return 0; }));
+    unawaited(AnalyticsService().init().then((_) {
+      AnalyticsService().track('app_startup', properties: {
+        'total_ms': startupStopwatch.elapsedMilliseconds.toString(),
+        'phase1_ms': phase1Ms.toString(),
+      });
+    }).catchError((e) { debugPrint('[main] AnalyticsService init failed: $e'); return null; }));
+    unawaited(RevenueCatService().init()
+        .catchError((e) => debugPrint('[main] RevenueCatService init failed: $e')));
+    unawaited(NotificationService().init()
+        .catchError((e) => debugPrint('[main] NotificationService init failed: $e')));
+    unawaited(ConnectivityService().init()
+        .catchError((e) => debugPrint('[main] ConnectivityService init failed: $e')));
+    unawaited(BackupService().init()
+        .catchError((e) => debugPrint('[main] BackupService init failed: $e')));
+    unawaited(AiCreditService().init()
+        .catchError((e) => debugPrint('[main] AiCreditService init failed: $e')));
+    unawaited(FeatureFlags().init()
+        .catchError((e) => debugPrint('[main] FeatureFlags init failed: $e')));
+    unawaited(VersionCheckService().check()
+        .catchError((e) => debugPrint('[main] VersionCheckService check failed: $e')));
+    unawaited(PendingPhotoUploads().init()
+        .catchError((e) => debugPrint('[main] PendingPhotoUploads init failed: $e')));
   });
 }
 
@@ -98,11 +116,13 @@ class DearDaysApp extends ConsumerStatefulWidget {
 
 class _DearDaysAppState extends ConsumerState<DearDaysApp> {
   StreamSubscription<bool>? _connectivitySub;
+  bool _wasOffline = false;
 
   @override
   void initState() {
     super.initState();
     // Set initial value
+    _wasOffline = !ConnectivityService().isOnline;
     ref.read(connectivityProvider.notifier).state =
         ConnectivityService().isOnline;
     // Wire ConnectivityService stream → connectivityProvider
@@ -112,6 +132,11 @@ class _DearDaysAppState extends ConsumerState<DearDaysApp> {
       if (online && PendingPhotoUploads().hasPending) {
         PendingPhotoUploads().retryAll();
       }
+      // Replay queued offline writes when connectivity is restored.
+      if (online && _wasOffline && OfflineWriteService().pendingCount > 0) {
+        OfflineWriteService().replayQueue();
+      }
+      _wasOffline = !online;
     });
   }
 

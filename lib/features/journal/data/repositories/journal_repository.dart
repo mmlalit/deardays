@@ -1,11 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:deardays/core/network/network_client.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
+import 'package:deardays/services/connectivity/connectivity_service.dart';
+import 'package:deardays/services/sync/offline_write_service.dart';
+import 'package:deardays/services/sync/sync_operation.dart';
+import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
 
-class JournalRepository {
+class JournalRepository implements IJournalRepository {
   final SupabaseClient _client;
   final NetworkClient _network = NetworkClient();
 
@@ -60,6 +65,8 @@ class JournalRepository {
       'raw_content': _dec(row['raw_content'] as String?, isClientEncrypted),
       'polished_content':
           _dec(row['polished_content'] as String?, isClientEncrypted),
+      'location_name':
+          _dec(row['location_name'] as String?, isClientEncrypted),
     };
   }
 
@@ -73,6 +80,10 @@ class JournalRepository {
       'content': _enc(map['content'] as String?),
       'raw_content': _enc(map['raw_content'] as String?),
       'polished_content': _enc(map['polished_content'] as String?),
+      'location_name': _enc(map['location_name'] as String?),
+      // TODO(M-24): Encrypt latitude/longitude — requires schema change
+      // (doubles cannot be encrypted in place; need text columns or a single
+      // encrypted JSON blob for location data).
       'is_client_encrypted': true,
     };
   }
@@ -137,32 +148,55 @@ class JournalRepository {
 
   /// Creates a new journal entry. If E2E is active the content columns are
   /// encrypted client-side before upload; otherwise the DB trigger handles it.
+  ///
+  /// When the device is offline, the write is queued for later replay and a
+  /// local-only entry (with a `local_` prefixed ID) is returned so the UI can
+  /// show it immediately.
   Future<JournalEntry> createEntry(JournalEntry entry) async {
+    if (!ConnectivityService().isOnline) {
+      final map = _prepareWriteMap(entry.toSupabaseMap());
+      await OfflineWriteService().write(
+        tableName: _writeTable,
+        type: SyncOperationType.create,
+        payload: map,
+        id: entry.id,
+      );
+      // Return the entry with a temporary local ID so the UI has something
+      return entry.copyWith(id: 'local_${const Uuid().v4()}');
+    }
+
     return _network.query(() async {
       final map = _prepareWriteMap(entry.toSupabaseMap());
 
-      final inserted = await _client
+      // Single round-trip: INSERT + SELECT with entry_media join.
+      final response = await _client
           .from(_writeTable)
           .insert(map)
-          .select('id')
-          .maybeSingle();
-      if (inserted == null) throw Exception('Entry insert failed — no ID returned');
-
-      final response = await _client
-          .from(_readTable)
           .select('*, entry_media(*)')
-          .eq('id', inserted['id'] as String)
           .maybeSingle();
-      if (response == null) throw Exception('Entry created but could not be retrieved');
+      if (response == null) throw Exception('Entry insert failed — no row returned');
 
       return JournalEntry.fromSupabaseMap(_decryptRow(response));
     });
   }
 
   /// Updates an existing journal entry with E2E-aware encryption.
+  ///
+  /// When offline, the update is queued and the entry is returned as-is.
   Future<JournalEntry> updateEntry(JournalEntry entry) async {
+    if (!ConnectivityService().isOnline) {
+      final map = _prepareWriteMap(entry.toSupabaseMap(forUpdate: true));
+      await OfflineWriteService().write(
+        tableName: _writeTable,
+        type: SyncOperationType.update,
+        payload: map,
+        id: entry.id,
+      );
+      return entry;
+    }
+
     return _network.query(() async {
-      final map = _prepareWriteMap(entry.toSupabaseMap());
+      final map = _prepareWriteMap(entry.toSupabaseMap(forUpdate: true));
 
       await _client
           .from(_writeTable)
@@ -220,7 +254,19 @@ class JournalRepository {
   }
 
   /// Deletes a journal entry by ID.
+  ///
+  /// When offline, the delete is queued for later replay.
   Future<void> deleteEntry(String id) async {
+    if (!ConnectivityService().isOnline) {
+      await OfflineWriteService().write(
+        tableName: _writeTable,
+        type: SyncOperationType.delete,
+        payload: {'id': id, 'user_id': _userId},
+        id: id,
+      );
+      return;
+    }
+
     return _network.query(() async {
       await _client
           .from(_writeTable)

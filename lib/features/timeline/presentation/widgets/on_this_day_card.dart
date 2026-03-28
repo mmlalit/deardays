@@ -9,7 +9,7 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 /// A horizontally-scrollable "On This Day" section that surfaces
 /// memories from exactly N years ago.  Each card has a subtle sepia
 /// tint over any photo and a "N years ago" circular badge.
-class OnThisDaySection extends StatelessWidget {
+class OnThisDaySection extends StatefulWidget {
   const OnThisDaySection({
     super.key,
     required this.entries,
@@ -22,6 +22,31 @@ class OnThisDaySection extends StatelessWidget {
   final AppPalette colors;
   final void Function(JournalEntry entry) onEntryTap;
   final Future<String> Function(String storagePath)? photoUrlBuilder;
+
+  @override
+  State<OnThisDaySection> createState() => _OnThisDaySectionState();
+}
+
+class _OnThisDaySectionState extends State<OnThisDaySection> {
+  final Map<String, Future<String>> _photoFutureCache = {};
+
+  Future<String>? _getCachedFuture(String storagePath) {
+    if (widget.photoUrlBuilder == null) return null;
+    return _photoFutureCache.putIfAbsent(
+        storagePath, () => widget.photoUrlBuilder!(storagePath));
+  }
+
+  @override
+  void didUpdateWidget(OnThisDaySection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.photoUrlBuilder != widget.photoUrlBuilder) {
+      _photoFutureCache.clear();
+    }
+  }
+
+  List<JournalEntry> get entries => widget.entries;
+  AppPalette get colors => widget.colors;
+  void Function(JournalEntry) get onEntryTap => widget.onEntryTap;
 
   int _yearsAgo(JournalEntry e) {
     final today = DateTime.now();
@@ -216,7 +241,7 @@ class OnThisDaySection extends StatelessWidget {
   }
 
   Widget _buildSepiaPhoto(String storagePath) {
-    final future = photoUrlBuilder?.call(storagePath);
+    final future = _getCachedFuture(storagePath);
     if (future == null) {
       return ColorFiltered(
         colorFilter: const ColorFilter.matrix(<double>[

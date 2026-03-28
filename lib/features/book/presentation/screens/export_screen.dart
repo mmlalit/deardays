@@ -55,10 +55,18 @@ class _ExportScreenState extends State<ExportScreen> {
         startDate = DateTime.now().subtract(const Duration(days: 365));
       }
 
-      final entries = await _repository.getEntries(
-        startDate: startDate,
-        limit: 500,
-      );
+      // Fetch all entries with pagination to avoid truncation.
+      final entries = <JournalEntry>[];
+      const pageSize = 500;
+      while (true) {
+        final page = await _repository.getEntries(
+          startDate: startDate,
+          limit: pageSize,
+          offset: entries.length,
+        );
+        entries.addAll(page);
+        if (page.length < pageSize) break;
+      }
 
       if (entries.isEmpty) {
         if (mounted) {

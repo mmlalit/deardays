@@ -728,7 +728,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildMetaRow(JournalEntry entry, AppPalette colors) {
-    final dateStr = DateFormat('MMMM d, yyyy').format(entry.entryDate);
+    final dateStr = DateFormat.yMMMMd(Localizations.localeOf(context).toString()).format(entry.entryDate);
     return Row(
       children: [
         Icon(Icons.calendar_today_outlined, size: 13, color: colors.accent),
@@ -1310,7 +1310,7 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   void _confirmDelete(AppPalette colors) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         backgroundColor: colors.bg,
         title: Text(
           'Delete Memory?',
@@ -1322,13 +1322,26 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text('Cancel', style: GoogleFonts.manrope(color: colors.textSecondary)),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.pop();
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              try {
+                await ref.read(journalRepositoryProvider).deleteEntry(widget.entry.id);
+                ref.invalidate(timelineEntriesProvider);
+                ref.invalidate(todayEntryProvider);
+                if (mounted) context.pop();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Failed to delete memory: $e'),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                }
+              }
             },
             child: Text(
               'Delete',

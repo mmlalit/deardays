@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/features/sharing/data/models/memory_share.dart';
 import 'package:deardays/features/sharing/data/repositories/sharing_repository.dart';
+import 'package:deardays/core/domain/repositories/sharing_repository_interface.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Repository provider
 // ─────────────────────────────────────────────────────────────────────────────
 
-final sharingRepositoryProvider = Provider<SharingRepository>((ref) {
+final sharingRepositoryProvider = Provider<ISharingRepository>((ref) {
   return SharingRepository(client: Supabase.instance.client);
 });
 
@@ -53,7 +54,7 @@ final sharedWithMeProvider =
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ShareActionsNotifier extends StateNotifier<AsyncValue<void>> {
-  final SharingRepository _repo;
+  final ISharingRepository _repo;
   final Ref _ref;
 
   ShareActionsNotifier(this._repo, this._ref) : super(const AsyncValue.data(null));

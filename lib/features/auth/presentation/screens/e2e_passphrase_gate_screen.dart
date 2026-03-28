@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -107,21 +108,33 @@ class _E2EPassphraseGateScreenState extends State<E2EPassphraseGateScreen> {
         );
         widget.onUnlocked();
       }
-    } catch (e) {
-      debugPrint('[E2EGate] Network/unknown error during unlock: $e');
-      // Network error — allow offline access with the same warning.
+    } on SocketException catch (e) {
+      debugPrint('[E2EGate] Socket error during unlock: $e');
+      // Network unavailable — allow offline access with warning.
       enc.setKey(key);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Could not verify passphrase (network error). '
+              'Could not verify passphrase (no network). '
               'Proceeding in offline mode.',
             ),
             duration: Duration(seconds: 5),
           ),
         );
         widget.onUnlocked();
+      }
+    } catch (e) {
+      debugPrint('[E2EGate] Unknown error during unlock: $e');
+      // Unknown error — do NOT accept passphrase, show error.
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Verification failed: $e'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     }
   }
