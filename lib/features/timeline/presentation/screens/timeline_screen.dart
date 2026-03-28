@@ -456,96 +456,36 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildStatsGrid(int memories, int chapters, int years, AppPalette colors) {
+    final memWord = memories == 1 ? 'memory' : 'memories';
+    final monWord = chapters == 1 ? 'month' : 'months';
+    final yrWord  = years == 1 ? 'year' : 'years';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: _statCard(
-              'Memories', '$memories', colors,
-              onTap: () => setState(() { _categoryFilter = null; _moodFilter = null; }),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Text.rich(
+        TextSpan(
+          style: GoogleFonts.manrope(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: colors.textSecondary,
+            height: 1.4,
+          ),
+          children: [
+            TextSpan(
+              text: '$memories',
+              style: TextStyle(fontWeight: FontWeight.w700, color: colors.accent),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _statCard(
-              'Months', '$chapters', colors,
-              hint: 'monthly',
-              onTap: () => setState(() => _isMonthly = true),
+            TextSpan(text: ' $memWord  ·  spanning '),
+            TextSpan(
+              text: '$chapters',
+              style: TextStyle(fontWeight: FontWeight.w700, color: colors.accent),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _statCard(
-              'Years', '$years', colors,
-              hint: 'yearly',
-              onTap: () => setState(() => _isMonthly = false),
+            TextSpan(text: ' $monWord  ·  '),
+            TextSpan(
+              text: '$years',
+              style: TextStyle(fontWeight: FontWeight.w700, color: colors.accent),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard(String label, String value, AppPalette colors, {VoidCallback? onTap, String? hint}) {
-    return Semantics(
-      button: onTap != null,
-      label: '$value $label',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: colors.cardBg,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border),
-            boxShadow: [
-              BoxShadow(
-                color: colors.textPrimary.withAlpha(6),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Text(
-                value,
-                style: GoogleFonts.manrope(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: colors.accent,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: GoogleFonts.manrope(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
-                ),
-              ),
-              if (hint != null) ...[
-                const SizedBox(height: 3),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      hint,
-                      style: GoogleFonts.manrope(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w600,
-                        color: colors.accent.withAlpha(160),
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_rounded, size: 8, color: colors.accent.withAlpha(160)),
-                  ],
-                ),
-              ],
-            ],
-          ),
+            TextSpan(text: ' $yrWord'),
+          ],
         ),
       ),
     );
