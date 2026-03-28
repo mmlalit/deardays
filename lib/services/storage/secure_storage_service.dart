@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
-
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Wraps [FlutterSecureStorage] to provide a consistent API for storing
@@ -150,7 +149,19 @@ class SecureStorageService {
   }
 
   /// Derives a PBKDF2-HMAC-SHA256 hash from [input] and [salt].
-  String _pbkdf2Hash(String input, String salt) {
+  ///
+  /// Runs on a background isolate via [compute] to avoid blocking the
+  /// UI thread during the 100 000 iteration loop.
+  Future<String> _pbkdf2Hash(String input, String salt) {
+    return compute(_pbkdf2Isolate, [input, salt, _pbkdf2Iterations]);
+  }
+
+  /// Top-level-compatible static function for [compute].
+  static String _pbkdf2Isolate(List<dynamic> args) {
+    final input = args[0] as String;
+    final salt = args[1] as String;
+    final iterations = args[2] as int;
+
     final saltBytes = base64.decode(salt);
     final inputBytes = utf8.encode(input);
     final hmacSha256 = Hmac(sha256, inputBytes);
@@ -165,7 +176,7 @@ class SecureStorageService {
     var u = hmacSha256.convert(saltAndBlock).bytes;
     final result = Uint8List.fromList(u);
 
-    for (int i = 1; i < _pbkdf2Iterations; i++) {
+    for (int i = 1; i < iterations; i++) {
       u = Hmac(sha256, inputBytes).convert(u).bytes;
       for (int j = 0; j < result.length; j++) {
         result[j] ^= u[j];

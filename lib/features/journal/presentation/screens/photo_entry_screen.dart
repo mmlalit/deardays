@@ -13,8 +13,12 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import 'package:uuid/uuid.dart';
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 
 class PhotoEntryScreen extends ConsumerStatefulWidget {
   final String photoPath;
@@ -35,6 +39,8 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
   final _picker = ImagePicker();
   bool _hasEnoughText = false;
   bool _photoLoadError = false;
+  final String _draftId = const Uuid().v4();
+  bool _submitted = false;
 
   // ── Photo adjustment state ────────────────────────────────────────────────
   double _brightness = 0.0;  // -1.0 to 1.0
@@ -396,14 +402,37 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     );
   }
 
+  // ── Draft saving ──────────────────────────────────────────────────────────
+
+  Future<void> _saveDraftIfNeeded() async {
+    if (_submitted) return;
+    final text = _textController.text.trim();
+    if (text.length < _minChars) return;
+    final draft = DraftEntry(
+      id: _draftId,
+      type: DraftType.text,
+      rawText: text,
+      savedAt: DateTime.now(),
+      entryDate: DateTime.now(),
+      attachedPhotoPath: _photoPath,
+    );
+    await LocalStorageService.instance.saveDraft(draft);
+    ref.invalidate(draftsProvider);
+  }
+
   // ── Navigation ────────────────────────────────────────────────────────────
+
+  Future<void> _onBack() async {
+    await _saveDraftIfNeeded();
+    if (mounted) Navigator.of(context).maybePop();
+  }
 
   void _onContinue() {
     final text = _textController.text.trim();
     if (text.length < _minChars) return;
+    _submitted = true;
     HapticFeedback.mediumImpact();
     if (_isVoiceMode && _audioPath != null) {
-      // Voice path: route through ProcessingScreen for AI polish + title gen
       context.push(
         '/processing',
         extra: ReviewData(
@@ -415,7 +444,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
         ),
       );
     } else {
-      // Text-only path: route through ProcessingScreen for AI polish + title gen
       context.push(
         '/processing',
         extra: ReviewData(
@@ -433,238 +461,306 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
   @override
   Widget build(BuildContext context) {
     final colors = AppColors.of(context);
-    return Scaffold(
-      backgroundColor: colors.bg,
-      appBar: AppBar(
+    return PopScope(
+      onPopInvokedWithResult: (_, __) => _saveDraftIfNeeded(),
+      child: Scaffold(
         backgroundColor: colors.bg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
-          onPressed: () => Navigator.of(context).maybePop(),
+        appBar: AppBar(
+          backgroundColor: colors.bg,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
+            onPressed: _onBack,
+          ),
+          title: Text(
+            'Add a Memory',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _changePhoto,
+              child: Text(
+                'Change',
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.accent,
+                ),
+              ),
+            ),
+          ],
         ),
-        title: Text(
-          'Add a Memory',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: colors.textPrimary,
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildPhotoHero(colors),
+              Expanded(child: _buildTextAndVoiceArea(colors)),
+              _buildContinueButton(colors),
+            ],
           ),
         ),
       ),
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  // ── Photo hero (full-width, ~45% screen height) ───────────────────────────
+
+  Widget _buildPhotoHero(AppPalette colors) {
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          final box = context.findRenderObject() as RenderBox?;
+          if (box == null) return;
+          final size = box.size;
+          final dx = -details.delta.dx / size.width * 3.0;
+          final dy = -details.delta.dy / size.height * 3.0;
+          setState(() {
+            _focalAlignment = Alignment(
+              (_focalAlignment.x + dx).clamp(-1.0, 1.0),
+              (_focalAlignment.y + dy).clamp(-1.0, 1.0),
+            );
+            _showDragHint = false;
+          });
+        },
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(child: _buildInstagramLayout(colors)),
-            if (_isRecordingVoice)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                child: _buildRecordingIndicator(colors),
+            // Photo
+            _photoLoadError
+                ? Container(
+                    color: Colors.black26,
+                    child: const Center(
+                      child: Icon(Icons.broken_image_rounded,
+                          size: 48, color: Colors.white54),
+                    ),
+                  )
+                : ColorFiltered(
+                    colorFilter: _buildColorFilter(),
+                    child: Image.file(
+                      File(_photoPath),
+                      fit: BoxFit.cover,
+                      alignment: _focalAlignment,
+                      errorBuilder: (_, __, ___) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => _photoLoadError = true);
+                        });
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ),
+            // Bottom gradient for hint readability
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withAlpha(100)],
+                  ),
+                ),
               ),
-            _buildContinueButton(colors),
+            ),
+            // Drag hint
+            if (_showDragHint)
+              Positioned(
+                bottom: 10, left: 0, right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(110),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.open_with_rounded, size: 12, color: Colors.white),
+                        const SizedBox(width: 5),
+                        Text('Drag to reframe',
+                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            // Reframe pill — top right
+            Positioned(
+              top: 12, right: 12,
+              child: GestureDetector(
+                onTap: () => _showReframeSheet(colors),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(140),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.crop_free_rounded, size: 13, color: Colors.white),
+                      const SizedBox(width: 5),
+                      Text('Reframe',
+                          style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ── Instagram-style layout: thumbnail left + text right ───────────────────
+  // ── Text + voice area (scrollable, below photo) ───────────────────────────
 
-  Widget _buildInstagramLayout(AppPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Row(
+  Widget _buildTextAndVoiceArea(AppPalette colors) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Thumbnail (tap to reframe) ─────────────────────────────────
-          GestureDetector(
-            onTap: () => _showReframeSheet(colors),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: ColorFiltered(
-                    colorFilter: _buildColorFilter(),
-                    child: SizedBox(
-                      width: 90,
-                      height: 90,
-                      child: _photoLoadError
-                          ? Container(
-                              color: Colors.black26,
-                              child: const Center(
-                                child: Icon(Icons.broken_image_rounded,
-                                    size: 28, color: Colors.white54),
-                              ),
-                            )
-                          : Container(
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: FileImage(File(_photoPath)),
-                                  fit: BoxFit.cover,
-                                  alignment: _focalAlignment,
-                                  onError: (_, __) {
-                                    if (mounted) setState(() => _photoLoadError = true);
-                                  },
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
+          // Label row
+          Row(
+            children: [
+              Text(
+                'Tell the story',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textSecondary,
+                  letterSpacing: 0.6,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Reframe',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: colors.accent,
+              ),
+              Text(' *',
+                  style: TextStyle(fontSize: 13, color: colors.accent, fontWeight: FontWeight.w700)),
+              if (_isVoiceMode && !_isRecordingVoice) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: colors.accent.withAlpha(60)),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 14),
-
-          // ── Text input area ────────────────────────────────────────────
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Label row + voice badge + mic button
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Tell the story',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textSecondary,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                    Text(
-                      ' *',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.accent,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (_isVoiceMode && !_isRecordingVoice) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: colors.accent.withAlpha(20),
-                          borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: colors.accent.withAlpha(60)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.mic_rounded,
-                                size: 10, color: colors.accent),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Voice',
-                              style: GoogleFonts.manrope(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: colors.accent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.mic_rounded, size: 10, color: colors.accent),
+                      const SizedBox(width: 3),
+                      Text('Voice',
+                          style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w600, color: colors.accent)),
                     ],
-                    const Spacer(),
-                    GestureDetector(
-                      key: const Key('voice_toggle_button'),
-                      onTap: _isRecordingVoice
-                          ? _stopVoiceRecording
-                          : _startVoiceRecording,
-                      child: Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isRecordingVoice
-                              ? Colors.red.withAlpha(20)
-                              : colors.accent.withAlpha(18),
-                        ),
-                        child: Icon(
-                          _isRecordingVoice
-                              ? Icons.stop_rounded
-                              : Icons.mic_rounded,
-                          size: 18,
-                          color: _isRecordingVoice ? Colors.red : colors.accent,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                // Text field — expands to fill remaining space
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    focusNode: _focusNode,
-                    autofocus: true,
-                    maxLines: null,
-                    expands: true,
-                    readOnly: _isRecordingVoice,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      color: colors.textPrimary,
-                      height: 1.65,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: _isRecordingVoice
-                          ? 'Listening… speak your memory'
-                          : 'What happened here? What does this moment mean to you?',
-                      hintStyle: GoogleFonts.manrope(
-                        fontSize: 15,
-                        color: colors.textSecondary.withAlpha(110),
-                        height: 1.65,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-
-                // Nudge when text too short
-                AnimatedOpacity(
-                  opacity: _textController.text.isNotEmpty &&
-                          !_hasEnoughText &&
-                          !_isRecordingVoice
-                      ? 1.0
-                      : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Write a little more to continue…',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12,
-                        color: colors.textSecondary.withAlpha(140),
-                      ),
-                    ),
                   ),
                 ),
               ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Text field
+          TextField(
+            controller: _textController,
+            focusNode: _focusNode,
+            autofocus: true,
+            minLines: 4,
+            maxLines: 8,
+            readOnly: _isRecordingVoice,
+            style: GoogleFonts.manrope(fontSize: 15, color: colors.textPrimary, height: 1.65),
+            decoration: InputDecoration(
+              hintText: _isRecordingVoice
+                  ? 'Listening… speak your memory'
+                  : 'What happened here? What does this moment mean to you?',
+              hintStyle: GoogleFonts.manrope(
+                  fontSize: 15, color: colors.textSecondary.withAlpha(110), height: 1.65),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colors.accent, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
+          // Nudge
+          AnimatedOpacity(
+            opacity: _textController.text.isNotEmpty && !_hasEnoughText && !_isRecordingVoice ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Write a little more to continue…',
+                  style: GoogleFonts.manrope(fontSize: 12, color: colors.textSecondary.withAlpha(140))),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Recording state OR divider + record button
+          if (_isRecordingVoice)
+            _buildRecordingIndicator(colors)
+          else ...[
+            _buildOrSpeakDivider(colors),
+            const SizedBox(height: 12),
+            _buildRecordButton(colors),
+          ],
+          const SizedBox(height: 8),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOrSpeakDivider(AppPalette colors) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: colors.border)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'or speak instead',
+            style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+          ),
+        ),
+        Expanded(child: Divider(color: colors.border)),
+      ],
+    );
+  }
+
+  Widget _buildRecordButton(AppPalette colors) {
+    return GestureDetector(
+      key: const Key('voice_toggle_button'),
+      onTap: _startVoiceRecording,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: colors.accent.withAlpha(13),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.accent.withAlpha(51)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.mic_rounded, size: 20, color: colors.accent),
+            const SizedBox(width: 8),
+            Text(
+              'Record voice',
+              style: GoogleFonts.manrope(
+                  fontSize: 14, fontWeight: FontWeight.w600, color: colors.accent),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -851,307 +947,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     );
   }
 
-  // ignore: unused_element — kept for possible future use
-  Widget _buildPhotoPreview(AppPalette colors, {bool compact = false}) {
-    return GestureDetector(
-      onPanUpdate: compact
-          ? null
-          : (details) {
-              final box = context.findRenderObject() as RenderBox?;
-              if (box == null) return;
-              final size = box.size;
-              final dx = -details.delta.dx / size.width * 2.5;
-              final dy = -details.delta.dy / size.height * 2.5;
-              setState(() {
-                _focalAlignment = Alignment(
-                  (_focalAlignment.x + dx).clamp(-1.0, 1.0),
-                  (_focalAlignment.y + dy).clamp(-1.0, 1.0),
-                );
-                _showDragHint = false;
-              });
-            },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _photoLoadError
-              ? Container(
-                  color: Colors.black26,
-                  child: const Center(
-                    child: Icon(Icons.broken_image_rounded,
-                        size: 48, color: Colors.white54),
-                  ),
-                )
-              : Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: FileImage(File(_photoPath)),
-                      fit: BoxFit.cover,
-                      alignment: _focalAlignment,
-                      onError: (_, __) {
-                        if (mounted) setState(() => _photoLoadError = true);
-                      },
-                    ),
-                  ),
-                ),
-
-          // Drag-to-reframe hint
-          if (!compact && _showDragHint)
-            Positioned(
-              bottom: 12,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withAlpha(110),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.open_with_rounded,
-                          size: 12, color: Colors.white),
-                      const SizedBox(width: 5),
-                      Text(
-                        'Drag to reframe',
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // Top-right action pills: Crop + Change
-          Positioned(
-            top: 12,
-            right: 12,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!_isDesktop && !compact)
-                  GestureDetector(
-                    onTap: () async {
-                      final cropped = await _cropPhoto(_photoPath);
-                      if (cropped != null && mounted) {
-                        setState(() {
-                          _photoPath = cropped;
-                          _focalAlignment = Alignment.center;
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(140),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.crop_rounded,
-                              size: 13, color: Colors.white),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Crop',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (!_isDesktop && !compact) const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _changePhoto,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(140),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.edit_rounded,
-                            size: 13, color: Colors.white),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Change',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ignore: unused_element — kept for possible future use
-  Widget _buildTextArea(AppPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Label row: "Tell the story *" + optional voice badge + mic/stop button
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Tell the story',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textSecondary,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              Text(
-                ' *',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colors.accent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              // "Voice" badge shown after recording completes
-              if (_isVoiceMode && !_isRecordingVoice) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: colors.accent.withAlpha(20),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colors.accent.withAlpha(60)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.mic_rounded, size: 10, color: colors.accent),
-                      const SizedBox(width: 3),
-                      Text(
-                        'Voice',
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: colors.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const Spacer(),
-              // Mic / Stop toggle button
-              GestureDetector(
-                key: const Key('voice_toggle_button'),
-                onTap: _isRecordingVoice
-                    ? _stopVoiceRecording
-                    : _startVoiceRecording,
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _isRecordingVoice
-                        ? Colors.red.withAlpha(20)
-                        : colors.accent.withAlpha(18),
-                  ),
-                  child: Icon(
-                    _isRecordingVoice
-                        ? Icons.stop_rounded
-                        : Icons.mic_rounded,
-                    size: 18,
-                    color: _isRecordingVoice ? Colors.red : colors.accent,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Pulsing recording indicator shown while actively recording
-          if (_isRecordingVoice) ...[
-            const SizedBox(height: 8),
-            _buildRecordingIndicator(colors),
-          ],
-
-          const SizedBox(height: 10),
-
-          // Text field — read-only while recording (transcript streams in)
-          Expanded(
-            child: TextField(
-              controller: _textController,
-              focusNode: _focusNode,
-              autofocus: true,
-              maxLines: null,
-              expands: true,
-              readOnly: _isRecordingVoice,
-              textAlignVertical: TextAlignVertical.top,
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                color: colors.textPrimary,
-                height: 1.65,
-              ),
-              decoration: InputDecoration(
-                hintText: _isRecordingVoice
-                    ? 'Listening… speak your memory'
-                    : 'What happened here? What does this moment mean to you?',
-                hintStyle: GoogleFonts.manrope(
-                  fontSize: 15,
-                  color: colors.textSecondary.withAlpha(110),
-                  height: 1.65,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-
-          // Nudge when text is too short (hidden while recording)
-          AnimatedOpacity(
-            opacity: _textController.text.isNotEmpty &&
-                    !_hasEnoughText &&
-                    !_isRecordingVoice
-                ? 1.0
-                : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Write a little more to continue…',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  color: colors.textSecondary.withAlpha(140),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRecordingIndicator(AppPalette colors) {
     return AnimatedBuilder(
       animation: _pulseAnim,
@@ -1184,11 +979,29 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
             ),
           ),
           const Spacer(),
-          Text(
-            'Tap ■ to stop',
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              color: colors.textSecondary.withAlpha(150),
+          GestureDetector(
+            onTap: _stopVoiceRecording,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.red.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.stop_rounded, size: 13, color: Colors.red),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Stop',
+                    style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

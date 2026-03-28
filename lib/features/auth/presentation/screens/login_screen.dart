@@ -13,6 +13,8 @@ import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/core/utils/password_validator.dart';
 import 'package:deardays/features/auth/presentation/screens/pin_screen.dart';
 import 'package:deardays/features/auth/presentation/screens/pattern_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/terms_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLogin;
@@ -433,15 +435,57 @@ class _LoginScreenState extends State<LoginScreen>
 
                       // Terms
                       Center(
-                        child: Text(
-                          'By continuing, you agree to our Terms of\nService and Privacy Policy.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            // Hardcoded to pass WCAG AA 4.5:1 on #F9F7F3 bg (ratio ~6.0)
-                            color: const Color(0xFF595550),
-                            height: 1.5,
+                        child: Text.rich(
+                          TextSpan(
+                            style: GoogleFonts.manrope(
+                              fontSize: 11,
+                              // Hardcoded to pass WCAG AA 4.5:1 on #F9F7F3 bg (ratio ~6.0)
+                              color: const Color(0xFF595550),
+                              height: 1.5,
+                            ),
+                            children: [
+                              const TextSpan(text: 'By continuing, you agree to our '),
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.baseline,
+                                baseline: TextBaseline.alphabetic,
+                                child: GestureDetector(
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const TermsScreen()),
+                                  ),
+                                  child: Text(
+                                    'Terms of Service',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 11,
+                                      color: const Color(0xFF595550),
+                                      height: 1.5,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const TextSpan(text: ' and '),
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.baseline,
+                                baseline: TextBaseline.alphabetic,
+                                child: GestureDetector(
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                                  ),
+                                  child: Text(
+                                    'Privacy Policy',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 11,
+                                      color: const Color(0xFF595550),
+                                      height: 1.5,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const TextSpan(text: '.'),
+                            ],
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
 

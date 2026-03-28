@@ -23,6 +23,7 @@ import 'package:deardays/services/media/media_service.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
+import 'package:deardays/services/media/pending_photo_uploads.dart';
 import 'package:deardays/services/sync/sync_queue.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
 
@@ -233,9 +234,15 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
           saved = saved.copyWith(hasPhoto: true);
         } catch (e) {
           debugPrint('[PostSave] Photo upload failed: $e');
+          // Queue for automatic retry when connectivity is restored.
+          await PendingPhotoUploads().add(
+            entryId: saved.id,
+            filePath: pre.attachedPhotoPath!,
+            focalAlignment: pre.focalAlignment,
+          );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Photo could not be uploaded. Memory was saved without it.'),
+              content: Text('Photo will upload automatically when you\u2019re back online.'),
               behavior: SnackBarBehavior.floating,
             ));
           }

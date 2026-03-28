@@ -653,121 +653,201 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   //           Row 2 — full-width scrollable category chips
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── View mode labels for the dropdown chip ──────────────────────────────
+  static const _viewModes = [
+    (0, 'Timeline', Icons.timeline_rounded),
+    (1, 'Monthly', Icons.calendar_view_month_rounded),
+    (2, 'Grid', Icons.grid_view_rounded),
+  ];
+
+  int get _viewModeIndex => _isGrid ? 2 : (_isMonthly ? 1 : 0);
+
   Widget _buildControlsRow(AppPalette colors) {
     final hasMoodFilter = _moodFilter != null;
+    final (_, viewLabel, viewIcon) = _viewModes[_viewModeIndex];
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 0, 8),
+      padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
       child: SizedBox(
-        height: 50,
-        child: Row(
+        height: 42,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
           children: [
-            // ── View toggle (icon-only) ──────────────────────────────────────
-            Container(
-              height: 50,
-              padding: EdgeInsets.zero,
-              decoration: BoxDecoration(
-                color: colors.cardBg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _viewToggleTab(Icons.timeline_rounded, isMonthly: false, colors: colors),
-                  _viewToggleTab(Icons.calendar_view_month_rounded, isMonthly: true, colors: colors),
-                  _gridToggleTab(colors),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // ── Scrollable category chips ────────────────────────────────────
-            Expanded(
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (_, i) {
-                  final (category, label) = _categories[i];
-                  final isActive = _categoryFilter == category;
-                  return Semantics(
-                    label: 'Filter: $label',
-                    button: true,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _categoryFilter = category),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isActive ? colors.accent : colors.cardBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isActive ? colors.accent : colors.border,
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isActive ? Colors.white : colors.textSecondary,
-                          ),
-                        ),
+            // ── View mode dropdown chip (first position) ─────────────────
+            GestureDetector(
+              onTap: () => _showViewModePicker(colors),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(viewIcon, size: 14, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      viewLabel,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            // ── Mood filter ──────────────────────────────────────────────────
-            Semantics(
-              label: 'Filter by mood',
-              button: true,
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: GestureDetector(
-                  onTap: () => _showMoodFilterSheet(colors),
-                  child: Center(
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: hasMoodFilter ? colors.accent : colors.cardBg,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: hasMoodFilter ? colors.accent : colors.border),
-                          ),
-                          child: Icon(
-                            Icons.tune_rounded,
-                            size: 17,
-                            color: hasMoodFilter ? Colors.white : colors.textSecondary,
-                          ),
-                        ),
-                        if (hasMoodFilter)
-                          Positioned(
-                            top: -4,
-                            right: -4,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: colors.accent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: colors.bg, width: 1.5),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 16, color: Colors.white70),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 8),
+
+            // ── Category chips ───────────────────────────────────────────
+            for (final (category, label) in _categories) ...[
+              _filterChip(
+                label: label,
+                isActive: _categoryFilter == category,
+                onTap: () => setState(() => _categoryFilter = category),
+                colors: colors,
+              ),
+              const SizedBox(width: 6),
+            ],
+
+            // ── Mood chip ────────────────────────────────────────────────
+            _filterChip(
+              label: hasMoodFilter ? 'Mood ✓' : 'Mood',
+              isActive: hasMoodFilter,
+              onTap: () => _showMoodFilterSheet(colors),
+              colors: colors,
+            ),
+            const SizedBox(width: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filterChip({
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+    required AppPalette colors,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: isActive ? colors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: isActive ? colors.accent : colors.border,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isActive ? Colors.white : colors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showViewModePicker(AppPalette colors) {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'View Mode',
+                style: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              for (final (idx, label, icon) in _viewModes)
+                _viewModeOption(idx, label, icon, colors),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _viewModeOption(int idx, String label, IconData icon, AppPalette colors) {
+    final isActive = _viewModeIndex == idx;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          switch (idx) {
+            case 0:
+              _isGrid = false;
+              _isMonthly = false;
+            case 1:
+              _isGrid = false;
+              _isMonthly = true;
+            case 2:
+              _isGrid = true;
+              _isMonthly = false;
+          }
+        });
+        Navigator.pop(context);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: isActive ? colors.accent.withAlpha(25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20,
+                color: isActive ? colors.accent : colors.textSecondary),
+            const SizedBox(width: 14),
+            Text(
+              label,
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive ? colors.accent : colors.textPrimary,
+              ),
+            ),
+            const Spacer(),
+            if (isActive)
+              Icon(Icons.check_rounded, size: 18, color: colors.accent),
           ],
         ),
       ),
@@ -1098,65 +1178,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       ),
       onLongPress: () => showMemoryContextMenu(context, entry, colors),
       onShare: () => context.push('/share-card', extra: entry),
-    );
-  }
-
-  Widget _gridToggleTab(AppPalette colors) {
-    final isActive = _isGrid;
-    return Semantics(
-      label: 'Grid view',
-      button: true,
-      child: GestureDetector(
-        onTap: () => setState(() {
-          _isGrid = !_isGrid;
-          if (_isGrid) _isMonthly = false;
-        }),
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 36,
-              height: 34,
-              decoration: BoxDecoration(
-                color: isActive ? colors.accent : Colors.transparent,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(Icons.grid_view_rounded, size: 15,
-                  color: isActive ? Colors.white : colors.textSecondary),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _viewToggleTab(IconData icon, {required bool isMonthly, required AppPalette colors}) {
-    final isActive = !_isGrid && (_isMonthly == isMonthly);
-    final label = isMonthly ? 'Month view' : 'Timeline view';
-    return Semantics(
-      label: label,
-      button: true,
-      child: GestureDetector(
-        onTap: () => setState(() => _isMonthly = isMonthly),
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 36,
-              height: 34,
-              decoration: BoxDecoration(
-                color: isActive ? colors.accent : Colors.transparent,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Icon(icon, size: 15, color: isActive ? Colors.white : colors.textSecondary),
-            ),
-          ),
-        ),
-      ),
     );
   }
 

@@ -19,7 +19,6 @@ import 'package:deardays/core/onboarding/sample_memory.dart';
 import 'package:deardays/core/utils/photo_crop_helper.dart';
 import 'package:deardays/core/widgets/app_avatar.dart';
 import 'package:deardays/core/widgets/dd_logo.dart';
-import 'package:deardays/features/journal/presentation/widgets/draft_history_sheet.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/services/sync/sync_service.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
@@ -285,7 +284,6 @@ class _GlassHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final draftCount = ref.watch(draftsProvider).valueOrNull?.length ?? 0;
 
     return ClipRect(
       child: BackdropFilter(
@@ -318,38 +316,6 @@ class _GlassHeader extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
-                    // Draft history (badge only, compact)
-                    Semantics(
-                      label: 'Drafts',
-                      button: true,
-                      child: GestureDetector(
-                        onTap: () => showDraftHistorySheet(context, ref),
-                        child: SizedBox(
-                          width: 36,
-                          height: 36,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Icon(Icons.history_rounded, size: 20, color: colors.textSecondary),
-                              if (draftCount > 0)
-                                Positioned(
-                                  top: 5,
-                                  right: 5,
-                                  child: Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: BoxDecoration(
-                                      color: colors.accent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
                     // Search
                     Semantics(
                       label: 'Search',

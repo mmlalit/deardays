@@ -46,8 +46,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       photo: 'assets/images/onboarding/ob3_private.jpg',
       gradientColors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
       icon: Icons.lock_rounded,
-      title: 'Private by design',
-      subtitle: 'End-to-end encrypted. Your story belongs to you and no one else.',
+      title: 'Private & secure',
+      subtitle: 'Your data is encrypted and stored safely. Your story belongs to you.',
     ),
     _PageData(
       photo: 'assets/images/onboarding/ob4_memory.jpg',

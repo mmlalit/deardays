@@ -151,6 +151,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     ),
                     const SizedBox(height: 28),
 
+                    // Trial info
+                    Text(
+                      'Start your 7-day free trial — no card needed',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.of(context).accent,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // CTA button
                     SizedBox(
                       width: double.infinity,
@@ -176,7 +188,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                 ),
                               )
                             : Text(
-                                'Continue my story \u2192',
+                                'Start free trial \u2192',
                                 style: GoogleFonts.manrope(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w600,

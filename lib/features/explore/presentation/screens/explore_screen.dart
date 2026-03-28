@@ -66,6 +66,23 @@ const _milestoneCategory = _Category(
   ],
 );
 
+// ── Time window model for past-era blocks ────────────────────────────────
+class _TimeWindow {
+  final DateTime start;
+  final DateTime end;
+  final String label;         // "September 2024" or "2023"
+  final String relativeLabel; // "2 months ago"
+  final int entryCount;
+
+  const _TimeWindow({
+    required this.start,
+    required this.end,
+    required this.label,
+    required this.relativeLabel,
+    required this.entryCount,
+  });
+}
+
 // Multi-label category detection — returns ALL matching category ids
 Set<String> _detectCategories(JournalEntry entry) {
   final text = entry.content.toLowerCase();
@@ -727,8 +744,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       'great': '🤩', 'good': '😊', 'okay': '😐', 'low': '😔', 'tough': '😢',
     };
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    const double maxBarHeight = 40.0;
-    const double minBarHeight = 6.0;
 
     final dayEntry = <int, JournalEntry>{};
     for (final e in entries) {
@@ -781,60 +796,58 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: maxBarHeight + 44,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(7, (i) {
-                final entry = dayEntry[i];
-                final mood = entry?.mood?.toLowerCase();
-                final score = moodScore[mood];
-                final barHeight = score != null
-                    ? minBarHeight + (maxBarHeight - minBarHeight) * ((score - 1) / 4)
-                    : minBarHeight;
-                final barColor = mood != null
-                    ? (moodColors[mood] ?? colors.accent)
-                    : colors.highlightFaint;
-                final isToday = i == 6;
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (i) {
+              final entry = dayEntry[i];
+              final mood = entry?.mood?.toLowerCase();
+              final moodColor = mood != null ? (moodColors[mood] ?? colors.accent) : null;
+              final isToday = i == 6;
 
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (mood != null && isToday)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(moodEmojis[mood] ?? '', style: const TextStyle(fontSize: 11)),
-                      ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOut,
-                      width: 28,
-                      height: barHeight,
-                      decoration: BoxDecoration(
-                        color: barColor,
-                        borderRadius: BorderRadius.circular(6),
-                        border: isToday
-                            ? Border.all(color: colors.accent.withAlpha(120), width: 1.5)
-                            : null,
-                        boxShadow: mood != null
-                            ? [BoxShadow(color: barColor.withAlpha(60), blurRadius: 6, offset: const Offset(0, 2))]
-                            : null,
-                      ),
+              return Column(
+                children: [
+                  // Emoji above dot — only for days that have a mood
+                  SizedBox(
+                    height: 18,
+                    child: mood != null
+                        ? Text(moodEmojis[mood] ?? '', style: const TextStyle(fontSize: 13))
+                        : null,
+                  ),
+                  const SizedBox(height: 4),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOut,
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: moodColor?.withAlpha(mood != null ? 220 : 0) ??
+                          colors.highlightFaint.withAlpha(80),
+                      border: isToday
+                          ? Border.all(
+                              color: moodColor ?? colors.accent,
+                              width: 2,
+                            )
+                          : mood != null
+                              ? null
+                              : Border.all(color: colors.border, width: 1),
+                      boxShadow: mood != null
+                          ? [BoxShadow(color: moodColor!.withAlpha(50), blurRadius: 8, offset: const Offset(0, 2))]
+                          : null,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      dayLabels[i],
-                      style: GoogleFonts.manrope(
-                        fontSize: 9, fontWeight: FontWeight.w700,
-                        color: isToday ? colors.accent : colors.textMuted,
-                        letterSpacing: 0.5,
-                      ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    dayLabels[i],
+                    style: GoogleFonts.manrope(
+                      fontSize: 9, fontWeight: FontWeight.w700,
+                      color: isToday ? colors.accent : colors.textMuted,
+                      letterSpacing: 0.5,
                     ),
-                  ],
-                );
-              }),
-            ),
+                  ),
+                ],
+              );
+            }),
           ),
         ],
       ),
@@ -869,8 +882,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final featured = _highestSentimentEntry(allHappy);
     if (featured != null) seen.add(featured.id);
 
-    // Recent (top 6 of remaining)
-    final recent = claim(entries, limit: 6);
+    // Recent (top 3 for current block — user scrolls past blocks for more)
+    final recent = claim(entries, limit: 3);
 
     // Category sections
     final familyEntries = claim(entries.where((e) => cats[e.id]?.contains('family') == true));
@@ -924,13 +937,20 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         // ── Featured Chapter Postcard ──
         _buildFeaturedChapterPostcard(entries, colors),
 
+        // ── Memory of the Day ──
+        _buildMemoryOfTheDaySection(entries, colors),
+
         // ── Mood Summary ──
         _buildMoodSummary(entries, colors),
 
         // ── Recent Memories ──
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: _buildSectionHeader('Recent Memories', colors),
+          child: _buildSectionHeader('Recent Memories', colors, onSeeAll: () {
+            // Switch to Timeline tab (index 2) for full chronological list
+            final shell = context.findAncestorStateOfType<State>();
+            if (shell != null) context.go('/timeline');
+          }),
         ),
         if (recent.isEmpty)
           Padding(
@@ -1074,6 +1094,21 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           const SizedBox(height: 40),
         ],
 
+        // ═══════════════════════════════════════════════════════════════════
+        // PAST BLOCKS — each time window gets its own era section
+        // ═══════════════════════════════════════════════════════════════════
+        ...() {
+          final windows = _buildTimeWindows(entries);
+          final chapters =
+              ref.watch(chaptersProvider).valueOrNull ?? <Chapter>[];
+          final items = <Widget>[];
+          for (final window in windows) {
+            items.add(_buildBlockSeparator(window, colors));
+            items.addAll(_buildPastBlock(window, entries, colors, chapters));
+          }
+          return items;
+        }(),
+
         // End-of-feed
         Padding(
           padding: const EdgeInsets.only(top: 16, bottom: 32),
@@ -1085,7 +1120,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   colors: [colors.accent.withAlpha(120), Colors.transparent],
                 )))),
               const SizedBox(height: 12),
-              Center(child: Text('More memories await discovery',
+              Center(child: Text(
+                'You\'ve explored your whole story',
                 style: GoogleFonts.newsreader(fontSize: 14, fontStyle: FontStyle.italic,
                   color: colors.textMuted.withAlpha(120)))),
             ],
@@ -1156,6 +1192,275 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Memory of the Day
+  // ─────────────────────────────────────────────────────────────────────────
+
+  JournalEntry? _pickMemoryOfTheDay(List<JournalEntry> entries) {
+    if (entries.isEmpty) return null;
+    final today = DateTime.now();
+    final seed = today.year * 10000 + today.month * 100 + today.day;
+    final withPhotos = entries.where((e) => e.hasPhoto).toList();
+    final pool = withPhotos.isNotEmpty ? withPhotos : entries;
+    return pool[seed % pool.length];
+  }
+
+  Widget _buildMemoryOfTheDaySection(
+      List<JournalEntry> entries, AppPalette colors) {
+    final entry = _pickMemoryOfTheDay(entries);
+    if (entry == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      child: _MemoryOfTheDayCard(
+        entry: entry,
+        colors: colors,
+        getPhotoUrl: _getPhotoUrl,
+        onTap: () => context.push(
+          '/memory',
+          extra: MemoryDetailArgs(entry: entry, allEntries: entries,
+              initialIndex: entries.indexOf(entry)),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Time-windowed past blocks
+  // ─────────────────────────────────────────────────────────────────────────
+
+  List<_TimeWindow> _buildTimeWindows(List<JournalEntry> entries) {
+    final now = DateTime.now();
+    final currentMonthStart = DateTime(now.year, now.month, 1);
+
+    // Only entries BEFORE the current month
+    final pastEntries = entries
+        .where((e) => e.entryDate.isBefore(currentMonthStart))
+        .toList();
+    if (pastEntries.isEmpty) return [];
+
+    final cutoffForMonthly = DateTime(now.year - 2, now.month, 1);
+    final monthGroups = <String, List<JournalEntry>>{};
+    final yearGroups = <int, List<JournalEntry>>{};
+
+    for (final entry in pastEntries) {
+      final d = entry.entryDate;
+      if (!d.isBefore(cutoffForMonthly)) {
+        final key = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+        monthGroups.putIfAbsent(key, () => []).add(entry);
+      } else {
+        yearGroups.putIfAbsent(d.year, () => []).add(entry);
+      }
+    }
+
+    final windows = <_TimeWindow>[];
+
+    // Monthly windows (descending)
+    final sortedMonths = monthGroups.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+    for (final key in sortedMonths) {
+      final group = monthGroups[key]!;
+      if (group.length < 3) continue; // skip sparse months
+      final parts = key.split('-');
+      final year = int.parse(parts[0]);
+      final month = int.parse(parts[1]);
+      final start = DateTime(year, month, 1);
+      final end = DateTime(year, month + 1, 0);
+      final monthsDiff = (now.year - year) * 12 + now.month - month;
+
+      windows.add(_TimeWindow(
+        start: start,
+        end: end,
+        label: DateFormat('MMMM yyyy').format(start),
+        relativeLabel:
+            monthsDiff == 1 ? '1 month ago' : '$monthsDiff months ago',
+        entryCount: group.length,
+      ));
+    }
+
+    // Yearly windows (descending)
+    final sortedYears = yearGroups.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+    for (final year in sortedYears) {
+      final group = yearGroups[year]!;
+      if (group.length < 3) continue;
+      final yearsDiff = now.year - year;
+
+      windows.add(_TimeWindow(
+        start: DateTime(year, 1, 1),
+        end: DateTime(year, 12, 31),
+        label: year.toString(),
+        relativeLabel: yearsDiff == 1 ? '1 year ago' : '$yearsDiff years ago',
+        entryCount: group.length,
+      ));
+    }
+
+    return windows;
+  }
+
+  Widget _buildBlockSeparator(_TimeWindow window, AppPalette colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Row(
+        children: [
+          const SizedBox(width: 40),
+          Expanded(
+              child: Divider(color: colors.border.withAlpha(120), height: 1)),
+          const SizedBox(width: 16),
+          Column(
+            children: [
+              Text(
+                window.label,
+                style: GoogleFonts.newsreader(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '${window.relativeLabel} · ${window.entryCount} memories',
+                style: GoogleFonts.manrope(
+                    fontSize: 11, color: colors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+              child: Divider(color: colors.border.withAlpha(120), height: 1)),
+          const SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPastBlock(
+    _TimeWindow window,
+    List<JournalEntry> allEntries,
+    AppPalette colors,
+    List<Chapter> chapters,
+  ) {
+    final windowEntries = allEntries
+        .where((e) =>
+            !e.entryDate.isBefore(window.start) &&
+            !e.entryDate.isAfter(window.end))
+        .toList();
+    if (windowEntries.isEmpty) return [];
+
+    final widgets = <Widget>[];
+
+    // ── Featured chapter for this time window ──
+    final matchingChapter = _findChapterForWindow(chapters, window);
+    if (matchingChapter != null) {
+      final photoEntry = windowEntries.firstWhere(
+        (e) => e.hasPhoto,
+        orElse: () => windowEntries.first,
+      );
+      final accentColor = ChapterVisual.forTitle(matchingChapter.title,
+              colorValue: matchingChapter.colorValue)
+          .primary;
+      widgets.add(Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: _ChapterPostcard(
+          chapter: matchingChapter,
+          photoEntry: photoEntry.hasPhoto ? photoEntry : null,
+          accent: accentColor,
+          colors: colors,
+          onTap: () =>
+              context.push('/book-reader', extra: BookMode.byChapter),
+        ),
+      ));
+    }
+
+    // ── Top 3 memories from this window ──
+    final topEntries = windowEntries.take(3).toList();
+    widgets.add(Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: _buildSectionHeader('Memories', colors),
+    ));
+    widgets.add(Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          for (int i = 0; i < topEntries.length; i++) ...[
+            _buildEditorialEntryCard(topEntries[i], colors),
+            if (i < topEntries.length - 1) const SizedBox(height: 36),
+          ],
+        ],
+      ),
+    ));
+    widgets.add(const SizedBox(height: 28));
+
+    // ── Category scrolls (only if ≥2 entries per category) ──
+    for (final catDef in [
+      (
+        label: 'Family Moments',
+        id: 'family',
+        color: const Color(0xFFEC4899),
+        icon: Icons.family_restroom_rounded,
+      ),
+      (
+        label: 'Travel Stories',
+        id: 'travel',
+        color: const Color(0xFFF59E0B),
+        icon: Icons.flight_takeoff_rounded,
+      ),
+      (
+        label: 'Milestones',
+        id: 'milestone',
+        color: const Color(0xFF8B5CF6),
+        icon: Icons.emoji_events_rounded,
+      ),
+    ]) {
+      final catEntries = windowEntries
+          .where((e) => _detectCategories(e).contains(catDef.id))
+          .toList();
+      if (catEntries.length < 2) continue;
+
+      widgets.add(Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: _buildSectionHeader(catDef.label, colors),
+      ));
+      widgets.add(SizedBox(
+        height: 220,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: catEntries.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (_, i) => _buildHappyCard(
+            catEntries[i],
+            colors,
+            pool: catEntries,
+            sectionColor: catDef.color,
+            sectionIcon: catDef.icon,
+          ),
+        ),
+      ));
+      widgets.add(const SizedBox(height: 28));
+    }
+
+    return widgets;
+  }
+
+  Chapter? _findChapterForWindow(
+      List<Chapter> chapters, _TimeWindow window) {
+    // Find the chapter whose date range overlaps most with this window
+    Chapter? best;
+    int bestOverlap = 0;
+    for (final ch in chapters) {
+      final chEnd = ch.endDate ?? DateTime.now();
+      final overlapStart =
+          ch.startDate.isAfter(window.start) ? ch.startDate : window.start;
+      final overlapEnd = chEnd.isBefore(window.end) ? chEnd : window.end;
+      final overlap = overlapEnd.difference(overlapStart).inDays;
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        best = ch;
+      }
+    }
+    return best;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -2614,142 +2919,141 @@ class _ChapterPostcardState extends ConsumerState<_ChapterPostcard> {
           borderRadius: BorderRadius.circular(20),
           child: SizedBox(
             height: 280,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                // ── Left panel: solid dark bg + text ──────────────────────
-                Expanded(
-                  flex: 52,
-                  child: Container(
-                    color: cardBg,
-                    child: Stack(
-                      children: [
-                        // Book spine (left edge)
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 4,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  accent.withAlpha(220),
-                                  accent.withAlpha(90),
-                                ],
-                              ),
+                // ── Full-bleed photo behind the entire card ────────────────
+                if (hasPhoto)
+                  CachedNetworkImage(
+                    imageUrl: _photoUrl!,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                    errorWidget: (_, __, ___) => _gradientBg(accent, cardBg),
+                  )
+                else
+                  _gradientBg(accent, cardBg),
+
+                // ── Left glass panel: semi-transparent tint over the photo ──
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  right: 0,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Glass overlay — photo subtly shows through
+                      Expanded(
+                        flex: 52,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                cardBg.withAlpha(218), // ~85% opaque left edge
+                                cardBg.withAlpha(190), // ~75% opaque centre
+                                cardBg.withAlpha(140), // ~55% opaque right edge → blends into photo
+                              ],
                             ),
                           ),
-                        ),
-                        // Text content
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 16, 0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Stack(
                             children: [
-                              Text(
-                                'FEATURED CHAPTER',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  color: accent.withAlpha(210),
-                                  letterSpacing: 2.0,
+                              // Book spine (left edge)
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 4,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        accent.withAlpha(220),
+                                        accent.withAlpha(90),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                chapter.title,
-                                style: GoogleFonts.newsreader(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor,
-                                  height: 1.2,
-                                ),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                countLabel,
-                                style: GoogleFonts.manrope(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: textColor.withAlpha(150),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              // Filled Read Story button
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 9),
-                                decoration: BoxDecoration(
-                                  color: accent.withAlpha(220),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              // Text content
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 0, 16, 0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      'Read Story',
+                                      'FEATURED CHAPTER',
                                       style: GoogleFonts.manrope(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: textColor,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: accent.withAlpha(230),
+                                        letterSpacing: 2.0,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    const Icon(Icons.auto_stories_rounded,
-                                        size: 14, color: textColor),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      chapter.title,
+                                      style: GoogleFonts.newsreader(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                        height: 1.2,
+                                      ),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      countLabel,
+                                      style: GoogleFonts.manrope(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: textColor.withAlpha(180),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    // Filled Read Story button
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 9),
+                                      decoration: BoxDecoration(
+                                        color: accent.withAlpha(220),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Read Story',
+                                            style: GoogleFonts.manrope(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: textColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          const Icon(Icons.auto_stories_rounded,
+                                              size: 14, color: textColor),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── Right panel: clear photo ───────────────────────────────
-                Expanded(
-                  flex: 48,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Photo — fully clear, no scrim
-                      if (hasPhoto)
-                        CachedNetworkImage(
-                          imageUrl: _photoUrl!,
-                          fit: BoxFit.cover,
-                          alignment: Alignment.center,
-                          errorWidget: (_, __, ___) => _gradientBg(accent, cardBg),
-                        )
-                      else
-                        _gradientBg(accent, cardBg),
-
-                      // Thin blend at left edge only — seamless join to text panel
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: 32,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [cardBg, Colors.transparent],
-                            ),
-                          ),
-                        ),
                       ),
+                      // Right side: fully transparent — photo shows through clearly
+                      const Expanded(flex: 48, child: SizedBox.shrink()),
                     ],
                   ),
                 ),
+
               ],
             ),
           ),
@@ -2767,4 +3071,192 @@ class _ChapterPostcardState extends ConsumerState<_ChapterPostcard> {
           ),
         ),
       );
+}
+
+// ── Memory of the Day card ────────────────────────────────────────────────────
+
+class _MemoryOfTheDayCard extends ConsumerStatefulWidget {
+  final JournalEntry entry;
+  final AppPalette colors;
+  final Future<String> Function(String) getPhotoUrl;
+  final VoidCallback onTap;
+
+  const _MemoryOfTheDayCard({
+    required this.entry,
+    required this.colors,
+    required this.getPhotoUrl,
+    required this.onTap,
+  });
+
+  @override
+  ConsumerState<_MemoryOfTheDayCard> createState() =>
+      _MemoryOfTheDayCardState();
+}
+
+class _MemoryOfTheDayCardState extends ConsumerState<_MemoryOfTheDayCard> {
+  String? _photoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoto();
+  }
+
+  Future<void> _loadPhoto() async {
+    final photo = widget.entry.media
+        .where((m) => m.mediaType == 'photo')
+        .firstOrNull;
+    if (photo == null) return;
+    final url = await widget.getPhotoUrl(photo.storagePath);
+    if (mounted && url.isNotEmpty) setState(() => _photoUrl = url);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final entry = widget.entry;
+    final hasPhoto = _photoUrl != null;
+
+    final dateLabel = DateFormat('MMMM d, yyyy').format(entry.entryDate);
+    final now = DateTime.now();
+    final diff = now.difference(entry.entryDate);
+    final agoLabel = diff.inDays == 0
+        ? 'Today'
+        : diff.inDays == 1
+            ? 'Yesterday'
+            : diff.inDays < 30
+                ? '${diff.inDays} days ago'
+                : diff.inDays < 365
+                    ? '${(diff.inDays / 30).round()} months ago'
+                    : '${(diff.inDays / 365).round()} years ago';
+
+    final excerpt = entry.content.trim().replaceAll('\n', ' ');
+    final preview = excerpt.length > 100
+        ? '${excerpt.substring(0, 100).trimRight()}…'
+        : excerpt;
+
+    return Semantics(
+      label: 'Memory of the day: $dateLabel. Tap to view.',
+      button: true,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Text content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Eyebrow
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'MEMORY OF THE DAY',
+                          style: GoogleFonts.manrope(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: colors.accent,
+                            letterSpacing: 1.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Date + ago
+                    Row(
+                      children: [
+                        Text(
+                          dateLabel,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 3,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          agoLabel,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // Excerpt
+                    Text(
+                      preview,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 14,
+                        height: 1.55,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // View link
+                    Row(
+                      children: [
+                        Text(
+                          'View memory',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_rounded,
+                            size: 13, color: colors.accent),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Photo thumbnail
+              if (hasPhoto) ...[
+                const SizedBox(width: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: _photoUrl!,
+                    width: 76,
+                    height: 76,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

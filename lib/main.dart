@@ -19,11 +19,11 @@ import 'package:deardays/services/analytics/analytics_service.dart';
 import 'package:deardays/services/backup/backup_service.dart';
 import 'package:deardays/services/ai/ai_credit_service.dart';
 import 'package:deardays/services/ai/offline_ai_queue.dart';
+import 'package:deardays/services/media/pending_photo_uploads.dart';
 import 'package:deardays/core/config/feature_flags.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/services/version/version_check_service.dart';
 import 'package:deardays/features/journal/data/repositories/reflection_override_repository.dart';
-import 'package:deardays/services/location/location_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
@@ -63,7 +63,6 @@ void main() async {
     ]);
 
     // ── Phase 2: Wire up sync (depends on Phase 1) ──────────────────────────
-    unawaited(OfflineAiQueue().pruneStale()); // non-blocking housekeeping
     await SyncService().init();
     SyncService().enableQueue();
 
@@ -74,6 +73,8 @@ void main() async {
     runApp(const ProviderScope(child: DearDaysApp()));
 
     // ── Phase 3: Background services (fire-and-forget) ──────────────────────
+    // OfflineAiQueue.init() must complete before pruneStale() is called.
+    unawaited(OfflineAiQueue().init().then((_) => OfflineAiQueue().pruneStale()));
     unawaited(Future.wait([
       AnalyticsService().init(),
       RevenueCatService().init(),
@@ -81,11 +82,10 @@ void main() async {
       ConnectivityService().init(),
       BackupService().init(),
       AiCreditService().init(),
-      OfflineAiQueue().init(),
       FeatureFlags().init(),
       VersionCheckService().check(),
     ]));
-    unawaited(LocationService().requestPermission());
+    unawaited(PendingPhotoUploads().init());
   });
 }
 
@@ -108,6 +108,10 @@ class _DearDaysAppState extends ConsumerState<DearDaysApp> {
     // Wire ConnectivityService stream → connectivityProvider
     _connectivitySub = ConnectivityService().onlineStatus.listen((online) {
       if (mounted) ref.read(connectivityProvider.notifier).state = online;
+      // Retry any queued photo uploads when connectivity is restored.
+      if (online && PendingPhotoUploads().hasPending) {
+        PendingPhotoUploads().retryAll();
+      }
     });
   }
 

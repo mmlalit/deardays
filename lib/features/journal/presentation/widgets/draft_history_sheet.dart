@@ -158,6 +158,7 @@ class _DraftHistorySheet extends ConsumerWidget {
           attachedPhotoPath: draft.attachedPhotoPath,
           isVoice: draft.isVoice,
           polishWithAI: false,
+          existingDraftId: draft.id,
         ),
       );
     }

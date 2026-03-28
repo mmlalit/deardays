@@ -126,8 +126,14 @@ class AuthService {
   }
 
   /// Signs in with Google using the native Google Sign-In flow.
+  ///
+  /// The web client ID must be passed via `--dart-define=GOOGLE_WEB_CLIENT_ID=...`
+  /// at build time. Without it, Google Sign-In will throw.
   Future<AuthResponse> signInWithGoogle() async {
-    const webClientId = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+    const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+    if (webClientId.isEmpty) {
+      throw AuthException('Google Sign-In is not configured.');
+    }
 
     final googleSignIn = GoogleSignIn(serverClientId: webClientId);
     final googleUser = await googleSignIn.signIn();

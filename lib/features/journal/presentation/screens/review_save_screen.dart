@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid.dart' show Uuid;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -50,6 +50,10 @@ class ReviewData {
   final String? polishedText;    // full AI literary narrative
   final String? generatedTitle;  // AI-extracted title
 
+  /// When reopening an existing draft, pass its ID so the save overwrites
+  /// the old entry instead of creating a duplicate.
+  final String? existingDraftId;
+
   const ReviewData({
     required this.rawText,
     this.mood,
@@ -63,6 +67,7 @@ class ReviewData {
     this.cleanedText,
     this.polishedText,
     this.generatedTitle,
+    this.existingDraftId,
   });
 }
 
@@ -117,13 +122,15 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   Alignment _focalAlignment = Alignment.center;
   bool _showDragHint = true;
 
-  /// Stable draft ID for this review session so repeated saves upsert.
-  final String _draftId = const Uuid().v4();
+  /// Stable draft ID — reuses existing draft ID if opened from a saved draft,
+  /// so leaving overwrites the old entry instead of creating a duplicate.
+  late final String _draftId;
   bool _isNavigating = false; // prevents double-tap to PostSaveScreen
 
   @override
   void initState() {
     super.initState();
+    _draftId = widget.data.existingDraftId ?? const Uuid().v4();
     _attachedPhotoPath = widget.data.attachedPhotoPath;
     _locationName = widget.data.locationName;
     _focalAlignment = widget.data.focalAlignment;
@@ -1227,7 +1234,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _actionPill(
                 icon: Icons.sell_outlined,
@@ -1235,14 +1244,13 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                 isActive: _tags.isNotEmpty,
                 onTap: _showTagsSheet,
               ),
-              const SizedBox(width: 8),
               _actionPill(
                 icon: Icons.location_on_outlined,
                 label: _locationName ?? 'Add location',
                 isActive: _locationName != null,
                 onTap: _addLocation,
+                maxLabelWidth: 160,
               ),
-              const SizedBox(width: 8),
               _actionPill(
                 icon: Icons.mood_rounded,
                 label: _selectedMood != null
@@ -1676,6 +1684,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
     required String label,
     required bool isActive,
     required VoidCallback onTap,
+    double? maxLabelWidth,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -1693,12 +1702,17 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
           children: [
             Icon(icon, size: 18, color: isActive ? AppColors.of(context).accent : AppColors.of(context).textSecondary),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isActive ? AppColors.of(context).accent : AppColors.of(context).textSecondary,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxLabelWidth ?? double.infinity),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isActive ? AppColors.of(context).accent : AppColors.of(context).textSecondary,
+                ),
               ),
             ),
           ],

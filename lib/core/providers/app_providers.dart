@@ -500,7 +500,7 @@ final timelineEntriesProvider =
   // Then fetch fresh data from the network
   // C-10: limit to 200 entries to cap O(n×m) category detection cost
   try {
-    final entries = await ref.watch(journalRepositoryProvider).getEntries(limit: 200);
+    final entries = await ref.read(journalRepositoryProvider).getEntries(limit: 200);
     // Cache entries locally for offline access
     for (final entry in entries) {
       await localStorage.cacheEntry(entry);
