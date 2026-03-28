@@ -15,6 +15,7 @@ import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/book/data/models/book.dart';
+import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/core/providers/onboarding_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -202,5 +203,6 @@ List<Override> authenticatedOverrides({
     totalEntriesProvider.overrideWith((ref) async => entries.length),
     weeklyMoodsProvider
         .overrideWith((ref) async => <Map<String, String>>[]),
+    draftsProvider.overrideWith((ref) async => <DraftEntry>[]),
   ];
 }

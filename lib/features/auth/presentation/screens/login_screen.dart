@@ -378,13 +378,13 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 20),
 
         // ── Trust badges ─────────────────────────────────────────────────
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 16,
+          runSpacing: 8,
           children: [
             _TrustBadge(icon: Icons.lock_outline, label: 'Encrypted', colors: colors),
-            const SizedBox(width: 16),
             _TrustBadge(icon: Icons.card_giftcard_outlined, label: '7-day free', colors: colors),
-            const SizedBox(width: 16),
             _TrustBadge(icon: Icons.credit_card_off_outlined, label: 'No card', colors: colors),
           ],
         ),

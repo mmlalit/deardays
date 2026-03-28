@@ -207,7 +207,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         Text(
           'Check your inbox',
           textAlign: TextAlign.center,
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.newsreader(
             fontSize: 30,
             fontWeight: FontWeight.bold,
             color: colors.textPrimary,

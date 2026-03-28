@@ -65,6 +65,33 @@ import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 
+// Group 1 — Simple screens
+import 'package:deardays/features/auth/presentation/screens/forgot_password_screen.dart';
+import 'package:deardays/features/auth/presentation/screens/signup_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/cookie_policy_screen.dart';
+import 'package:deardays/features/search/presentation/screens/search_screen.dart';
+
+// Group 2 — Flow screens
+import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
+import 'package:deardays/features/explore/presentation/screens/see_all_timeline_screen.dart';
+import 'package:deardays/features/timeline/presentation/screens/memory_detail_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/reflection_screen.dart';
+
+// Group 3 — Sharing screens
+import 'package:deardays/features/sharing/presentation/screens/shared_with_me_screen.dart';
+import 'package:deardays/features/sharing/presentation/screens/share_approvals_screen.dart';
+import 'package:deardays/features/sharing/presentation/providers/sharing_provider.dart';
+import 'package:deardays/features/sharing/data/models/memory_share.dart';
+
+// Group 4 — Book screens
+import 'package:deardays/features/book/presentation/screens/book_reader_screen.dart';
+import 'package:deardays/features/book/data/models/book_page.dart' show BookMode;
+import 'package:deardays/features/book/presentation/screens/chapter_detail_screen.dart';
+
+// Group 5 — Auth security screens
+import 'package:deardays/features/auth/presentation/screens/pin_screen.dart';
+import 'package:deardays/features/auth/presentation/screens/pattern_screen.dart';
+
 import '../helpers/mock_providers.dart';
 
 final _now = DateTime.now();
@@ -188,7 +215,9 @@ void main() {
           home: LoginScreen(onLogin: () {}),
         ),
       );
-      await _settle(tester);
+      // AuthShell has a repeating orb animation — pump() not pumpAndSettle()
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
 
       await expectLater(
         find.byType(LoginScreen),
@@ -204,7 +233,8 @@ void main() {
           home: LoginScreen(onLogin: () {}),
         ),
       );
-      await _settle(tester);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
 
       await expectLater(
         find.byType(LoginScreen),
@@ -929,6 +959,309 @@ void main() {
       await expectLater(
         find.byType(ExploreScreen),
         matchesGoldenFile('goldens/explore_screen_with_photos.png'),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Group 1 — Simple screens
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Forgot Password Screen ─────────────────────────────────────────────────
+
+  group('Golden — ForgotPasswordScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const ForgotPasswordScreen(),
+        ),
+      );
+      // AuthShell has a repeating orb animation — pump() not pumpAndSettle()
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(ForgotPasswordScreen),
+        matchesGoldenFile('goldens/forgot_password_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Signup Screen ──────────────────────────────────────────────────────────
+
+  group('Golden — SignupScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: SignupScreen(onLogin: () {}),
+        ),
+      );
+      // AuthShell has a repeating orb animation — pump() not pumpAndSettle()
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(SignupScreen),
+        matchesGoldenFile('goldens/signup_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Cookie Policy Screen ───────────────────────────────────────────────────
+
+  group('Golden — CookiePolicyScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(const CookiePolicyScreen()));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(CookiePolicyScreen),
+        matchesGoldenFile('goldens/cookie_policy_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Search Screen ──────────────────────────────────────────────────────────
+
+  group('Golden — SearchScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(const SearchScreen()));
+      // autofocused TextField — use pump() not pumpAndSettle()
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(SearchScreen),
+        matchesGoldenFile('goldens/search_screen_light.png'),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Group 2 — Flow screens (need mock data)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Review Save Screen ─────────────────────────────────────────────────────
+
+  group('Golden — ReviewSaveScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const ReviewSaveScreen(
+          data: ReviewData(
+            rawText: 'A wonderful morning at the park with friends and family.',
+            isVoice: false,
+          ),
+        ),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ReviewSaveScreen),
+        matchesGoldenFile('goldens/review_save_screen_light.png'),
+      );
+    });
+  });
+
+  // ── See All Timeline Screen ────────────────────────────────────────────────
+
+  group('Golden — SeeAllTimelineScreen', () {
+    testWidgets('light theme — happiest section', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const SeeAllTimelineScreen(section: SeeAllSection.happiest),
+        overrides: authenticatedOverrides(entries: [mockEntry]),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(SeeAllTimelineScreen),
+        matchesGoldenFile('goldens/see_all_timeline_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Memory Detail Screen ───────────────────────────────────────────────────
+
+  group('Golden — MemoryDetailScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(MemoryDetailScreen(entry: mockEntry)));
+      // Platform channels (audio player) — use pump() not pumpAndSettle()
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(MemoryDetailScreen),
+        matchesGoldenFile('goldens/memory_detail_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Reflection Screen ──────────────────────────────────────────────────────
+
+  group('Golden — ReflectionScreen', () {
+    testWidgets('light theme — weekly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const ReflectionScreen(period: ReflectionPeriod.weekly),
+        overrides: authenticatedOverrides(entries: [mockEntry]),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ReflectionScreen),
+        matchesGoldenFile('goldens/reflection_screen_light.png'),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Group 3 — Sharing screens
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Shared With Me Screen ──────────────────────────────────────────────────
+
+  group('Golden — SharedWithMeScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const SharedWithMeScreen(),
+        overrides: [
+          ...authenticatedOverrides(),
+          sharedWithMeProvider.overrideWith((ref) async => <SharedMemoryItem>[]),
+        ],
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(SharedWithMeScreen),
+        matchesGoldenFile('goldens/shared_with_me_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Share Approvals Screen ─────────────────────────────────────────────────
+
+  group('Golden — ShareApprovalsScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const ShareApprovalsScreen(),
+        overrides: [
+          ...authenticatedOverrides(),
+          pendingShareRequestsProvider.overrideWith((ref) async => <MemoryShare>[]),
+        ],
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ShareApprovalsScreen),
+        matchesGoldenFile('goldens/share_approvals_screen_light.png'),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Group 4 — Book screens
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Book Reader Screen ─────────────────────────────────────────────────────
+
+  group('Golden — BookReaderScreen', () {
+    testWidgets('light theme — stream mode', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const BookReaderScreen(mode: BookMode.stream),
+        overrides: authenticatedOverrides(
+          entries: [mockEntry],
+          books: [mockBook],
+        ),
+      ));
+      // Page controller animation — use pump() not pumpAndSettle()
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(BookReaderScreen),
+        matchesGoldenFile('goldens/book_reader_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Chapter Detail Screen ──────────────────────────────────────────────────
+
+  group('Golden — ChapterDetailScreen', () {
+    testWidgets('light theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        ChapterDetailScreen(
+          chapter: Chapter(
+            id: 'ch-1',
+            userId: 'test-user-id',
+            title: 'Summer 2025',
+            chapterNumber: 1,
+            startDate: DateTime(2025, 6, 1),
+            entryCount: 5,
+            createdAt: _now,
+          ),
+        ),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ChapterDetailScreen),
+        matchesGoldenFile('goldens/chapter_detail_screen_light.png'),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Group 5 — Auth security screens
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Pin Screen ─────────────────────────────────────────────────────────────
+
+  group('Golden — PinScreen', () {
+    testWidgets('light theme — setup mode', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: PinScreen(mode: PinMode.setup, onSuccess: () {}),
+        ),
+      );
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(PinScreen),
+        matchesGoldenFile('goldens/pin_screen_light.png'),
+      );
+    });
+  });
+
+  // ── Pattern Screen ─────────────────────────────────────────────────────────
+
+  group('Golden — PatternScreen', () {
+    testWidgets('light theme — setup mode', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: PatternScreen(mode: PatternMode.setup, onSuccess: () {}),
+        ),
+      );
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(PatternScreen),
+        matchesGoldenFile('goldens/pattern_screen_light.png'),
       );
     });
   });

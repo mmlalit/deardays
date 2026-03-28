@@ -67,9 +67,9 @@ class AuthShell extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(
                             'DearDays',
-                            style: GoogleFonts.playfairDisplay(
+                            style: GoogleFonts.newsreader(
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w400,
                               fontStyle: FontStyle.italic,
                               color: Colors.white.withAlpha(200),
                             ),
@@ -80,7 +80,7 @@ class AuthShell extends StatelessWidget {
                       // Title
                       Text(
                         title,
-                        style: GoogleFonts.playfairDisplay(
+                        style: GoogleFonts.newsreader(
                           fontSize: 36,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
