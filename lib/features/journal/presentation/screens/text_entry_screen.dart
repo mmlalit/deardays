@@ -13,7 +13,7 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/draft_entry.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
-import 'package:deardays/services/storage/local_storage_service.dart';
+// LocalStorageService import removed — drafts go through draftSyncServiceProvider
 
 class TextEntryScreen extends ConsumerStatefulWidget {
   /// When resuming from draft history, the draft to pre-fill.
@@ -112,12 +112,12 @@ class _TextEntryScreenState extends ConsumerState<TextEntryScreen> {
       savedAt: DateTime.now(),
       entryDate: DateTime.now(),
     );
-    await LocalStorageService.instance.saveDraft(draft);
+    await ref.read(draftSyncServiceProvider).saveDraft(draft);
     ref.invalidate(draftsProvider);
   }
 
   Future<void> _deleteDraft() async {
-    await LocalStorageService.instance.deleteDraft(_draftId);
+    await ref.read(draftSyncServiceProvider).deleteDraft(_draftId);
     ref.invalidate(draftsProvider);
   }
 

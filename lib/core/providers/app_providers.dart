@@ -21,6 +21,8 @@ import 'package:deardays/features/journal/data/repositories/reflection_cache_rep
 import 'package:deardays/features/journal/data/repositories/reflection_override_repository.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/draft_entry.dart';
+import 'package:deardays/features/journal/data/repositories/draft_repository.dart';
+import 'package:deardays/services/sync/draft_sync_service.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
@@ -49,9 +51,20 @@ final postSaveDataProvider = StateProvider<PostSaveData?>((ref) => null);
 
 // --- Drafts ---
 
+final draftRepositoryProvider = Provider<DraftRepository>((ref) {
+  return DraftRepository(client: ref.watch(supabaseClientProvider));
+});
+
+final draftSyncServiceProvider = Provider<DraftSyncService>((ref) {
+  return DraftSyncService(
+    local: ref.watch(localStorageProvider),
+    remote: ref.watch(draftRepositoryProvider),
+  );
+});
+
 /// Loads all saved drafts from local storage. Invalidate after any draft mutation.
 final draftsProvider = FutureProvider<List<DraftEntry>>((ref) async {
-  return LocalStorageService.instance.getDrafts();
+  return ref.watch(draftSyncServiceProvider).getDrafts();
 });
 
 // --- Today's Mood ---

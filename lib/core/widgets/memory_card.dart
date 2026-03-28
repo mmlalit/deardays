@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -175,6 +177,67 @@ class MemoryCard extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Tag chip ──────────────────────────────────────────────────────────────────
+
+// ── Frosted glass share button ───────────────────────────────────────────────
+
+class _FrostedShareButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final bool muted;
+  final AppPalette? colors;
+
+  const _FrostedShareButton({
+    required this.onTap,
+    this.muted = false,
+    this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Share memory',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: muted
+            ? Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: (colors?.border ?? Colors.grey).withAlpha(40),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.share_rounded,
+                  size: 16,
+                  color: colors?.textMuted ?? Colors.grey,
+                ),
+              )
+            : ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(180),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.share_rounded,
+                      size: 15,
+                      color: Color(0xFF1C1917),
+                    ),
+                  ),
+                ),
+              ),
       ),
     );
   }
