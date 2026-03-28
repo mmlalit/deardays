@@ -5,7 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+// TODO(post-launch): restore go_router import when Backup & Restore is re-enabled
+// import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:local_auth/local_auth.dart';
@@ -28,7 +29,8 @@ import 'package:deardays/features/settings/presentation/screens/privacy_screen.d
 import 'package:deardays/features/settings/presentation/screens/cookie_policy_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
-import 'package:deardays/features/settings/presentation/screens/e2e_encryption_screen.dart';
+// TODO(post-launch): restore e2e_encryption_screen import
+// import 'package:deardays/features/settings/presentation/screens/e2e_encryption_screen.dart';
 import 'package:deardays/core/widgets/snack_bar_helper.dart';
 import 'package:deardays/core/providers/subscription_providers.dart';
 
@@ -1081,65 +1083,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     ),
                   ]),
                   const SizedBox(height: 24),
-                  // JOURNALING
-                  _buildSectionLabel('Journaling'),
-                  _buildCardGroup(cardColor, [
-                    _buildCardRow(
-                      icon: Icons.auto_stories_outlined,
-                      label: 'Writing Style',
-                      textColor: textColor,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            () {
-                              final style = ref.watch(profileProvider).valueOrNull?.writingStyle ?? 'memoir';
-                              return style[0].toUpperCase() + style.substring(1);
-                            }(),
-                            style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.of(context).textMuted.withAlpha(76)),
-                        ],
-                      ),
-                      onTap: _pickWritingStyle,
-                    ),
-                    _buildCardRow(
-                      icon: Icons.account_tree_outlined,
-                      label: 'Chapter Organization',
-                      textColor: textColor,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            () {
-                              final org = ref.watch(profileProvider).valueOrNull?.bookOrganization ?? 'yearly';
-                              switch (org) {
-                                case 'monthly': return 'Monthly';
-                                case 'quarterly': return 'Quarterly';
-                                case 'manual': return 'One Book';
-                                default: return 'Yearly';
-                              }
-                            }(),
-                            style: GoogleFonts.manrope(fontSize: 12, color: subtextColor),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.of(context).textMuted.withAlpha(76)),
-                        ],
-                      ),
-                      onTap: _pickBookOrganization,
-                      isLast: true,
-                    ),
-                    // TODO(post-launch): AI Story preference toggle
-                    // _buildCardRow(
-                    //   icon: Icons.auto_fix_high_rounded,
-                    //   label: 'AI Story',
-                    //   subtitle: 'Transform entries into literary narratives',
-                    //   trailing: _buildCustomToggle(value: _aiStoryEnabled, onChanged: _toggleAiStory),
-                    //   isLast: true,
-                    // ),
-                  ]),
-                  const SizedBox(height: 24),
+                  // JOURNALING — hidden for launch (Writing Style + Chapter Organization)
+                  // TODO(post-launch): re-enable Journaling section
+                  const SizedBox(height: 0),
                   // PREFERENCES
                   _buildSectionLabel('Preferences'),
                   _buildCardGroup(cardColor, [
@@ -1179,33 +1125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       ),
                       onTap: _showAppLockPicker,
                     ),
-                    _buildCardRow(
-                      icon: Icons.enhanced_encryption_outlined,
-                      label: 'End-to-End Encryption',
-                      textColor: textColor,
-                      subtitle: ref.watch(profileProvider).valueOrNull?.e2eEnabled == true
-                          ? 'Active — only you can read your entries'
-                          : 'Off — tap to set up',
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (ref.watch(profileProvider).valueOrNull?.e2eEnabled == true)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.of(context).accent.withAlpha(20),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text('On', style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.of(context).accent)),
-                            ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.of(context).textMuted),
-                        ],
-                      ),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const E2EEncryptionScreen()),
-                      ),
-                    ),
+                    // TODO(post-launch): re-enable E2E Encryption row
                     _buildCardRow(
                       icon: Icons.health_and_safety_outlined,
                       label: 'Mood Data Consent',
@@ -1219,13 +1139,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   // DATA
                   _buildSectionLabel('Data'),
                   _buildCardGroup(cardColor, [
-                    _buildCardRow(
-                      icon: Icons.cloud_sync_outlined,
-                      label: 'Backup & Restore',
-                      textColor: textColor,
-                      trailing: Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.of(context).textMuted),
-                      onTap: () => context.push('/backup-restore'),
-                    ),
+                    // TODO(post-launch): re-enable Backup & Restore row
                     _buildCardRow(
                       icon: Icons.download_outlined,
                       label: 'Export All Data',
