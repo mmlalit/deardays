@@ -197,12 +197,25 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             child: Row(
               children: [
                 Text('Explore', style: GoogleFonts.newsreader(fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => context.push('/search'),
-                  child: SizedBox(width: 44, height: 44, child: Center(child: Icon(Icons.search_rounded, size: 22, color: colors.textSecondary))),
-                ),
               ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => context.push('/search'),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: colors.bg.withAlpha(180),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.border),
+              ),
+              child: Row(children: [
+                Icon(Icons.search_rounded, size: 18, color: colors.textMuted),
+                const SizedBox(width: 10),
+                Text('Search memories, people, or places',
+                  style: GoogleFonts.manrope(fontSize: 13, color: colors.textMuted)),
+              ]),
             ),
           ),
           if (_showFilters) _buildFilterRow(colors),
@@ -932,6 +945,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
           ),
 
+        // ── Memory Insights ──
+        _buildAiInsightsSection(entries, colors),
+
         // ── Your Highlights ──
         _buildHighlightsSection(entries, colors),
 
@@ -1020,19 +1036,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           _buildCategoryTeaser(colors: colors, icon: Icons.family_restroom_rounded,
               message: 'Write about family moments — they\'ll show up here.')
         else ...[
-          SizedBox(
-            height: 220,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: familyEntries.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => _buildHappyCard(familyEntries[i], colors,
-                pool: familyEntries,
-                sectionColor: const Color(0xFFEC4899),
-                sectionIcon: Icons.family_restroom_rounded,
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(children: [
+              for (int i = 0; i < familyEntries.take(3).length; i++) ...[
+                _buildFamilyListCard(familyEntries[i], colors),
+                if (i < 2 && i < familyEntries.take(3).length - 1) const SizedBox(height: 10),
+              ],
+            ]),
           ),
           const SizedBox(height: 40),
         ],
@@ -1050,16 +1061,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               message: 'Log your next trip or adventure — it\'ll live here.')
         else ...[
           SizedBox(
-            height: 220,
+            height: 110,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: travelEntries.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => _buildHappyCard(travelEntries[i], colors,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, i) => _buildTravelSquareCard(travelEntries[i], colors,
                 pool: travelEntries,
-                sectionColor: const Color(0xFFF59E0B),
-                sectionIcon: Icons.flight_takeoff_rounded,
               ),
             ),
           ),
@@ -1558,6 +1567,140 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // AI Memory Insights — mood pattern + top topic
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildAiInsightsSection(List<JournalEntry> entries, AppPalette colors) {
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    // ── Mood Pattern: dominant mood this month ──
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEntries = entries.where((e) => !e.entryDate.isBefore(monthStart)).toList();
+    final moodCounts = <String, int>{};
+    for (final e in monthEntries) {
+      if (e.mood != null && e.mood!.isNotEmpty) {
+        moodCounts[e.mood!] = (moodCounts[e.mood!] ?? 0) + 1;
+      }
+    }
+    final dominantMood = moodCounts.isEmpty
+        ? null
+        : moodCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+
+    // ── Top Topic: most common category from _detectCategories ──
+    final cats = _getCategories(entries);
+    final catCounts = <String, int>{};
+    for (final catSet in cats.values) {
+      for (final cat in catSet) {
+        catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+      }
+    }
+    final topCat = catCounts.isEmpty
+        ? null
+        : catCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    const catLabels = {'family': 'Family', 'travel': 'Travel', 'milestone': 'Milestones'};
+
+    if (dominantMood == null && topCat == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 14, color: colors.accent),
+              const SizedBox(width: 6),
+              Text(
+                'MEMORY INSIGHTS',
+                style: GoogleFonts.manrope(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: colors.textMuted,
+                  letterSpacing: 2.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (dominantMood != null)
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colors.accent.withAlpha(8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: colors.accent.withAlpha(20)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'MOOD PATTERN',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: colors.accent.withAlpha(140),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Mostly ${_capitalizeMood(dominantMood)} this month',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (dominantMood != null && topCat != null)
+                const SizedBox(width: 12),
+              if (topCat != null)
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colors.accent.withAlpha(8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: colors.accent.withAlpha(20)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'TOP TOPIC',
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: colors.accent.withAlpha(140),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          catLabels[topCat] ?? _capitalizeMood(topCat),
+                          style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Your Highlights section — week / month / year photo cards
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1766,6 +1909,190 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Family list card — vertical compact row with photo + text
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFamilyListCard(JournalEntry entry, AppPalette colors) {
+    final title = _entryTitle(entry);
+    final hasPhoto = entry.media.any((m) => m.mediaType == 'photo');
+    final quote = entry.content.length > 60
+        ? '${entry.content.substring(0, 60)}...'
+        : entry.content;
+    final dateStr = DateFormat('MMM d, yyyy').format(entry.entryDate).toUpperCase();
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.push('/memory', extra: entry);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 72,
+                height: 72,
+                child: hasPhoto
+                    ? _buildEntryPhoto(entry, colors)
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: _moodGradient(entry.mood),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(_moodEmoji(entry.mood),
+                              style: const TextStyle(fontSize: 28)),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.newsreader(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '"$quote"',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: colors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    dateStr,
+                    style: GoogleFonts.manrope(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textMuted,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Travel square card — small photo square with gradient overlay + label
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildTravelSquareCard(JournalEntry entry, AppPalette colors, {
+    List<JournalEntry>? pool,
+  }) {
+    final hasPhoto = entry.media.any((m) => m.mediaType == 'photo');
+    final cats = _detectCategories(entry);
+    // Pick best label: travel > other category > mood
+    String label;
+    if (cats.contains('travel')) {
+      label = 'Travel';
+    } else if (cats.isNotEmpty) {
+      const catLabels = {'family': 'Family', 'milestone': 'Milestone'};
+      label = catLabels[cats.first] ?? cats.first;
+    } else {
+      label = _capitalizeMood(entry.mood);
+    }
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        final allEntries = pool ?? [entry];
+        context.push('/memory', extra: MemoryDetailArgs(
+          entry: entry,
+          allEntries: allEntries,
+          initialIndex: allEntries.indexOf(entry),
+        ));
+      },
+      child: SizedBox(
+        width: 130,
+        height: 110,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Photo or mood gradient background
+              if (hasPhoto)
+                _buildEntryPhoto(entry, colors)
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: _moodGradient(entry.mood),
+                    ),
+                  ),
+                ),
+              // Gradient overlay from bottom
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.3, 1.0],
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withAlpha(153),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Location/category label
+              Positioned(
+                left: 10,
+                bottom: 10,
+                right: 10,
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

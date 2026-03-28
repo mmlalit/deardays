@@ -322,7 +322,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       filtered = filtered.where((e) => e.mood == _moodFilter).toList();
     }
     final totalMemories = entries.length;
-    final chapters = entries.map((e) => '${e.entryDate.year}-${e.entryDate.month}').toSet().length;
+    final chaptersCount = ref.watch(chaptersProvider).valueOrNull?.length ?? 0;
     final years = entries.map((e) => e.entryDate.year).toSet().length;
 
     return CustomScrollView(
@@ -396,7 +396,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ],
                 ),
               ),
-              _buildStatsGrid(totalMemories, chapters, years, colors),
+              _buildStatsBar(totalMemories, chaptersCount, years, colors),
               if (totalMemories > 0) _buildWeeklySummaryCard(colors),
               const SizedBox(height: 16),
               _buildControlsRow(colors),
@@ -455,38 +455,50 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   // Stats Grid
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildStatsGrid(int memories, int chapters, int years, AppPalette colors) {
-    final memWord = memories == 1 ? 'memory' : 'memories';
-    final monWord = chapters == 1 ? 'month' : 'months';
-    final yrWord  = years == 1 ? 'year' : 'years';
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      child: Text.rich(
-        TextSpan(
-          style: GoogleFonts.manrope(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: colors.textSecondary,
-            height: 1.4,
+  Widget _buildStatsBar(int memories, int chapters, int years, AppPalette colors) {
+    Widget chip(int value, String label) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.card,
+            border: Border.all(color: colors.border),
+            borderRadius: BorderRadius.circular(12),
           ),
-          children: [
-            TextSpan(
-              text: '$memories',
-              style: TextStyle(fontWeight: FontWeight.w700, color: colors.accent),
-            ),
-            TextSpan(text: ' $memWord  ·  spanning '),
-            TextSpan(
-              text: '$chapters',
-              style: TextStyle(fontWeight: FontWeight.w700, color: colors.accent),
-            ),
-            TextSpan(text: ' $monWord  ·  '),
-            TextSpan(
-              text: '$years',
-              style: TextStyle(fontWeight: FontWeight.w700, color: colors.accent),
-            ),
-            TextSpan(text: ' $yrWord'),
-          ],
+          child: Column(
+            children: [
+              Text(
+                '$value',
+                style: GoogleFonts.newsreader(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: colors.accent,
+                ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.manrope(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
+          ),
         ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Row(
+        children: [
+          chip(memories, 'memories'),
+          const SizedBox(width: 8),
+          chip(chapters, 'chapters'),
+          const SizedBox(width: 8),
+          chip(years, 'years'),
+        ],
       ),
     );
   }
