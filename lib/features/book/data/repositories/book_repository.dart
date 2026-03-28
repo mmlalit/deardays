@@ -2,30 +2,40 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+import 'package:deardays/core/network/network_client.dart';
 import 'package:deardays/features/book/data/models/book.dart';
 import 'package:deardays/features/book/data/models/book_page.dart';
 import 'package:deardays/core/domain/repositories/book_repository_interface.dart';
+import 'package:deardays/services/connectivity/connectivity_service.dart';
+import 'package:deardays/services/sync/offline_write_service.dart';
+import 'package:deardays/services/sync/sync_operation.dart';
 
 class BookRepository implements IBookRepository {
   final SupabaseClient _client;
+  final NetworkClient _network = NetworkClient();
 
   BookRepository({required SupabaseClient client}) : _client = client;
 
   String get _userId => _client.auth.currentUser?.id ?? (throw StateError('Not authenticated'));
 
+  @override
   Future<List<Book>> getBooks() async {
-    final response = await _client
-        .from('books')
-        .select()
-        .eq('user_id', _userId)
-        .order('sort_order', ascending: true)
-        .order('start_date', ascending: false);
+    return _network.query(() async {
+      final response = await _client
+          .from('books')
+          .select()
+          .eq('user_id', _userId)
+          .order('sort_order', ascending: true)
+          .order('start_date', ascending: false);
 
-    return (response as List<dynamic>)
-        .map((row) => Book.fromMap(row as Map<String, dynamic>))
-        .toList();
+      return (response as List<dynamic>)
+          .map((row) => Book.fromMap(row as Map<String, dynamic>))
+          .toList();
+    });
   }
 
+  @override
   Future<Book?> getBook(String id) async {
     final response = await _client
         .from('books')
@@ -38,6 +48,7 @@ class BookRepository implements IBookRepository {
     return Book.fromMap(response);
   }
 
+  @override
   Future<Book> createBook(Book book) async {
     final map = Map<String, dynamic>.from(book.toMap());
     map.remove('id');
@@ -45,15 +56,28 @@ class BookRepository implements IBookRepository {
     map.remove('updated_at');
     map['user_id'] = _userId;
 
-    final response = await _client
-        .from('books')
-        .insert(map)
-        .select()
-        .single();
+    if (!ConnectivityService().isOnline) {
+      await OfflineWriteService().write(
+        tableName: 'books',
+        type: SyncOperationType.create,
+        payload: map,
+        id: book.id,
+      );
+      return book.copyWith(id: 'local_${const Uuid().v4()}');
+    }
 
-    return Book.fromMap(response);
+    return _network.query(() async {
+      final response = await _client
+          .from('books')
+          .insert(map)
+          .select()
+          .single();
+
+      return Book.fromMap(response);
+    });
   }
 
+  @override
   Future<Book?> updateBook(Book book) async {
     final map = <String, dynamic>{
       'title': book.title,
@@ -64,27 +88,52 @@ class BookRepository implements IBookRepository {
       'start_date': book.startDate.toIso8601String().split('T').first,
       'end_date': book.endDate?.toIso8601String().split('T').first,
       'sort_order': book.sortOrder,
-      'updated_at': DateTime.now().toIso8601String(),
+      // M-27: Let the server trigger handle updated_at.
     };
 
-    final response = await _client
-        .from('books')
-        .update(map)
-        .eq('id', book.id)
-        .eq('user_id', _userId)
-        .select()
-        .maybeSingle();
+    if (!ConnectivityService().isOnline) {
+      await OfflineWriteService().write(
+        tableName: 'books',
+        type: SyncOperationType.update,
+        payload: {...map, 'id': book.id, 'user_id': _userId},
+        id: book.id,
+      );
+      return book;
+    }
 
-    if (response == null) return null;
-    return Book.fromMap(response);
+    return _network.query(() async {
+      final response = await _client
+          .from('books')
+          .update(map)
+          .eq('id', book.id)
+          .eq('user_id', _userId)
+          .select()
+          .maybeSingle();
+
+      if (response == null) return null;
+      return Book.fromMap(response);
+    });
   }
 
+  @override
   Future<void> deleteBook(String id) async {
-    await _client
-        .from('books')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', _userId);
+    if (!ConnectivityService().isOnline) {
+      await OfflineWriteService().write(
+        tableName: 'books',
+        type: SyncOperationType.delete,
+        payload: {'id': id, 'user_id': _userId},
+        id: id,
+      );
+      return;
+    }
+
+    return _network.query(() async {
+      await _client
+          .from('books')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', _userId);
+    });
   }
 
   /// Fetches a window of AI-generated weekly narrative pages for a book.
@@ -93,6 +142,7 @@ class BookRepository implements IBookRepository {
   /// Default window of 10 pages balances memory use and swipe smoothness.
   /// The reader should pre-fetch the next window when the user reaches page
   /// [offset + limit - 3] (3-page look-ahead).
+  @override
   Future<List<WeeklyNarrativeBookPage>> getWeeklyPages(
     String bookId, {
     int offset = 0,
@@ -115,6 +165,7 @@ class BookRepository implements IBookRepository {
 
   /// Returns the total number of AI-generated pages for a book.
   /// Uses COUNT(*) — fetches zero rows, just the count.
+  @override
   Future<int> getWeeklyPagesCount(String bookId) async {
     final response = await _client
         .from('pages')
@@ -128,6 +179,7 @@ class BookRepository implements IBookRepository {
   /// Updates the photo assignments for a single page (user edits).
   /// H-20 FIX: Verify ownership with user_id filter and check result to detect
   /// race conditions or cross-user write attempts.
+  @override
   Future<void> updatePagePhotos(String pageId, List<PagePhoto> photos) async {
     final result = await _client
         .from('pages')
@@ -143,6 +195,7 @@ class BookRepository implements IBookRepository {
   }
 
   /// Ensures a default book exists for the current period based on organization setting.
+  @override
   Future<Book> ensureDefaultBook(String organization) async {
     final books = await getBooks();
     if (books.isNotEmpty) return books.first;
@@ -197,6 +250,7 @@ class BookRepository implements IBookRepository {
   /// Note: this is a single batch UPDATE — not a true DB transaction. If the
   /// call is interrupted, some chapters may remain unlinked. Callers should
   /// handle errors and retry or surface the failure to the user.
+  @override
   Future<void> linkChaptersToBook(String bookId, List<String> chapterIds) async {
     if (chapterIds.isEmpty) return;
     try {
@@ -212,6 +266,7 @@ class BookRepository implements IBookRepository {
   }
 
   /// Creates a single auto-chapter for a chronological book.
+  @override
   Future<void> createChronologicalChapter(String bookId, String bookTitle) async {
     await _client.from('chapters').insert({
       'user_id': _userId,
@@ -222,7 +277,9 @@ class BookRepository implements IBookRepository {
     });
   }
 
-  /// Uploads a cover image to Supabase Storage and returns the public URL.
+  /// Uploads a cover image to Supabase Storage and returns the storage path.
+  /// Display code should generate signed URLs at render time (see _CoverPage).
+  @override
   Future<String> uploadCoverImage(String bookId, File imageFile) async {
     final ext = imageFile.path.split('.').last;
     final path = '$_userId/$bookId.$ext';
@@ -233,7 +290,15 @@ class BookRepository implements IBookRepository {
           fileOptions: const FileOptions(upsert: true),
         );
 
-    return _client.storage.from('user-covers').getPublicUrl(path);
+    return path;
+  }
+
+  /// Generates a short-lived signed URL for a cover image storage path.
+  @override
+  Future<String> getSignedCoverUrl(String storagePath) async {
+    return _client.storage
+        .from('user-covers')
+        .createSignedUrl(storagePath, 3600);
   }
 
   String _monthName(int month) {

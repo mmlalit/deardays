@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/widgets/dear_days_header.dart';
 import 'package:deardays/core/providers/subscription_providers.dart';
+import 'package:deardays/services/subscription/subscription_state.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
 
@@ -47,16 +48,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     }
   }
 
-  String get _statusLabel {
-    final sub = ref.read(subscriptionProvider);
+  String _statusLabel(SubscriptionState sub) {
     if (sub.isPremium) return 'Active';
     if (_profile == null) return 'Unknown';
     if (_profile!.isInTrial()) return 'Free Trial';
     return 'Expired';
   }
 
-  Color _statusColor(BuildContext context) {
-    final sub = ref.read(subscriptionProvider);
+  Color _statusColor(BuildContext context, SubscriptionState sub) {
     if (sub.isPremium) return AppColors.success;
     if (_profile == null) return AppColors.of(context).textMuted;
     if (_profile!.isInTrial()) return AppColors.of(context).accent;
@@ -332,7 +331,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     );
   }
 
-  Widget _buildCurrentPlanCard(sub) {
+  Widget _buildCurrentPlanCard(SubscriptionState sub) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -382,15 +381,15 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _statusColor(context).withAlpha(26),
+                  color: _statusColor(context, sub).withAlpha(26),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _statusLabel,
+                  _statusLabel(sub),
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: _statusColor(context),
+                    color: _statusColor(context, sub),
                   ),
                 ),
               ),

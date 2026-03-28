@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:deardays/core/network/network_client.dart';
+import 'package:deardays/services/encryption/encryption_service.dart';
 
 /// Cached AI reflection for one user + period + period_key.
 class ReflectionCacheEntry {
@@ -33,9 +35,35 @@ class ReflectionCacheEntry {
 ///   yearly  — summarises the 12 monthly summaries from that year
 class ReflectionCacheRepository {
   final SupabaseClient _client;
+  final NetworkClient _network = NetworkClient();
   static const _table = 'reflection_cache';
 
   ReflectionCacheRepository(this._client);
+
+  // ---------------------------------------------------------------------------
+  // E2E encryption helpers (mirrors JournalRepository pattern)
+  // ---------------------------------------------------------------------------
+
+  String? get _e2eKey => EncryptionService().currentKey;
+
+  String? _enc(String? value) {
+    final key = _e2eKey;
+    if (key == null || value == null || value.isEmpty) return value;
+    return EncryptionService().encryptText(value, key);
+  }
+
+  String? _dec(String? value, bool isClientEncrypted) {
+    final key = _e2eKey;
+    if (key == null || !isClientEncrypted || value == null || value.isEmpty) {
+      return value;
+    }
+    try {
+      return EncryptionService().decryptText(value, key);
+    } catch (e) {
+      debugPrint('[ReflectionCache] Decryption failed: $e');
+      return null;
+    }
+  }
 
   /// Returns current user ID or throws if not authenticated.
   String get _userId {
@@ -86,16 +114,24 @@ class ReflectionCacheRepository {
     required String period,
     required String periodKey,
   }) async {
-    final rows = await _client
-        .from(_table)
-        .select('summary, themes, generated_at')
-        .eq('user_id', _userId)
-        .eq('period', period)
-        .eq('period_key', periodKey)
-        .limit(1);
+    return _network.query(() async {
+      final rows = await _client
+          .from(_table)
+          .select('summary, themes, generated_at, is_client_encrypted')
+          .eq('user_id', _userId)
+          .eq('period', period)
+          .eq('period_key', periodKey)
+          .limit(1);
 
-    if (rows.isEmpty) return null;
-    return ReflectionCacheEntry.fromMap(rows.first);
+      if (rows.isEmpty) return null;
+      final row = rows.first;
+      final isEncrypted = (row['is_client_encrypted'] as bool?) ?? false;
+      final decryptedSummary = _dec(row['summary'] as String?, isEncrypted);
+      return ReflectionCacheEntry.fromMap({
+        ...row,
+        'summary': decryptedSummary,
+      });
+    });
   }
 
   /// Upserts a cache entry for the given period + key.
@@ -106,14 +142,16 @@ class ReflectionCacheRepository {
     List<String> themes = const [],
   }) async {
     try {
+      final isE2eActive = _e2eKey != null;
       await _client.from(_table).upsert(
         {
           'user_id': _userId,
           'period': period,
           'period_key': periodKey,
-          'summary': summary,
+          'summary': isE2eActive ? _enc(summary) : summary,
           'themes': themes,
           'generated_at': DateTime.now().toIso8601String(),
+          'is_client_encrypted': isE2eActive,
         },
         onConflict: 'user_id, period, period_key',
       );
@@ -129,17 +167,22 @@ class ReflectionCacheRepository {
     final keys = weekKeysForMonth(year, month);
     if (keys.isEmpty) return [];
 
-    final rows = await _client
-        .from(_table)
-        .select('summary')
-        .eq('user_id', _userId)
-        .eq('period', 'weekly')
-        .inFilter('period_key', keys);
+    return _network.query(() async {
+      final rows = await _client
+          .from(_table)
+          .select('summary, is_client_encrypted')
+          .eq('user_id', _userId)
+          .eq('period', 'weekly')
+          .inFilter('period_key', keys);
 
-    return rows
-        .map((r) => r['summary'] as String? ?? '')
-        .where((s) => s.isNotEmpty)
-        .toList();
+      return rows
+          .map((r) {
+            final isEnc = (r['is_client_encrypted'] as bool?) ?? false;
+            return _dec(r['summary'] as String?, isEnc) ?? '';
+          })
+          .where((s) => s.isNotEmpty)
+          .toList();
+    });
   }
 
   /// Fetches all cached monthly summaries for the given year.
@@ -147,17 +190,22 @@ class ReflectionCacheRepository {
   Future<List<String>> getMonthlySummariesForYear(int year) async {
     final keys = monthKeysForYear(year);
 
-    final rows = await _client
-        .from(_table)
-        .select('summary')
-        .eq('user_id', _userId)
-        .eq('period', 'monthly')
-        .inFilter('period_key', keys);
+    return _network.query(() async {
+      final rows = await _client
+          .from(_table)
+          .select('summary, is_client_encrypted')
+          .eq('user_id', _userId)
+          .eq('period', 'monthly')
+          .inFilter('period_key', keys);
 
-    return rows
-        .map((r) => r['summary'] as String? ?? '')
-        .where((s) => s.isNotEmpty)
-        .toList();
+      return rows
+          .map((r) {
+            final isEnc = (r['is_client_encrypted'] as bool?) ?? false;
+            return _dec(r['summary'] as String?, isEnc) ?? '';
+          })
+          .where((s) => s.isNotEmpty)
+          .toList();
+    });
   }
 
   // ── ISO week number ─────────────────────────────────────────────────────────

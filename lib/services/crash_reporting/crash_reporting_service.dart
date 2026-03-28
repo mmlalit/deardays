@@ -99,6 +99,7 @@ class CrashReportingService {
           const profilesSampleRate = kReleaseMode ? 0.05 : 1.0;
           options.dsn = _sentryDsn;
           options.tracesSampleRate = tracesSampleRate;
+          // ignore: experimental_member_use
           options.profilesSampleRate = profilesSampleRate;
           options.attachScreenshot = true;
           options.maxBreadcrumbs = _maxBreadcrumbs;

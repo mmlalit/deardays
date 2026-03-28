@@ -170,6 +170,11 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
         // Checkpoint: record last successfully migrated entry.
         await checkpointBox.put(_checkpointKey, id);
         if (mounted) setState(() => _done++);
+
+        // Rate-limit: pause every 10 entries to stay within Supabase limits.
+        if (_done % 10 == 0) {
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
       }
 
       // Clear checkpoint on successful completion.
@@ -206,10 +211,11 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
         'entries_migrated': _done.toString(),
         'total': _total.toString(),
       });
+      debugPrint('[E2EMigration] Error: $e');
       if (mounted) {
         setState(() {
           _failed = true;
-          _errorMessage = e.toString();
+          _errorMessage = 'Migration failed. Your data is safe — restart the app to retry.';
         });
       }
     }

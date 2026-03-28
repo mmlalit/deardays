@@ -178,7 +178,7 @@ class AuthService {
 
     const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
     if (webClientId.isEmpty) {
-      throw AuthException('Google Sign-In is not configured.');
+      throw const AuthException('Google Sign-In is not configured.');
     }
 
     final googleSignIn = GoogleSignIn(serverClientId: webClientId);

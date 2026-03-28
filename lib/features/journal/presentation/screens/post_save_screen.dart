@@ -16,10 +16,10 @@ import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/onboarding/sample_memory.dart';
 import 'package:deardays/core/providers/onboarding_provider.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
+import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
 import 'package:deardays/features/journal/data/repositories/profile_repository.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
-import 'package:deardays/services/media/media_service.dart';
+import 'package:deardays/core/domain/services/media_service_interface.dart';
 import 'package:deardays/services/memory_tagging/memory_tagging_service.dart';
 import 'package:deardays/services/notification/notification_service.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
@@ -101,10 +101,8 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
   // Filled after a successful save so the confirmation screen can display it.
   PostSaveData? _confirmedData;
 
-  JournalRepository get _repository => ref.read(journalRepositoryProvider);
-  late final MediaService _mediaService = MediaService(
-    client: Supabase.instance.client,
-  );
+  IJournalRepository get _repository => ref.read(journalRepositoryProvider);
+  IMediaService get _mediaService => ref.read(mediaServiceProvider);
 
   @override
   void initState() {

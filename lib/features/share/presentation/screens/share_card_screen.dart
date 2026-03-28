@@ -874,7 +874,7 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
             child: Row(
               children: [
                 const SizedBox(width: 4),
-                Icon(Icons.emoji_emotions_outlined, size: 20, color: const Color(0xFF8696A0)),
+                const Icon(Icons.emoji_emotions_outlined, size: 20, color: Color(0xFF8696A0)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Container(
@@ -895,7 +895,7 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.mic, size: 20, color: const Color(0xFF8696A0)),
+                const Icon(Icons.mic, size: 20, color: Color(0xFF8696A0)),
               ],
             ),
           ),

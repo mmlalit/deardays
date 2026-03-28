@@ -11,7 +11,7 @@
 ///
 /// CDN setup (Cloudflare recommended):
 /// 1. Create a Cloudflare zone for your domain
-/// 2. Add a CNAME record: cdn.deardays.app → <supabase-project>.supabase.co
+/// 2. Add a CNAME record: cdn.deardays.app → `<supabase-project>`.supabase.co
 /// 3. Enable caching for /storage/v1/object/public/* paths
 /// 4. Set cache TTL: 30 days for images, 7 days for audio
 /// 5. Enable Cloudflare Polish (image optimization) on Pro plan

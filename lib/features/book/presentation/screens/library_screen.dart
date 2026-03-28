@@ -862,15 +862,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             ),
           ),
-          Positioned(
+          const Positioned(
             left: 12, right: 12, bottom: 12,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SkeletonBox(height: 14),
-                const SizedBox(height: 6),
-                const SkeletonBox(width: 70, height: 20),
+                SkeletonBox(height: 14),
+                SizedBox(height: 6),
+                SkeletonBox(width: 70, height: 20),
               ],
             ),
           ),

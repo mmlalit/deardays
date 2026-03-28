@@ -111,7 +111,7 @@ class _ExportScreenState extends State<ExportScreen> {
     Color coverColor,
   ) async {
     final pdf = pw.Document();
-    final pdfCoverColor = PdfColor.fromInt(coverColor.value);
+    final pdfCoverColor = PdfColor.fromInt(coverColor.toARGB32());
 
     // Cover page
     pdf.addPage(

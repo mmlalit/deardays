@@ -1040,10 +1040,10 @@ class _AdjustSlider extends StatelessWidget {
         ),
         Expanded(
           child: SliderTheme(
-            data: SliderThemeData(
+            data: const SliderThemeData(
               trackHeight: 2,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+              overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
               activeTrackColor: Colors.white,
               inactiveTrackColor: Colors.white24,
               thumbColor: Colors.white,

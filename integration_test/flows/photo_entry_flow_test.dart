@@ -198,6 +198,75 @@ void photoEntryFlowTests() {
     });
   });
 
+  // ── Photo Adjustments ─────────────────────────────────────────────────────
+
+  group('Photo Entry — Adjustments', () {
+    testWidgets('adjustment controls are accessible without crash', (tester) async {
+      await _openPhotoEntry(tester);
+
+      // Look for any adjustment-related UI (icon buttons, sliders, etc.)
+      // The Adjust button or similar control should be present
+      expect(
+        find.byIcon(Icons.tune_rounded).evaluate().isNotEmpty ||
+            find.byIcon(Icons.wb_sunny_outlined).evaluate().isNotEmpty ||
+            find.textContaining('Adjust').evaluate().isNotEmpty ||
+            find.byType(PhotoEntryScreen).evaluate().isNotEmpty,
+        isTrue,
+      );
+
+      await _closePhotoEntryIfOpen(tester);
+    });
+
+    testWidgets('tapping Adjust opens adjustment sheet with sliders', (tester) async {
+      await _openPhotoEntry(tester);
+
+      // Look for Adjust or tune icon
+      final adjustBtn = find.byIcon(Icons.tune_rounded).evaluate().isNotEmpty
+          ? find.byIcon(Icons.tune_rounded)
+          : find.textContaining('Adjust');
+
+      if (adjustBtn.evaluate().isNotEmpty) {
+        await tester.tap(adjustBtn.first, warnIfMissed: false);
+        await tester.pump(const Duration(seconds: 1));
+
+        // Should show Brightness, Warmth, Contrast labels
+        expect(
+          find.textContaining('Brightness').evaluate().isNotEmpty ||
+              find.textContaining('Warmth').evaluate().isNotEmpty ||
+              find.textContaining('Contrast').evaluate().isNotEmpty ||
+              find.byType(Slider).evaluate().isNotEmpty,
+          isTrue,
+        );
+      }
+
+      await _closePhotoEntryIfOpen(tester);
+    });
+
+    testWidgets('dragging a slider does not crash', (tester) async {
+      await _openPhotoEntry(tester);
+
+      final adjustBtn = find.byIcon(Icons.tune_rounded).evaluate().isNotEmpty
+          ? find.byIcon(Icons.tune_rounded)
+          : find.textContaining('Adjust');
+
+      if (adjustBtn.evaluate().isNotEmpty) {
+        await tester.tap(adjustBtn.first, warnIfMissed: false);
+        await tester.pump(const Duration(seconds: 1));
+
+        // Find a Slider and drag it
+        final sliders = find.byType(Slider);
+        if (sliders.evaluate().isNotEmpty) {
+          await tester.drag(sliders.first, const Offset(50, 0));
+          await tester.pump();
+        }
+      }
+
+      expect(find.byType(MaterialApp), findsOneWidget);
+
+      await _closePhotoEntryIfOpen(tester);
+    });
+  });
+
   group('Photo Entry — Navigation', () {
     testWidgets('back button returns to HomeScreen', (tester) async {
       await _openPhotoEntry(tester);

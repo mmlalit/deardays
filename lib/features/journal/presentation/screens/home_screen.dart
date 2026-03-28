@@ -615,9 +615,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (onboarding.checklistDismissed || onboarding.allTasksComplete) {
       return const SizedBox.shrink();
     }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: const ChecklistCard(),
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 20),
+      child: ChecklistCard(),
     );
   }
 

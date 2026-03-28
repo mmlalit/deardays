@@ -220,9 +220,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
           });
         }
       },
-      listenMode: stt.ListenMode.dictation,
-      cancelOnError: false,
-      partialResults: true,
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: stt.ListenMode.dictation,
+        cancelOnError: false,
+        partialResults: true,
+      ),
     );
   }
 

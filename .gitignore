@@ -78,9 +78,10 @@ app.*.map.json
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
 
-# Environments
+# Environment files (contain secrets)
 .env
 .env.*
+!.env.example
 
 # Coverage
 coverage/

@@ -91,6 +91,12 @@ CREATE POLICY "entry_media_delete_own" ON public.entry_media
     auth.uid() = (SELECT user_id FROM public.journal_entries WHERE id = entry_media.entry_id)
   );
 
+DROP POLICY IF EXISTS "entry_media_update_own" ON public.entry_media;
+CREATE POLICY "entry_media_update_own" ON public.entry_media
+  FOR UPDATE USING (
+    auth.uid() = (SELECT user_id FROM public.journal_entries WHERE id = entry_media.entry_id)
+  );
+
 -- =============================================================================
 -- 6. check_in_conversations
 -- =============================================================================
@@ -128,11 +134,28 @@ CREATE POLICY "memory_shares_insert_sharer" ON public.memory_shares
   FOR INSERT WITH CHECK (auth.uid() = sharer_id);
 
 DROP POLICY IF EXISTS "memory_shares_update" ON public.memory_shares;
-CREATE POLICY "memory_shares_update" ON public.memory_shares
-  FOR UPDATE USING (
-    auth.uid() = sharer_id
-    OR (auth.uid() IS NOT NULL AND status = 'pending' AND recipient_id IS NULL)
-  );
+DROP POLICY IF EXISTS "memory_shares_update_sharer" ON public.memory_shares;
+CREATE POLICY "memory_shares_update_sharer" ON public.memory_shares
+  FOR UPDATE USING (auth.uid() = sharer_id)
+  WITH CHECK (auth.uid() = sharer_id);
+
+-- Security-definer function for claiming shares (recipients cannot UPDATE directly)
+CREATE OR REPLACE FUNCTION claim_share(p_share_id UUID, p_recipient_name TEXT)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE public.memory_shares
+  SET recipient_id = auth.uid(),
+      recipient_name = p_recipient_name,
+      status = 'requested',
+      requested_at = now()
+  WHERE id = p_share_id
+    AND status = 'pending'
+    AND recipient_id IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Share not available for claiming';
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP POLICY IF EXISTS "memory_shares_delete_sharer" ON public.memory_shares;
 CREATE POLICY "memory_shares_delete_sharer" ON public.memory_shares

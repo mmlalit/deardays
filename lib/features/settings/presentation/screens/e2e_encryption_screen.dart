@@ -7,6 +7,7 @@ import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/widgets/snack_bar_helper.dart';
 import 'package:deardays/features/settings/presentation/screens/set_e2e_passphrase_screen.dart';
 import 'package:deardays/features/settings/presentation/screens/e2e_migration_screen.dart';
+import 'package:deardays/features/journal/data/models/user_profile.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
 
 /// Shows the current E2E encryption status and lets users enable / disable it.
@@ -228,12 +229,12 @@ class _DisabledState extends StatelessWidget {
 
 class _EnabledState extends ConsumerWidget {
   final AppPalette colors;
-  final dynamic profile;
+  final UserProfile profile;
   const _EnabledState({required this.colors, required this.profile});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabledAt = profile.e2eEnabledAt as DateTime?;
+    final enabledAt = profile.e2eEnabledAt;
     final dateStr = enabledAt != null
         ? '${enabledAt.day} ${_month(enabledAt.month)} ${enabledAt.year}'
         : 'Active';

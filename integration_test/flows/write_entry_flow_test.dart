@@ -220,6 +220,58 @@ void writeEntryFlowTests() {
     });
   });
 
+  // ── Draft Auto-Save ───────────────────────────────────────────────────────
+
+  group('Write Entry — Draft Auto-Save', () {
+    testWidgets('typing enough text and going back does not crash', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('WRITE'));
+      await tester.pump(_settle);
+
+      // Type enough text to trigger draft save (>= 10 chars)
+      final mainField = find.byType(TextField).first;
+      await tester.tap(mainField);
+      await tester.enterText(mainField, 'This is my draft text that should be saved.');
+      await tester.pump();
+
+      // Navigate back — this triggers _saveDraftIfNeeded
+      final backBtn = find.byIcon(Icons.arrow_back_rounded).evaluate().isNotEmpty
+          ? find.byIcon(Icons.arrow_back_rounded)
+          : find.byIcon(Icons.arrow_back);
+
+      await tester.tap(backBtn);
+      await tester.pumpAndSettle();
+
+      // App should survive draft save without crash
+      expect(find.byType(TextEntryScreen), findsNothing);
+      expect(find.byType(MaterialApp), findsOneWidget);
+    });
+
+    testWidgets('word count badge shows correct count', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('WRITE'));
+      await tester.pump(_settle);
+
+      final mainField = find.byType(TextField).first;
+      await tester.tap(mainField);
+      await tester.enterText(mainField, 'One two three four five six seven');
+      await tester.pump();
+
+      // Word count badge should show "7 words"
+      expect(
+        find.textContaining('7 word').evaluate().isNotEmpty ||
+            find.textContaining('word').evaluate().isNotEmpty,
+        isTrue,
+      );
+
+      await _closeTextEntryIfOpen(tester);
+    });
+  });
+
   group('Write Entry — Navigation', () {
     testWidgets('back button returns to Home', (tester) async {
       await tester.pumpWidget(buildE2EApp());

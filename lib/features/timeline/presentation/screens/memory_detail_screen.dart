@@ -43,6 +43,10 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   bool _showControls = true;
   Timer? _hideTimer;
 
+  /// Shared audio player — hoisted here so page swipes stop playback and
+  /// rapid swiping never creates multiple simultaneous players.
+  final AudioPlayer sharedPlayer = AudioPlayer();
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +82,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
   void dispose() {
     _hideTimer?.cancel();
     _pageController.dispose();
+    sharedPlayer.dispose();
     super.dispose();
   }
 
@@ -89,7 +94,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
 
     if (!_multiPage) {
       // Single entry — no PageView overhead
-      return _EntryPage(entry: widget.entry);
+      return _EntryPage(entry: widget.entry, sharedPlayer: sharedPlayer);
     }
 
     return Scaffold(
@@ -104,10 +109,11 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
               controller: _pageController,
               itemCount: _entries.length,
               onPageChanged: (i) {
+                sharedPlayer.stop();
                 setState(() => _currentIndex = i);
                 _resetTimer();
               },
-              itemBuilder: (_, i) => _EntryPage(entry: _entries[i]),
+              itemBuilder: (_, i) => _EntryPage(entry: _entries[i], sharedPlayer: sharedPlayer),
             ),
           ),
 
@@ -338,7 +344,11 @@ class _BottomNavBar extends StatelessWidget {
 
 class _EntryPage extends ConsumerStatefulWidget {
   final JournalEntry entry;
-  const _EntryPage({required this.entry});
+  /// Shared audio player hoisted from the parent PageView so that only one
+  /// player instance exists at a time. When null a local player is created
+  /// (should not happen in practice).
+  final AudioPlayer? sharedPlayer;
+  const _EntryPage({required this.entry, this.sharedPlayer});
 
   @override
   ConsumerState<_EntryPage> createState() => _EntryPageState();
@@ -346,7 +356,9 @@ class _EntryPage extends ConsumerStatefulWidget {
 
 class _EntryPageState extends ConsumerState<_EntryPage> {
   static const _shareBaseUrl = 'https://deardays.app/share/';
-  final _player = AudioPlayer();
+  late final AudioPlayer _player;
+  /// True when this state owns the player and should dispose it.
+  late final bool _ownsPlayer;
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -366,6 +378,13 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.sharedPlayer != null) {
+      _player = widget.sharedPlayer!;
+      _ownsPlayer = false;
+    } else {
+      _player = AudioPlayer();
+      _ownsPlayer = true;
+    }
     if (widget.entry.hasVoice) {
       _initPlayer();
     }
@@ -405,7 +424,10 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     _durationSub?.cancel();
     _positionSub?.cancel();
     _playerStateSub?.cancel();
-    _player.dispose();
+    // Only dispose the player if we created it locally (no shared player).
+    if (_ownsPlayer) {
+      _player.dispose();
+    }
     _photoBannerController.dispose();
     super.dispose();
   }
@@ -1213,6 +1235,8 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
                     style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: colors.textPrimary)),
                 onTap: () {
                   Navigator.pop(context);
+                  // Uses Navigator.push instead of go_router because
+                  // /share-management is not registered as a go_router route.
                   Navigator.push(context, MaterialPageRoute(
                     builder: (_) => ShareManagementScreen(
                       memoryId: widget.entry.id,
@@ -1301,9 +1325,11 @@ class _EntryPageState extends ConsumerState<_EntryPage> {
     final link = '$_shareBaseUrl${share.token}';
     final title = _extractTitle(entry);
 
-    await Share.share(
-      "✨ I'd like to share \"$title\" with you on DearDays.\n\nTap to view: $link",
-      subject: 'A private memory from DearDays',
+    await SharePlus.instance.share(
+      ShareParams(
+        text: "✨ I'd like to share \"$title\" with you on DearDays.\n\nTap to view: $link",
+        subject: 'A private memory from DearDays',
+      ),
     );
   }
 

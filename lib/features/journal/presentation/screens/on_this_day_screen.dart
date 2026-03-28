@@ -1,29 +1,26 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
-import 'package:deardays/services/media/media_service.dart';
+import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
+import 'package:deardays/core/domain/services/media_service_interface.dart';
 
-class OnThisDayScreen extends StatefulWidget {
+class OnThisDayScreen extends ConsumerStatefulWidget {
   const OnThisDayScreen({super.key});
 
   @override
-  State<OnThisDayScreen> createState() => _OnThisDayScreenState();
+  ConsumerState<OnThisDayScreen> createState() => _OnThisDayScreenState();
 }
 
-class _OnThisDayScreenState extends State<OnThisDayScreen> {
-  late final JournalRepository _repository = JournalRepository(
-    client: Supabase.instance.client,
-  );
-
-  late final MediaService _mediaService = MediaService(
-    client: Supabase.instance.client,
-  );
+class _OnThisDayScreenState extends ConsumerState<OnThisDayScreen> {
+  IJournalRepository get _repository => ref.read(journalRepositoryProvider);
+  IMediaService get _mediaService => ref.read(mediaServiceProvider);
 
   List<JournalEntry>? _entries;
   bool _isLoading = true;

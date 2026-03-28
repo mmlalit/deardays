@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/utils/password_validator.dart';
 import 'package:deardays/services/auth/auth_service.dart';
+import 'package:deardays/services/storage/secure_storage_service.dart';
 import 'package:deardays/features/auth/presentation/widgets/auth_shell.dart';
 import 'package:deardays/features/auth/presentation/widgets/auth_widgets.dart';
 
@@ -23,6 +24,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   final _authService = AuthService();
+  final _secureStorage = SecureStorageService();
 
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
@@ -37,6 +39,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   int _failedAttempts = 0;
   DateTime? _lockoutUntil;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLockoutState();
+  }
 
   @override
   void dispose() {
@@ -182,6 +190,44 @@ class _SignupScreenState extends State<SignupScreen> {
     if (_failedAttempts >= 5) {
       _lockoutUntil = DateTime.now().add(const Duration(minutes: 30));
       _failedAttempts = 0;
+    }
+    _persistLockoutState();
+  }
+
+  Future<void> _loadLockoutState() async {
+    try {
+      final attemptsStr = await _secureStorage.read('signup_failed_attempts');
+      final lockoutStr = await _secureStorage.read('signup_lockout_until');
+      if (mounted) {
+        setState(() {
+          _failedAttempts = int.tryParse(attemptsStr ?? '') ?? 0;
+          if (lockoutStr != null) {
+            final parsed = DateTime.tryParse(lockoutStr);
+            if (parsed != null && parsed.isAfter(DateTime.now())) {
+              _lockoutUntil = parsed;
+            } else {
+              _lockoutUntil = null;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[SignupScreen] _loadLockoutState error: $e');
+    }
+  }
+
+  Future<void> _persistLockoutState() async {
+    try {
+      await _secureStorage.write(
+          'signup_failed_attempts', _failedAttempts.toString());
+      if (_lockoutUntil != null) {
+        await _secureStorage.write(
+            'signup_lockout_until', _lockoutUntil!.toIso8601String());
+      } else {
+        await _secureStorage.delete('signup_lockout_until');
+      }
+    } catch (e) {
+      debugPrint('[SignupScreen] _persistLockoutState error: $e');
     }
   }
 

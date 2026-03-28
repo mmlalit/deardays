@@ -6,6 +6,8 @@
 -- =============================================================================
 
 -- Primary listing: entries by user ordered by date (home screen, timeline)
+-- NOTE: This index is subsumed by idx_entries_timeline_cover in 052_load_test_indexes.sql.
+-- Drop it in a future migration if the covering index is confirmed deployed.
 CREATE INDEX IF NOT EXISTS idx_journal_entries_user_date
   ON public.journal_entries(user_id, entry_date DESC);
 

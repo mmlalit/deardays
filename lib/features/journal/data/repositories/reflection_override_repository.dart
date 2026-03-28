@@ -33,8 +33,9 @@ class ReflectionOverrideRepository {
   }
 
   Box<String> get _safeBox {
-    assert(_box != null && _box!.isOpen,
-        'Call init() before using ReflectionOverrideRepository');
+    if (_box == null || !_box!.isOpen) {
+      throw StateError('ReflectionOverrideRepository not initialized. Call init() first.');
+    }
     return _box!;
   }
 

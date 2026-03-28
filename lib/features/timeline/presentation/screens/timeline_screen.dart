@@ -22,16 +22,16 @@ import 'package:deardays/services/analytics/analytics_service.dart';
 // Context-menu helper (shared with home_screen.dart via top-level function)
 // ─────────────────────────────────────────────────────────────────────────────
 
-void showMemoryContextMenu(
+Future<void> showMemoryContextMenu(
   BuildContext context,
   JournalEntry entry,
   AppPalette colors, {
   VoidCallback? onDelete,
-}) {
+}) async {
   final title = _contextMenuTitle(entry);
   final dateStr = DateFormat.yMMMMd(Localizations.localeOf(context).toString()).format(entry.entryDate);
 
-  showModalBottomSheet(
+  final result = await showModalBottomSheet<String>(
     context: context,
     useRootNavigator: true,
     backgroundColor: colors.card,
@@ -126,61 +126,9 @@ void showMemoryContextMenu(
               colors: colors,
               isDestructive: true,
               onTap: () {
-                Navigator.pop(sheetCtx);
-                showDialog<bool>(
-                  context: context,
-                  builder: (dialogCtx) => AlertDialog(
-                    backgroundColor: colors.card,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    title: Text(
-                      'Delete memory?',
-                      style: GoogleFonts.newsreader(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    content: Text(
-                      'This memory will be permanently deleted and cannot be recovered.',
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        color: colors.textSecondary,
-                        height: 1.4,
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogCtx, false),
-                        child: Text(
-                          'Cancel',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w600,
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(dialogCtx, true);
-                          onDelete?.call();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Memory deleted'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'Delete',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFFEF4444),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+                // Return 'delete' to the caller so it can handle deletion
+                // using its own (still-mounted) context.
+                Navigator.pop(sheetCtx, 'delete');
               },
             ),
 
@@ -190,6 +138,64 @@ void showMemoryContextMenu(
       );
     },
   );
+
+  // Handle delete action using the caller's (still-mounted) context.
+  if (result == 'delete' && context.mounted) {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: colors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete memory?',
+          style: GoogleFonts.newsreader(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+          ),
+        ),
+        content: Text(
+          'This memory will be permanently deleted and cannot be recovered.',
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            color: colors.textSecondary,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w600,
+                color: colors.textSecondary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFFEF4444),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      onDelete?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Memory deleted'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 }
 
 String _contextMenuTitle(JournalEntry entry) {
@@ -1262,27 +1268,40 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     }
     final keys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
-    final items = <Widget>[];
+    // Build a flat list of lightweight descriptors so the SliverChildBuilderDelegate
+    // can lazily build widgets by index instead of pre-materializing them all.
+    // Each descriptor is one of: ('header', key), ('entry', JournalEntry), ('gap', null).
+    final descriptors = <(String, Object?)>[];
     for (final key in keys) {
-      final monthEntries = grouped[key]!;
-      final parts = key.split('-');
-      final date = DateTime(int.parse(parts[0]), int.parse(parts[1]));
-      items.add(_buildMonthHeader(date, monthEntries.length, colors));
-      for (final entry in monthEntries) {
-        items.add(Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildCardForType(entry, entries, colors),
-        ));
+      descriptors.add(('header', key));
+      for (final entry in grouped[key]!) {
+        descriptors.add(('entry', entry));
       }
-      items.add(const SizedBox(height: 8));
+      descriptors.add(('gap', null));
     }
 
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
-          (_, i) => items[i],
-          childCount: items.length,
+          (_, i) {
+            final (type, data) = descriptors[i];
+            switch (type) {
+              case 'header':
+                final k = data! as String;
+                final parts = k.split('-');
+                final date = DateTime(int.parse(parts[0]), int.parse(parts[1]));
+                return _buildMonthHeader(date, grouped[k]!.length, colors);
+              case 'entry':
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildCardForType(data! as JournalEntry, entries, colors),
+                );
+              default:
+                return const SizedBox(height: 8);
+            }
+          },
+          childCount: descriptors.length,
         ),
       ),
     );

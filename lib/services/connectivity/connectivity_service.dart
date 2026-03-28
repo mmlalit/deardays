@@ -50,7 +50,7 @@ class ConnectivityService {
 
   /// Extract hostname from URL for DNS lookup.
   String get _host {
-    final raw = _reachabilityHost;
+    const raw = _reachabilityHost;
     if (raw.startsWith('https://')) return raw.substring(8).split('/').first;
     if (raw.startsWith('http://')) return raw.substring(7).split('/').first;
     return raw.split('/').first;

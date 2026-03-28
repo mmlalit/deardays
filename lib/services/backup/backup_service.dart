@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
+import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
 
 /// Backup and restore service for cloud-based journal data protection.
@@ -40,7 +40,7 @@ class BackupService {
   ///
   /// Returns the number of entries backed up.
   Future<int> performBackup({
-    required JournalRepository repository,
+    required IJournalRepository repository,
     required LocalStorageService localStorage,
   }) async {
     if (_status == BackupStatus.inProgress) {
@@ -117,7 +117,7 @@ class BackupService {
   ///
   /// Returns the number of entries restored.
   Future<int> performRestore({
-    required JournalRepository repository,
+    required IJournalRepository repository,
     required LocalStorageService localStorage,
   }) async {
     if (_status == BackupStatus.inProgress) {

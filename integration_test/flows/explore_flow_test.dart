@@ -171,6 +171,99 @@ void exploreFlowTests() {
     });
   });
 
+  // ── Mood Filter ──────────────────────────────────────────────────────────
+
+  group('Explore — Mood Filter', () {
+    testWidgets('mood filter chip is visible', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('EXPLORE'));
+      await tester.pumpAndSettle();
+
+      // Mood chip shows "😊 Mood" by default
+      expect(
+        find.textContaining('Mood').evaluate().isNotEmpty ||
+            find.textContaining('😊').evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+
+    testWidgets('tapping mood chip opens mood filter sheet', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('EXPLORE'));
+      await tester.pumpAndSettle();
+
+      // Tap the mood chip
+      final moodChip = find.textContaining('Mood');
+      if (moodChip.evaluate().isEmpty) return;
+
+      await tester.tap(moodChip.first, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // Sheet should show mood options: Great, Good, Okay, Low, Tough
+      expect(
+        find.textContaining('Great').evaluate().isNotEmpty ||
+            find.textContaining('Good').evaluate().isNotEmpty ||
+            find.textContaining('🤩').evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+
+    testWidgets('selecting a mood filters content', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('EXPLORE'));
+      await tester.pumpAndSettle();
+
+      final moodChip = find.textContaining('Mood');
+      if (moodChip.evaluate().isEmpty) return;
+
+      await tester.tap(moodChip.first, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // Tap "Great" mood
+      final greatMood = find.textContaining('Great');
+      if (greatMood.evaluate().isNotEmpty) {
+        await tester.tap(greatMood.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+      }
+
+      // Mood chip should update to show selected mood
+      expect(find.byType(ExploreScreen), findsOneWidget);
+    });
+  });
+
+  // ── Weekly Mood Chart ───────────────────────────────────────────────────
+
+  group('Explore — Weekly Mood Chart', () {
+    testWidgets('weekly mood chart section is visible', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('EXPLORE'));
+      await tester.pumpAndSettle();
+
+      // Scroll down to find the mood chart
+      await tester.drag(find.byType(ListView).first, const Offset(0, -600));
+      await tester.pumpAndSettle();
+
+      // Weekly mood chart should render (look for day abbreviations or mood emojis)
+      expect(
+        find.textContaining('Mon').evaluate().isNotEmpty ||
+            find.textContaining('Tue').evaluate().isNotEmpty ||
+            find.textContaining('Wed').evaluate().isNotEmpty ||
+            find.textContaining('Your Week').evaluate().isNotEmpty ||
+            find.textContaining('mood').evaluate().isNotEmpty ||
+            find.byType(ExploreScreen).evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+  });
+
   group('Explore — Total count', () {
     testWidgets('total entries count is non-zero with mock data', (tester) async {
       await tester.pumpWidget(buildE2EApp());

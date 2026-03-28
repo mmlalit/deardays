@@ -328,8 +328,8 @@ final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
 
   // Then fetch fresh from network
   try {
-    final now = DateTime.now().toUtc();
-    final startOfDay = DateTime.utc(now.year, now.month, now.day);
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
     final entries = await ref.watch(journalRepositoryProvider).getEntries(
           startDate: startOfDay,
           endDate: now,

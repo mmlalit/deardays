@@ -13,6 +13,9 @@
     <!-- Notifications (required for Android 13+ / API 33) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Audio recording permission -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- Foreground service for audio recording -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />

@@ -45,6 +45,7 @@ class MediaService implements IMediaService {
   /// [focalAlignment] is persisted to [EntryMedia.encryptedMetadata] as JSON
   /// so it can be applied when displaying the photo on detail/book screens.
   /// Returns the created [EntryMedia].
+  @override
   Future<EntryMedia> uploadPhoto({
     required String entryId,
     required String filePath,
@@ -144,6 +145,7 @@ class MediaService implements IMediaService {
 
   /// Uploads raw bytes as a photo (for web or in-memory images).
   /// Compresses the image before upload to reduce storage costs.
+  @override
   Future<EntryMedia> uploadPhotoBytes({
     required String entryId,
     required Uint8List bytes,
@@ -171,7 +173,7 @@ class MediaService implements IMediaService {
     ).timeout(
       const Duration(seconds: 30),
       onTimeout: () {
-        throw MediaUploadTimeoutException('Photo upload timed out after 30 seconds.');
+        throw const MediaUploadTimeoutException('Photo upload timed out after 30 seconds.');
       },
     );
 
@@ -247,6 +249,7 @@ class MediaService implements IMediaService {
   /// Returns the public URL for a thumbnail. Falls back to the original
   /// if the path is already a full URL (demo data).
   /// When CDN is configured, uses CDN thumbnail transforms for faster delivery.
+  @override
   String getThumbnailUrl(String storagePath) {
     if (storagePath.startsWith('http')) return storagePath;
     try {
@@ -269,6 +272,7 @@ class MediaService implements IMediaService {
 
   /// Removes the given paths from the signed URL cache.
   /// Call after replacing or deleting a photo so the next load fetches a fresh URL.
+  @override
   void clearCachedUrls(List<String> paths) {
     for (final path in paths) {
       _signedUrlCache.remove(path);
@@ -279,6 +283,7 @@ class MediaService implements IMediaService {
   /// Results are cached in-memory so repeated calls for the same path
   /// (e.g. on scroll rebuild) reuse the existing Future without a new request.
   /// Cache entries older than [_urlTtl] (50 minutes) are evicted automatically.
+  @override
   Future<String> getSignedUrl(String storagePath) {
     if (storagePath.startsWith('http')) return Future.value(storagePath);
 
@@ -307,6 +312,7 @@ class MediaService implements IMediaService {
   /// Returns the public URL if the bucket is public, otherwise use signed URL.
   /// If storagePath is already a full URL (e.g. demo data), returns it as-is.
   /// When CDN is configured, rewrites URL to use CDN edge for lower latency.
+  @override
   String getPublicUrl(String storagePath) {
     if (storagePath.startsWith('http')) return storagePath;
     final url = _client.storage.from(_bucketName).getPublicUrl(storagePath);
@@ -314,6 +320,7 @@ class MediaService implements IMediaService {
   }
 
   /// Deletes a media file from storage and removes the entry_media record.
+  @override
   Future<void> deleteMedia(EntryMedia media) async {
     await _client.storage.from(_bucketName).remove([media.storagePath]);
     await _client
@@ -330,27 +337,28 @@ class MediaService implements IMediaService {
     final file = File(filePath);
     final bytes = await file.openRead(0, 12).expand((b) => b).take(12).toList();
     if (bytes.length < 4) {
-      throw MediaInvalidTypeException('File is not a valid image.');
+      throw const MediaInvalidTypeException('File is not a valid image.');
     }
     // JPEG: FF D8 FF
-    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return;
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) { return; }
     // PNG: 89 50 4E 47
     if (bytes[0] == 0x89 && bytes[1] == 0x50 &&
-        bytes[2] == 0x4E && bytes[3] == 0x47) return;
+        bytes[2] == 0x4E && bytes[3] == 0x47) { return; }
     // WebP: RIFF????WEBP (bytes 0-3 == RIFF, bytes 8-11 == WEBP)
     if (bytes.length >= 12 &&
         bytes[0] == 0x52 && bytes[1] == 0x49 &&
         bytes[2] == 0x46 && bytes[3] == 0x46 &&
         bytes[8] == 0x57 && bytes[9] == 0x45 &&
-        bytes[10] == 0x42 && bytes[11] == 0x50) return;
+        bytes[10] == 0x42 && bytes[11] == 0x50) { return; }
     // HEIC/HEIF: ftyp box at offset 4 (bytes 4-7 == 'ftyp')
     if (bytes.length >= 8 &&
         bytes[4] == 0x66 && bytes[5] == 0x74 &&
-        bytes[6] == 0x79 && bytes[7] == 0x70) return;
-    throw MediaInvalidTypeException('File is not a valid image.');
+        bytes[6] == 0x79 && bytes[7] == 0x70) { return; }
+    throw const MediaInvalidTypeException('File is not a valid image.');
   }
 
   /// Deletes all media for a given entry.
+  @override
   Future<void> deleteAllMediaForEntry(String entryId) async {
     // Fetch all media records first
     final response = await _client

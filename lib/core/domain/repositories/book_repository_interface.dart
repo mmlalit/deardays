@@ -34,4 +34,6 @@ abstract class IBookRepository {
   Future<void> createChronologicalChapter(String bookId, String bookTitle);
 
   Future<String> uploadCoverImage(String bookId, File imageFile);
+
+  Future<String> getSignedCoverUrl(String storagePath);
 }

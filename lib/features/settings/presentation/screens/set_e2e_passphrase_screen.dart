@@ -33,6 +33,10 @@ class _SetE2EPassphraseScreenState
 
   @override
   void dispose() {
+    _passphraseController.clear();
+    _confirmController.clear();
+    _passphrase = '';
+    _confirm = '';
     _passphraseController.dispose();
     _confirmController.dispose();
     super.dispose();
@@ -101,6 +105,12 @@ class _SetE2EPassphraseScreenState
     final salt = enc.generateSalt();
     final key = await enc.deriveKey(_passphrase, salt);
     enc.setKey(key);
+
+    // Wipe passphrase material from memory after key derivation.
+    _passphraseController.clear();
+    _confirmController.clear();
+    _passphrase = '';
+    _confirm = '';
 
     final consentAt = DateTime.now().toUtc();
 

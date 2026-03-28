@@ -51,6 +51,7 @@ import 'flows/book_reading_flow_test.dart';
 import 'flows/sharing_extended_flow_test.dart';
 import 'flows/recording_flow_test.dart';
 import 'flows/photo_entry_flow_test.dart';
+import 'flows/onboarding_flow_test.dart';
 import 'flows/performance_flow_test.dart';
 import 'flows/security_flow_test.dart';
 import 'flows/ux_polish_flow_test.dart';
@@ -116,6 +117,7 @@ void main() {
   sharingExtendedFlowTests();
   recordingFlowTests();
   photoEntryFlowTests();
+  onboardingFlowTests();
   performanceFlowTests();
   securityFlowTests();
   uxPolishFlowTests();

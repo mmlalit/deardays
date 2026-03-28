@@ -215,6 +215,189 @@ void timelineFlowTests() {
     });
   });
 
+  // ── Long-press context menu ──────────────────────────────────────────────
+
+  group('Timeline — Long-Press Context Menu', () {
+    testWidgets('long-pressing an entry card opens context menu sheet', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('TIMELINE'));
+      await tester.pumpAndSettle();
+
+      // Scroll to see entry cards
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      // Find any known mock entry title and long-press its card
+      final knownTitles = ['Trip to Bali', "Mom's birthday", 'Got the promotion'];
+      bool longPressed = false;
+      for (final title in knownTitles) {
+        final found = find.textContaining(title);
+        if (found.evaluate().isNotEmpty) {
+          final card = find.ancestor(
+            of: found.first,
+            matching: find.byType(GestureDetector),
+          );
+          if (card.evaluate().isNotEmpty) {
+            await tester.longPress(card.first);
+            await tester.pumpAndSettle();
+            longPressed = true;
+            break;
+          }
+        }
+      }
+
+      if (!longPressed) return;
+
+      // Context menu sheet should show Edit Memory and Share options
+      expect(
+        find.text('Edit Memory').evaluate().isNotEmpty ||
+            find.text('Share').evaluate().isNotEmpty ||
+            find.text('Delete').evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+
+    testWidgets('context menu shows Edit Memory option', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('TIMELINE'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      final knownTitles = ['Trip to Bali', "Mom's birthday", 'Got the promotion'];
+      for (final title in knownTitles) {
+        final found = find.textContaining(title);
+        if (found.evaluate().isNotEmpty) {
+          final card = find.ancestor(
+            of: found.first,
+            matching: find.byType(GestureDetector),
+          );
+          if (card.evaluate().isNotEmpty) {
+            await tester.longPress(card.first);
+            await tester.pumpAndSettle();
+            break;
+          }
+        }
+      }
+
+      expect(find.text('Edit Memory'), findsOneWidget);
+    });
+
+    testWidgets('context menu shows Share option', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('TIMELINE'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      final knownTitles = ['Trip to Bali', "Mom's birthday", 'Got the promotion'];
+      for (final title in knownTitles) {
+        final found = find.textContaining(title);
+        if (found.evaluate().isNotEmpty) {
+          final card = find.ancestor(
+            of: found.first,
+            matching: find.byType(GestureDetector),
+          );
+          if (card.evaluate().isNotEmpty) {
+            await tester.longPress(card.first);
+            await tester.pumpAndSettle();
+            break;
+          }
+        }
+      }
+
+      expect(find.text('Share'), findsOneWidget);
+    });
+
+    testWidgets('context menu shows Delete option', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('TIMELINE'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      final knownTitles = ['Trip to Bali', "Mom's birthday", 'Got the promotion'];
+      for (final title in knownTitles) {
+        final found = find.textContaining(title);
+        if (found.evaluate().isNotEmpty) {
+          final card = find.ancestor(
+            of: found.first,
+            matching: find.byType(GestureDetector),
+          );
+          if (card.evaluate().isNotEmpty) {
+            await tester.longPress(card.first);
+            await tester.pumpAndSettle();
+            break;
+          }
+        }
+      }
+
+      expect(find.text('Delete'), findsOneWidget);
+    });
+
+    testWidgets('dismissing context menu returns to timeline', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('TIMELINE'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      final knownTitles = ['Trip to Bali', "Mom's birthday", 'Got the promotion'];
+      for (final title in knownTitles) {
+        final found = find.textContaining(title);
+        if (found.evaluate().isNotEmpty) {
+          final card = find.ancestor(
+            of: found.first,
+            matching: find.byType(GestureDetector),
+          );
+          if (card.evaluate().isNotEmpty) {
+            await tester.longPress(card.first);
+            await tester.pumpAndSettle();
+            break;
+          }
+        }
+      }
+
+      // Close menu via the X button
+      final closeBtn = find.byIcon(Icons.close);
+      if (closeBtn.evaluate().isNotEmpty) {
+        await tester.tap(closeBtn.first, warnIfMissed: false);
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.byType(TimelineScreen), findsOneWidget);
+    });
+  });
+
   group('Timeline — Weekly Summary', () {
     testWidgets('weekly summary card is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());

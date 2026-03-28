@@ -32,6 +32,7 @@ class _PatternScreenState extends State<PatternScreen> {
   String _subtitle = '';
   bool _hasError = false;
   int _attempts = 0;
+  // ignore: unused_field
   int? _activeDot;
 
   // Timed lockout state
@@ -105,8 +106,8 @@ class _PatternScreenState extends State<PatternScreen> {
     final row = index ~/ _gridSize;
     final col = index % _gridSize;
     const totalWidth = (_gridSize - 1) * _gridSpacing;
-    final startX = -totalWidth / 2;
-    final startY = -totalWidth / 2;
+    const startX = -totalWidth / 2;
+    const startY = -totalWidth / 2;
     return Offset(
       startX + col * _gridSpacing,
       startY + row * _gridSpacing,
@@ -266,19 +267,22 @@ class _PatternScreenState extends State<PatternScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Email login fallback
-            if (widget.mode == PatternMode.verify &&
-                (_attempts >= 3 || _isLockedOut))
+            // Email login fallback — always visible in verify mode for
+            // accessibility (screen readers cannot use the pattern grid).
+            if (widget.mode == PatternMode.verify)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: TextButton(
-                  onPressed: () => context.go('/login'),
-                  child: Text(
-                    'Use email login instead',
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
-                      color: AppColors.of(context).accent,
-                      decoration: TextDecoration.underline,
+                child: Semantics(
+                  label: 'Alternative login method',
+                  child: TextButton(
+                    onPressed: () => context.go('/login'),
+                    child: Text(
+                      'Use email login instead',
+                      style: GoogleFonts.manrope(
+                        fontSize: 14,
+                        color: AppColors.of(context).accent,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
                 ),

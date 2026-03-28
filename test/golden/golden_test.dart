@@ -63,6 +63,7 @@ import 'package:deardays/core/providers/subscription_providers.dart';
 import 'package:deardays/services/subscription/revenuecat_service.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/entry_media.dart';
+import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 
 // Group 1 — Simple screens
@@ -95,6 +96,23 @@ import 'package:deardays/features/auth/presentation/screens/pattern_screen.dart'
 import '../helpers/mock_providers.dart';
 
 final _now = DateTime.now();
+
+// ─── Mock entries with location / tags for golden tests ─────────────────────
+
+final _mockEntryWithLocation = JournalEntry(
+  id: 'golden-loc-entry',
+  userId: 'test-user-id',
+  content: 'A wonderful trip to Bali with the family. The rice paddies were beautiful.',
+  mood: 'great',
+  entryDate: _now,
+  locationName: 'Ubud, Bali',
+  hasVoice: true,
+  isAiPolished: true,
+  tags: const ['travel', 'family', 'bali'],
+  wordCount: 14,
+  createdAt: _now,
+  updatedAt: _now,
+);
 
 // ─── Mock data for new golden tests ─────────────────────────────────────────
 
@@ -1262,6 +1280,246 @@ void main() {
       await expectLater(
         find.byType(PatternScreen),
         matchesGoldenFile('goldens/pattern_screen_light.png'),
+      );
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Group 6 — Coverage gap goldens
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── MemoryDetailScreen — with location ──────────────────────────────────
+
+  group('Golden — MemoryDetailScreen with location', () {
+    testWidgets('light theme — entry with location and tags', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        MemoryDetailScreen(entry: _mockEntryWithLocation),
+        overrides: authenticatedOverrides(entries: [_mockEntryWithLocation]),
+      ));
+      // MemoryDetailScreen has audio player — use pump(Duration) not pumpAndSettle
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(MemoryDetailScreen),
+        matchesGoldenFile('goldens/memory_detail_screen_with_location.png'),
+      );
+    });
+  });
+
+  // ── ExploreScreen — with entries (mood chart visible) ───────────────────
+
+  group('Golden — ExploreScreen with mood data', () {
+    testWidgets('light theme — mood strip and weekly chart', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const ExploreScreen(),
+        overrides: authenticatedOverrides(
+          entries: [_mockEntryWithLocation, mockEntry],
+        ),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ExploreScreen),
+        matchesGoldenFile('goldens/explore_screen_with_mood_data.png'),
+      );
+    });
+  });
+
+  // ── ReflectionScreen — monthly ──────────────────────────────────────────
+
+  group('Golden — ReflectionScreen monthly', () {
+    testWidgets('light theme — monthly view', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const ReflectionScreen(period: ReflectionPeriod.monthly),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ReflectionScreen),
+        matchesGoldenFile('goldens/reflection_screen_monthly.png'),
+      );
+    });
+  });
+
+  // ── ReflectionScreen — yearly ───────────────────────────────────────────
+
+  group('Golden — ReflectionScreen yearly', () {
+    testWidgets('light theme — yearly view', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const ReflectionScreen(period: ReflectionPeriod.yearly),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ReflectionScreen),
+        matchesGoldenFile('goldens/reflection_screen_yearly.png'),
+      );
+    });
+  });
+
+  // ── BookReaderScreen — Sepia theme ──────────────────────────────────────
+
+  group('Golden — BookReaderScreen Sepia', () {
+    testWidgets('sepia reading theme renders correctly', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const BookReaderScreen(mode: BookMode.stream),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(BookReaderScreen),
+        matchesGoldenFile('goldens/book_reader_screen_sepia.png'),
+      );
+    });
+  });
+
+  // ── OnboardingScreen — all 4 pages ──────────────────────────────────────
+
+  group('Golden — OnboardingScreen pages', () {
+    testWidgets('page 1 — Speak your day', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: OnboardingScreen(onComplete: () {}),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(OnboardingScreen),
+        matchesGoldenFile('goldens/onboarding_page1.png'),
+      );
+    });
+
+    testWidgets('page 2 — Your life, one page at a time', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: OnboardingScreen(onComplete: () {}),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+
+      // Swipe to page 2
+      await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(OnboardingScreen),
+        matchesGoldenFile('goldens/onboarding_page2.png'),
+      );
+    });
+
+    testWidgets('page 3 — Private & secure', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: OnboardingScreen(onComplete: () {}),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+
+      // Swipe to page 3
+      for (int i = 0; i < 2; i++) {
+        await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      await tester.pump();
+
+      await expectLater(
+        find.byType(OnboardingScreen),
+        matchesGoldenFile('goldens/onboarding_page3.png'),
+      );
+    });
+
+    testWidgets('page 4 — Record your first memory', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: OnboardingScreen(onComplete: () {}),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+
+      // Swipe to page 4
+      for (int i = 0; i < 3; i++) {
+        await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      await tester.pump();
+
+      await expectLater(
+        find.byType(OnboardingScreen),
+        matchesGoldenFile('goldens/onboarding_page4.png'),
+      );
+    });
+  });
+
+  // ── PhotoEntryScreen — default text mode ────────────────────────────────
+
+  group('Golden — PhotoEntryScreen default', () {
+    testWidgets('light theme — default text entry mode', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        const PhotoEntryScreen(photoPath: '/tmp/fake_photo.jpg'),
+      ));
+      // PhotoEntryScreen has autofocused TextField — use pump(Duration)
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(PhotoEntryScreen),
+        matchesGoldenFile('goldens/photo_entry_screen_default.png'),
+      );
+    });
+  });
+
+  // ── ReviewSaveScreen — with tags area ───────────────────────────────────
+
+  group('Golden — ReviewSaveScreen with tags area', () {
+    testWidgets('light theme — shows tag pill button', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(
+        ReviewSaveScreen(
+          data: ReviewData(
+            rawText: 'A wonderful trip to the mountains with friends.',
+          ),
+        ),
+      ));
+      await _settle(tester);
+
+      await expectLater(
+        find.byType(ReviewSaveScreen),
+        matchesGoldenFile('goldens/review_save_screen_with_tags.png'),
+      );
+    });
+  });
+
+  // ── CheckInScreen — with prompt chips ───────────────────────────────────
+
+  group('Golden — CheckInScreen with prompts', () {
+    testWidgets('light theme — shows mood selection or prompt chips', (tester) async {
+      _setView(tester, _goldenSize);
+      await tester.pumpWidget(_app(const CheckInScreen()));
+      // CheckInScreen has platform channels — use pump(Duration)
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      await expectLater(
+        find.byType(CheckInScreen),
+        matchesGoldenFile('goldens/checkin_screen_with_prompts.png'),
       );
     });
   });

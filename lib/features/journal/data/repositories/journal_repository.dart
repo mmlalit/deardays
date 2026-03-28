@@ -91,6 +91,7 @@ class JournalRepository implements IJournalRepository {
   /// Fetches journal entries with optional filters and pagination.
   /// Uses a lightweight media select (id, media_type, storage_path) to reduce
   /// payload size for list/timeline views. Use [getEntry] for full media details.
+  @override
   Future<List<JournalEntry>> getEntries({
     DateTime? startDate,
     DateTime? endDate,
@@ -131,6 +132,7 @@ class JournalRepository implements IJournalRepository {
   }
 
   /// Fetches a single journal entry by ID.
+  @override
   Future<JournalEntry?> getEntry(String id) async {
     return _network.query(() async {
       final response = await _client
@@ -152,6 +154,7 @@ class JournalRepository implements IJournalRepository {
   /// When the device is offline, the write is queued for later replay and a
   /// local-only entry (with a `local_` prefixed ID) is returned so the UI can
   /// show it immediately.
+  @override
   Future<JournalEntry> createEntry(JournalEntry entry) async {
     if (!ConnectivityService().isOnline) {
       final map = _prepareWriteMap(entry.toSupabaseMap());
@@ -183,6 +186,7 @@ class JournalRepository implements IJournalRepository {
   /// Updates an existing journal entry with E2E-aware encryption.
   ///
   /// When offline, the update is queued and the entry is returned as-is.
+  @override
   Future<JournalEntry> updateEntry(JournalEntry entry) async {
     if (!ConnectivityService().isOnline) {
       final map = _prepareWriteMap(entry.toSupabaseMap(forUpdate: true));
@@ -198,16 +202,12 @@ class JournalRepository implements IJournalRepository {
     return _network.query(() async {
       final map = _prepareWriteMap(entry.toSupabaseMap(forUpdate: true));
 
-      await _client
+      final response = await _client
           .from(_writeTable)
           .update(map)
           .eq('id', entry.id)
-          .eq('user_id', _userId);
-
-      final response = await _client
-          .from(_readTable)
+          .eq('user_id', _userId)
           .select('*, entry_media(*)')
-          .eq('id', entry.id)
           .maybeSingle();
       if (response == null) throw Exception('Entry updated but could not be retrieved');
 
@@ -220,6 +220,7 @@ class JournalRepository implements IJournalRepository {
   /// [offset] and [limit] support pagination for large chapters.
   /// Default limit is 200 — covers virtually all real chapters while
   /// preventing runaway queries on pathological data.
+  @override
   Future<List<JournalEntry>> getEntriesByChapter(
     String chapterId, {
     int offset = 0,
@@ -243,6 +244,7 @@ class JournalRepository implements IJournalRepository {
   }
 
   /// Updates only the chapter_id of an entry (lightweight — no content re-encryption).
+  @override
   Future<void> updateEntryChapter(String entryId, String chapterId) async {
     return _network.query(() async {
       await _client
@@ -256,6 +258,7 @@ class JournalRepository implements IJournalRepository {
   /// Deletes a journal entry by ID.
   ///
   /// When offline, the delete is queued for later replay.
+  @override
   Future<void> deleteEntry(String id) async {
     if (!ConnectivityService().isOnline) {
       await OfflineWriteService().write(
@@ -277,6 +280,7 @@ class JournalRepository implements IJournalRepository {
   }
 
   /// Returns entries from the same calendar date in previous years.
+  @override
   Future<List<JournalEntry>> getOnThisDay({DateTime? date}) async {
     return _network.query(() async {
       final target = date ?? DateTime.now();
@@ -297,6 +301,7 @@ class JournalRepository implements IJournalRepository {
 
   /// Returns mood per day for the last [days] days.
   /// Result is a list of {date, mood} maps sorted by date ascending.
+  @override
   Future<List<Map<String, String>>> getMoodsByDateRange({int days = 7}) async {
     return _network.query(() async {
       final now = DateTime.now();
@@ -322,6 +327,7 @@ class JournalRepository implements IJournalRepository {
   }
 
   /// Returns mood stats for a given date range (server-side aggregation).
+  @override
   Future<Map<String, int>> getMoodStatsByRange({
     required DateTime start,
     required DateTime end,
@@ -344,6 +350,7 @@ class JournalRepository implements IJournalRepository {
   }
 
   /// Returns a map of mood to entry count (server-side aggregation).
+  @override
   Future<Map<String, int>> getMoodStats() async {
     return _network.query(() async {
       final response = await _client.rpc('get_mood_stats', params: {
@@ -362,21 +369,24 @@ class JournalRepository implements IJournalRepository {
 
   /// Fetches multiple entries by ID list (used by smart memory search to load
   /// entries returned by the memory-search edge function).
+  @override
   Future<List<JournalEntry>> getEntriesByIds(List<String> ids) async {
     if (ids.isEmpty) return [];
     return getEntries(ids: ids, limit: ids.length);
   }
 
   /// Returns the total number of journal entries for the current user.
+  @override
   Future<int> getTotalEntries() async {
     return _network.query(() async {
-      // CountOption.estimated uses pg_class stats — fast, slightly approximate.
-      // Exact is avoided here since a full sequential scan is expensive at scale.
+      // CountOption.exact is used because .estimated ignores WHERE clauses and
+      // returns the total table row count. The per-user index
+      // idx_journal_entries_user_date makes exact count fast.
       final response = await _client
           .from(_writeTable)
           .select()
           .eq('user_id', _userId)
-          .count(CountOption.estimated);
+          .count(CountOption.exact);
 
       return response.count;
     });

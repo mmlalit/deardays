@@ -74,7 +74,7 @@ class _WaitingApprovalScreenState
   void _onDenied() {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => _DeniedScreen(),
+      builder: (_) => const _DeniedScreen(),
     ));
   }
 

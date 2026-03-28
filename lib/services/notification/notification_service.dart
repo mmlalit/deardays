@@ -596,14 +596,14 @@ class NotificationService {
       'A memory from your past',
       'You have memories from this day in previous years. Tap to revisit.',
       scheduledTime,
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId, _channelName,
           channelDescription: _channelDesc,
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true, presentBadge: true, presentSound: true,
         ),
       ),

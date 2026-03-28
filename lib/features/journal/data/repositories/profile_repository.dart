@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:deardays/core/network/network_client.dart';
 import 'package:deardays/features/journal/data/models/chapter.dart';
 import 'package:deardays/features/journal/data/models/streak.dart';
 import 'package:deardays/features/journal/data/models/user_profile.dart';
@@ -7,6 +8,7 @@ import 'package:deardays/core/domain/repositories/profile_repository_interface.d
 
 class ProfileRepository implements IProfileRepository {
   final SupabaseClient _client;
+  final NetworkClient _network = NetworkClient();
 
   ProfileRepository({required SupabaseClient client}) : _client = client;
 
@@ -18,25 +20,33 @@ class ProfileRepository implements IProfileRepository {
   }
 
   /// Fetches the current user's profile.
+  @override
   Future<UserProfile?> getProfile() async {
     final userId = _requireUserId;
-    final response = await _client
-        .from('profiles')
-        .select()
-        .eq('id', userId)
-        .maybeSingle();
+    return _network.query(() async {
+      final response = await _client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
 
-    if (response == null) return null;
+      if (response == null) return null;
 
-    return UserProfile.fromMap(response);
+      return UserProfile.fromMap(response);
+    });
   }
 
   /// Updates the current user's profile and returns the updated version.
+  @override
   Future<UserProfile> updateProfile(UserProfile profile) async {
     final userId = _requireUserId;
     final map = profile.toMap();
     // Remove fields that should not be overwritten by the client.
     map.remove('created_at');
+    map.remove('is_subscribed');
+    map.remove('subscription_plan');
+    map.remove('subscription_expires_at');
+    map.remove('revenuecat_customer_id');
 
     final response = await _client
         .from('profiles')
@@ -49,37 +59,44 @@ class ProfileRepository implements IProfileRepository {
   }
 
   /// Fetches the current user's streak data.
+  @override
   Future<Streak?> getStreak() async {
     final userId = _requireUserId;
-    final response = await _client
-        .from('streaks')
-        .select()
-        .eq('user_id', userId)
-        .maybeSingle();
+    return _network.query(() async {
+      final response = await _client
+          .from('streaks')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
 
-    if (response == null) return null;
+      if (response == null) return null;
 
-    return Streak.fromMap(response);
+      return Streak.fromMap(response);
+    });
   }
 
   /// Fetches all chapters for the current user once (ordered by chapter number).
   /// Used for mutations (create/update) and one-off reads.
+  @override
   Future<List<Chapter>> getChapters() async {
     final userId = _requireUserId;
-    final response = await _client
-        .from('chapters')
-        .select('*, journal_entries(count)')
-        .eq('user_id', userId)
-        .order('chapter_number', ascending: true);
+    return _network.query(() async {
+      final response = await _client
+          .from('chapters')
+          .select('*, journal_entries(count)')
+          .eq('user_id', userId)
+          .order('chapter_number', ascending: true);
 
-    return (response as List<dynamic>)
-        .map((row) => Chapter.fromMap(row as Map<String, dynamic>))
-        .toList();
+      return (response as List<dynamic>)
+          .map((row) => Chapter.fromMap(row as Map<String, dynamic>))
+          .toList();
+    });
   }
 
   /// Real-time stream of the current user's chapters, ordered by chapter number.
   /// Automatically pushes updates when chapters are added, edited, or deleted.
   /// This is the primary source used by [chaptersProvider].
+  @override
   Stream<List<Chapter>> watchChapters() {
     final userId = _requireUserId;
     return _client
@@ -92,6 +109,7 @@ class ProfileRepository implements IProfileRepository {
 
   /// Creates a new chapter with the next available chapter_number.
   /// Retries once on duplicate chapter_number conflict (race condition).
+  @override
   Future<Chapter> createChapter(String title, {int retryCount = 0}) async {
     final userId = _requireUserId;
     // Fetch only the max chapter_number — avoids loading all chapters + entries counts.
@@ -129,6 +147,7 @@ class ProfileRepository implements IProfileRepository {
   }
 
   /// Updates a chapter's title and/or color.
+  @override
   Future<Chapter> updateChapter(String chapterId, {String? title, int? colorValue}) async {
     final updates = <String, dynamic>{};
     if (title != null) updates['title'] = title;
@@ -146,13 +165,16 @@ class ProfileRepository implements IProfileRepository {
     return Chapter.fromMap(response);
   }
 
-  /// Deletes a chapter by id. Does NOT delete its entries — they remain with chapter_id still set.
+  /// Deletes a chapter by id. First nullifies chapter_id on affected entries.
+  @override
   Future<void> deleteChapter(String chapterId) async {
+    await _client.from('journal_entries').update({'chapter_id': null}).eq('chapter_id', chapterId).eq('user_id', _requireUserId);
     await _client.from('chapters').delete().eq('id', chapterId).eq('user_id', _requireUserId);
   }
 
   /// Seeds default chapters (defined in Supabase RPC) if user has none.
   /// Returns existing or newly seeded chapters.
+  @override
   Future<List<Chapter>> seedDefaultChapters() async {
     final existing = await getChapters();
     if (existing.isNotEmpty) return existing;

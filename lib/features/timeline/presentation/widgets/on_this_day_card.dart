@@ -126,14 +126,17 @@ class _OnThisDaySectionState extends State<OnThisDaySection> {
     final photos = entry.media.where((m) => m.mediaType == 'photo').toList();
     final hasPhoto = photos.isNotEmpty;
 
-    return GestureDetector(
-      onTap: () => onEntryTap(entry),
-      child: Container(
-        width: 240,
-        decoration: BoxDecoration(
-          color: colors.cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.border),
+    return Semantics(
+      label: 'Memory from $yearsAgo ${yearsAgo == 1 ? 'year' : 'years'} ago',
+      button: true,
+      child: GestureDetector(
+        onTap: () => onEntryTap(entry),
+        child: Container(
+          width: 240,
+          decoration: BoxDecoration(
+            color: colors.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border),
           boxShadow: [
             BoxShadow(
               color: colors.accent.withAlpha(12),
@@ -236,6 +239,7 @@ class _OnThisDaySectionState extends State<OnThisDaySection> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

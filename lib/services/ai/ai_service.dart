@@ -132,6 +132,7 @@ class AiService implements IAiService {
 
   /// Light-polishes raw text: fixes grammar, spelling, and punctuation
   /// while preserving the user's voice and meaning. No literary embellishment.
+  @override
   Future<String> lightPolish(
     String rawText, {
     String? language,
@@ -163,6 +164,7 @@ class AiService implements IAiService {
   ///
   /// [style] defaults to `'memoir'` but can be any supported style such as
   /// `'poetic'`, `'factual'`, etc.
+  @override
   Future<String> polishNarrative(
     String rawText, {
     String style = 'memoir',
@@ -192,6 +194,7 @@ class AiService implements IAiService {
   }
 
   /// Generates a short, casual title for a journal entry (3-7 words).
+  @override
   Future<String> generateTitle(
     String entryText, {
     String? language,
@@ -225,6 +228,7 @@ class AiService implements IAiService {
   }
 
   /// Sends an audio file for Whisper transcription and returns the transcript.
+  @override
   Future<String> transcribeAudio(String audioFilePath) async {
     _ensureConfigured('transcribeAudio');
     try {
@@ -254,6 +258,7 @@ class AiService implements IAiService {
   /// [language] is the user's preferred language (e.g. 'Dutch', 'German').
   /// The AI will default to this language but mirror the user's language
   /// if they switch mid-conversation.
+  @override
   Future<String> chat({
     required List<Map<String, String>> messages,
     String? mood,
@@ -286,6 +291,7 @@ class AiService implements IAiService {
   /// Generates a short, poetic summary of a journal entry for sharing.
   ///
   /// Returns 1-2 evocative sentences (max ~25 words) suitable for a share card.
+  @override
   Future<String> generateShareSummary(
     String entryText, {
     String? language,
@@ -330,6 +336,7 @@ class AiService implements IAiService {
   /// Returns a map with keys: `themes` (list of strings), `summary` (string),
   /// and `highlight` (map with title + quote).
   /// Falls back to individual calls if the merged response can't be parsed.
+  @override
   Future<Map<String, dynamic>> analyzeEntries(
     List<String> entries, {
     String? language,
@@ -381,6 +388,7 @@ class AiService implements IAiService {
 
   /// Sends a journal entry to the ai-tag edge function for async semantic tagging.
   /// Called fire-and-forget after online save. Updates DB directly — no return value.
+  @override
   Future<void> tagEntry({
     required String entryId,
     required String content,
@@ -404,6 +412,7 @@ class AiService implements IAiService {
   /// - `answer` (String): AI-generated natural language answer
   /// - `entryIds` (List of String): IDs of relevant entries
   /// - `followUpQuestions` (List of String): suggested follow-up queries
+  @override
   Future<Map<String, dynamic>> smartMemorySearch({
     required String query,
     String? language,
@@ -454,6 +463,7 @@ class AiService implements IAiService {
 
   /// Generates a weekly story from daily story texts.
   /// Returns `({String story, String? summary})` — both extracted from a single AI call.
+  @override
   Future<({String story, String? summary})> generateWeeklyStory(
     List<String> dailyStories, {
     List<String> tags = const [],
@@ -488,6 +498,7 @@ class AiService implements IAiService {
 
   /// Generates a monthly story from weekly **summaries** (not full stories).
   /// Returns `({String story, String? summary})` — both extracted from a single AI call.
+  @override
   Future<({String story, String? summary})> generateMonthlyStory(
     List<String> weeklySummaries, {
     List<String> tags = const [],
@@ -522,6 +533,7 @@ class AiService implements IAiService {
 
   /// Generates a yearly story from monthly **summaries** (not full stories).
   /// Returns `({String story, String? summary})` — both extracted from a single AI call.
+  @override
   Future<({String story, String? summary})> generateYearlyStory(
     List<String> monthlySummaries, {
     List<String> tags = const [],
@@ -572,6 +584,7 @@ class AiService implements IAiService {
   }
 
   /// Generates the lifetime story from yearly story texts + key moments.
+  @override
   Future<String> generateLifetimeStory(
     List<String> yearlyStories, {
     List<String> keyMomentTexts = const [],
@@ -614,6 +627,7 @@ class AiService implements IAiService {
   ///
   /// The backend calls a vision-capable model with [AiPrompts.imageOptimization]
   /// as the system prompt.
+  @override
   Future<String> optimizeImage({
     required String imageBase64,
     String mimeType = 'image/jpeg',
@@ -647,6 +661,7 @@ class AiService implements IAiService {
   ///
   /// Returns a map with keys: `theme` (String), `title` (String), `quote` (String).
   /// Falls back to theme-only extraction if the merged response cannot be parsed.
+  @override
   Future<Map<String, String>> analyzeStory(String storyText) async {
     _ensureConfigured('analyzeStory');
     const systemPrompt =

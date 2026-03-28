@@ -177,7 +177,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                               ),
                             ),
                             const SizedBox(width: 2),
-                            Icon(Icons.expand_more,
+                            const Icon(Icons.expand_more,
                                 size: 16, color: _accentTan),
                           ],
                         ),
@@ -263,7 +263,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, size: 20, color: _inkLight),
+                    icon: const Icon(Icons.close, size: 20, color: _inkLight),
                     onPressed: () => Navigator.pop(ctx),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -299,7 +299,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
       subtitle: Text(subtitle,
           style: GoogleFonts.manrope(fontSize: 12, color: _inkLight)),
       trailing: isSelected
-          ? Icon(Icons.check_circle, color: _primary, size: 20)
+          ? const Icon(Icons.check_circle, color: _primary, size: 20)
           : null,
       onTap: () {
         setState(() => _viewMode = mode);
@@ -442,7 +442,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             final idx = e.key;
             final ch = e.value;
             return _buildContentRow(
-              number: '${(idx + 1).toString().padLeft(2, '0')}',
+              number: (idx + 1).toString().padLeft(2, '0'),
               title: ch['title'] as String,
               subtitle: ch['subtitle'] as String,
               onTap: () {
@@ -536,7 +536,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward, size: 18, color: _inkFaint),
+            const Icon(Icons.arrow_forward, size: 18, color: _inkFaint),
           ],
         ),
       ),
@@ -597,8 +597,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                           ),
                         ),
                       if (page.mood != null) ...[
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
                           child: Text('\u2022',
                               style: TextStyle(
                                   fontSize: 8, color: _inkFaint)),
@@ -741,7 +741,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.picture_as_pdf_rounded,
+                  const Icon(Icons.picture_as_pdf_rounded,
                       size: 20, color: _accentTan),
                   const SizedBox(width: 10),
                   Text(
@@ -1031,7 +1031,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               ),
               const SizedBox(height: 20),
               ListTile(
-                leading: Icon(Icons.picture_as_pdf_rounded, color: _primary),
+                leading: const Icon(Icons.picture_as_pdf_rounded, color: _primary),
                 title: Text('Export as PDF',
                     style: GoogleFonts.manrope(
                         fontSize: 15, fontWeight: FontWeight.w600)),
@@ -1044,7 +1044,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.link_rounded, color: _primary),
+                leading: const Icon(Icons.link_rounded, color: _primary),
                 title: Text('Copy Link',
                     style: GoogleFonts.manrope(
                         fontSize: 15, fontWeight: FontWeight.w600)),
@@ -1380,8 +1380,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                     ),
                   ),
                   if (page.mood != null) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
                       child: Text('\u2022',
                           style: TextStyle(fontSize: 8, color: _inkFaint)),
                     ),
@@ -1456,7 +1456,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             fillColor: _bgLight,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _divider),
+              borderSide: const BorderSide(color: _divider),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

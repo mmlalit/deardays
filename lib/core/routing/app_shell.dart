@@ -46,6 +46,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     SyncService().onSyncComplete = _onSyncComplete;
     _prefetchData();
     Future.microtask(_scheduleEngagementNotifications);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final navigatorKey = GoRouter.of(context).routerDelegate.navigatorKey;
+        NotificationService().setNavigatorKey(navigatorKey);
+      }
+    });
   }
 
   void _scheduleEngagementNotifications() {
@@ -310,7 +316,7 @@ class _GlassHeader extends ConsumerWidget {
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withAlpha(204),
+            color: colors.navBg,
             border: Border(
               bottom: BorderSide(color: const Color(0xFF6366F1).withAlpha(18), width: 1),
             ),
@@ -331,7 +337,7 @@ class _GlassHeader extends ConsumerWidget {
                       style: GoogleFonts.newsreader(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1C1917),
+                        color: colors.textPrimary,
                         letterSpacing: -0.3,
                       ),
                     ),

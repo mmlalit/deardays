@@ -686,26 +686,6 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     _                     => false,
   };
 
-  String _sectionName(List<BookPage> pages, int currentIndex) {
-    final current = currentIndex < pages.length ? pages[currentIndex] : null;
-    if (current is CoverBookPage) return '';
-    if (current is IntroductionBookPage) return 'Introduction';
-    if (current is TocBookPage) return 'Contents';
-    if (current is ClosingBookPage) return 'Closing';
-    if (current is ChapterDividerPage) return current.chapter.title;
-
-    // Walk backwards to find the nearest section context
-    for (int i = currentIndex; i >= 0; i--) {
-      final p = pages[i];
-      if (p is ChapterDividerPage) return p.chapter.title;
-      if (p is MemoryBookPage && p.sectionLabel != null) return p.sectionLabel!;
-    }
-    if (current is MemoryBookPage) {
-      return DateFormat('MMMM yyyy').format(current.entry.entryDate);
-    }
-    return '';
-  }
-
   /// Returns the date label shown in the top bar center for the current page.
   String _pageDate(BookPage? page) {
     if (page is MemoryBookPage) {
@@ -893,9 +873,12 @@ class _CoverPageState extends ConsumerState<_CoverPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Use direct URL (user-uploaded) or fall back to signed storage path
+    // coverImageUrl now stores a storage path — generate signed URL at display time
     if (widget.page.coverImageUrl != null && widget.page.coverImageUrl!.isNotEmpty) {
-      return _buildCover(context, widget.page.coverImageUrl);
+      return FutureBuilder<String>(
+        future: ref.read(bookRepositoryProvider).getSignedCoverUrl(widget.page.coverImageUrl!),
+        builder: (context, snap) => _buildCover(context, snap.data),
+      );
     }
     if (widget.page.coverPhotoPath != null) {
       return FutureBuilder<String>(
@@ -2229,12 +2212,10 @@ class _WeekOpenerPage extends ConsumerWidget {
 class _BookPhotoCell extends ConsumerWidget {
   final String storagePath;
   final BorderRadius borderRadius;
-  final Alignment focalAlignment;
 
   const _BookPhotoCell({
     required this.storagePath,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
-    this.focalAlignment = Alignment.center,
   });
 
   @override
@@ -2249,7 +2230,7 @@ class _BookPhotoCell extends ConsumerWidget {
             return ClipRRect(
               borderRadius: borderRadius,
               child: SizedBox.expand(
-                child: Image.file(File(storagePath), fit: BoxFit.cover, alignment: focalAlignment),
+                child: Image.file(File(storagePath), fit: BoxFit.cover, alignment: Alignment.center),
               ),
             );
           }
@@ -2268,7 +2249,7 @@ class _BookPhotoCell extends ConsumerWidget {
             child: CachedNetworkImage(
               imageUrl: snap.data!,
               fit: BoxFit.cover,
-              alignment: focalAlignment,
+              alignment: Alignment.center,
               placeholder: (_, __) =>
                   Container(color: Colors.white.withAlpha(10)),
               errorWidget: (_, __, ___) =>

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:deardays/core/network/network_client.dart';
 import 'package:deardays/features/sharing/data/models/memory_share.dart';
 import 'package:deardays/core/domain/repositories/sharing_repository_interface.dart';
 
 class SharingRepository implements ISharingRepository {
   final SupabaseClient _client;
+  final NetworkClient _network = NetworkClient();
   SharingRepository({required SupabaseClient client}) : _client = client;
 
   String? get _userId => _client.auth.currentUser?.id;
@@ -22,6 +24,7 @@ class SharingRepository implements ISharingRepository {
   // Sarah: create a share token for a memory
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<MemoryShare> createShare(String memoryId) async {
     final row = await _client
         .from('memory_shares')
@@ -36,38 +39,55 @@ class SharingRepository implements ISharingRepository {
   // Returns minimal share info; full content only after approval
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<MemoryShare?> getShareByToken(String token) async {
-    final rows = await _client
-        .from('memory_shares')
-        .select('id, token, memory_id, status, expires_at, created_at, sharer_id')
-        .eq('token', token)
-        .limit(1)
-        .timeout(const Duration(seconds: 10));
-    if (rows.isEmpty) return null;
-    return MemoryShare.fromMap(rows.first);
+    return _network.query(() async {
+      final rows = await _client
+          .from('memory_shares')
+          .select('id, token, memory_id, status, expires_at, created_at, sharer_id')
+          .eq('token', token)
+          .limit(1)
+          .timeout(const Duration(seconds: 10));
+      if (rows.isEmpty) return null;
+      return MemoryShare.fromMap(rows.first);
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Mum: submit access request
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<void> requestAccess({
     required String shareId,
     required String recipientName,
     String? recipientId,
   }) async {
-    await _client.from('memory_shares').update({
+    // M-20 FIX: Use .select().maybeSingle() to verify the row was actually
+    // claimed by this user, preventing TOCTOU race where two simultaneous
+    // requests both succeed.
+    final result = await _client.from('memory_shares').update({
       'recipient_name': recipientName.trim(),
       'recipient_id':   recipientId,
       'requested_at':   DateTime.now().toIso8601String(),
       'status':         'pending',
-    }).eq('id', shareId).eq('status', 'pending').isFilter('recipient_id', null);
+    }).eq('id', shareId).eq('status', 'pending').isFilter('recipient_id', null)
+        .select('recipient_id')
+        .maybeSingle();
+
+    if (result == null) {
+      throw Exception('This share link has already been claimed.');
+    }
+    if (recipientId != null && result['recipient_id'] != recipientId) {
+      throw Exception('This share link was claimed by another user.');
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Sarah: approve or deny a request
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<void> respondToRequest({
     required String shareId,
     required bool approve,
@@ -113,6 +133,7 @@ class SharingRepository implements ISharingRepository {
   // Sarah: revoke access
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<void> revokeShare(String shareId) async {
     await _client.from('memory_shares').update({
       'status':     'revoked',
@@ -124,27 +145,31 @@ class SharingRepository implements ISharingRepository {
   // Sarah: all pending requests awaiting her approval
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<List<MemoryShare>> getPendingRequests() async {
     if (_userId == null) return [];
-    final rows = await _client
-        .from('memory_shares')
-        .select('''
-          *,
-          journal_entries!memory_id(title)
-        ''')
-        .eq('sharer_id', _requireUserId)
-        .eq('status', 'pending')
-        .not('recipient_name', 'is', null)
-        .order('requested_at', ascending: false)
-        .limit(100)
-        .timeout(const Duration(seconds: 10));
-    return rows.map((r) => _flattenWithTitle(r)).toList();
+    return _network.query(() async {
+      final rows = await _client
+          .from('memory_shares')
+          .select('''
+            *,
+            journal_entries!memory_id(title)
+          ''')
+          .eq('sharer_id', _requireUserId)
+          .eq('status', 'pending')
+          .not('recipient_name', 'is', null)
+          .order('requested_at', ascending: false)
+          .limit(100)
+          .timeout(const Duration(seconds: 10));
+      return rows.map((r) => _flattenWithTitle(r)).toList();
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Sarah: all shares for a specific memory (management screen)
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<List<MemoryShare>> getSharesForMemory(String memoryId) async {
     if (_userId == null) return [];
     final rows = await _client
@@ -162,32 +187,37 @@ class SharingRepository implements ISharingRepository {
   // Mum: memories approved and shared with her
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<List<SharedMemoryItem>> getSharedWithMe() async {
     if (_userId == null) return [];
-    final rows = await _client
-        .from('memory_shares')
-        .select('''
-          *,
-          journal_entries!memory_id(id, title, polished_content, content, entry_date, mood),
-          profiles!sharer_id(display_name)
-        ''')
-        .eq('recipient_id', _requireUserId)
-        .inFilter('status', ['approved', 'revoked'])
-        .order('approved_at', ascending: false)
-        .limit(100)
-        .timeout(const Duration(seconds: 10));
-    return rows.map((r) => SharedMemoryItem.fromMap(r)).toList();
+    return _network.query(() async {
+      final rows = await _client
+          .from('memory_shares')
+          .select('''
+            *,
+            journal_entries!memory_id(id, title, polished_content, content, entry_date, mood),
+            profiles!sharer_id(display_name)
+          ''')
+          .eq('recipient_id', _requireUserId)
+          .inFilter('status', ['approved', 'revoked'])
+          .order('approved_at', ascending: false)
+          .limit(100)
+          .timeout(const Duration(seconds: 10));
+      return rows.map((r) => SharedMemoryItem.fromMap(r)).toList();
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Mum: record that she viewed an approved memory
   // ─────────────────────────────────────────────────────────────────────────
 
+  @override
   Future<void> recordView(String shareId) async {
     await _client.rpc('increment_share_view', params: {'p_share_id': shareId});
   }
 
   // Realtime stream — Mum watches for approval on her specific share
+  @override
   Stream<List<Map<String, dynamic>>> watchShare(String shareId) =>
       _client
           .from('memory_shares')
@@ -195,6 +225,7 @@ class SharingRepository implements ISharingRepository {
           .eq('id', shareId);
 
   // Realtime stream — Sarah watches for new pending requests
+  @override
   Stream<List<Map<String, dynamic>>> watchPendingRequests() {
     final uid = _userId;
     if (uid == null) {

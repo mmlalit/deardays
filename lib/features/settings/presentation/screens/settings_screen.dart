@@ -53,6 +53,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _streakMilestonesEnabled = true;
   bool _isDialogOpen = false;
   String _appVersion = '';
+  Future<String?>? _avatarUrlFuture;
+  String? _cachedAvatarPath;
 
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 30);
   final _secureStorage = SecureStorageService();
@@ -121,6 +123,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ),
       );
       if (!authenticated) return;
+      if (!mounted) return;
     }
 
     await _secureStorage.saveBiometricEnabled(value);
@@ -521,171 +524,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Writing Style
-  // ---------------------------------------------------------------------------
-
-  Future<void> _pickWritingStyle() async {
-    final styles = ['Memoir', 'Diary', 'Story'];
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      useRootNavigator: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.of(context).border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(child: Text('Writing Style', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600))),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 20, color: AppColors.of(context).textMuted),
-                    onPressed: () => Navigator.pop(ctx),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            ...styles.map((s) => ListTile(
-                  leading: Icon(
-                    s == 'Memoir'
-                        ? Icons.auto_stories
-                        : s == 'Diary'
-                            ? Icons.book
-                            : Icons.movie_creation_outlined,
-                    color: AppColors.of(context).accent,
-                  ),
-                  title: Text(s, style: GoogleFonts.manrope(fontSize: 15)),
-                  subtitle: Text(
-                    s == 'Memoir'
-                        ? 'First-person narrative, reflective tone'
-                        : s == 'Diary'
-                            ? 'First-person, casual daily entries'
-                            : 'Cinematic storytelling, vivid scenes',
-                    style: GoogleFonts.manrope(fontSize: 12, color: AppColors.of(context).textMuted),
-                  ),
-                  onTap: () => Navigator.pop(ctx, s.toLowerCase()),
-                )),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-    if (picked == null || !mounted) return;
-
-    try {
-      final profileRepo = ref.read(profileRepositoryProvider);
-      final profile = await profileRepo.getProfile();
-      if (profile != null) {
-        await profileRepo.updateProfile(profile.copyWith(writingStyle: picked));
-      }
-      if (mounted) {
-        AppSnackBar.success(context, 'Writing style updated to ${picked[0].toUpperCase()}${picked.substring(1)}');
-      }
-    } catch (e) {
-      debugPrint('[Settings] _pickWritingStyle error: $e');
-      if (mounted) {
-        AppSnackBar.error(context, 'Failed to update writing style.');
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Book Organization
-  // ---------------------------------------------------------------------------
-
-  Future<void> _pickBookOrganization() async {
-    final options = [
-      {'value': 'yearly', 'label': 'Yearly', 'desc': 'A new book is created each year'},
-      {'value': 'monthly', 'label': 'Monthly', 'desc': 'A new book is created each month'},
-      {'value': 'quarterly', 'label': 'Quarterly', 'desc': 'A new book is created each quarter'},
-      {'value': 'manual', 'label': 'One Book', 'desc': 'All entries go into a single book'},
-    ];
-
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      useRootNavigator: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.of(context).border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(child: Text('Organize Books By', style: GoogleFonts.manrope(fontSize: 17, fontWeight: FontWeight.w600))),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 20, color: AppColors.of(context).textMuted),
-                    onPressed: () => Navigator.pop(ctx),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            ...options.map((o) => ListTile(
-                  leading: Icon(Icons.library_books_outlined, color: AppColors.of(context).accent),
-                  title: Text(o['label']!, style: GoogleFonts.manrope(fontSize: 15)),
-                  subtitle: Text(
-                    o['desc']!,
-                    style: GoogleFonts.manrope(fontSize: 12, color: AppColors.of(context).textMuted),
-                  ),
-                  onTap: () => Navigator.pop(ctx, o['value']),
-                )),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-
-    if (picked == null || !mounted) return;
-
-    try {
-      final profileRepo = ref.read(profileRepositoryProvider);
-      final profile = await profileRepo.getProfile();
-      if (profile != null) {
-        await profileRepo.updateProfile(profile.copyWith(bookOrganization: picked));
-      }
-      if (mounted) {
-        final label = options.firstWhere((o) => o['value'] == picked)['label']!;
-        AppSnackBar.success(context, 'Books organized by $label');
-      }
-    } catch (e) {
-      debugPrint('[Settings] _pickBookOrganization error: $e');
-      if (mounted) {
-        AppSnackBar.error(context, 'Failed to update book organization.');
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // Export All Data — polished bottom sheet
   // ---------------------------------------------------------------------------
 
@@ -868,8 +706,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         debugPrint('[Settings] cleanup export file error: $e');
       }
     } catch (e) {
+      debugPrint('[Settings] Export failed: $e');
       if (mounted) {
-        AppSnackBar.error(context, 'Export failed: ${e.toString().length > 60 ? e.toString().substring(0, 60) : e}');
+        AppSnackBar.error(context, 'Export failed. Please try again.');
       }
     }
   }
@@ -974,6 +813,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (userId == null) {
         if (mounted) AppSnackBar.error(context, 'No authenticated user found.');
         return;
+      }
+
+      // Purge Storage files before deleting the profile row
+      try {
+        final mediaFiles = await client.storage.from('media').list(path: userId);
+        if (mediaFiles.isNotEmpty) {
+          await client.storage.from('media').remove(
+            mediaFiles.map((f) => '$userId/${f.name}').toList(),
+          );
+        }
+        final coverFiles = await client.storage.from('user-covers').list(path: userId);
+        if (coverFiles.isNotEmpty) {
+          await client.storage.from('user-covers').remove(
+            coverFiles.map((f) => '$userId/${f.name}').toList(),
+          );
+        }
+        // Delete avatar
+        await client.storage.from('media').remove([
+          'avatars/$userId.jpg',
+          'avatars/$userId.png',
+          'avatars/$userId.jpeg',
+        ]);
+      } catch (e) {
+        debugPrint('Storage cleanup failed: $e');
+        // Continue with account deletion even if storage cleanup fails
       }
 
       await client.from('profiles').delete().eq('id', userId);
@@ -1366,19 +1230,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     final profileAsync = ref.watch(profileProvider);
     final avatarPath = profileAsync.valueOrNull?.avatarUrl;
 
-    // Resolve avatar: if the stored value is a storage path (not a full URL),
-    // generate a signed URL on-the-fly so it never expires in the DB.
-    final Future<String?> avatarUrlFuture = () async {
-      if (avatarPath == null || avatarPath.isEmpty) return null;
-      if (avatarPath.startsWith('http')) return avatarPath; // legacy full URL
-      try {
-        return await Supabase.instance.client.storage
-            .from('media')
-            .createSignedUrl(avatarPath, 3600);
-      } catch (_) {
-        return null;
-      }
-    }();
+    // Cache the signed-URL Future so it isn't recreated on every build.
+    // Recompute only when the avatar path actually changes.
+    if (avatarPath != _cachedAvatarPath) {
+      _cachedAvatarPath = avatarPath;
+      _avatarUrlFuture = () async {
+        if (avatarPath == null || avatarPath.isEmpty) return null;
+        if (avatarPath.startsWith('http')) return avatarPath; // legacy full URL
+        try {
+          return await Supabase.instance.client.storage
+              .from('media')
+              .createSignedUrl(avatarPath, 3600);
+        } catch (_) {
+          return null;
+        }
+      }();
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 28),
@@ -1398,7 +1265,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       border: Border.all(color: AppColors.of(context).accent, width: 2),
                     ),
                     child: FutureBuilder<String?>(
-                      future: avatarUrlFuture,
+                      future: _avatarUrlFuture,
                       builder: (context, snapshot) {
                         final avatarUrl = snapshot.data;
                         if (avatarUrl != null && avatarUrl.isNotEmpty) {

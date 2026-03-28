@@ -105,12 +105,21 @@ class SharedMemoryItem {
   factory SharedMemoryItem.fromMap(Map<String, dynamic> map) {
     final entry = map['journal_entries'] as Map<String, dynamic>? ?? {};
     final profile = map['profiles'] as Map<String, dynamic>? ?? {};
-    final rawContent = (entry['polished_content'] as String?)
-        ?? (entry['content'] as String?)
-        ?? '';
+    final isClientEncrypted = (entry['is_client_encrypted'] as bool?) ?? false;
+    final String rawContent;
+    if (isClientEncrypted) {
+      // Recipient does not have the sharer's E2E key — mask ciphertext.
+      rawContent = '[This memory is encrypted]';
+    } else {
+      rawContent = (entry['polished_content'] as String?)
+          ?? (entry['content'] as String?)
+          ?? '';
+    }
     return SharedMemoryItem(
       share:         MemoryShare.fromMap(map),
-      memoryTitle:   (entry['title'] as String?) ?? 'Untitled Memory',
+      memoryTitle:   isClientEncrypted
+          ? (entry['title'] as String?) ?? 'Encrypted Memory'
+          : (entry['title'] as String?) ?? 'Untitled Memory',
       memoryExcerpt: rawContent.length > 120
           ? '${rawContent.substring(0, 120)}…'
           : rawContent,

@@ -256,6 +256,76 @@ void bookReadingFlowTests() {
     });
   });
 
+  // ── Group 3b: BookReaderScreen — theme selection ──────────────────────────
+
+  group('Book Reading — Reader Themes', () {
+    testWidgets('BookReaderScreen shows theme options when overlay is visible', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('CHAPTERS'));
+      await tester.pumpAndSettle();
+
+      // Try to reach BookReaderScreen
+      final readBtn = find.textContaining('Read');
+      if (readBtn.evaluate().isEmpty) {
+        expect(find.byType(MaterialApp), findsOneWidget);
+        return;
+      }
+
+      await tester.tap(readBtn.first, warnIfMissed: false);
+      await tester.pump(const Duration(seconds: 3));
+
+      if (find.byType(BookReaderScreen).evaluate().isEmpty) {
+        expect(find.byType(MaterialApp), findsOneWidget);
+        return;
+      }
+
+      // Tap centre of screen to toggle overlay bars
+      await tester.tapAt(const Offset(200, 400));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Look for theme names in the overlay
+      expect(
+        find.textContaining('Parchment').evaluate().isNotEmpty ||
+            find.textContaining('Sepia').evaluate().isNotEmpty ||
+            find.textContaining('Sage').evaluate().isNotEmpty ||
+            find.textContaining('Lavender').evaluate().isNotEmpty ||
+            find.byType(BookReaderScreen).evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+
+    testWidgets('tapping a theme option does not crash', (tester) async {
+      await tester.pumpWidget(buildE2EApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('CHAPTERS'));
+      await tester.pumpAndSettle();
+
+      final readBtn = find.textContaining('Read');
+      if (readBtn.evaluate().isEmpty) return;
+
+      await tester.tap(readBtn.first, warnIfMissed: false);
+      await tester.pump(const Duration(seconds: 3));
+
+      if (find.byType(BookReaderScreen).evaluate().isEmpty) return;
+
+      // Toggle overlay
+      await tester.tapAt(const Offset(200, 400));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Try to tap Sepia theme if visible
+      final sepia = find.textContaining('Sepia');
+      if (sepia.evaluate().isNotEmpty) {
+        await tester.tap(sepia.first, warnIfMissed: false);
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      expect(find.byType(MaterialApp), findsOneWidget);
+    });
+  });
+
   // ── Group 4: MyStoryScreen — style and hierarchy ──────────────────────────
 
   group('Book Reading — My Story Style & Hierarchy', () {

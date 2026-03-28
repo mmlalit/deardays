@@ -105,7 +105,7 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   // Save state
   bool _isSaving = false;
-  bool _isUploadingPhoto = false;
+  final bool _isUploadingPhoto = false;
   String? _attachedPhotoPath;
   String? _locationName;
   String? _saveError;

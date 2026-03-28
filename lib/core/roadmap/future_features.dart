@@ -1,7 +1,6 @@
-/// Future roadmap feature stubs for DearDays.
-/// These are planned features to be implemented in future sprints.
-/// Each stub documents the feature and where it should plug in.
-library future_features;
+// Future roadmap feature stubs for DearDays.
+// These are planned features to be implemented in future sprints.
+// Each stub documents the feature and where it should plug in.
 
 import 'package:flutter/foundation.dart';
 

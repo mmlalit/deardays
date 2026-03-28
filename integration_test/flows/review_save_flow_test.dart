@@ -116,6 +116,72 @@ void reviewSaveFlowTests() {
     });
   });
 
+  // ── Tags ─────────────────────────────────────────────────────────────────
+
+  group('Review & Save — Tags', () {
+    testWidgets('shows Add tags pill button', (tester) async {
+      final arrived = await navigateToReviewSave(tester);
+      if (!arrived) return;
+
+      expect(
+        find.text('Add tags').evaluate().isNotEmpty ||
+            find.byIcon(Icons.sell_outlined).evaluate().isNotEmpty ||
+            find.textContaining('tag').evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+
+    testWidgets('tapping Add tags opens the tags sheet', (tester) async {
+      final arrived = await navigateToReviewSave(tester);
+      if (!arrived) return;
+
+      final addTags = find.text('Add tags');
+      if (addTags.evaluate().isEmpty) return;
+
+      await tester.tap(addTags.first, warnIfMissed: false);
+      await tester.pump(const Duration(seconds: 1));
+
+      // Tags sheet should show "Type a tag..." hint
+      expect(
+        find.textContaining('tag').evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+
+    testWidgets('can add a tag via the tags sheet', (tester) async {
+      final arrived = await navigateToReviewSave(tester);
+      if (!arrived) return;
+
+      final addTags = find.text('Add tags');
+      if (addTags.evaluate().isEmpty) return;
+
+      await tester.tap(addTags.first, warnIfMissed: false);
+      await tester.pump(const Duration(seconds: 1));
+
+      // Find the tag input TextField in the sheet
+      final tagFields = find.byType(TextField);
+      if (tagFields.evaluate().length < 2) return; // main + tag input
+
+      await tester.showKeyboard(tagFields.last);
+      tester.testTextInput.enterText('travel');
+      await tester.pump();
+
+      // Tap the check/add button
+      final checkBtn = find.byIcon(Icons.check_rounded);
+      if (checkBtn.evaluate().isNotEmpty) {
+        await tester.tap(checkBtn.first, warnIfMissed: false);
+        await tester.pump();
+      }
+
+      // Tag chip should appear
+      expect(
+        find.textContaining('travel').evaluate().isNotEmpty ||
+            find.textContaining('1 tag').evaluate().isNotEmpty,
+        isTrue,
+      );
+    });
+  });
+
   group('Review & Save — Navigation', () {
     testWidgets('cancelling returns to previous screen', (tester) async {
       final arrived = await navigateToReviewSave(tester);

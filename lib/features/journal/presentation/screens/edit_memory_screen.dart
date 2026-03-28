@@ -11,10 +11,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
-import 'package:deardays/features/journal/data/repositories/journal_repository.dart';
+import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
+import 'package:deardays/core/domain/services/media_service_interface.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
 import 'package:deardays/services/location/location_service.dart';
-import 'package:deardays/services/media/media_service.dart';
 
 // ---------------------------------------------------------------------------
 // Entry point — accepts a saved JournalEntry from timeline / detail screen.
@@ -32,8 +32,8 @@ class EditMemoryScreen extends ConsumerStatefulWidget {
 class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
   // ── repository / services — injected via Riverpod providers ─────────────
   // (resolved lazily on first use so ref is available after initState)
-  JournalRepository get _repository => ref.read(journalRepositoryProvider);
-  MediaService get _mediaService => ref.read(mediaServiceProvider);
+  IJournalRepository get _repository => ref.read(journalRepositoryProvider);
+  IMediaService get _mediaService => ref.read(mediaServiceProvider);
   LocationService get _locationService => ref.read(locationServiceProvider);
   final _imagePicker = ImagePicker();
 
@@ -165,9 +165,9 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
         polishedContent = title.isNotEmpty ? '$title\n\n$body' : body;
       }
 
-      // Rebuild word count from content (cleaned text)
-      final content = widget.entry.content;
-      final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+      // Rebuild word count from the currently edited text
+      final editedText = _storyController.text.trim();
+      final wordCount = editedText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
 
       // C-08 FIX: Upload new photo FIRST. Only update DB after upload succeeds.
       // This ensures the DB is never written with a storage path that doesn't exist.
@@ -195,6 +195,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
 
       final updated = widget.entry.copyWith(
         polishedContent: polishedContent,
+        rawContent: _editingOriginal ? _originalController.text.trim() : widget.entry.rawContent,
         mood: _selectedMood,
         locationName: _locationName,
         entryDate: _entryDate,
@@ -343,7 +344,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
             if (_newPhotoPath != null ||
                 (_existingPhotoUrl != null && !_removePhoto))
               ListTile(
-                leading: Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
                 title: Text('Remove photo',
                     style: GoogleFonts.manrope(
                         fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.error)),
@@ -399,7 +400,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
           _showDragHint = true;
         });
       }
-    } catch (e) { debugPrint("[EditMemory] Error: $e"); }
+    } catch (e) { debugPrint('[EditMemory] Error: $e'); }
   }
 
   Future<void> _takePhoto() async {
@@ -428,7 +429,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
           _showDragHint = true;
         });
       }
-    } catch (e) { debugPrint("[EditMemory] Error: $e"); }
+    } catch (e) { debugPrint('[EditMemory] Error: $e'); }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -491,7 +492,7 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
                         setState(
                             () => _locationName = loc!.locationName);
                       }
-                    } catch (e) { debugPrint("[EditMemory] Error: $e"); }
+                    } catch (e) { debugPrint('[EditMemory] Error: $e'); }
                   },
                   icon: Icon(Icons.my_location_rounded,
                       size: 16, color: colors.accent),
@@ -820,8 +821,8 @@ class _EditMemoryScreenState extends ConsumerState<EditMemoryScreen> {
                         : colors.accent,
                   ),
                   child: _isSaving
-                      ? Padding(
-                          padding: const EdgeInsets.all(10),
+                      ? const Padding(
+                          padding: EdgeInsets.all(10),
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
