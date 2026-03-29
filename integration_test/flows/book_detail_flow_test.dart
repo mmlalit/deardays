@@ -19,27 +19,27 @@ void bookDetailFlowTests() {
   group('Book Detail — CHAPTERS Tab Prerequisite', () {
     testWidgets('CHAPTERS tab renders LibraryScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(LibraryScreen), findsOneWidget);
     });
 
     testWidgets('LibraryScreen shows book content', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Scroll to expose book cards below the header.
       await tester.drag(
         find.byType(Scrollable).first,
         const Offset(0, -200),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // In demo mode either book title or sample chapter cards are visible.
       final hasContent =
@@ -52,10 +52,10 @@ void bookDetailFlowTests() {
     testWidgets('My Life Book button is accessible from CHAPTERS tab',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // The LibraryScreen shows a "My Life Book" card or similar entry point.
       // Scroll to find it.
@@ -63,7 +63,7 @@ void bookDetailFlowTests() {
         find.byType(Scrollable).first,
         const Offset(0, -300),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final hasLifeBook =
           find.textContaining('My Life').evaluate().isNotEmpty ||
@@ -74,14 +74,14 @@ void bookDetailFlowTests() {
 
     testWidgets('can navigate back from CHAPTERS to HOME', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       expect(find.byType(LibraryScreen), findsOneWidget);
 
       await tester.tap(find.text('HOME'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       expect(find.byType(LibraryScreen), findsNothing);
     });
   });

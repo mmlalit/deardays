@@ -10,10 +10,10 @@ import '../helpers/test_app.dart';
 void seeAllFlowTests() {
   Future<void> navigateToExplore(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.tap(find.text('EXPLORE'));
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   group('See All — Navigation', () {
@@ -31,7 +31,7 @@ void seeAllFlowTests() {
       expect(seeAll, findsWidgets);
 
       await tester.tap(seeAll.first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(SeeAllTimelineScreen), findsOneWidget);
     });
@@ -43,7 +43,7 @@ void seeAllFlowTests() {
       await navigateToExplore(tester);
 
       await tester.tap(find.textContaining('See all').first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // The title should be one of: "Happiest Memories", "Family Journey",
       // "Travel Adventures".
@@ -58,7 +58,7 @@ void seeAllFlowTests() {
       await navigateToExplore(tester);
 
       await tester.tap(find.textContaining('See all').first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final hasSubtitle =
           find.text('Reliving your peak moments').evaluate().isNotEmpty ||
@@ -71,7 +71,7 @@ void seeAllFlowTests() {
       await navigateToExplore(tester);
 
       await tester.tap(find.textContaining('See all').first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // The "All" filter chip is always present.
       expect(find.text('All'), findsOneWidget);
@@ -82,7 +82,7 @@ void seeAllFlowTests() {
       await navigateToExplore(tester);
 
       await tester.tap(find.textContaining('See all').first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Depending on the section, there will be extra chips like
       // "Great", "Good" for happiest; "Milestones", "Travel" for family, etc.
@@ -99,7 +99,7 @@ void seeAllFlowTests() {
       await navigateToExplore(tester);
 
       await tester.tap(find.textContaining('See all').first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Tap the second filter chip (not "All").
       // Find all text widgets that match known filter names.
@@ -109,7 +109,7 @@ void seeAllFlowTests() {
         final finder = find.text(name);
         if (finder.evaluate().isNotEmpty) {
           await tester.tap(finder.first);
-          await tester.pumpAndSettle();
+          await settle(tester);
           tappedFilter = name;
           break;
         }
@@ -129,7 +129,7 @@ void seeAllFlowTests() {
       await navigateToExplore(tester);
 
       await tester.tap(find.textContaining('See all').first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
     });
@@ -139,10 +139,10 @@ void seeAllFlowTests() {
       await navigateToExplore(tester);
 
       await tester.tap(find.textContaining('See all').first);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(ExploreScreen), findsOneWidget);
     });

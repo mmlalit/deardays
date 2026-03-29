@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/checkin/presentation/screens/checkin_screen.dart';
@@ -12,9 +13,9 @@ const _settle = Duration(seconds: 2);
 void checkinFlowTests() {
   Future<void> openChat(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pump(_settle);
-    await tester.tap(find.text('CHAT'));
-    await tester.pump(_settle);
+    await settle(tester);
+    final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/checkin');
+    await settle(tester);
   }
 
   group('Check-in / Chat AI — Structure', () {
@@ -118,7 +119,7 @@ void checkinFlowTests() {
       final backBtn = find.byIcon(Icons.arrow_back_rounded);
       expect(backBtn, findsOneWidget);
       await tester.tap(backBtn);
-      await tester.pump(_settle);
+      await settle(tester);
 
       expect(find.byType(CheckInScreen), findsNothing);
     });

@@ -197,7 +197,7 @@ void sharingExtendedFlowTests() {
   group('Sharing Extended — E2E Share Flow', () {
     testWidgets('Share Approvals screen accessible via E2E app', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to Settings to find share approvals (or direct route)
       // The route /share-approvals is in the E2E router
@@ -206,7 +206,7 @@ void sharingExtendedFlowTests() {
 
     testWidgets('Shared With Me screen renders in E2E app', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });

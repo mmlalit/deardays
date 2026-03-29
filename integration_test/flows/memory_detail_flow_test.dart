@@ -9,22 +9,22 @@ void memoryDetailFlowTests() {
   // MemoryDetailScreen initialises an audio player for entries with hasVoice.
   // Use pump(Duration) instead of pumpAndSettle() to avoid platform-channel
   // hangs, exactly as done for RecordingScreen and CheckInScreen.
-  const settle = Duration(seconds: 3);
+  const pumpWait = Duration(seconds: 3);
 
   Future<void> openDetail(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     // Navigate to the TIMELINE tab where mock entry cards are rendered.
     await tester.tap(find.text('TIMELINE'));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     // Scroll past stats, filter chips, and weekly summary to entry cards.
     await tester.drag(
       find.byType(CustomScrollView).first,
       const Offset(0, -600),
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     // Find a specific mock entry title that appears in the card.
     // The first mock entry starts with 'Trip to Bali with the family'.
@@ -46,7 +46,7 @@ void memoryDetailFlowTests() {
         );
         if (card.evaluate().isNotEmpty) {
           await tester.tap(card.first, warnIfMissed: false);
-          await tester.pump(settle);
+          await tester.pump(pumpWait);
           tapped = true;
           break;
         }
@@ -194,7 +194,7 @@ void memoryDetailFlowTests() {
         // pump(Duration) — audio player keeps the frame loop alive;
         // pumpAndSettle would hang indefinitely.
         await tester.pump();
-        await tester.pump(settle);
+        await tester.pump(pumpWait);
       }
 
       // MaterialApp is always at the root — verifies the app survived navigation.

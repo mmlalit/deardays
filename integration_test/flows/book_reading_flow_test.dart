@@ -23,9 +23,9 @@ import '../helpers/test_app.dart';
 void bookReadingFlowTests() {
   Future<void> openChaptersTab(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
     await tester.tap(find.text('CHAPTERS'));
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   // ── Group 1: LibraryScreen — chapter browsing ─────────────────────────────
@@ -45,10 +45,10 @@ void bookReadingFlowTests() {
       );
     });
 
-    testWidgets('Read Autobiography button is visible', (tester) async {
+    testWidgets('Read button is visible', (tester) async {
       await openChaptersTab(tester);
       expect(
-        find.text('Read Autobiography').evaluate().isNotEmpty ||
+        find.text('Read').evaluate().isNotEmpty ||
             find.text('Life Chapters').evaluate().isNotEmpty ||
             find.byType(LibraryScreen).evaluate().isNotEmpty,
         isTrue,
@@ -103,11 +103,11 @@ void bookReadingFlowTests() {
 
     testWidgets('MyLifeBookScreen renders without crash', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate directly
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final myLifeBtn = find.textContaining('My Life Book');
       if (myLifeBtn.evaluate().isNotEmpty) {
@@ -126,9 +126,9 @@ void bookReadingFlowTests() {
 
     testWidgets('MyLifeBookScreen has back navigation', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final myLifeBtn = find.textContaining('My Life Book');
       if (myLifeBtn.evaluate().isEmpty) return;
@@ -147,9 +147,9 @@ void bookReadingFlowTests() {
 
     testWidgets('Contents section label is visible on MyLifeBookScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final myLifeBtn = find.textContaining('My Life Book');
       if (myLifeBtn.evaluate().isEmpty) return;
@@ -173,11 +173,11 @@ void bookReadingFlowTests() {
   group('Book Reading — Book Reader', () {
     testWidgets('BookReaderScreen renders without crash', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to CHAPTERS → find any "Read" or "Open" button
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Look for a Read/Open button that leads to BookReaderScreen
       final readBtn = find.textContaining('Read').evaluate().isNotEmpty
@@ -195,11 +195,11 @@ void bookReadingFlowTests() {
     testWidgets('BookReaderScreen page turns on swipe', (tester) async {
       // Render BookReaderScreen directly via E2E router
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to chapters and attempt to reach book reader
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       if (find.byType(BookReaderScreen).evaluate().isEmpty) {
         // Not reachable from current navigation — skip but don't fail
@@ -219,10 +219,10 @@ void bookReadingFlowTests() {
 
     testWidgets('BookReaderScreen shows progress bar', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       if (find.byType(BookReaderScreen).evaluate().isEmpty) {
         expect(find.byType(MaterialApp), findsOneWidget);
@@ -238,10 +238,10 @@ void bookReadingFlowTests() {
 
     testWidgets('BookReaderScreen tap toggles overlay bars', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       if (find.byType(BookReaderScreen).evaluate().isEmpty) {
         expect(find.byType(MaterialApp), findsOneWidget);
@@ -261,10 +261,10 @@ void bookReadingFlowTests() {
   group('Book Reading — Reader Themes', () {
     testWidgets('BookReaderScreen shows theme options when overlay is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Try to reach BookReaderScreen
       final readBtn = find.textContaining('Read');
@@ -298,10 +298,10 @@ void bookReadingFlowTests() {
 
     testWidgets('tapping a theme option does not crash', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final readBtn = find.textContaining('Read');
       if (readBtn.evaluate().isEmpty) return;
@@ -464,7 +464,7 @@ void bookReadingFlowTests() {
             : find.byType(Scrollable).first,
         const Offset(0, -300),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('Life Chapters').evaluate().isNotEmpty ||

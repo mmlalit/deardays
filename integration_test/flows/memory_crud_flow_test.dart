@@ -1,5 +1,6 @@
 /// Memory CRUD flow tests — create, edit, delete memories.
 library;
+import 'package:go_router/go_router.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,13 +15,13 @@ void memoryCrudFlowTests() {
 
   Future<bool> openMemoryDetail(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.tap(find.text('TIMELINE'));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -400));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     const knownTitles = [
       'Trip to Bali',
@@ -54,7 +55,7 @@ void memoryCrudFlowTests() {
     if (moreBtn.evaluate().isEmpty) return false;
 
     await tester.tap(moreBtn.first, warnIfMissed: false);
-    await tester.pumpAndSettle();
+    await settle(tester);
     return true;
   }
 
@@ -130,7 +131,7 @@ void memoryCrudFlowTests() {
       if (find.text('Delete Memory').evaluate().isEmpty) return;
 
       await tester.tap(find.text('Delete Memory'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('permanently deleted').evaluate().isNotEmpty ||
@@ -146,7 +147,7 @@ void memoryCrudFlowTests() {
       if (find.text('Delete Memory').evaluate().isEmpty) return;
 
       await tester.tap(find.text('Delete Memory'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.text('Cancel').evaluate().isNotEmpty,
@@ -169,7 +170,7 @@ void memoryCrudFlowTests() {
 
       // Clean up
       await tester.tap(find.text('Delete Memory'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       if (find.text('Cancel').evaluate().isNotEmpty) {
         await tester.tap(find.text('Cancel'));
         await tester.pump(const Duration(milliseconds: 500));
@@ -182,20 +183,20 @@ void memoryCrudFlowTests() {
   group('Memory CRUD — Write Entry', () {
     testWidgets('Write Entry screen has a text input area', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.byType(TextField).evaluate().isNotEmpty, isTrue);
     });
 
     testWidgets('Write Entry screen has Continue button', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(
         find.text('Continue').evaluate().isNotEmpty,
@@ -205,10 +206,10 @@ void memoryCrudFlowTests() {
 
     testWidgets('typing text in Write Entry is reflected in the field', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isEmpty) return;
@@ -227,10 +228,10 @@ void memoryCrudFlowTests() {
 
     testWidgets('empty save shows validation error or stays on screen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       // Tap Save without entering text
       final saveBtn = find.textContaining('Save');

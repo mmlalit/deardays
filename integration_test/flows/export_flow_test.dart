@@ -13,20 +13,20 @@ void exportFlowTests() {
   // and we test the Settings export flow separately.
   Future<void> openExportScreen(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     // Navigate directly to ExportScreen via the /export route.
     // Use Scaffold context (inside router scope) rather than MaterialApp.
     final context = tester.element(find.byType(Scaffold).first);
     GoRouter.of(context).push('/export');
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   Future<void> openSettings(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
+    await settle(tester);
+    final _ctx = tester.element(find.byType(Scaffold).first); GoRouter.of(_ctx).push('/settings');
+    await settle(tester);
   }
 
   group('Export — Navigation', () {
@@ -43,7 +43,7 @@ void exportFlowTests() {
         200.0,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Export All Data'), findsOneWidget);
     });
@@ -56,10 +56,10 @@ void exportFlowTests() {
         200.0,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('Export All Data'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Modal offers JSON, PDF, or Plain Text
       expect(
@@ -71,7 +71,7 @@ void exportFlowTests() {
 
       // Close the modal
       await tester.tapAt(const Offset(200, 100));
-      await tester.pumpAndSettle();
+      await settle(tester);
     });
   });
 
@@ -116,7 +116,7 @@ void exportFlowTests() {
         find.byType(Scrollable).first,
         const Offset(0, -300),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('EXPORT FORMAT'), findsOneWidget);
     });
@@ -130,7 +130,7 @@ void exportFlowTests() {
         find.byType(Scrollable).first,
         const Offset(0, -300),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('By Year'), findsOneWidget);
       expect(find.text('By Chapter'), findsOneWidget);
@@ -145,7 +145,7 @@ void exportFlowTests() {
         find.byType(Scrollable).first,
         const Offset(0, -300),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // "Both" is selected by default — its description should be visible
       expect(find.text('Combined timeline + chapters'), findsOneWidget);
@@ -163,11 +163,11 @@ void exportFlowTests() {
         find.byType(Scrollable).first,
         const Offset(0, -300),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Tap "By Year" option
       await tester.tap(find.text('By Year'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // After tapping, the description for "By Year" should be visible.
       expect(find.text('Pages in chronological order'), findsOneWidget);
@@ -187,7 +187,7 @@ void exportFlowTests() {
         find.byType(Scrollable).first,
         const Offset(0, -400),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Digital Edition'), findsOneWidget);
     });

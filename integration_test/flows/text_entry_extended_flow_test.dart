@@ -3,6 +3,7 @@
 /// Covers: prompt shuffling, distraction-free mode, clear-text dialog,
 /// word-count threshold, and the Continue button enable/disable state.
 library;
+import 'package:go_router/go_router.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,9 +14,10 @@ import '../helpers/test_app.dart';
 void textEntryExtendedFlowTests() {
   Future<void> openWrite(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('WRITE'));
-    await tester.pump(const Duration(seconds: 2));
+    await settle(tester);
+    final ctx = tester.element(find.byType(Scaffold).first);
+    GoRouter.of(ctx).push('/write');
+    await settle(tester);
   }
 
   // ── Group 1: Prompt chips ─────────────────────────────────────────────────

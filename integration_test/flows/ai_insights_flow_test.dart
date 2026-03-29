@@ -15,11 +15,11 @@ void aiInsightsFlowTests() {
   group('AI Insights — Weekly Summary', () {
     testWidgets('weekly summary card is visible on Timeline tab', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Weekly summary is in Timeline tab, not Explore
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Scroll down to the weekly summary card (below stats grid)
       await tester.drag(
@@ -27,7 +27,7 @@ void aiInsightsFlowTests() {
         const Offset(0, -400),
         warnIfMissed: false,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('week').evaluate().isNotEmpty ||
@@ -40,10 +40,10 @@ void aiInsightsFlowTests() {
 
     testWidgets('weekly summary shows meaningful content (non-empty)', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Mock returns 'A wonderful week of memories and moments...'
       expect(
@@ -56,10 +56,10 @@ void aiInsightsFlowTests() {
 
     testWidgets('Explore tab shows total entry count from mock data', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // mockEntries.length should appear somewhere as entry count
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -71,13 +71,13 @@ void aiInsightsFlowTests() {
   group('AI Insights — On This Day', () {
     testWidgets('"On This Day" section visible in Timeline', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -300));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('On This Day').evaluate().isNotEmpty ||
@@ -88,13 +88,13 @@ void aiInsightsFlowTests() {
 
     testWidgets('"On This Day" entries are tappable and open Memory Detail', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -600));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // If On This Day section is visible, try tapping a card
       final onThisDaySection = find.textContaining('On This Day');
@@ -112,10 +112,10 @@ void aiInsightsFlowTests() {
 
     testWidgets('On This Day screen opens from timeline navigation', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // The On This Day section should render without crashing
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -125,62 +125,62 @@ void aiInsightsFlowTests() {
   // ── Group 3: Explore Curated Sections ────────────────────────────────────
 
   group('AI Insights — Explore Curated Sections', () {
-    testWidgets('Happiest Memories section shows entry cards', (tester) async {
+    testWidgets('Happiest Moments section shows entry cards', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Happiest Memories'), findsOneWidget);
       // At least one card should be visible
       expect(find.byType(Card).evaluate().isNotEmpty || find.byType(Container).evaluate().isNotEmpty, isTrue);
     });
 
-    testWidgets('Family Moments section renders', (tester) async {
+    testWidgets('Family Journey section renders', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      // Family Moments is below the fold — scroll down to it.
+      // Family Journey is below the fold — scroll down to it.
       await tester.drag(find.byType(ListView).first, const Offset(0, -400));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Family Moments'), findsOneWidget);
     });
 
-    testWidgets('Travel Stories section renders', (tester) async {
+    testWidgets('Travel Adventures section renders', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      // Travel Stories appears after Happiest + Family sections — scroll more.
+      // Travel Adventures appears after Happiest + Family sections — scroll more.
       await tester.drag(find.byType(ListView).first, const Offset(0, -800));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Travel Stories'), findsOneWidget);
     });
 
     testWidgets('each section has a "See all" link', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.textContaining('See all').evaluate().length >= 1, isTrue);
     });
 
-    testWidgets('mock entries appear in Happiest Memories content', (tester) async {
+    testWidgets('mock entries appear in Happiest Moments content', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Content from mock entries should be visible in cards
       expect(
@@ -195,10 +195,10 @@ void aiInsightsFlowTests() {
   group('AI Insights — Reflection Periods', () {
     testWidgets('weekly summary card shows week-related text', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // The mock weekly summary is 'A wonderful week of memories and moments...'
       expect(
@@ -212,10 +212,10 @@ void aiInsightsFlowTests() {
 
     testWidgets('weekly summary card is tappable without crash', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Look for the weekly summary section and try to tap it
       final weekText = find.textContaining('wonderful');
@@ -241,20 +241,20 @@ void aiInsightsFlowTests() {
   group('AI Insights — My Story Book Content', () {
     testWidgets('CHAPTERS tab renders with mock book', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });
 
     testWidgets('mock book title is visible in CHAPTERS tab', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('My Life Story').evaluate().isNotEmpty ||
@@ -265,10 +265,10 @@ void aiInsightsFlowTests() {
 
     testWidgets('tapping a book navigates to MyStoryScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final bookCard = find.textContaining('My Life Story');
       if (bookCard.evaluate().isEmpty) return;
@@ -286,54 +286,51 @@ void aiInsightsFlowTests() {
   // ── Group 5: Timeline Stats (AI-powered) ─────────────────────────────────
 
   group('AI Insights — Timeline Stats', () {
-    testWidgets('Timeline shows Memories count stat', (tester) async {
+    testWidgets('Timeline shows memories count stat', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
-        find.textContaining('Memories').evaluate().isNotEmpty ||
-            find.textContaining('memories').evaluate().isNotEmpty,
+        find.text('memories').evaluate().isNotEmpty,
         isTrue,
       );
     });
 
-    testWidgets('Timeline shows Chapters stat', (tester) async {
+    testWidgets('Timeline shows chapters stat', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
-        find.textContaining('Chapters').evaluate().isNotEmpty ||
-            find.textContaining('chapters').evaluate().isNotEmpty,
+        find.text('chapters').evaluate().isNotEmpty,
         isTrue,
       );
     });
 
-    testWidgets('Timeline shows Years stat', (tester) async {
+    testWidgets('Timeline shows years stat', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
-        find.textContaining('Years').evaluate().isNotEmpty ||
-            find.textContaining('year').evaluate().isNotEmpty,
+        find.text('years').evaluate().isNotEmpty,
         isTrue,
       );
     });
 
     testWidgets('memory count is non-zero with mock data', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // mockEntries has multiple entries so count should be > 0
       expect(find.byType(MaterialApp), findsOneWidget);

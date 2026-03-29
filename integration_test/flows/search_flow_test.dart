@@ -13,7 +13,7 @@ import '../helpers/test_app.dart';
 void searchFlowTests() {
   Future<void> openSearch(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     // Search is reachable from the Home screen search icon or Timeline search
     // Try Home first — search icon at line 629 of home_screen.dart
@@ -27,11 +27,11 @@ void searchFlowTests() {
 
     if (searchIcons.evaluate().isNotEmpty) {
       await tester.tap(searchIcons.first, warnIfMissed: false);
-      await tester.pumpAndSettle();
+      await settle(tester);
     } else {
       // Fallback: navigate directly via router
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
     }
   }
 
@@ -307,7 +307,7 @@ void searchFlowTests() {
 
       if (backBtn.evaluate().isNotEmpty) {
         await tester.tap(backBtn.first, warnIfMissed: false);
-        await tester.pumpAndSettle();
+        await settle(tester);
       }
 
       expect(find.byType(MaterialApp), findsOneWidget);

@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,10 +21,10 @@ void backendResilienceFlowTests() {
       await tester.pumpWidget(_appWithError(
         booksProvider.overrideWith((_) async => throw Exception('DB timeout')),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Screen must render — error state or empty state, not a crash
       expect(find.byType(LibraryScreen), findsOneWidget);
@@ -36,10 +37,10 @@ void backendResilienceFlowTests() {
           (_) => Stream.error(Exception('Network unavailable')),
         ),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(TimelineScreen), findsOneWidget);
     });
@@ -49,10 +50,10 @@ void backendResilienceFlowTests() {
       await tester.pumpWidget(_appWithError(
         moodStatsProvider.overrideWith((_) async => throw Exception('503')),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(ExploreScreen), findsOneWidget);
     });
@@ -62,11 +63,11 @@ void backendResilienceFlowTests() {
       await tester.pumpWidget(_appWithError(
         streakProvider.overrideWith((_) async => throw Exception('offline')),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Home must still render greeting and action buttons
       expect(find.byType(Scaffold), findsWidgets);
-      expect(find.text('WRITE'), findsOneWidget);
+      expect(find.text('Write'), findsOneWidget);
     });
 
     testWidgets('weekly summary error does not crash home screen',
@@ -75,7 +76,7 @@ void backendResilienceFlowTests() {
         weeklySummaryProvider.overrideWith(
             (_) async => throw Exception('AI unavailable')),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(Scaffold), findsWidgets);
     });
@@ -85,7 +86,7 @@ void backendResilienceFlowTests() {
         onThisDayProvider.overrideWith(
             (_) async => throw Exception('query timeout')),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(Scaffold), findsWidgets);
     });
@@ -100,7 +101,7 @@ void backendResilienceFlowTests() {
           onThisDayProvider.overrideWith((_) async => throw Exception('503')),
         ],
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // App shell and home must survive partial failures
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -145,15 +146,15 @@ void backendResilienceFlowTests() {
       await tester.pumpWidget(_appWithError(
         booksProvider.overrideWith((_) async => throw Exception('error')),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate through tabs — must not get stuck
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       await tester.tap(find.text('HOME'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(Scaffold), findsWidgets);
     });
@@ -162,10 +163,10 @@ void backendResilienceFlowTests() {
       await tester.pumpWidget(_appWithError(
         booksProvider.overrideWith((_) async => throw Exception('timeout')),
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
 
@@ -181,13 +182,13 @@ void backendResilienceFlowTests() {
       // Feature flags use hardcoded defaults when remote config is unavailable.
       // The E2E environment has no network — flags fall back to defaults.
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // All main screens must render with default flags
       for (final label in ['CHAPTERS', 'TIMELINE', 'EXPLORE', 'HOME']) {
         if (find.text(label).evaluate().isNotEmpty) {
           await tester.tap(find.text(label));
-          await tester.pumpAndSettle();
+          await settle(tester);
         }
       }
 
@@ -197,16 +198,16 @@ void backendResilienceFlowTests() {
     testWidgets('voice recording feature renders mic button by default',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // voiceRecording flag defaults true → SPEAK IT capture button visible
-      expect(find.text('SPEAK IT'), findsOneWidget);
+      expect(find.text('Speak'), findsOneWidget);
     });
 
     testWidgets('book generation feature shows CHAPTERS tab by default',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // bookGeneration flag defaults true → CHAPTERS tab is present
       expect(find.text('CHAPTERS'), findsOneWidget);
@@ -218,7 +219,7 @@ void backendResilienceFlowTests() {
         (tester) async {
       // OfflineAiQueue is initialized lazily — no crash expected on cold start
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 
 import '../helpers/test_app.dart';
@@ -7,20 +8,22 @@ import '../helpers/test_app.dart';
 void settingsFlowTests() {
   Future<void> openSettings(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
-    // Settings is accessed via the settings_outlined icon in the header.
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
+    await settle(tester);
+    // Navigate to settings programmatically — the AppAvatar that opens
+    // settings is inside AppShell which uses a gradient container, not an icon.
+    final ctx = tester.element(find.byType(Scaffold).first);
+    GoRouter.of(ctx).push('/settings');
+    await settle(tester);
   }
 
   group('Settings — Access', () {
     testWidgets('SettingsScreen renders', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      // Navigate via the profile avatar tap
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
+      final ctx = tester.element(find.byType(Scaffold).first);
+      GoRouter.of(ctx).push('/settings');
+      await settle(tester);
 
       expect(find.byType(SettingsScreen), findsOneWidget);
     });
@@ -37,7 +40,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('NOTIFICATIONS'), findsOneWidget);
     });
@@ -46,7 +49,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('JOURNALING'), findsOneWidget);
     });
@@ -55,7 +58,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('PREFERENCES'), findsOneWidget);
     });
@@ -64,7 +67,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -800));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('PRIVACY').evaluate().isNotEmpty ||
@@ -77,7 +80,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -1000));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('DATA'), findsOneWidget);
     });
@@ -105,7 +108,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Daily Reminder'), findsOneWidget);
     });
@@ -114,7 +117,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Settings uses a custom AnimatedContainer toggle (not Flutter Switch).
       // Verify the Daily Reminder row is present — toggle is a GestureDetector.
@@ -125,39 +128,21 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Streak Milestones'), findsOneWidget);
     });
   });
 
-  group('Settings — Journaling rows', () {
-    testWidgets('shows Writing Style row', (tester) async {
-      await openSettings(tester);
-
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Writing Style'), findsOneWidget);
-    });
-
-    testWidgets('shows Chapter Organization row', (tester) async {
-      await openSettings(tester);
-
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Chapter Organization'), findsOneWidget);
-    });
-
-  });
+  // Journaling section (Writing Style + Chapter Organization) is hidden for
+  // launch — skip these tests until the section is re-enabled.
 
   group('Settings — Preferences rows', () {
     testWidgets('shows App Language row', (tester) async {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('App Language'), findsOneWidget);
     });
@@ -166,7 +151,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Appearance'), findsOneWidget);
     });
@@ -177,7 +162,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -1000));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Export All Data'), findsOneWidget);
     });
@@ -186,7 +171,7 @@ void settingsFlowTests() {
       await openSettings(tester);
 
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -1000));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Delete Account'), findsOneWidget);
     });
@@ -201,7 +186,7 @@ void settingsFlowTests() {
         200.0,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Sign Out'), findsOneWidget);
     });
@@ -214,10 +199,10 @@ void settingsFlowTests() {
         200.0,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('Sign Out'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(AlertDialog), findsOneWidget);
     });
@@ -230,10 +215,10 @@ void settingsFlowTests() {
         200.0,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('Sign Out'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.text('Cancel').evaluate().isNotEmpty ||

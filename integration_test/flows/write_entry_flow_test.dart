@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
@@ -33,10 +34,10 @@ void writeEntryFlowTests() {
   group('Write Entry — Structure', () {
     testWidgets('Write Memory screen renders', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
 
@@ -45,10 +46,10 @@ void writeEntryFlowTests() {
 
     testWidgets('shows Write title in header', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       // The top bar title is "Write"
       expect(find.text('Write'), findsWidgets);
@@ -58,10 +59,10 @@ void writeEntryFlowTests() {
 
     testWidgets('shows text input area', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.byType(TextField), findsWidgets);
 
@@ -70,10 +71,10 @@ void writeEntryFlowTests() {
 
     testWidgets('shows prompt chips row', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       // Prompts can be in two states:
       // - Expanded (default): shows actual prompt question texts
@@ -90,10 +91,10 @@ void writeEntryFlowTests() {
 
     testWidgets('shows Continue button', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.text('Continue'), findsOneWidget);
 
@@ -102,10 +103,10 @@ void writeEntryFlowTests() {
 
     testWidgets('back button is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(
         find.byIcon(Icons.arrow_back_rounded).evaluate().isNotEmpty ||
@@ -120,10 +121,10 @@ void writeEntryFlowTests() {
   group('Write Entry — Typing', () {
     testWidgets('can type text into the writing area', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);
@@ -137,10 +138,10 @@ void writeEntryFlowTests() {
 
     testWidgets('word count updates as user types', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);
@@ -157,10 +158,10 @@ void writeEntryFlowTests() {
 
     testWidgets('prompt chip inserts text into field', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       // Find and tap the first prompt chip
       final chips = find.descendant(
@@ -182,10 +183,10 @@ void writeEntryFlowTests() {
   group('Write Entry — Validation', () {
     testWidgets('Continue button shows snackbar with empty text', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       // Continue button exists but has dimmed opacity when word count < 5.
       // Tapping it shows a snackbar and keeps the user on TextEntryScreen.
@@ -200,10 +201,10 @@ void writeEntryFlowTests() {
 
     testWidgets('Continue button shows snackbar with fewer than 5 words', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);
@@ -225,10 +226,10 @@ void writeEntryFlowTests() {
   group('Write Entry — Draft Auto-Save', () {
     testWidgets('typing enough text and going back does not crash', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       // Type enough text to trigger draft save (>= 10 chars)
       final mainField = find.byType(TextField).first;
@@ -242,7 +243,7 @@ void writeEntryFlowTests() {
           : find.byIcon(Icons.arrow_back);
 
       await tester.tap(backBtn);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // App should survive draft save without crash
       expect(find.byType(TextEntryScreen), findsNothing);
@@ -251,10 +252,10 @@ void writeEntryFlowTests() {
 
     testWidgets('word count badge shows correct count', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);
@@ -275,10 +276,10 @@ void writeEntryFlowTests() {
   group('Write Entry — Navigation', () {
     testWidgets('back button returns to Home', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
 
@@ -287,17 +288,17 @@ void writeEntryFlowTests() {
           : find.byIcon(Icons.arrow_back);
 
       await tester.tap(backBtn);
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(TextEntryScreen), findsNothing);
     });
 
     testWidgets('typing 5+ words enables Continue and navigates away', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(_settle);
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final mainField = find.byType(TextField).first;
       await tester.tap(mainField);

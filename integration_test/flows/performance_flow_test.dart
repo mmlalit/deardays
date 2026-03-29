@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:deardays/features/journal/presentation/screens/text_entry_screen.dart';
 import 'package:deardays/features/search/presentation/screens/search_screen.dart';
@@ -14,7 +15,7 @@ void performanceFlowTests() {
     testWidgets('home screen settles within 3 seconds', (tester) async {
       final sw = Stopwatch()..start();
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
       sw.stop();
 
       expect(
@@ -41,11 +42,11 @@ void performanceFlowTests() {
   group('Performance — Tab Navigation', () {
     testWidgets('CHAPTERS tab settles within 3 seconds', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final sw = Stopwatch()..start();
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       sw.stop();
 
       expect(sw.elapsedMilliseconds, lessThan(3000),
@@ -54,11 +55,11 @@ void performanceFlowTests() {
 
     testWidgets('TIMELINE tab settles within 3 seconds', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final sw = Stopwatch()..start();
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       sw.stop();
 
       expect(sw.elapsedMilliseconds, lessThan(3000),
@@ -67,11 +68,11 @@ void performanceFlowTests() {
 
     testWidgets('EXPLORE tab settles within 3 seconds', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final sw = Stopwatch()..start();
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       sw.stop();
 
       expect(sw.elapsedMilliseconds, lessThan(3000),
@@ -81,13 +82,13 @@ void performanceFlowTests() {
     testWidgets('cycling through all 4 tabs stays within 8 seconds total',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final sw = Stopwatch()..start();
       for (final label in ['CHAPTERS', 'TIMELINE', 'EXPLORE', 'HOME']) {
         if (find.text(label).evaluate().isNotEmpty) {
           await tester.tap(find.text(label));
-          await tester.pumpAndSettle();
+          await settle(tester);
         }
       }
       sw.stop();
@@ -100,11 +101,11 @@ void performanceFlowTests() {
   group('Performance — Screen Open Time', () {
     testWidgets('Write screen opens within 2 seconds', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final sw = Stopwatch()..start();
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
       sw.stop();
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
@@ -119,7 +120,7 @@ void performanceFlowTests() {
 
     testWidgets('Settings screen opens within 2 seconds', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final sw = Stopwatch()..start();
       // Navigate to settings via bottom-nav "Settings" tab if present,
@@ -128,8 +129,9 @@ void performanceFlowTests() {
       if (settingsTab.evaluate().isNotEmpty) {
         await tester.tap(settingsTab);
       } else {
-        final gear = find.byIcon(Icons.settings_outlined);
-        if (gear.evaluate().isNotEmpty) await tester.tap(gear.first);
+        // Navigate programmatically — AppAvatar is a gradient container, not an icon
+        final ctx = tester.element(find.byType(Scaffold).first);
+        GoRouter.of(ctx).push('/settings');
       }
       await tester.pump(const Duration(seconds: 2));
       sw.stop();
@@ -143,7 +145,7 @@ void performanceFlowTests() {
 
     testWidgets('Search screen opens within 2 seconds', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final sw = Stopwatch()..start();
       final searchIcon = find.byIcon(Icons.search_rounded);
@@ -167,7 +169,7 @@ void performanceFlowTests() {
   group('Performance — Rapid Interaction', () {
     testWidgets('10 rapid tab taps do not crash', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final tabs = ['CHAPTERS', 'TIMELINE', 'EXPLORE', 'HOME',
                     'TIMELINE', 'HOME', 'EXPLORE', 'CHAPTERS', 'HOME', 'TIMELINE'];
@@ -177,14 +179,14 @@ void performanceFlowTests() {
           await tester.pump(const Duration(milliseconds: 100));
         }
       }
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });
 
     testWidgets('scrolling home screen 5 times stays responsive', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final scrollable = find.byType(Scrollable).first;
       final sw = Stopwatch()..start();
@@ -200,10 +202,10 @@ void performanceFlowTests() {
 
     testWidgets('timeline scroll 5 times stays responsive', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       expect(find.byType(TimelineScreen), findsOneWidget);
 
       final sw = Stopwatch()..start();
@@ -220,10 +222,10 @@ void performanceFlowTests() {
 
     testWidgets('explore screen scroll stays responsive', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
       expect(find.byType(ExploreScreen), findsOneWidget);
 
       for (var i = 0; i < 3; i++) {

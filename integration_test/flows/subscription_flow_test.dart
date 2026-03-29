@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
@@ -7,9 +8,9 @@ import '../helpers/test_app.dart';
 void subscriptionFlowTests() {
   Future<void> openSettings(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
+    await settle(tester);
+    final _ctx = tester.element(find.byType(Scaffold).first); GoRouter.of(_ctx).push('/settings');
+    await settle(tester);
   }
 
   group('Subscription — Navigation', () {

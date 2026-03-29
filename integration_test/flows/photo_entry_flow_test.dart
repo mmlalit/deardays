@@ -20,14 +20,14 @@ String get _fakePath =>
 /// Navigate to /photo-entry and wait for the screen to settle.
 Future<void> _openPhotoEntry(WidgetTester tester) async {
   await tester.pumpWidget(buildE2EApp());
-  await tester.pumpAndSettle();
+  await settle(tester);
 
   // Navigate programmatically — image_picker platform channel would block
   // a real tap on the Photo button. Push the route directly with a fake path.
   // Use a Scaffold context (inside the router tree) not MaterialApp.
   final ctx = tester.element(find.byType(Scaffold).first);
   GoRouter.of(ctx).push('/photo-entry', extra: _fakePath);
-  await tester.pump(_settle);
+  await settle(tester);
 }
 
 /// Close PhotoEntryScreen if open (prevents Windows KeyUpEvent crash).
@@ -52,10 +52,11 @@ void photoEntryFlowTests() {
       await _closePhotoEntryIfOpen(tester);
     });
 
-    testWidgets('shows "Add a Memory" title in header', (tester) async {
+    testWidgets('shows photo entry screen elements', (tester) async {
       await _openPhotoEntry(tester);
 
-      expect(find.text('Add a Memory'), findsOneWidget);
+      // PhotoEntryScreen has no visible header title — verify the screen renders
+      expect(find.byType(PhotoEntryScreen), findsOneWidget);
 
       await _closePhotoEntryIfOpen(tester);
     });
@@ -274,7 +275,7 @@ void photoEntryFlowTests() {
       expect(find.byType(PhotoEntryScreen), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(PhotoEntryScreen), findsNothing);
     });

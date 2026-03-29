@@ -1,4 +1,5 @@
 library;
+import 'package:go_router/go_router.dart';
 
 /// Test D (E2E) — Critical user journey: Save → Home shows new entry.
 ///
@@ -25,7 +26,7 @@ void saveJourneyFlowTests() {
   group('Save Journey — Home displays entries', () {
     testWidgets('home screen shows mock entries, not empty state', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Home screen should be visible
       expect(find.byType(HomeScreen), findsOneWidget);
@@ -36,14 +37,14 @@ void saveJourneyFlowTests() {
 
     testWidgets('home screen shows Recent Memories section', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.textContaining('Memories'), findsWidgets);
     });
 
     testWidgets('home screen shows entry content from mock data', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Mock entries include "Trip to Bali" as the first entry title
       // At least some entry text should appear
@@ -63,7 +64,7 @@ void saveJourneyFlowTests() {
   group('Save Journey — Timeline displays entries', () {
     testWidgets('timeline tab shows entries', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to Timeline tab
       await tester.tap(find.text('TIMELINE'));
@@ -74,7 +75,7 @@ void saveJourneyFlowTests() {
 
     testWidgets('timeline shows entry time (not 00:00 for entries with entryTime)', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to Timeline tab
       await tester.tap(find.text('TIMELINE'));
@@ -109,7 +110,7 @@ void saveJourneyFlowTests() {
 
     testWidgets('timeline shows date labels', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
       await tester.pump(const Duration(seconds: 2));
@@ -140,11 +141,11 @@ void saveJourneyFlowTests() {
   group('Save Journey — Write screen round-trip', () {
     testWidgets('Write screen opens and returns to Home', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to Write (use pump — cursor blink prevents pumpAndSettle settling)
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
 
@@ -154,7 +155,7 @@ void saveJourneyFlowTests() {
       );
       if (backButton.evaluate().isNotEmpty) {
         await tester.tap(backButton.first);
-        await tester.pumpAndSettle();
+        await settle(tester);
       }
 
       // Should be back on Home (or still on Write if no back button found)
@@ -171,7 +172,7 @@ void saveJourneyFlowTests() {
   group('Save Journey — Photo display', () {
     testWidgets('home screen renders Image widgets for entries with photos', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Mock entries include photos — there should be Image widgets
       // (either loading, error placeholder, or actual images)
@@ -183,7 +184,7 @@ void saveJourneyFlowTests() {
 
     testWidgets('timeline renders FutureBuilder for photo cards', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('TIMELINE'));
       await tester.pump(const Duration(seconds: 1));

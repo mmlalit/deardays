@@ -21,11 +21,11 @@ void shareCardFlowTests() {
   group('Share Card — Navigation from Memory Detail', () {
     testWidgets('share icon is visible on MemoryDetailScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to TIMELINE tab
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Tap the first memory card to open MemoryDetailScreen.
       // Timeline uses CustomScrollView, so we find tappable cards within it.
@@ -55,11 +55,11 @@ void shareCardFlowTests() {
     testWidgets('tapping share icon navigates to ShareCardScreen',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Navigate to TIMELINE tab
       await tester.tap(find.text('TIMELINE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Open a memory detail
       final cards = find.byType(GestureDetector);

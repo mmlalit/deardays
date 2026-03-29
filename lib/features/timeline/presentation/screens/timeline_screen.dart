@@ -1071,9 +1071,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     required AppPalette colors,
     Widget? cardWidget,
   }) {
-    // IntrinsicHeight removed — CrossAxisAlignment.stretch lets the Row's
-    // children match the tallest sibling without the double-layout-pass cost.
-    return Row(
+    // IntrinsicHeight is needed so CrossAxisAlignment.stretch gets bounded
+    // height inside slivers. Without it, Android debug mode throws
+    // "BoxConstraints forces an infinite height".
+    return IntrinsicHeight(
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Left column: vertical line + dot
@@ -1124,6 +1126,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
         ),
       ],
+    ),
     );
   }
 

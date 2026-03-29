@@ -29,10 +29,10 @@ void securityFlowTests() {
   group('Security — Input Sanitization', () {
     testWidgets('text entry renders HTML tags as literal text', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       expect(find.byType(TextEntryScreen), findsOneWidget);
 
@@ -53,10 +53,10 @@ void securityFlowTests() {
     testWidgets('text entry renders SQL injection string as literal text',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final field = find.byType(TextField).first;
       await tester.tap(field);
@@ -75,10 +75,10 @@ void securityFlowTests() {
         'text entry handles null-byte and Unicode replacement char without crash',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final field = find.byType(TextField).first;
       await tester.tap(field);
@@ -95,12 +95,12 @@ void securityFlowTests() {
     testWidgets('search field handles regex special chars without crash',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final searchIcon = find.byIcon(Icons.search_rounded);
       if (searchIcon.evaluate().isNotEmpty) {
         await tester.tap(searchIcon.first);
-        await tester.pump(const Duration(seconds: 2));
+        await settle(tester);
 
         if (find.byType(SearchScreen).evaluate().isNotEmpty) {
           final searchField = find.byType(TextField).first;
@@ -115,10 +115,10 @@ void securityFlowTests() {
 
     testWidgets('5000-character input does not crash the app', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final field = find.byType(TextField).first;
       await tester.tap(field);
@@ -136,11 +136,11 @@ void securityFlowTests() {
   group('Security — Deep Link Handling', () {
     testWidgets('/share/:token renders RequestAccessScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final ctx = tester.element(find.byType(Scaffold).first);
       GoRouter.of(ctx).push('/share/valid-test-token');
-      await tester.pump(const Duration(seconds: 2));
+      await settle(tester);
 
       expect(find.byType(RequestAccessScreen), findsOneWidget);
     });
@@ -148,11 +148,11 @@ void securityFlowTests() {
     testWidgets('deep link with URL-safe special chars in token does not crash',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final ctx = tester.element(find.byType(Scaffold).first);
       GoRouter.of(ctx).push('/share/abc-123_XYZ');
-      await tester.pump(const Duration(seconds: 2));
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });
@@ -162,14 +162,14 @@ void securityFlowTests() {
     testWidgets('mock provider renders UI without a real auth session',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(Scaffold), findsWidgets);
     });
 
     testWidgets('encryption salt is never displayed in the UI', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('e2e-salt'), findsNothing);
     });
@@ -177,14 +177,14 @@ void securityFlowTests() {
     testWidgets('internal user ID is not rendered as visible UI text',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('e2e-user'), findsNothing);
     });
 
     testWidgets('no raw API key prefixes visible in home UI', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.textContaining('sk-'), findsNothing);
       expect(find.textContaining('gsk_'), findsNothing);
@@ -194,12 +194,12 @@ void securityFlowTests() {
     testWidgets('settings screen shows at least one privacy-related item',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final settingsTab = find.text('SETTINGS');
       if (settingsTab.evaluate().isNotEmpty) {
         await tester.tap(settingsTab);
-        await tester.pump(const Duration(seconds: 2));
+        await settle(tester);
 
         final hasPrivacy =
             find.textContaining('Privacy').evaluate().isNotEmpty ||
@@ -216,7 +216,7 @@ void securityFlowTests() {
     testWidgets('re-building with a different profile override does not crash',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       final now = DateTime.now();
       await tester.pumpWidget(buildE2EApp(
@@ -228,7 +228,7 @@ void securityFlowTests() {
               )),
         ],
       ));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });

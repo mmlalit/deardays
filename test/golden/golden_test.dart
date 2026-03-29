@@ -1409,10 +1409,13 @@ void main() {
       );
       await tester.pump(const Duration(seconds: 1));
 
-      // Swipe to page 2
-      await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pump();
+      // OnboardingScreen uses AnimatedSwitcher + Next button, not PageView.
+      // Tap the Next button (arrow_forward icon) to advance.
+      final nextBtn = find.byIcon(Icons.arrow_forward_rounded);
+      if (nextBtn.evaluate().isNotEmpty) {
+        await tester.tap(nextBtn.first);
+        await tester.pump(const Duration(milliseconds: 600));
+      }
 
       await expectLater(
         find.byType(OnboardingScreen),
@@ -1430,12 +1433,14 @@ void main() {
       );
       await tester.pump(const Duration(seconds: 1));
 
-      // Swipe to page 3
+      // Tap Next twice to reach page 3
+      final nextBtn = find.byIcon(Icons.arrow_forward_rounded);
       for (int i = 0; i < 2; i++) {
-        await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
-        await tester.pump(const Duration(milliseconds: 500));
+        if (nextBtn.evaluate().isNotEmpty) {
+          await tester.tap(nextBtn.first);
+          await tester.pump(const Duration(milliseconds: 600));
+        }
       }
-      await tester.pump();
 
       await expectLater(
         find.byType(OnboardingScreen),
@@ -1453,12 +1458,14 @@ void main() {
       );
       await tester.pump(const Duration(seconds: 1));
 
-      // Swipe to page 4
+      // Tap Next three times to reach page 4
+      final nextBtn = find.byIcon(Icons.arrow_forward_rounded);
       for (int i = 0; i < 3; i++) {
-        await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
-        await tester.pump(const Duration(milliseconds: 500));
+        if (nextBtn.evaluate().isNotEmpty) {
+          await tester.tap(nextBtn.first);
+          await tester.pump(const Duration(milliseconds: 600));
+        }
       }
-      await tester.pump();
 
       await expectLater(
         find.byType(OnboardingScreen),

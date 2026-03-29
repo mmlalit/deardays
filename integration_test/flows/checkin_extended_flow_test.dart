@@ -6,6 +6,7 @@
 /// Uses pump(Duration) throughout — speech_to_text keeps a platform-channel
 /// listener alive on Windows that causes pumpAndSettle() to hang.
 library;
+import 'package:go_router/go_router.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,9 +19,9 @@ const _settle = Duration(seconds: 2);
 void checkinExtendedFlowTests() {
   Future<void> openCheckin(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pump(_settle);
-    await tester.tap(find.text('CHAT'));
-    await tester.pump(_settle);
+    await settle(tester);
+    final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/checkin');
+    await settle(tester);
   }
 
   Future<void> selectMoodAndWait(WidgetTester tester) async {
@@ -28,7 +29,7 @@ void checkinExtendedFlowTests() {
     final greatChip = find.textContaining('Great');
     if (greatChip.evaluate().isNotEmpty) {
       await tester.tap(greatChip.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
     }
   }
 
@@ -66,7 +67,7 @@ void checkinExtendedFlowTests() {
 
       if (chips.evaluate().length > 2) {
         await tester.tap(chips.at(1), warnIfMissed: false);
-        await tester.pump(_settle);
+        await settle(tester);
       }
 
       // App still alive
@@ -131,7 +132,7 @@ void checkinExtendedFlowTests() {
 
       if (sendBtn.evaluate().isNotEmpty) {
         await tester.tap(sendBtn.first, warnIfMissed: false);
-        await tester.pump(_settle);
+        await settle(tester);
       }
 
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -172,7 +173,7 @@ void checkinExtendedFlowTests() {
       if (historyBtn.evaluate().isEmpty) return;
 
       await tester.tap(historyBtn.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
 
       // History sheet should render — may show "no history" or date list
       // The sheet uses BottomSheet or a similar modal
@@ -186,7 +187,7 @@ void checkinExtendedFlowTests() {
       if (historyBtn.evaluate().isEmpty) return;
 
       await tester.tap(historyBtn.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
 
       // App should remain alive regardless of data state
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -215,7 +216,7 @@ void checkinExtendedFlowTests() {
 
       if (sendBtn.evaluate().isNotEmpty) {
         await tester.tap(sendBtn.first, warnIfMissed: false);
-        await tester.pump(_settle);
+        await settle(tester);
       }
 
       // After messages, check if "Save as memory" link appears
@@ -235,7 +236,7 @@ void checkinExtendedFlowTests() {
       if (closeBtn.evaluate().isEmpty) return;
 
       await tester.tap(closeBtn.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
 
       // Should be back on home or at least app is alive
       expect(find.byType(MaterialApp), findsOneWidget);

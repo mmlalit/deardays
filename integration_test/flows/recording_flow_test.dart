@@ -7,6 +7,7 @@
 /// platform-channel listeners alive on Windows that cause pumpAndSettle() to
 /// hang indefinitely.
 library;
+import 'package:go_router/go_router.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,7 +41,7 @@ Future<void> _closeRecordingIfOpen(WidgetTester tester) async {
 void recordingFlowTests() {
   Future<void> openRecording(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pump(_settle);
+    await settle(tester);
 
     // Mic button on Home navigates to RecordingScreen
     final micBtn = find.byWidgetPredicate(
@@ -53,7 +54,7 @@ void recordingFlowTests() {
 
     if (micBtn.evaluate().isNotEmpty) {
       await tester.tap(micBtn.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
     }
   }
 
@@ -159,7 +160,7 @@ void recordingFlowTests() {
 
       if (closeBtn.evaluate().isNotEmpty) {
         await tester.tap(closeBtn.first, warnIfMissed: false);
-        await tester.pump(_settle);
+        await settle(tester);
       }
 
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -172,11 +173,11 @@ void recordingFlowTests() {
   group('Recording — Processing Screen', () {
     testWidgets('ProcessingScreen renders with ReviewData', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
+      await settle(tester);
 
       // Navigate via write flow — save triggers ProcessingScreen
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isEmpty) return;
@@ -189,7 +190,7 @@ void recordingFlowTests() {
       if (saveBtn.evaluate().isEmpty) return;
 
       await tester.tap(saveBtn.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
 
       // After save: either ProcessingScreen or ReviewSaveScreen or PostSaveScreen
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -198,10 +199,10 @@ void recordingFlowTests() {
     testWidgets('ProcessingScreen or ReviewSaveScreen shows after text entry save',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isEmpty) return;
@@ -214,7 +215,7 @@ void recordingFlowTests() {
       if (saveBtn.evaluate().isEmpty) return;
 
       await tester.tap(saveBtn.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
 
       expect(
         find.byType(ProcessingScreen).evaluate().isNotEmpty ||
@@ -227,10 +228,10 @@ void recordingFlowTests() {
 
     testWidgets('ProcessingScreen shows progress or step indicators', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pump(_settle);
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isEmpty) return;

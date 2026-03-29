@@ -70,16 +70,16 @@ void onboardingFlowTests() {
   // ── Group 2: Page Navigation ─────────────────────────────────────────────
 
   group('Onboarding — Page Navigation', () {
-    testWidgets('swiping left shows second page', (tester) async {
+    testWidgets('tapping Next shows second page', (tester) async {
       await tester.pumpWidget(onboardingApp());
       await tester.pump(const Duration(seconds: 1));
 
-      // Swipe left to go to page 2
-      await tester.drag(
-        find.byType(PageView).first,
-        const Offset(-300, 0),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
+      // OnboardingScreen uses Next button (arrow_forward icon), not swipe
+      final nextBtn = find.byIcon(Icons.arrow_forward_rounded);
+      if (nextBtn.evaluate().isNotEmpty) {
+        await tester.tap(nextBtn.first);
+        await tester.pump(const Duration(milliseconds: 600));
+      }
 
       expect(
         find.text('Your life, one page at a time').evaluate().isNotEmpty ||
@@ -88,15 +88,17 @@ void onboardingFlowTests() {
       );
     });
 
-    testWidgets('swiping to third page shows "Private & secure"', (tester) async {
+    testWidgets('navigating to third page shows "Private & secure"', (tester) async {
       await tester.pumpWidget(onboardingApp());
       await tester.pump(const Duration(seconds: 1));
 
-      // Swipe twice
-      await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
-      await tester.pump(const Duration(milliseconds: 500));
+      final nextBtn = find.byIcon(Icons.arrow_forward_rounded);
+      for (int i = 0; i < 2; i++) {
+        if (nextBtn.evaluate().isNotEmpty) {
+          await tester.tap(nextBtn.first);
+          await tester.pump(const Duration(milliseconds: 600));
+        }
+      }
 
       expect(
         find.text('Private & secure').evaluate().isNotEmpty ||
@@ -109,10 +111,12 @@ void onboardingFlowTests() {
       await tester.pumpWidget(onboardingApp());
       await tester.pump(const Duration(seconds: 1));
 
-      // Swipe three times to reach page 4
+      final nextBtn = find.byIcon(Icons.arrow_forward_rounded);
       for (int i = 0; i < 3; i++) {
-        await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
-        await tester.pump(const Duration(milliseconds: 500));
+        if (nextBtn.evaluate().isNotEmpty) {
+          await tester.tap(nextBtn.first);
+          await tester.pump(const Duration(milliseconds: 600));
+        }
       }
 
       expect(
@@ -126,9 +130,12 @@ void onboardingFlowTests() {
       await tester.pumpWidget(onboardingApp());
       await tester.pump(const Duration(seconds: 1));
 
+      final nextBtn = find.byIcon(Icons.arrow_forward_rounded);
       for (int i = 0; i < 3; i++) {
-        await tester.drag(find.byType(PageView).first, const Offset(-300, 0));
-        await tester.pump(const Duration(milliseconds: 500));
+        if (nextBtn.evaluate().isNotEmpty) {
+          await tester.tap(nextBtn.first);
+          await tester.pump(const Duration(milliseconds: 600));
+        }
       }
 
       expect(
@@ -144,7 +151,7 @@ void onboardingFlowTests() {
   group('Onboarding — Checklist on Home', () {
     testWidgets('home screen shows checklist tasks for new users', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // The E2E app overrides onboarding to completed, so checklist may be hidden.
       // Check if any checklist-related UI is present.

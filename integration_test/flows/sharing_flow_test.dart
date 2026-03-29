@@ -23,13 +23,13 @@ void sharingFlowTests() {
 
   Future<bool> openMoreMenu(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.tap(find.text('TIMELINE'));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -600));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     final knownTitles = [
       'Trip to Bali',
@@ -60,7 +60,7 @@ void sharingFlowTests() {
     if (moreBtn.evaluate().isEmpty) return false;
 
     await tester.tap(moreBtn.first, warnIfMissed: false);
-    await tester.pumpAndSettle();
+    await settle(tester);
     return true;
   }
 
@@ -93,7 +93,7 @@ void sharingFlowTests() {
       if (!opened) return;
 
       await tester.tap(find.text('Who can see this'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(ShareManagementScreen), findsOneWidget);
     });
@@ -107,7 +107,7 @@ void sharingFlowTests() {
       if (!opened) return;
 
       await tester.tap(find.text('Who can see this'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       if (find.byType(ShareManagementScreen).evaluate().isEmpty) return;
 
@@ -119,7 +119,7 @@ void sharingFlowTests() {
       if (!opened) return;
 
       await tester.tap(find.text('Who can see this'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       if (find.byType(ShareManagementScreen).evaluate().isEmpty) return;
 
@@ -135,7 +135,7 @@ void sharingFlowTests() {
       if (!opened) return;
 
       await tester.tap(find.text('Who can see this'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       if (find.byType(ShareManagementScreen).evaluate().isEmpty) return;
 
@@ -212,21 +212,21 @@ void sharingFlowTests() {
   group('Sharing — Approvals Screen', () {
     testWidgets('shows "Waiting for approval" app bar title', (tester) async {
       await tester.pumpWidget(_sharingApp(const ShareApprovalsScreen()));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Waiting for approval'), findsOneWidget);
     });
 
     testWidgets('shows "All caught up" empty state', (tester) async {
       await tester.pumpWidget(_sharingApp(const ShareApprovalsScreen()));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('All caught up'), findsOneWidget);
     });
 
     testWidgets('shows check-circle icon in empty state', (tester) async {
       await tester.pumpWidget(_sharingApp(const ShareApprovalsScreen()));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
     });
@@ -237,21 +237,21 @@ void sharingFlowTests() {
   group('Sharing — Shared With Me Screen', () {
     testWidgets('shows "Shared with me" app bar title', (tester) async {
       await tester.pumpWidget(_sharingApp(const SharedWithMeScreen()));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Shared with me'), findsOneWidget);
     });
 
     testWidgets('shows empty state when no memories shared', (tester) async {
       await tester.pumpWidget(_sharingApp(const SharedWithMeScreen()));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.textContaining('No memories shared'), findsOneWidget);
     });
 
     testWidgets('shows inbox icon in empty state', (tester) async {
       await tester.pumpWidget(_sharingApp(const SharedWithMeScreen()));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.byWidgetPredicate((w) => w is Icon && w.icon == Icons.inbox_rounded).evaluate().isNotEmpty ||
@@ -266,10 +266,10 @@ void sharingFlowTests() {
   group('Sharing — Explore Section Visibility', () {
     testWidgets('"Shared with me" hidden when hasReceivedShare=false (default)', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Default profile: hasReceivedShare=false → section must not appear
       expect(find.text('Shared with me'), findsNothing);
@@ -334,7 +334,7 @@ void sharingFlowTests() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Shared with me'), findsOneWidget);
     });

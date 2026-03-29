@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
@@ -13,10 +14,10 @@ import '../helpers/test_app.dart';
 void settingsSubscreenFlowTests() {
   Future<void> openSettings(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
     // Settings is accessed via the settings_outlined icon in the header.
-    await tester.tap(find.byIcon(Icons.settings_outlined));
-    await tester.pumpAndSettle();
+    final _ctx = tester.element(find.byType(Scaffold).first); GoRouter.of(_ctx).push('/settings');
+    await settle(tester);
   }
 
   Future<void> scrollToAndTap(WidgetTester tester, Finder finder) async {
@@ -25,9 +26,9 @@ void settingsSubscreenFlowTests() {
       200.0,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
     await tester.tap(finder.first);
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   // ── Edit Profile ──────────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ void settingsSubscreenFlowTests() {
         200.0,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
       expect(find.text('Privacy Policy'), findsWidgets);
     });
 
@@ -182,7 +183,7 @@ void settingsSubscreenFlowTests() {
         200.0,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
       expect(find.text('Terms of Service'), findsWidgets);
     });
 

@@ -1,5 +1,6 @@
 /// Post-save flow tests — PostSaveScreen chapter assignment + confirmation.
 library;
+import 'package:go_router/go_router.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,14 +48,14 @@ void postSaveFlowTests() {
 
     testWidgets('shows "Add to Chapter" header', (tester) async {
       await tester.pumpWidget(_testApp(PostSaveScreen(data: _mockData)));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Add to Chapter'), findsOneWidget);
     });
 
     testWidgets('shows chapter selection prompt text', (tester) async {
       await tester.pumpWidget(_testApp(PostSaveScreen(data: _mockData)));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('chapter').evaluate().isNotEmpty ||
@@ -65,14 +66,14 @@ void postSaveFlowTests() {
 
     testWidgets('shows Continue button (initially disabled)', (tester) async {
       await tester.pumpWidget(_testApp(PostSaveScreen(data: _mockData)));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('Continue'), findsOneWidget);
     });
 
     testWidgets('shows Create New Chapter option', (tester) async {
       await tester.pumpWidget(_testApp(PostSaveScreen(data: _mockData)));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('Create').evaluate().isNotEmpty ||
@@ -83,7 +84,7 @@ void postSaveFlowTests() {
 
     testWidgets('shows memory title in context', (tester) async {
       await tester.pumpWidget(_testApp(PostSaveScreen(data: _mockData)));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(
         find.textContaining('A beautiful afternoon').evaluate().isNotEmpty ||
@@ -105,7 +106,7 @@ void postSaveFlowTests() {
 
     testWidgets('shows offline indicator when savedOffline=true', (tester) async {
       await tester.pumpWidget(_testApp(PostSaveScreen(data: _offlineData)));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Screen either renders or shows offline text
       expect(
@@ -122,10 +123,10 @@ void postSaveFlowTests() {
   group('Post Save — Navigation from Write Entry', () {
     testWidgets('write then save navigates away from TextEntryScreen', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
-      await tester.tap(find.text('WRITE'));
-      await tester.pump(const Duration(seconds: 2));
+      final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+      await settle(tester);
 
       final textFields = find.byType(TextField);
       if (textFields.evaluate().isEmpty) return;

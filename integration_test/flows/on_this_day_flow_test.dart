@@ -12,49 +12,49 @@ void onThisDayFlowTests() {
   group('On This Day — Section in Explore', () {
     testWidgets('"On This Day" section header is visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // On This Day is near the top of ExploreScreen — scroll slightly.
       await tester.drag(
         find.byType(ListView).first,
         const Offset(0, -100),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.text('On This Day'), findsOneWidget);
     });
 
     testWidgets('shows history icon in the section header', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.drag(
         find.byType(ListView).first,
         const Offset(0, -100),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byIcon(Icons.history_rounded), findsOneWidget);
     });
 
     testWidgets('On This Day cards are visible', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.drag(
         find.byType(ListView).first,
         const Offset(0, -100),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(ExploreScreen), findsOneWidget);
       expect(find.byType(GestureDetector).evaluate().isNotEmpty, isTrue);
@@ -63,16 +63,16 @@ void onThisDayFlowTests() {
     testWidgets('tapping an On This Day card navigates to MemoryDetailScreen',
         (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       await tester.drag(
         find.byType(ListView).first,
         const Offset(0, -100),
       );
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       // Try tapping a known mock entry title.
       final knownTitles = ['Trip to Bali', "Mom's birthday", 'Got the promotion'];
@@ -107,7 +107,7 @@ void onThisDayFlowTests() {
   group('On This Day — Empty State', () {
     testWidgets('section renders conditionally', (tester) async {
       await tester.pumpWidget(buildE2EApp());
-      await tester.pumpAndSettle();
+      await settle(tester);
 
       expect(find.byType(Scaffold), findsWidgets);
     });

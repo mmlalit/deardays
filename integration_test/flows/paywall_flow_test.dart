@@ -13,12 +13,12 @@ import '../helpers/test_app.dart';
 void paywallFlowTests() {
   Future<void> openPaywall(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     // Navigate directly to PaywallScreen via the /paywall route.
     final context = tester.element(find.byType(Scaffold).first);
     GoRouter.of(context).push('/paywall');
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   group('Paywall — Screen Structure', () {

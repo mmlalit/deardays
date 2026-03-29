@@ -1,5 +1,6 @@
 /// Review & Save flow tests — ReviewSaveScreen polish/edit/save before committing.
 library;
+import 'package:go_router/go_router.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,10 +18,10 @@ void reviewSaveFlowTests() {
 
   Future<bool> navigateToReviewSave(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
-    await tester.tap(find.text('WRITE'));
-    await tester.pump(const Duration(seconds: 2));
+    final _navCtx = tester.element(find.byType(Scaffold).first); GoRouter.of(_navCtx).push('/write');
+    await settle(tester);
 
     final textFields = find.byType(TextField);
     if (textFields.evaluate().isEmpty) return false;

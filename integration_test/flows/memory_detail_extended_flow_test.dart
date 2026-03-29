@@ -21,16 +21,16 @@ void memoryDetailExtendedFlowTests() {
 
   Future<bool> openDetail(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.tap(find.text('TIMELINE'));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tester.drag(
       find.byType(CustomScrollView).first,
       const Offset(0, -600),
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     const knownTitles = [
       'Trip to Bali',
@@ -49,7 +49,7 @@ void memoryDetailExtendedFlowTests() {
         );
         if (card.evaluate().isNotEmpty) {
           await tester.tap(card.first, warnIfMissed: false);
-          await tester.pump(_settle);
+          await settle(tester);
           if (find.byType(MemoryDetailScreen).evaluate().isNotEmpty) return true;
         }
       }
@@ -64,7 +64,7 @@ void memoryDetailExtendedFlowTests() {
     );
     if (moreBtn.evaluate().isEmpty) return false;
     await tester.tap(moreBtn.first, warnIfMissed: false);
-    await tester.pumpAndSettle();
+    await settle(tester);
     return true;
   }
 
@@ -91,7 +91,7 @@ void memoryDetailExtendedFlowTests() {
         find.byType(PageView).first,
         const Offset(-300, 0),
       );
-      await tester.pump(_settle);
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });
@@ -182,7 +182,7 @@ void memoryDetailExtendedFlowTests() {
       }
 
       await tester.tap(whoCanSee.first, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
 
       expect(
         find.byType(ShareManagementScreen).evaluate().isNotEmpty ||
@@ -211,7 +211,7 @@ void memoryDetailExtendedFlowTests() {
       if (editBtn.evaluate().isEmpty) return;
 
       await tester.tap(editBtn, warnIfMissed: false);
-      await tester.pump(_settle);
+      await settle(tester);
 
       // Should navigate to EditMemoryScreen or stay on app
       expect(find.byType(MaterialApp), findsOneWidget);
@@ -270,7 +270,7 @@ void memoryDetailExtendedFlowTests() {
 
       await tester.tap(backBtn.first, warnIfMissed: false);
       await tester.pump();
-      await tester.pump(_settle);
+      await settle(tester);
 
       expect(find.byType(MaterialApp), findsOneWidget);
     });

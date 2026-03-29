@@ -260,14 +260,27 @@ class LocalStorageService {
   /// stores a new one if this is the first launch.
   Future<List<int>> _getOrCreateEncryptionKey() async {
     const secureStorage = FlutterSecureStorage();
-    final existing = await secureStorage.read(key: _hiveKeyAlias);
 
-    if (existing != null) {
-      try {
+    try {
+      final existing = await secureStorage.read(key: _hiveKeyAlias);
+      if (existing != null) {
         return base64Url.decode(existing);
-      } catch (e) {
-        debugPrint('[LocalStorageService] Failed to decode existing key, generating new one: $e');
       }
+    } catch (e) {
+      // BadPaddingException: Android keystore key changed (e.g. debug vs release
+      // signing, or app reinstall with different certificate). Delete the corrupt
+      // entry and generate a fresh key. Local cached data will be lost but the
+      // app won't hang on startup.
+      debugPrint('[LocalStorageService] SecureStorage read failed ($e) — resetting key');
+      try {
+        await secureStorage.delete(key: _hiveKeyAlias);
+      } catch (_) {}
+      // Also delete existing Hive boxes since they were encrypted with the old key
+      try {
+        await Hive.deleteBoxFromDisk(_entriesBoxName);
+        await Hive.deleteBoxFromDisk(_draftsBoxName);
+        await Hive.deleteBoxFromDisk(_syncMetaBoxName);
+      } catch (_) {}
     }
 
     final key = Hive.generateSecureKey();

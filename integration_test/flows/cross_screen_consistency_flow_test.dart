@@ -22,14 +22,14 @@ import '../helpers/test_app.dart';
 void crossScreenConsistencyFlowTests() {
   // Home/Timeline use pump(Duration) to avoid hanging on async signed URL
   // futures. Explore and Chapters can safely use pumpAndSettle().
-  const settle = Duration(seconds: 3);
+  const pumpWait = Duration(seconds: 3);
 
   /// Pump the Home screen and wait for providers to resolve.
   Future<void> pumpHome(WidgetTester tester) async {
     await tester.pumpWidget(buildE2EApp());
     // Use pump(Duration) — Home triggers async signed URL fetches that
     // would hang pumpAndSettle(). 3 seconds is enough for providers.
-    await tester.pump(settle);
+    await tester.pump(pumpWait);
     // Extra pump to process microtasks from provider resolution
     await tester.pump(const Duration(milliseconds: 500));
   }
@@ -38,7 +38,7 @@ void crossScreenConsistencyFlowTests() {
   Future<void> goExplore(WidgetTester tester) async {
     await pumpHome(tester);
     await tester.tap(find.text('EXPLORE'));
-    await tester.pump(settle);
+    await tester.pump(pumpWait);
     await tester.pump(const Duration(milliseconds: 500));
   }
 
@@ -46,7 +46,7 @@ void crossScreenConsistencyFlowTests() {
   Future<void> goTimeline(WidgetTester tester) async {
     await pumpHome(tester);
     await tester.tap(find.text('TIMELINE'));
-    await tester.pump(settle);
+    await tester.pump(pumpWait);
   }
 
   // ===========================================================================
@@ -78,7 +78,7 @@ void crossScreenConsistencyFlowTests() {
         const Offset(0, -400),
         warnIfMissed: false,
       );
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       final hasEntry =
           find.textContaining('Bali').evaluate().isNotEmpty ||
@@ -103,7 +103,7 @@ void crossScreenConsistencyFlowTests() {
       // Scroll to reveal mood section
       final scrollable = find.byType(Scrollable).first;
       await tester.drag(scrollable, const Offset(0, -200));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       // Explore should show mood-related UI (mood stats, mood chart,
       // Happiest Memories section, etc.)
@@ -133,7 +133,7 @@ void crossScreenConsistencyFlowTests() {
           const Offset(0, -300),
           warnIfMissed: false,
         );
-        await tester.pump(settle);
+        await tester.pump(pumpWait);
       }
 
       // Verify entry text or time is visible (times are in "MAR 05 • 08:30" format)
@@ -194,7 +194,7 @@ void crossScreenConsistencyFlowTests() {
       // Scroll down to find summary section
       final scrollable = find.byType(Scrollable).first;
       await tester.drag(scrollable, const Offset(0, -500));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       // The weeklySummaryProvider returns a summary string
       final hasSummary =
@@ -233,7 +233,7 @@ void crossScreenConsistencyFlowTests() {
       // Scroll down to find count-related content
       final scrollable = find.byType(Scrollable).first;
       await tester.drag(scrollable, const Offset(0, -400));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       // Explore shows "${entries.length} memories" or entries/Entries text
       final hasCount = find.textContaining('memories').evaluate().isNotEmpty ||
@@ -254,7 +254,7 @@ void crossScreenConsistencyFlowTests() {
       await pumpHome(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       expect(find.byType(LibraryScreen), findsOneWidget);
 
@@ -262,14 +262,14 @@ void crossScreenConsistencyFlowTests() {
         find.byType(Scrollable).first,
         const Offset(0, -200),
       );
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
-      // LibraryScreen was redesigned — shows FEATURED COLLECTION, Life Chapters, etc.
+      // LibraryScreen was redesigned — shows PREMIUM COLLECTION, Life Chapters, etc.
       // Mock book title "My Life Story" may appear in the Autobiography section.
       final hasBook = find.textContaining('My Life Story').evaluate().isNotEmpty ||
-          find.textContaining('FEATURED').evaluate().isNotEmpty ||
+          find.textContaining('PREMIUM').evaluate().isNotEmpty ||
           find.textContaining('Life Chapters').evaluate().isNotEmpty ||
-          find.textContaining('Journey').evaluate().isNotEmpty ||
+          find.textContaining('My Life Book').evaluate().isNotEmpty ||
           find.byType(LibraryScreen).evaluate().isNotEmpty;
       expect(hasBook, isTrue,
           reason: 'CHAPTERS tab should display the library content');
@@ -279,19 +279,19 @@ void crossScreenConsistencyFlowTests() {
       await pumpHome(tester);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       await tester.drag(
         find.byType(Scrollable).first,
         const Offset(0, -600),
       );
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
-      // LibraryScreen was redesigned — shows "Read Autobiography" and "Life Chapters"
+      // LibraryScreen was redesigned — shows "Read" buttons and "Life Chapters"
       expect(
-        find.text('Read Autobiography').evaluate().isNotEmpty ||
+        find.text('Read').evaluate().isNotEmpty ||
             find.text('Life Chapters').evaluate().isNotEmpty ||
-            find.textContaining('FEATURED').evaluate().isNotEmpty,
+            find.textContaining('PREMIUM').evaluate().isNotEmpty,
         isTrue,
       );
     });
@@ -312,7 +312,7 @@ void crossScreenConsistencyFlowTests() {
           const Offset(0, -300),
           warnIfMissed: false,
         );
-        await tester.pump(settle);
+        await tester.pump(pumpWait);
       }
 
       // Try to tap a known entry
@@ -334,7 +334,7 @@ void crossScreenConsistencyFlowTests() {
           );
           if (card.evaluate().isNotEmpty) {
             await tester.tap(card.first, warnIfMissed: false);
-            await tester.pump(settle);
+            await tester.pump(pumpWait);
             tapped = true;
             break;
           }
@@ -350,7 +350,7 @@ void crossScreenConsistencyFlowTests() {
         );
         if (backBtn.evaluate().isNotEmpty) {
           await tester.tap(backBtn.first, warnIfMissed: false);
-          await tester.pump(settle);
+          await tester.pump(pumpWait);
         }
       } else {
         // Entry cards may not be tappable in integration test layout —
@@ -370,7 +370,7 @@ void crossScreenConsistencyFlowTests() {
 
       final scrollable = find.byType(Scrollable).first;
       await tester.drag(scrollable, const Offset(0, -300));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       // Just verify the app doesn't crash and Home is still visible
       expect(find.byType(HomeScreen), findsOneWidget);
@@ -387,19 +387,19 @@ void crossScreenConsistencyFlowTests() {
       expect(find.byType(HomeScreen), findsOneWidget);
 
       await tester.tap(find.text('CHAPTERS'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
       expect(find.byType(LibraryScreen), findsOneWidget);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
       expect(find.byType(TimelineScreen), findsOneWidget);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
       expect(find.byType(ExploreScreen), findsOneWidget);
 
       await tester.tap(find.text('HOME'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
       expect(find.byType(HomeScreen), findsOneWidget);
     });
 
@@ -417,7 +417,7 @@ void crossScreenConsistencyFlowTests() {
         await tester.pump(const Duration(milliseconds: 300));
       }
 
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
       expect(find.byType(MaterialApp), findsOneWidget);
     });
 
@@ -425,13 +425,13 @@ void crossScreenConsistencyFlowTests() {
       await pumpHome(tester);
 
       await tester.tap(find.text('TIMELINE'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       await tester.tap(find.text('EXPLORE'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       await tester.tap(find.text('HOME'));
-      await tester.pump(settle);
+      await tester.pump(pumpWait);
 
       expect(find.byType(HomeScreen), findsOneWidget);
 
@@ -448,14 +448,14 @@ void crossScreenConsistencyFlowTests() {
   // ===========================================================================
 
   group('Cross-Screen — Explore sections reference mock entries', () {
-    testWidgets('Explore shows Happiest Memories section', (tester) async {
+    testWidgets('Explore shows Happiest Moments section', (tester) async {
       await goExplore(tester);
 
       final hasHappiest =
           find.textContaining('Happiest').evaluate().isNotEmpty ||
           find.textContaining('happiest').evaluate().isNotEmpty;
       expect(hasHappiest, isTrue,
-          reason: 'Explore should have a Happiest Memories section');
+          reason: 'Explore should have a Happiest Moments section');
     });
 
     testWidgets('Explore shows See all links for sections', (tester) async {

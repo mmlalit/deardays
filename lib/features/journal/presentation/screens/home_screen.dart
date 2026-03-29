@@ -418,13 +418,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 children: [
                   Row(
                     children: [
-                      Text(
-                        dateStr.toUpperCase(),
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textMuted,
-                          letterSpacing: 1.5,
+                      Flexible(
+                        child: Text(
+                          dateStr.toUpperCase(),
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textMuted,
+                            letterSpacing: 1.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const Spacer(),
