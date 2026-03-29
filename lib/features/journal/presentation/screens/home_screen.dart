@@ -56,6 +56,17 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin {
 
+  // ── Mood row state ──────────────────────────────────────────────────────
+  bool _moodExpanded = false;
+
+  static const _moodData = [
+    {'emoji': '🤩', 'label': 'GREAT', 'color': Color(0xFFF59E0B)},
+    {'emoji': '😊', 'label': 'GOOD', 'color': Color(0xFF10B981)},
+    {'emoji': '😐', 'label': 'OKAY', 'color': Color(0xFF94A3B8)},
+    {'emoji': '😔', 'label': 'LOW', 'color': Color(0xFF8B5CF6)},
+    {'emoji': '😣', 'label': 'TOUGH', 'color': Color(0xFFEF4444)},
+  ];
+
   // Milestone streak thresholds for celebrations
   static const List<int> _milestoneDays = [7, 30, 100, 365];
 
@@ -196,7 +207,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     _buildGreeting(firstName, colors),
                     const SizedBox(height: 20),
 
-                    // 2. Capture buttons — compact row
+                    // 2. Mood check-in
+                    _buildMoodRow(colors),
+                    const SizedBox(height: 16),
+
+                    // 3. Capture buttons — glass style
                     _buildCaptureHero(context, colors),
                     const SizedBox(height: 16),
 
@@ -675,31 +690,157 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 2. Capture grid (2x2)
+  // 2. Mood check-in row
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildMoodRow(AppPalette colors) {
+    final selectedMood = ref.watch(todayMoodProvider);
+
+    // Collapsed state — one-line pill after mood is picked
+    if (selectedMood != null && selectedMood.isNotEmpty && !_moodExpanded) {
+      final moodItem = _moodData.firstWhere(
+        (m) => m['label'] == selectedMood,
+        orElse: () => _moodData[2],
+      );
+      final emoji = moodItem['emoji'] as String;
+      final color = moodItem['color'] as Color;
+      return GestureDetector(
+        onTap: () => setState(() => _moodExpanded = true),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border),
+          ),
+          child: Row(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Feeling ${selectedMood.toLowerCase()} today',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                'Change',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Expanded state — full emoji picker
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'How are you feeling?',
+            style: GoogleFonts.newsreader(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: _moodData.map((m) {
+              final label = m['label'] as String;
+              final color = m['color'] as Color;
+              final emoji = m['emoji'] as String;
+              final isSelected = selectedMood == label;
+              return ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    ref.read(todayMoodProvider.notifier).setMood(label);
+                    setState(() => _moodExpanded = false);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? color.withAlpha(30) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? color : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(emoji, style: const TextStyle(fontSize: 28)),
+                        const SizedBox(height: 4),
+                        Text(
+                          label,
+                          style: GoogleFonts.manrope(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                            color: isSelected ? color : colors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 3. Capture buttons — glass style
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildCaptureHero(BuildContext context, AppPalette colors) {
     return Row(
       children: [
-        Expanded(child: _buildCaptureChip(
+        Expanded(child: _buildGlassButton(
           icon: Icons.mic_rounded,
-          label: 'Speak',
+          label: 'Speak it',
+          subtitle: 'Voice memory',
           color: const Color(0xFF6366F1),
           colors: colors,
           onTap: () { HapticFeedback.mediumImpact(); context.push('/record'); },
         )),
-        const SizedBox(width: 10),
-        Expanded(child: _buildCaptureChip(
+        const SizedBox(width: 12),
+        Expanded(child: _buildGlassButton(
           icon: Icons.edit_note_rounded,
           label: 'Write',
+          subtitle: 'Text entry',
           color: const Color(0xFFEC4899),
           colors: colors,
           onTap: () { HapticFeedback.mediumImpact(); context.push('/write'); },
         )),
-        const SizedBox(width: 10),
-        Expanded(child: _buildCaptureChip(
+        const SizedBox(width: 12),
+        Expanded(child: _buildGlassButton(
           icon: Icons.forum_rounded,
           label: 'Check In',
+          subtitle: 'AI chat',
           color: const Color(0xFFF97316),
           colors: colors,
           onTap: () { HapticFeedback.mediumImpact(); context.push('/checkin'); },
@@ -708,9 +849,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  Widget _buildCaptureChip({
+  Widget _buildGlassButton({
     required IconData icon,
     required String label,
+    required String subtitle,
     required Color color,
     required AppPalette colors,
     required VoidCallback onTap,
@@ -720,28 +862,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       button: true,
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: color.withAlpha(20),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withAlpha(40), width: 1),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
+        child: Column(
+          children: [
+            Container(
+              height: 76,
+              decoration: BoxDecoration(
+                color: color.withAlpha(26),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withAlpha(45), width: 1),
               ),
-            ],
-          ),
+              child: Center(
+                child: Icon(icon, size: 28, color: color),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700, color: colors.textPrimary),
+            ),
+            Text(
+              subtitle,
+              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w500, color: colors.textMuted),
+            ),
+          ],
         ),
       ),
     );
