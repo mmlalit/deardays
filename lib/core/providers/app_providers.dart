@@ -671,6 +671,28 @@ List<String> _sampleTexts(List<String> texts, {int maxTotalChars = 35000}) {
   return result;
 }
 
+// --- Daily story pages provider ---
+
+/// Fetches daily story pages from the pages table for a specific date.
+/// Returns empty list if no pages exist yet (cron hasn't run).
+final dailyStoryPagesProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, dateStr) async {
+  final client = ref.watch(supabaseClientProvider);
+  final userId = client.auth.currentUser?.id;
+  if (userId == null) return [];
+
+  final response = await client
+      .from('pages')
+      .select('content, page_number, highlights, mood_summary, people, entry_ids, word_count')
+      .eq('user_id', userId)
+      .eq('granularity', 'daily')
+      .eq('page_date', dateStr)
+      .order('page_number')
+      ;
+
+  return (response as List<dynamic>).cast<Map<String, dynamic>>();
+});
+
 // --- Period-aware reflection providers ---
 
 enum ReflectionPeriod { daily, weekly, monthly, yearly }

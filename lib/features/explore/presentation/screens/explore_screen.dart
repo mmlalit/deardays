@@ -738,7 +738,241 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Mood Summary — last 7 days bar chart
+  // Your Story — unified card with Day/Week/Month/Year tabs
+  // Replaces: Memory Insights + Your Highlights + Mood Summary
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Currently selected period in the Your Story card.
+  ReflectionPeriod _storyPeriod = ReflectionPeriod.daily;
+
+  Widget _buildYourStoryCard(List<JournalEntry> entries, AppPalette colors) {
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+
+    // Compute data for the selected period
+    final DateTime periodStart;
+    final String dateLabel;
+    final String heroTitle;
+    final List<JournalEntry> periodEntries;
+
+    switch (_storyPeriod) {
+      case ReflectionPeriod.daily:
+        periodStart = DateTime(now.year, now.month, now.day);
+        dateLabel = DateFormat('EEEE, MMM d, yyyy').format(now);
+        heroTitle = 'Your Day';
+        periodEntries = entries.where((e) =>
+            e.entryDate.year == now.year &&
+            e.entryDate.month == now.month &&
+            e.entryDate.day == now.day).toList();
+      case ReflectionPeriod.weekly:
+        periodStart = DateTime(now.year, now.month, now.day - now.weekday + 1);
+        final weekEnd = periodStart.add(const Duration(days: 6));
+        dateLabel = '${DateFormat('MMM d').format(periodStart)} – ${DateFormat('d').format(weekEnd)}';
+        heroTitle = 'Your Week';
+        periodEntries = entries.where((e) => !e.entryDate.isBefore(periodStart)).toList();
+      case ReflectionPeriod.monthly:
+        periodStart = DateTime(now.year, now.month, 1);
+        dateLabel = DateFormat('MMMM yyyy').format(now);
+        heroTitle = 'Your Month';
+        periodEntries = entries.where((e) => !e.entryDate.isBefore(periodStart)).toList();
+      case ReflectionPeriod.yearly:
+        periodStart = DateTime(now.year, 1, 1);
+        dateLabel = '${now.year}';
+        heroTitle = 'Your Year';
+        periodEntries = entries.where((e) => !e.entryDate.isBefore(periodStart)).toList();
+    }
+
+    // Mood breakdown for this period
+    final moodCounts = <String, int>{};
+    for (final e in periodEntries) {
+      if (e.mood != null) moodCounts[e.mood!] = (moodCounts[e.mood!] ?? 0) + 1;
+    }
+    final dominantMood = moodCounts.isEmpty
+        ? null
+        : moodCounts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+
+    // Story preview — first 2 sentences of the latest entry's content
+    final storyPreview = periodEntries.isNotEmpty
+        ? _truncateToSentences(periodEntries.first.content, 2)
+        : 'No memories yet for this period.';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          context.push('/story?period=${_storyPeriod.name}');
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: colors.cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.border),
+            boxShadow: [
+              BoxShadow(
+                color: colors.accent.withAlpha(15),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header + period tabs
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, size: 16, color: colors.accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      'YOUR STORY',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: colors.textMuted,
+                        letterSpacing: 2.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Period tabs
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+                child: Row(
+                  children: [
+                    _storyTab('Day', ReflectionPeriod.daily, colors),
+                    const SizedBox(width: 6),
+                    _storyTab('Week', ReflectionPeriod.weekly, colors),
+                    const SizedBox(width: 6),
+                    _storyTab('Month', ReflectionPeriod.monthly, colors),
+                    const SizedBox(width: 6),
+                    _storyTab('Year', ReflectionPeriod.yearly, colors),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Hero title + date
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      heroTitle,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      dateLabel,
+                      style: GoogleFonts.manrope(fontSize: 12, color: colors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Story preview
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Text(
+                  storyPreview,
+                  style: GoogleFonts.newsreader(
+                    fontSize: 14,
+                    color: colors.textSecondary,
+                    height: 1.6,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Stats row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  children: [
+                    if (dominantMood != null) ...[
+                      Text(
+                        _moodEmoji(dominantMood),
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      '${periodEntries.length} ${periodEntries.length == 1 ? 'memory' : 'memories'}',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textMuted,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Read full story →',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: colors.accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _storyTab(String label, ReflectionPeriod period, AppPalette colors) {
+    final selected = _storyPeriod == period;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _storyPeriod = period);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.accent.withAlpha(8),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? colors.accent : colors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : colors.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Truncate text to N sentences for preview.
+  String _truncateToSentences(String text, int count) {
+    final sentences = text.split(RegExp(r'(?<=[.!?])\s+'));
+    if (sentences.length <= count) return text;
+    return sentences.take(count).join(' ');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Mood Summary — last 7 days bar chart (kept for reference, no longer in main layout)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildMoodSummary(List<JournalEntry> entries, AppPalette colors) {
@@ -945,20 +1179,14 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
           ),
 
-        // ── Memory Insights ──
-        _buildAiInsightsSection(entries, colors),
-
-        // ── Your Highlights ──
-        _buildHighlightsSection(entries, colors),
+        // ── Your Story (replaces Insights + Highlights + Mood Summary) ──
+        _buildYourStoryCard(entries, colors),
 
         // ── Featured Chapter Postcard ──
         _buildFeaturedChapterPostcard(entries, colors),
 
         // ── Memory of the Day ──
         _buildMemoryOfTheDaySection(entries, colors),
-
-        // ── Mood Summary ──
-        _buildMoodSummary(entries, colors),
 
         // ── Recent Memories ──
         Padding(
