@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:deardays/core/config/content_limits.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -241,6 +242,16 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_isRecording && !_isPaused && mounted) {
         setState(() => _elapsedSeconds++);
+        // Auto-stop at max recording duration to prevent abuse
+        if (_elapsedSeconds >= ContentLimits.maxRecordingMinutes * 60) {
+          _finishRecording();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Recording limit reached (${ContentLimits.maxRecordingMinutes} minutes).'),
+              behavior: SnackBarBehavior.floating,
+            ));
+          }
+        }
       }
     });
   }
