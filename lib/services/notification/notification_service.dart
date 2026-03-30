@@ -457,6 +457,144 @@ class NotificationService {
     debugPrint('[NotificationService] On This Day: $yearsAgo years ago.');
   }
 
+  // ── Story notifications ─────────────────────────────────────────────────
+
+  static const int _dailyStoryId = 4001;
+  static const int _weeklyStoryId = 4002;
+  static const int _monthlyStoryId = 4003;
+  static const int _yearlyStoryId = 4004;
+  static const int _noEntryReminderId = 4005;
+
+  /// Show notification when daily story is generated.
+  Future<void> showDailyStoryNotification({
+    List<String> highlights = const [],
+  }) async {
+    _ensureInitialized();
+
+    final title = 'Your day\'s story is ready 📖';
+    final body = highlights.isNotEmpty
+        ? highlights.take(2).join(' · ')
+        : 'Tap to read your day as a narrative.';
+
+    await _plugin.show(
+      _dailyStoryId, title, body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high, priority: Priority.high,
+          styleInformation: BigTextStyleInformation(body, contentTitle: title),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      payload: 'story_daily',
+    );
+  }
+
+  /// Show notification when weekly story is generated.
+  Future<void> showWeeklyStoryNotification() async {
+    _ensureInitialized();
+    await _plugin.show(
+      _weeklyStoryId,
+      'Your week in review is ready ✨',
+      'See your weekly story with highlights and mood.',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high, priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      payload: 'story_weekly',
+    );
+  }
+
+  /// Show notification when monthly story is generated.
+  Future<void> showMonthlyStoryNotification(String monthName) async {
+    _ensureInitialized();
+    await _plugin.show(
+      _monthlyStoryId,
+      'Your $monthName story is ready 📚',
+      'Read your month as a narrative.',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high, priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      payload: 'story_monthly',
+    );
+  }
+
+  /// Show notification when yearly story is generated.
+  Future<void> showYearlyStoryNotification(int year) async {
+    _ensureInitialized();
+    await _plugin.show(
+      _yearlyStoryId,
+      'Your $year story is ready 🎉',
+      'Read your year in review.',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.high, priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentBadge: true, presentSound: true,
+        ),
+      ),
+      payload: 'story_yearly',
+    );
+  }
+
+  /// Schedule a "still time to capture today" reminder at 9 PM.
+  Future<void> scheduleNoEntryReminder() async {
+    _ensureInitialized();
+    await _plugin.cancel(_noEntryReminderId);
+
+    final now = DateTime.now();
+    var scheduled = DateTime(now.year, now.month, now.day, 21, 0);
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+
+    await _plugin.zonedSchedule(
+      _noEntryReminderId,
+      'Still time to capture today 💭',
+      'Your day has a story worth saving.',
+      tz.TZDateTime.from(scheduled, tz.local),
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId, _channelName,
+          channelDescription: _channelDesc,
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true, presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      payload: 'no_entry_reminder',
+    );
+  }
+
+  /// Cancel the no-entry reminder (called when user saves a memory today).
+  Future<void> cancelNoEntryReminder() async {
+    await _plugin.cancel(_noEntryReminderId);
+  }
+
   /// Schedules a rotating daily writing prompt at [time].
   ///
   /// Uses day-of-year modulo the prompt bank so the prompt is deterministic
