@@ -673,7 +673,7 @@ List<String> _sampleTexts(List<String> texts, {int maxTotalChars = 35000}) {
 
 // --- Period-aware reflection providers ---
 
-enum ReflectionPeriod { weekly, monthly, yearly }
+enum ReflectionPeriod { daily, weekly, monthly, yearly }
 
 /// Entries for a given reflection period (raw DB entries, used for mood charts
 /// and highlight extraction — not fed directly to AI for monthly/yearly).
@@ -682,6 +682,8 @@ final reflectionEntriesProvider =
   final now = DateTime.now();
   final DateTime start;
   switch (period) {
+    case ReflectionPeriod.daily:
+      start = DateTime(now.year, now.month, now.day);
     case ReflectionPeriod.weekly:
       start = now.subtract(const Duration(days: 6));
     case ReflectionPeriod.monthly:
@@ -700,6 +702,7 @@ final reflectionEntriesProvider =
 final reflectionMoodsProvider =
     FutureProvider.family<List<Map<String, String>>, ReflectionPeriod>((ref, period) async {
   final days = switch (period) {
+    ReflectionPeriod.daily => 1,
     ReflectionPeriod.weekly => 7,
     ReflectionPeriod.monthly => 30,
     ReflectionPeriod.yearly => 365,
@@ -728,6 +731,7 @@ final reflectionSummaryProvider =
   // ── 1. StoryNode.summary — free, generated in the same call as the story ──
   final storyRepo = StoryNodeRepository();
   final storyKey = switch (period) {
+    ReflectionPeriod.daily   => 'day_${now.year}_${now.month}_${now.day}',
     ReflectionPeriod.weekly  => StoryNode.weekKey(now.year, StoryNode.isoWeekNumber(now)),
     ReflectionPeriod.monthly => StoryNode.monthKey(now.year, now.month),
     ReflectionPeriod.yearly  => StoryNode.yearKey(now.year),
@@ -738,6 +742,7 @@ final reflectionSummaryProvider =
   // ── 2. Legacy reflection cache ─────────────────────────────────────────────
   final cache = ref.watch(reflectionCacheRepositoryProvider);
   final periodKey = switch (period) {
+    ReflectionPeriod.daily   => '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
     ReflectionPeriod.weekly  => ReflectionCacheRepository.weeklyKey(now),
     ReflectionPeriod.monthly => ReflectionCacheRepository.monthlyKey(now),
     ReflectionPeriod.yearly  => ReflectionCacheRepository.yearlyKey(now),
@@ -780,6 +785,7 @@ final reflectionThemesProvider =
   final cache = ref.watch(reflectionCacheRepositoryProvider);
 
   final periodKey = switch (period) {
+    ReflectionPeriod.daily   => '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
     ReflectionPeriod.weekly  => ReflectionCacheRepository.weeklyKey(now),
     ReflectionPeriod.monthly => ReflectionCacheRepository.monthlyKey(now),
     ReflectionPeriod.yearly  => ReflectionCacheRepository.yearlyKey(now),

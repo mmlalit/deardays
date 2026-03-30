@@ -7,11 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/features/journal/presentation/screens/review_save_screen.dart';
-import 'package:deardays/core/config/feature_flags.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:deardays/services/ai/ai_service.dart';
-import 'package:deardays/services/ai/ai_stream_service.dart';
 import 'package:deardays/services/ai/ai_credit_service.dart';
 import 'package:deardays/services/ai/offline_ai_queue.dart';
 import 'package:deardays/services/analytics/analytics_service.dart';
@@ -33,7 +31,6 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
   // AiService is a singleton (factory AiService() => _instance) and cannot be
   // provided via Riverpod. Same for the other AI singletons below.
   final _aiService = AiService();
-  final _streamService = AiStreamService();
   final _creditService = AiCreditService();
   final _offlineQueue = OfflineAiQueue();
 
@@ -141,10 +138,9 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
     if (!mounted) return;
     _setStep(1, 'done');
 
-    // ── Steps 3 + 4: Launch ALL server calls in parallel immediately ──────
-    // lightPolish, polishNarrative, and generateTitle all start at the same
-    // time. lightPolish is faster (~1-2s); narrative is slower (~3-5s).
-    // By starting together the total wait = max(both) instead of sum(both).
+    // ── Steps 3 + 4: Grammar fix + title generation (parallel) ────────────
+    // Narrative (story) generation is handled by the daily story cron —
+    // not during the save flow. This keeps processing fast (~3 seconds).
 
     final canPolish = _creditService.canUse(AiOperation.polish);
     bool polishCreditConsumed = false;
@@ -173,29 +169,6 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
           })
         : Future.value(transcript);
 
-    // Narrative runs directly on transcript — the updated prompt handles
-    // any grammar issues itself, so we don't need to wait for lightPolish.
-    final useStreaming = _streamService.isConfigured &&
-        FeatureFlags().isEnabledSync(Feature.aiStreaming);
-
-    final narrativeFuture = useStreaming
-        ? (() async {
-            final buffer = StringBuffer();
-            await for (final chunk in _streamService.streamNarrative(transcript)) {
-              buffer.write(chunk);
-            }
-            return buffer.toString().trim();
-          })()
-            .timeout(const Duration(seconds: 45))
-            .catchError((_) => '')
-        : _aiService
-            .polishNarrative(transcript, style: 'memoir')
-            .timeout(const Duration(seconds: 45))
-            .catchError((e) {
-              aiError ??= e.toString();
-              return '';
-            });
-
     final titleFuture =
         _aiService.generateTitle(transcript)
             .timeout(const Duration(seconds: 20))
@@ -204,26 +177,15 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
           return '';
         });
 
-    // ── Step 3: Await lightPolish (shorter) ───────────────────────────────
+    // ── Step 3: Await grammar fix ────────────────────────────────────────
     _setStep(2, 'active');
     final cleanedText = await lightPolishFuture;
     if (!mounted) return;
     _setStep(2, 'done');
 
-    // ── Step 4: Await narrative + title (already running) ─────────────────
+    // ── Step 4: Await title ──────────────────────────────────────────────
     _setStep(3, 'active');
-    final narrativeRaw = await narrativeFuture;
-    String? polishedText = narrativeRaw.trim().isEmpty ? null : narrativeRaw.trim();
     String generatedTitle = await titleFuture;
-
-    // Strip any leading markdown header from polished text
-    if (polishedText != null) {
-      final lines =
-          polishedText.split('\n').where((l) => l.trim().isNotEmpty).toList();
-      if (lines.length > 1 && lines.first.startsWith('#')) {
-        polishedText = lines.skip(1).join('\n\n').trim();
-      }
-    }
 
     // Fallback title if AI title generation failed
     if (generatedTitle.isEmpty) {
@@ -238,6 +200,9 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
 
     if (!mounted) return;
     _setStep(3, 'done');
+
+    // No narrative — daily story cron generates it at midnight
+    const String? polishedText = null;
 
     // Track AI processing result
     if (aiError != null) {

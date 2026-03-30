@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/providers/offline_providers.dart';
+import 'package:deardays/services/sync/sync_queue.dart';
 
 /// A slim banner shown at the top of the screen when the device is offline
 /// or when there are pending writes waiting to sync.
@@ -19,11 +20,17 @@ class OfflineBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(connectivityProvider);
     final pendingAsync = ref.watch(pendingWriteCountProvider);
-    final pendingCount = pendingAsync.valueOrNull ?? 0;
+    final offlineWritePending = pendingAsync.valueOrNull ?? 0;
+    final syncQueuePending = SyncQueue().count;
+    final pendingCount = offlineWritePending + syncQueuePending;
     final syncStatus = ref.watch(syncStatusProvider);
 
     // Fully online with nothing pending — hide banner
     if (isOnline && pendingCount == 0 && syncStatus == SyncStatus.synced) {
+      return const SizedBox.shrink();
+    }
+    // Online and sync completed but SyncQueue just hasn't been rechecked — hide
+    if (isOnline && syncStatus != SyncStatus.syncing && offlineWritePending == 0 && syncQueuePending == 0) {
       return const SizedBox.shrink();
     }
 

@@ -1490,6 +1490,18 @@ class _NetworkImageState extends ConsumerState<_NetworkImage> {
   @override
   void initState() {
     super.initState();
+    _fetchUrl();
+  }
+
+  @override
+  void didUpdateWidget(covariant _NetworkImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.storagePath != widget.storagePath) {
+      _fetchUrl();
+    }
+  }
+
+  void _fetchUrl() {
     if (!widget.storagePath.startsWith('http')) {
       _signedUrlFuture = ref
           .read(mediaServiceProvider)

@@ -96,10 +96,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   late final TextEditingController _titleEditController;
   bool _isEditingTitle = false;
 
-  // View toggle: 0 = Original, 1 = Polished, 2 = Story
-  // Default to 1 so the user immediately sees the grammar/spelling-fixed text.
-  // Display logic falls back to Original automatically if cleanedText is null.
-  int _viewMode = 1;
+  // View toggle: 0 = My Words (grammar-fixed), 1 = ✨ Story (AI narrative)
+  // Default to 0 so the user sees their own words first.
+  int _viewMode = 0;
   String? _selectedMood;
   bool _showMoodPicker = false;
 
@@ -426,20 +425,11 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                       const SizedBox(height: 8),
                       _buildAudioCard(colors),
                     ],
-                    // View tabs: Original / Polished / Story
-                    if (_cleanedText != null || _polishedText != null) ...[
-                      const SizedBox(height: 12),
-                      _buildViewTabs(colors),
-                    ],
+                    // Single text view — grammar-fixed (or raw if no AI)
                     const SizedBox(height: 8),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _viewMode == 2 && _polishedText != null
-                          ? _buildPolishedView()
-                          : _viewMode == 1 && _cleanedText != null
-                              ? _buildCleanedView()
-                              : _buildOriginalView(),
-                    ),
+                    _cleanedText != null
+                        ? _buildCleanedView()
+                        : _buildOriginalView(),
                   ],
                 ],
               ),
@@ -1363,14 +1353,13 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
-  // View Tabs: Original | Polished | Story
+  // View Tabs: My Words | ✨ Story
   // ---------------------------------------------------------------------------
 
   Widget _buildViewTabs(AppPalette colors) {
     final tabs = <({int index, String label, IconData icon})>[
-      (index: 0, label: 'ORIGINAL', icon: Icons.mic_rounded),
-      if (_cleanedText != null) (index: 1, label: 'POLISHED', icon: Icons.auto_fix_high_rounded),
-      if (_polishedText != null) (index: 2, label: 'STORY', icon: Icons.menu_book_rounded),
+      (index: 0, label: 'MY WORDS', icon: Icons.edit_note_rounded),
+      if (_polishedText != null) (index: 1, label: '✨ STORY', icon: Icons.menu_book_rounded),
     ];
 
     return Column(

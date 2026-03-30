@@ -375,6 +375,7 @@ class StoryNotifier extends StateNotifier<StoryState> {
     try {
       final now = DateTime.now();
       final startDate = switch (period) {
+        ReflectionPeriod.daily   => DateTime(now.year, now.month, now.day),
         ReflectionPeriod.weekly  => StoryNode.weekStart(now),
         ReflectionPeriod.monthly => DateTime(now.year, now.month, 1),
         ReflectionPeriod.yearly  => DateTime(now.year, 1, 1),
@@ -403,7 +404,7 @@ class StoryNotifier extends StateNotifier<StoryState> {
       final client = _ref.read(supabaseClientProvider);
       final periodName = period.name; // 'weekly' | 'monthly' | 'yearly'
       final year = now.year;
-      final month = period == ReflectionPeriod.weekly ? now.month : null;
+      final month = (period == ReflectionPeriod.daily || period == ReflectionPeriod.weekly) ? now.month : null;
       final response = await client.rpc('get_story_summary', params: {
         'p_user_id': client.auth.currentUser?.id,
         'p_period':  periodName,
@@ -424,6 +425,7 @@ class StoryNotifier extends StateNotifier<StoryState> {
     try {
       final now = DateTime.now();
       final (startDate, limit) = switch (period) {
+        ReflectionPeriod.daily   => (DateTime(now.year, now.month, now.day), 10),
         ReflectionPeriod.weekly  => (StoryNode.weekStart(now), 14),
         ReflectionPeriod.monthly => (DateTime(now.year, now.month, 1), 60),
         ReflectionPeriod.yearly  => (DateTime(now.year, 1, 1), 400),

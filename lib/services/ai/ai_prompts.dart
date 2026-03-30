@@ -171,7 +171,7 @@ class AiPrompts {
       '- NEVER infer or assume the writer\'s gender. NEVER use words like '
       '"girls", "boys", "men", "women", "ladies", "guys" to describe the writer or their group. '
       'Use "we", "the two of us", "siblings", "friends" instead.\n'
-      '- Write in past tense.\n'
+      '- Keep the same tense as the user\'s original text. If they write in present tense, keep present. If past, keep past.\n'
       '- Combine the user\'s sentences into smooth, flowing paragraphs — '
       'do not write one sentence per line.\n'
       '- Each paragraph should have 2–4 sentences that belong together naturally.\n'
@@ -655,5 +655,69 @@ class AiPrompts {
       '- Quality: High fidelity (JPEG quality ≥ 90)\n'
       '- Aspect ratio: Preserve original unless a crop meaningfully improves composition\n'
       '- The result must look like a real photograph of a real moment — not a processed image';
+
+  // ---------------------------------------------------------------------------
+  // Daily Story Page — weaves all day's memories into one flowing narrative
+  // Model: medium | ~500-1500 tokens out
+  // ---------------------------------------------------------------------------
+
+  static const dailyStory =
+      'You are writing a daily journal page for a personal life book.\n\n'
+      'INPUT: Multiple journal entries from the same day, in chronological order.\n'
+      'Each entry has: time, content (grammar-fixed), mood, and optional location.\n\n'
+      'YOUR TASK:\n'
+      '1. Weave ALL entries into ONE flowing narrative of the day.\n'
+      '2. Write in first person ("I", "we", "my").\n'
+      '3. Keep the same tense as the user\'s original text.\n'
+      '4. Transition naturally between different moments of the day.\n'
+      '5. Keep ALL facts, people, and events — do not drop anything.\n'
+      '6. Do NOT add details, emotions, or events the user did not write.\n'
+      '7. Do NOT use fancy or literary language. Write like a normal person.\n'
+      '8. No word limit — write as much as the content needs.\n\n'
+      'ALSO extract and return as JSON:\n'
+      '- "highlights": array of 2-5 short bullet points (key moments of the day)\n'
+      '- "mood_summary": one short sentence describing the emotional arc\n'
+      '- "people": array of names/people mentioned\n\n'
+      'RESPONSE FORMAT (strict JSON):\n'
+      '{\n'
+      '  "story": "The morning started with...",\n'
+      '  "highlights": ["Morning run — 8km personal best", "Mom\'s 60th birthday dinner"],\n'
+      '  "mood_summary": "Started calm, ended joyful",\n'
+      '  "people": ["Mom", "Dad", "Aanya"]\n'
+      '}\n\n'
+      'If there is only ONE entry, retell it as a story page (same rules).\n'
+      'Return ONLY valid JSON. No markdown. No explanation.';
+
+  // ---------------------------------------------------------------------------
+  // Weekly Story V2 — summarizes 7 daily pages into a weekly narrative thread
+  // Uses daily pages as input (not raw memories) for better quality.
+  // Model: medium | ~600-1000 tokens out
+  // ---------------------------------------------------------------------------
+
+  static const weeklyStoryFromDailyPages =
+      'You are writing a weekly summary page for a personal life book.\n\n'
+      'INPUT: Daily story pages from the past week (up to 7 days).\n'
+      'Each daily page has: date, story text, highlights, mood.\n\n'
+      'YOUR TASK:\n'
+      '1. Summarize the week into one flowing narrative.\n'
+      '2. Identify the week\'s themes, patterns, and key moments.\n'
+      '3. Write in first person.\n'
+      '4. Keep the user\'s tone and voice.\n'
+      '5. Do NOT add anything the user did not experience.\n'
+      '6. No word limit — write naturally.\n\n'
+      'ALSO extract and return as JSON:\n'
+      '- "highlights": 3-5 top moments of the week\n'
+      '- "mood_summary": overall mood arc of the week\n'
+      '- "themes": 2-3 recurring themes\n'
+      '- "people": all people mentioned across the week\n\n'
+      'RESPONSE FORMAT (strict JSON):\n'
+      '{\n'
+      '  "story": "This week was about...",\n'
+      '  "highlights": [...],\n'
+      '  "mood_summary": "A week of reconnecting",\n'
+      '  "themes": ["family", "fitness"],\n'
+      '  "people": ["Mom", "Rahul"]\n'
+      '}\n\n'
+      'Return ONLY valid JSON. No markdown. No explanation.';
 
 }

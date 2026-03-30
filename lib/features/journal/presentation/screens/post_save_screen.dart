@@ -270,6 +270,11 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
               // Remove from pending queue on success
               await PendingPhotoUploads().remove(saved.id);
               debugPrint('[PostSave] ✓ Photo uploaded for ${saved.id}');
+              // Invalidate so timeline/home cards pick up the new photo
+              if (mounted) {
+                ref.invalidate(timelineEntriesProvider);
+                ref.invalidate(todayEntryProvider);
+              }
             } catch (e) {
               debugPrint('[PostSave] Photo upload failed (will retry): $e');
               // Photo stays in PendingPhotoUploads — retried on next connectivity event

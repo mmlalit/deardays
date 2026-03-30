@@ -7,8 +7,10 @@ import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/services/encryption/encryption_service.dart';
 import 'package:deardays/services/connectivity/connectivity_service.dart';
 import 'package:deardays/services/sync/offline_write_service.dart';
+import 'package:deardays/services/storage/local_storage_service.dart';
 import 'package:deardays/services/sync/sync_operation.dart';
 import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
+import 'package:deardays/services/logging/app_logger.dart';
 
 class JournalRepository implements IJournalRepository {
   final SupabaseClient _client;
@@ -164,6 +166,7 @@ class JournalRepository implements IJournalRepository {
         payload: map,
         id: entry.id,
       );
+      AppLogger.info('EntryQueuedOffline', data: {'id': entry.id});
       // Return the entry with a temporary local ID so the UI has something
       return entry.copyWith(id: 'local_${const Uuid().v4()}');
     }
@@ -179,6 +182,7 @@ class JournalRepository implements IJournalRepository {
           .maybeSingle();
       if (response == null) throw Exception('Entry insert failed — no row returned');
 
+      AppLogger.info('EntryCreated', data: {'id': response['id']});
       return JournalEntry.fromSupabaseMap(_decryptRow(response));
     });
   }
@@ -188,6 +192,10 @@ class JournalRepository implements IJournalRepository {
   /// When offline, the update is queued and the entry is returned as-is.
   @override
   Future<JournalEntry> updateEntry(JournalEntry entry) async {
+    // Always update the local cache so edits are visible immediately,
+    // even before the server confirms.
+    await LocalStorageService().cacheEntry(entry);
+
     if (!ConnectivityService().isOnline) {
       final map = _prepareWriteMap(entry.toSupabaseMap(forUpdate: true));
       await OfflineWriteService().write(
@@ -255,27 +263,40 @@ class JournalRepository implements IJournalRepository {
     });
   }
 
-  /// Deletes a journal entry by ID.
+  /// Soft-deletes a journal entry by setting deleted_at.
+  /// The entry remains in the database for 30 days (recoverable) before
+  /// being hard-purged by the server-side retention cron.
   ///
-  /// When offline, the delete is queued for later replay.
+  /// When offline, the soft-delete is queued for later replay.
   @override
   Future<void> deleteEntry(String id) async {
+    // Remove from local cache immediately so UI reflects the deletion
+    await LocalStorageService().removeCachedEntry(id);
+
+    final payload = {
+      'id': id,
+      'user_id': _userId,
+      'deleted_at': DateTime.now().toUtc().toIso8601String(),
+    };
+
     if (!ConnectivityService().isOnline) {
       await OfflineWriteService().write(
         tableName: _writeTable,
-        type: SyncOperationType.delete,
-        payload: {'id': id, 'user_id': _userId},
+        type: SyncOperationType.update,
+        payload: payload,
         id: id,
       );
+      AppLogger.info('EntrySoftDeleteQueued', data: {'id': id});
       return;
     }
 
     return _network.query(() async {
       await _client
           .from(_writeTable)
-          .delete()
+          .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
           .eq('id', id)
           .eq('user_id', _userId);
+      AppLogger.info('EntrySoftDeleted', data: {'id': id});
     });
   }
 

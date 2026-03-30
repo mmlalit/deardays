@@ -321,6 +321,8 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Row(
             children: [
+              _periodTab('Day',   ReflectionPeriod.daily,   colors),
+              const SizedBox(width: 8),
               _periodTab('Week',  ReflectionPeriod.weekly,  colors),
               const SizedBox(width: 8),
               _periodTab('Month', ReflectionPeriod.monthly, colors),
@@ -362,6 +364,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
     final dateRange =
         '${DateFormat('MMM d').format(story.startDate)} – ${DateFormat('MMM d, yyyy').format(story.endDate)}';
     final title = switch (_period) {
+      ReflectionPeriod.daily   => 'Your Day',
       ReflectionPeriod.weekly  => 'Your Week',
       ReflectionPeriod.monthly => 'Your Month',
       ReflectionPeriod.yearly  => 'Your Year',
@@ -760,6 +763,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
   Widget _buildMemoryFilmstrip(LifeStory story, AppPalette colors) {
     if (story.entries.isEmpty) return const SizedBox.shrink();
     return switch (_period) {
+      ReflectionPeriod.daily   => _buildWeeklyFilmstrip(story, colors),
       ReflectionPeriod.weekly  => _buildWeeklyFilmstrip(story, colors),
       ReflectionPeriod.monthly => _buildMonthlyFilmstrip(story, colors),
       ReflectionPeriod.yearly  => _buildYearlyFilmstrip(story, colors),

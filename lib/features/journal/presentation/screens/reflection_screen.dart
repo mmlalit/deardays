@@ -64,6 +64,7 @@ class ReflectionScreen extends ConsumerWidget {
   // ── Header ─────────────────────────────────────────────────────────────────
 
   String get _title => switch (period) {
+        ReflectionPeriod.daily => 'Your Day in Review',
         ReflectionPeriod.weekly => 'Your Week in Review',
         ReflectionPeriod.monthly => 'Your Month in Review',
         ReflectionPeriod.yearly => 'Your Year in Review',
@@ -72,6 +73,7 @@ class ReflectionScreen extends ConsumerWidget {
   String get _dateRange {
     final now = DateTime.now();
     return switch (period) {
+      ReflectionPeriod.daily => DateFormat('MMM d, yyyy').format(now),
       ReflectionPeriod.weekly =>
         '${DateFormat('MMM d').format(now.subtract(const Duration(days: 6)))} – ${DateFormat('MMM d').format(now)}',
       ReflectionPeriod.monthly => DateFormat('MMMM yyyy').format(now),
@@ -128,6 +130,7 @@ class ReflectionScreen extends ConsumerWidget {
   // ── Content ────────────────────────────────────────────────────────────────
 
   int get _maxHighlights => switch (period) {
+        ReflectionPeriod.daily => 3,
         ReflectionPeriod.weekly => 3,
         ReflectionPeriod.monthly => 5,
         ReflectionPeriod.yearly => 10,
@@ -262,24 +265,28 @@ class ReflectionScreen extends ConsumerWidget {
   // ── Labels ─────────────────────────────────────────────────────────────────
 
   String get _summaryLabel => switch (period) {
+        ReflectionPeriod.daily => 'Daily Summary',
         ReflectionPeriod.weekly => 'Weekly Summary',
         ReflectionPeriod.monthly => 'Monthly Reflection',
         ReflectionPeriod.yearly => 'Your Year in Words',
       };
 
   String get _highlightsLabel => switch (period) {
+        ReflectionPeriod.daily => 'Key Moments',
         ReflectionPeriod.weekly => 'Key Moments',
         ReflectionPeriod.monthly => 'Best Moments',
         ReflectionPeriod.yearly => 'Top Moments of the Year',
       };
 
   String get _themesLabel => switch (period) {
+        ReflectionPeriod.daily => "Today's Themes",
         ReflectionPeriod.weekly => "This Week's Themes",
         ReflectionPeriod.monthly => "This Month's Themes",
         ReflectionPeriod.yearly => 'Themes of Your Year',
       };
 
   String get _memoriesLabel => switch (period) {
+        ReflectionPeriod.daily => "Today's Memories",
         ReflectionPeriod.weekly => "This Week's Memories",
         ReflectionPeriod.monthly => 'Moments of the Month',
         ReflectionPeriod.yearly => 'Your Year in Photos',
@@ -294,6 +301,10 @@ class ReflectionScreen extends ConsumerWidget {
     if (entries.isEmpty) return const SizedBox.shrink();
     final now = DateTime.now();
     return switch (period) {
+      ReflectionPeriod.daily => _WeeklyMemoryStrip(
+          entries: entries,
+          colors: colors,
+        ),
       ReflectionPeriod.weekly => _WeeklyMemoryStrip(
           entries: entries,
           colors: colors,
@@ -340,7 +351,7 @@ class ReflectionScreen extends ConsumerWidget {
       _StatData(_moodEmoji(topMood), 'Top Mood', Icons.mood_rounded),
     ];
 
-    if (period != ReflectionPeriod.weekly) {
+    if (period != ReflectionPeriod.daily && period != ReflectionPeriod.weekly) {
       final activeDays = entries.map((e) {
         final d = e.entryDate;
         return DateTime(d.year, d.month, d.day);
@@ -396,7 +407,7 @@ class ReflectionScreen extends ConsumerWidget {
 
   Widget _buildMoodVisualization(
       AppPalette colors, List<Map<String, String>> moods) {
-    if (period == ReflectionPeriod.weekly) {
+    if (period == ReflectionPeriod.daily || period == ReflectionPeriod.weekly) {
       return _buildWeeklyMoodChart(colors, moods);
     } else if (period == ReflectionPeriod.monthly) {
       return _buildMonthlyMoodGrid(colors, moods);
@@ -853,6 +864,7 @@ class ReflectionScreen extends ConsumerWidget {
 
   Widget _buildEmptyState(BuildContext context, AppPalette colors) {
     final message = switch (period) {
+      ReflectionPeriod.daily => 'No entries today yet',
       ReflectionPeriod.weekly => 'No entries this week yet',
       ReflectionPeriod.monthly => 'No entries this month yet',
       ReflectionPeriod.yearly => 'No entries this year yet',
@@ -994,6 +1006,7 @@ class _HeroCard extends ConsumerWidget {
                   ),
                   child: Text(
                     switch (period) {
+                      ReflectionPeriod.daily => 'DAILY REFLECTION',
                       ReflectionPeriod.weekly => 'WEEKLY REFLECTION',
                       ReflectionPeriod.monthly => 'MONTHLY REFLECTION',
                       ReflectionPeriod.yearly => 'YEARLY REFLECTION',

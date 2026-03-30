@@ -110,24 +110,20 @@ class ConnectivityService {
       return true;
     }
 
-    final wasOnline = _isOnline;
     try {
       final result = await InternetAddress.lookup(_host)
           .timeout(_checkTimeout);
-      _isOnline = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      _setOnline(result.isNotEmpty && result.first.rawAddress.isNotEmpty);
     } on SocketException catch (_) {
-      _isOnline = false;
+      _setOnline(false);
     } on TimeoutException catch (_) {
-      _isOnline = false;
-    } catch (_) {
-      _isOnline = false;
-    }
-
-    if (_isOnline != wasOnline) {
-      _controller.add(_isOnline);
+      // DNS timeout doesn't necessarily mean offline — could be slow network.
+      // Don't flip to offline on timeout alone, only on explicit failure.
       if (kDebugMode) {
-        debugPrint('[ConnectivityService] Status changed: $_isOnline');
+        debugPrint('[ConnectivityService] DNS timeout for $_host — keeping current state: $_isOnline');
       }
+    } catch (_) {
+      _setOnline(false);
     }
     return _isOnline;
   }
