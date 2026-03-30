@@ -310,7 +310,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       final profile = await ref.read(profileProvider.future);
       if (profile != null) {
         await profileRepo.updateProfile(profile.copyWith(avatarUrl: storagePath));
-        ref.invalidate(profileProvider);
+        ref.invalidate(appInitProvider);
       }
     } catch (e) {
       if (mounted) {
@@ -516,11 +516,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   Future<void> _clearReminderTimeFromProfile() async {
-    final client = ref.read(supabaseClientProvider);
-    final userId = client.auth.currentUser?.id;
-    if (userId != null) {
-      await client.from('profiles').update({'reminder_time': null}).eq('id', userId);
-    }
+    final profileRepo = ref.read(profileRepositoryProvider);
+    await profileRepo.clearReminderTime();
   }
 
   // ---------------------------------------------------------------------------
@@ -807,48 +804,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (deleteConfirmed != true || !mounted) return;
 
     try {
-      // Delete profile (cascades to entries, media, streaks, etc.)
-      final client = Supabase.instance.client;
-      final userId = client.auth.currentUser?.id;
-      if (userId == null) {
-        if (mounted) AppSnackBar.error(context, 'No authenticated user found.');
-        return;
-      }
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final deleted = await profileRepo.deleteAccount();
 
-      // Purge Storage files before deleting the profile row
-      try {
-        final mediaFiles = await client.storage.from('media').list(path: userId);
-        if (mediaFiles.isNotEmpty) {
-          await client.storage.from('media').remove(
-            mediaFiles.map((f) => '$userId/${f.name}').toList(),
-          );
-        }
-        final coverFiles = await client.storage.from('user-covers').list(path: userId);
-        if (coverFiles.isNotEmpty) {
-          await client.storage.from('user-covers').remove(
-            coverFiles.map((f) => '$userId/${f.name}').toList(),
-          );
-        }
-        // Delete avatar
-        await client.storage.from('media').remove([
-          'avatars/$userId.jpg',
-          'avatars/$userId.png',
-          'avatars/$userId.jpeg',
-        ]);
-      } catch (e) {
-        debugPrint('Storage cleanup failed: $e');
-        // Continue with account deletion even if storage cleanup fails
-      }
-
-      await client.from('profiles').delete().eq('id', userId);
-
-      // Verify the profile was actually deleted
-      final check = await client
-          .from('profiles')
-          .select('id')
-          .eq('id', userId)
-          .maybeSingle();
-      if (check != null) {
+      if (!deleted) {
         if (mounted) {
           AppSnackBar.error(context, 'Account deletion failed. Please contact support.');
         }
@@ -856,7 +815,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       }
 
       // Sign out only after confirmed deletion
-      await client.auth.signOut();
+      await Supabase.instance.client.auth.signOut();
 
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);

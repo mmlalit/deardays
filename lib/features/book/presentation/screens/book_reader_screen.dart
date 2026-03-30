@@ -1153,7 +1153,7 @@ class _CoverPageState extends ConsumerState<_CoverPage> {
               if (newTitle.isEmpty || newTitle == widget.page.title) return;
               final book = await _getOrCreateBook();
               await ref.read(bookRepositoryProvider).updateBook(book.copyWith(title: newTitle));
-              ref.invalidate(booksProvider);
+              ref.invalidate(appInitProvider);
             },
             child: Text('Save', style: GoogleFonts.manrope(color: const Color(0xFF6366F1), fontWeight: FontWeight.w700)),
           ),
@@ -1174,7 +1174,7 @@ class _CoverPageState extends ConsumerState<_CoverPage> {
       final repo = ref.read(bookRepositoryProvider);
       final url = await repo.uploadCoverImage(book.id, File(picked.path));
       await repo.updateBook(book.copyWith(coverImageUrl: url));
-      ref.invalidate(booksProvider);
+      ref.invalidate(appInitProvider);
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Could not update cover: $e')),

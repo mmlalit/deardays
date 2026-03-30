@@ -982,7 +982,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     try {
       final updated = await ref.read(profileRepositoryProvider).updateChapter(_chapter.id, title: newTitle);
       if (mounted) setState(() => _chapter = updated);
-      ref.invalidate(chaptersProvider);
+      ref.invalidate(appInitProvider);
     } catch (e) {
       debugPrint('rename chapter error: $e');
     }
@@ -1052,7 +1052,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
                         _chapter.id, colorValue: selected!.toARGB32(),
                       );
                       if (mounted) setState(() => _chapter = updated);
-                      ref.invalidate(chaptersProvider);
+                      ref.invalidate(appInitProvider);
                     } catch (e) { debugPrint('color update error: $e'); }
                   },
                   style: ElevatedButton.styleFrom(
@@ -1097,7 +1097,7 @@ class _ChapterDetailScreenState extends ConsumerState<ChapterDetailScreen> {
     if (confirmed != true || !mounted) return;
     try {
       await ref.read(profileRepositoryProvider).deleteChapter(_chapter.id);
-      ref.invalidate(chaptersProvider);
+      ref.invalidate(appInitProvider);
       if (mounted) this.context.pop();
     } catch (e) {
       debugPrint('delete chapter error: $e');

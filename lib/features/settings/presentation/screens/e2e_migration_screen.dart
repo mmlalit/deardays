@@ -198,7 +198,7 @@ class _E2EMigrationScreenState extends ConsumerState<E2EMigrationScreen> {
       }
 
       // Invalidate the profile cache so settings screen refreshes.
-      ref.invalidate(profileProvider);
+      ref.invalidate(appInitProvider);
 
       migrationStopwatch.stop();
       analytics.track('e2e_migration_completed', properties: {

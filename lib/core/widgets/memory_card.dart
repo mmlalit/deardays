@@ -10,6 +10,7 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/utils/entry_categories.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
+import 'package:deardays/services/sync/sync_queue.dart';
 
 /// Full-width memory card matching the Timeline tab card design.
 /// Shows photo/mood-band, date, tags, title, excerpt, voice indicator,
@@ -69,6 +70,7 @@ class MemoryCard extends ConsumerWidget {
     final photoMedia = entry.media.where((m) => m.mediaType == 'photo').toList();
     final tags     = entryTags(entry);
     final hasPhoto = photoMedia.isNotEmpty;
+    final isPendingSync = SyncQueue().isPending(entry.id);
 
     return GestureDetector(
       onTap: onTap,
@@ -114,19 +116,30 @@ class MemoryCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Date + tag chips
+                  // Date + sync indicator + tag chips
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        dateStr,
-                        style: GoogleFonts.manrope(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textMuted,
-                          letterSpacing: 1.5,
+                      Flexible(
+                        child: Text(
+                          dateStr,
+                          style: GoogleFonts.manrope(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textMuted,
+                            letterSpacing: 1.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (isPendingSync) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.cloud_upload_outlined,
+                          size: 12,
+                          color: colors.textMuted.withAlpha(150),
+                        ),
+                      ],
                       const Spacer(),
                       ...tags.take(2).map((t) => Padding(
                             padding: const EdgeInsets.only(left: 6),

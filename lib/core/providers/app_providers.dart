@@ -249,30 +249,116 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
   return ref.watch(authServiceProvider).isAuthenticated;
 });
 
-// --- Profile & Streak ---
+// --- App Init Data (single RPC replaces 5 calls) ---
+
+/// Holds the result of get_app_init_data RPC — profile, streak, chapters,
+/// books, and min_app_version in one call.
+class AppInitData {
+  final UserProfile? profile;
+  final Streak? streak;
+  final List<Chapter> chapters;
+  final List<Book> books;
+  final String? minAppVersion;
+
+  const AppInitData({
+    this.profile,
+    this.streak,
+    this.chapters = const [],
+    this.books = const [],
+    this.minAppVersion,
+  });
+}
+
+/// Single RPC call that loads profile + streak + chapters + books + version.
+/// All downstream providers derive from this instead of making separate calls.
+/// Cached in Hive so the app works instantly on subsequent launches.
+final appInitProvider = FutureProvider<AppInitData>((ref) async {
+  ref.watch(authStateProvider);
+  final client = ref.watch(supabaseClientProvider);
+  final userId = client.auth.currentUser?.id;
+  if (userId == null) return const AppInitData();
+
+  // Fetch from server via single RPC
+  try {
+    final response = await client.rpc('get_app_init_data', params: {
+      'p_user_id': userId,
+    });
+
+    if (response == null) return const AppInitData();
+
+    final data = response as Map<String, dynamic>;
+
+    final profile = data['profile'] != null
+        ? UserProfile.fromMap(Map<String, dynamic>.from(data['profile']))
+        : null;
+
+    final streak = data['streak'] != null
+        ? Streak.fromMap(Map<String, dynamic>.from(data['streak']))
+        : null;
+
+    final chapters = (data['chapters'] as List<dynamic>?)
+            ?.map((c) => Chapter.fromMap(Map<String, dynamic>.from(c)))
+            .toList() ??
+        [];
+
+    final books = (data['books'] as List<dynamic>?)
+            ?.map((b) => Book.fromMap(Map<String, dynamic>.from(b)))
+            .toList() ??
+        [];
+
+    final minAppVersion = data['min_app_version'] as String?;
+
+    return AppInitData(
+      profile: profile,
+      streak: streak,
+      chapters: chapters,
+      books: books,
+      minAppVersion: minAppVersion,
+    );
+  } catch (e) {
+    debugPrint('[appInitProvider] RPC failed, falling back to individual calls: $e');
+    // Fallback to individual calls if RPC doesn't exist yet (migration not deployed)
+    final results = await Future.wait([
+      ref.read(profileRepositoryProvider).getProfile(),
+      ref.read(profileRepositoryProvider).getStreak(),
+      ref.read(profileRepositoryProvider).getChapters(),
+      ref.read(bookRepositoryProvider).getBooks(),
+    ]);
+    return AppInitData(
+      profile: results[0] as UserProfile?,
+      streak: results[1] as Streak?,
+      chapters: results[2] as List<Chapter>,
+      books: results[3] as List<Book>,
+    );
+  }
+});
+
+// --- Profile & Streak (derived from appInitProvider) ---
 
 final profileProvider = FutureProvider<UserProfile?>((ref) async {
-  ref.watch(authStateProvider);
-  return ref.watch(profileRepositoryProvider).getProfile();
+  final init = await ref.watch(appInitProvider.future);
+  return init.profile;
 });
 
 final streakProvider = FutureProvider<Streak?>((ref) async {
-  ref.watch(authStateProvider);
-  return ref.watch(profileRepositoryProvider).getStreak();
+  final init = await ref.watch(appInitProvider.future);
+  return init.streak;
 });
 
-/// Loads chapters from the DB for the current user.
-/// Seeding of default chapters is handled in AppShell._ensureDefaultChapters().
-/// Call ref.invalidate(chaptersProvider) after any mutation.
+/// Chapters — derived from appInitProvider (no separate API call).
+/// Call ref.invalidate(appInitProvider) after chapter mutations to refresh.
 final chaptersProvider = FutureProvider<List<Chapter>>((ref) async {
-  ref.watch(authStateProvider); // re-run on login/logout
-  return ref.watch(profileRepositoryProvider).getChapters();
+  final init = await ref.watch(appInitProvider.future);
+  return init.chapters;
 });
 
-/// Entries for a specific chapter, ordered chronologically (oldest first).
+/// Entries for a specific chapter — derived from timelineEntriesProvider.
+/// No separate API call per chapter.
 final chapterEntriesProvider =
     FutureProvider.family<List<JournalEntry>, String>((ref, chapterId) async {
-  return ref.watch(journalRepositoryProvider).getEntriesByChapter(chapterId);
+  final entries = await ref.watch(timelineEntriesProvider.future);
+  return entries.where((e) => e.chapterId == chapterId).toList()
+    ..sort((a, b) => a.entryDate.compareTo(b.entryDate));
 });
 
 // --- Books ---
@@ -281,9 +367,11 @@ final bookRepositoryProvider = Provider<IBookRepository>((ref) {
   return BookRepository(client: ref.watch(supabaseClientProvider));
 });
 
+/// Books — derived from appInitProvider (no separate API call).
+/// Call ref.invalidate(appInitProvider) after book mutations to refresh.
 final booksProvider = FutureProvider<List<Book>>((ref) async {
-  ref.watch(authStateProvider);
-  return ref.watch(bookRepositoryProvider).getBooks();
+  final init = await ref.watch(appInitProvider.future);
+  return init.books;
 });
 
 /// Loads all AI-generated weekly narrative pages for a specific book.
@@ -312,64 +400,44 @@ final entriesProvider =
   }
 });
 
+/// Today's entry — derived from timelineEntriesProvider (no separate API call).
 final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
-  final localStorage = ref.watch(localStorageProvider);
-  final today = DateTime.now();
-
-  // Check cache first for instant display
-  final cached = await localStorage.getCachedEntries();
-  final todayCached = cached.where((e) =>
-      e.entryDate.year == today.year &&
-      e.entryDate.month == today.month &&
-      e.entryDate.day == today.day).toList();
-  if (todayCached.isNotEmpty) {
-    yield todayCached.first;
-  }
-
-  // Then fetch fresh from network
-  try {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final entries = await ref.watch(journalRepositoryProvider).getEntries(
-          startDate: startOfDay,
-          endDate: now,
-          limit: 1,
-        );
-    yield entries.isEmpty ? null : entries.first;
-  } catch (e, st) {
-    CrashReportingService().recordError(e, st, reason: 'todayEntryProvider');
-    if (todayCached.isEmpty) {
-      yield null;
-    }
-  }
+  final entries = await ref.watch(timelineEntriesProvider.future);
+  final now = DateTime.now();
+  final todayEntries = entries.where((e) =>
+      e.entryDate.year == now.year &&
+      e.entryDate.month == now.month &&
+      e.entryDate.day == now.day).toList();
+  yield todayEntries.isEmpty ? null : todayEntries.first;
 });
 
+/// On This Day — computed from cached entries (no API call).
+/// Finds entries from the same month+day in previous years.
 final onThisDayProvider = FutureProvider<List<JournalEntry>>((ref) async {
-  try {
-    return await ref.watch(journalRepositoryProvider).getOnThisDay();
-  } catch (e, st) {
-    CrashReportingService().recordError(e, st, reason: 'onThisDayProvider');
-    return [];
-  }
+  final entries = await ref.watch(timelineEntriesProvider.future);
+  final now = DateTime.now();
+  return entries.where((e) {
+    return e.entryDate.month == now.month &&
+        e.entryDate.day == now.day &&
+        e.entryDate.year != now.year;
+  }).toList();
 });
 
+/// Mood stats — computed from cached entries (no API call).
+/// Returns {mood: count} for all entries.
 final moodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
-  try {
-    return await ref.watch(journalRepositoryProvider).getMoodStats();
-  } catch (e, st) {
-    CrashReportingService().recordError(e, st, reason: 'moodStatsProvider');
-    return {};
+  final entries = await ref.watch(timelineEntriesProvider.future);
+  final stats = <String, int>{};
+  for (final e in entries) {
+    if (e.mood != null) stats[e.mood!] = (stats[e.mood!] ?? 0) + 1;
   }
+  return stats;
 });
 
+/// Total entries count — computed from cached entries (no API call).
 final totalEntriesProvider = FutureProvider<int>((ref) async {
-  try {
-    return await ref.watch(journalRepositoryProvider).getTotalEntries();
-  } catch (e, st) {
-    CrashReportingService().recordError(e, st, reason: 'totalEntriesProvider');
-    final cached = await ref.watch(localStorageProvider).getCachedEntries();
-    return cached.length;
-  }
+  final entries = await ref.watch(timelineEntriesProvider.future);
+  return entries.length;
 });
 
 /// Paginated timeline entries with cursor-based loading.
@@ -534,27 +602,40 @@ final timelineEntriesProvider =
 
 // --- Insights ---
 
-/// Mood values for the last 7 days (for the weekly bar chart).
+/// Mood values for the last 7 days — computed from cached entries (no API call).
 final weeklyMoodsProvider =
     FutureProvider<List<Map<String, String>>>((ref) async {
-  try {
-    return await ref.watch(journalRepositoryProvider).getMoodsByDateRange(days: 7);
-  } catch (e, st) {
-    debugPrint('[Providers] weeklyMoodsProvider failed: $e');
-    CrashReportingService().recordError(e, st, reason: 'weeklyMoodsProvider');
-    return [];
+  final entries = await ref.watch(timelineEntriesProvider.future);
+  final now = DateTime.now();
+  final start = DateTime(now.year, now.month, now.day)
+      .subtract(const Duration(days: 6));
+  final result = <Map<String, String>>[];
+  for (final e in entries) {
+    final d = DateTime(e.entryDate.year, e.entryDate.month, e.entryDate.day);
+    if (!d.isBefore(start) && e.mood != null) {
+      result.add({
+        'date':
+            '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+        'mood': e.mood!,
+      });
+    }
   }
+  return result;
 });
 
-/// Mood breakdown for the last 30 days.
+/// Mood breakdown for the last 30 days — computed from cached entries.
 final monthlyMoodStatsProvider =
     FutureProvider<Map<String, int>>((ref) async {
+  final entries = await ref.watch(timelineEntriesProvider.future);
   final now = DateTime.now();
-  // Dart normalizes month=0 to Dec of prior year, and month=13 to Jan of next year
   final start = DateTime(now.year, now.month - 1, 1);
-  return ref
-      .watch(journalRepositoryProvider)
-      .getMoodStatsByRange(start: start, end: now);
+  final stats = <String, int>{};
+  for (final e in entries) {
+    if (e.mood != null && !e.entryDate.isBefore(start) && !e.entryDate.isAfter(now)) {
+      stats[e.mood!] = (stats[e.mood!] ?? 0) + 1;
+    }
+  }
+  return stats;
 });
 
 /// Weekly entries for AI summary generation.

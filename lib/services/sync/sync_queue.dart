@@ -111,6 +111,27 @@ class SyncQueue {
     await _box!.put(key, jsonEncode(op.toJson()));
   }
 
+  /// Returns true if there is a pending sync operation for the given [entityId].
+  /// Used by UI to show sync status indicators on entry cards.
+  bool isPending(String entityId) {
+    if (_box == null || !_box!.isOpen) return false;
+    for (final key in _box!.keys.cast<String>()) {
+      if (key.endsWith('_$entityId')) return true;
+    }
+    return false;
+  }
+
+  /// Set of all entity IDs currently pending sync.
+  Set<String> get pendingIds {
+    if (_box == null || !_box!.isOpen) return {};
+    final ids = <String>{};
+    for (final key in _box!.keys.cast<String>()) {
+      final parts = key.split('_');
+      if (parts.length >= 2) ids.add(parts.sublist(1).join('_'));
+    }
+    return ids;
+  }
+
   void _ensureOpen() {
     if (_box == null || !_box!.isOpen) {
       throw StateError('SyncQueue not initialized. Call init() first.');

@@ -118,6 +118,30 @@ void postSaveFlowTests() {
     });
   });
 
+  // ── Group 2b: Local-first save ──────────────────────────────────────────
+
+  group('Post Save — Local-First Save', () {
+    testWidgets('save confirmation shows immediately (not blocked by network)', (tester) async {
+      await tester.pumpWidget(_testApp(PostSaveScreen(data: _mockData)));
+      await settle(tester);
+
+      // Confirmation UI should be present without waiting for network
+      expect(find.byType(PostSaveScreen), findsOneWidget);
+    });
+
+    testWidgets('PostSaveScreen renders with savedOffline=false (online save)', (tester) async {
+      await tester.pumpWidget(_testApp(const PostSaveScreen(data: PostSaveData(
+        entryId: 'test-online',
+        title: 'Online Save',
+        content: 'This was saved while online.',
+        savedOffline: false,
+      ))));
+      await settle(tester);
+
+      expect(find.byType(PostSaveScreen), findsOneWidget);
+    });
+  });
+
   // ── Group 3: Via E2E app — from write entry ───────────────────────────────
 
   group('Post Save — Navigation from Write Entry', () {

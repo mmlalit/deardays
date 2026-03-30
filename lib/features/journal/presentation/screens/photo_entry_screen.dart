@@ -565,11 +565,33 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
                 ),
               ),
             ),
-            // Bottom pills: Change + Drag hint
+            // Bottom pills: Edit (crop/adjust) + Change photo + Drag hint
             Positioned(
               bottom: 10, left: 16, right: 16,
               child: Row(
                 children: [
+                  // Edit pencil — opens crop + brightness/warmth/contrast sheet
+                  GestureDetector(
+                    onTap: () => _showReframeSheet(AppColors.of(context)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(120),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.edit_rounded, size: 13, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text('Edit',
+                              style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Change photo — pick a different photo
                   GestureDetector(
                     onTap: _changePhoto,
                     child: Container(
@@ -581,7 +603,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.edit_rounded, size: 13, color: Colors.white),
+                          const Icon(Icons.photo_library_rounded, size: 13, color: Colors.white),
                           const SizedBox(width: 5),
                           Text('Change',
                               style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),

@@ -110,7 +110,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     // Force fresh chapter data every time this screen opens so the list is
     // never stale (e.g. after a new user's default chapters were just seeded).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.invalidate(chaptersProvider);
+      if (mounted) ref.invalidate(appInitProvider);
     });
   }
 
@@ -131,7 +131,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
         if (entryId != null) {
           if (ConnectivityService().isOnline) {
             await _repository.updateEntryChapter(entryId, _selectedChapterId!);
-            ref.invalidate(chaptersProvider);
+            ref.invalidate(appInitProvider);
             ref.invalidate(chapterEntriesProvider(_selectedChapterId!));
           } else {
             final userId = ref.read(supabaseClientProvider).auth.currentUser?.id ?? '';
@@ -190,102 +190,129 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
       updatedAt: now,
     );
 
-    bool savedOffline = false;
-    JournalEntry saved;
+    JournalEntry saved = entry;
 
-    if (!isOnline) {
-      await LocalStorageService().cacheEntry(entry);
-      if (!mounted) return;
-      try {
-        await SyncQueue().enqueue(SyncOperation.create(
-          id: entry.id,
-          type: SyncOperationType.create,
-          tableName: 'journal_entries',
-          payload: entry.toSupabaseMap(),
-        ));
-      } catch (e) {
-        debugPrint('[PostSave] Queue failed: $e');
-      }
-      saved = entry;
-      savedOffline = true;
-    } else {
-      saved = await _repository.createEntry(entry);
+    // ── STEP 1: Always save locally first (instant, < 50ms) ──────────────
+    // User sees confirmation immediately regardless of network state.
+    await LocalStorageService().cacheEntry(entry);
+    debugPrint('[PostSave] ✓ Entry cached locally: ${entry.id}');
 
-      // Fire-and-forget tagging
-      if (!saved.tagsGenerated) {
-        unawaited(MemoryTaggingService().tagEntry(
-          entryId: saved.id,
-          content: content,
-        ));
-      }
+    // Queue photo for upload (copy to app cache so original can be deleted)
+    if (pre.attachedPhotoPath != null) {
+      await PendingPhotoUploads().add(
+        entryId: entry.id,
+        filePath: pre.attachedPhotoPath!,
+        focalAlignment: pre.focalAlignment,
+      );
+      debugPrint('[PostSave] ✓ Photo queued: ${pre.attachedPhotoPath}');
+    }
 
-      // Ensure default book exists
-      try {
-        final profile = await ref.read(profileProvider.future);
-        final organization = profile?.bookOrganization ?? 'yearly';
-        await ref.read(bookRepositoryProvider).ensureDefaultBook(organization);
-      } catch (e) {
-        debugPrint('[PostSave] ensureDefaultBook error: $e');
-      }
+    // ── STEP 2: Queue sync to Supabase (background, non-blocking) ────────
+    try {
+      await SyncQueue().enqueue(SyncOperation.create(
+        id: entry.id,
+        type: SyncOperationType.create,
+        tableName: 'journal_entries',
+        payload: entry.toSupabaseMap(),
+      ));
+      debugPrint('[PostSave] ✓ Sync queued for entry ${entry.id}');
+    } catch (e) {
+      debugPrint('[PostSave] Sync queue failed: $e');
+    }
 
-      // Photo upload
-      if (pre.attachedPhotoPath != null) {
+    // ── STEP 3: Background sync (fire-and-forget) ────────────────────────
+    // If online, start syncing immediately. If offline, SyncService will
+    // pick it up when connectivity is restored.
+    if (isOnline) {
+      unawaited(() async {
         try {
-          await _mediaService.uploadPhoto(
-            entryId: saved.id,
-            filePath: pre.attachedPhotoPath!,
-            focalAlignment: pre.focalAlignment,
-          );
-          saved = saved.copyWith(hasPhoto: true);
-        } catch (e) {
-          debugPrint('[PostSave] Photo upload failed: $e');
-          // Queue for automatic retry when connectivity is restored.
-          await PendingPhotoUploads().add(
-            entryId: saved.id,
-            filePath: pre.attachedPhotoPath!,
-            focalAlignment: pre.focalAlignment,
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Photo will upload automatically when you\u2019re back online.'),
-              behavior: SnackBarBehavior.floating,
+          // Sync entry to Supabase
+          saved = await _repository.createEntry(entry);
+          debugPrint('[PostSave] ✓ Entry synced to Supabase: ${saved.id}');
+
+          // Dequeue the sync task since it's done
+          try {
+            final queue = SyncQueue();
+            final ops = queue.getAll();
+            for (final op in ops) {
+              if (op.value.id == entry.id) {
+                await queue.dequeue(op.key);
+                break;
+              }
+            }
+          } catch (_) {}
+
+          // Fire-and-forget tagging
+          if (!saved.tagsGenerated) {
+            unawaited(MemoryTaggingService().tagEntry(
+              entryId: saved.id,
+              content: content,
             ));
           }
-        }
-      }
 
-      // Streak notification
-      try {
-        final profileRepo = ProfileRepository(client: Supabase.instance.client);
-        final streak = await profileRepo.getStreak();
-        if (streak != null) {
-          if (NotificationService.isStreakMilestone(streak.currentStreak)) {
-            final box = await Hive.openBox('settings');
-            final milestonesEnabled = box.get('streak_milestones_enabled') as bool? ?? true;
-            if (milestonesEnabled) {
-              await NotificationService().showStreakNotification(streak.currentStreak);
-            }
+          // Ensure default book exists
+          try {
+            final profile = await ref.read(profileProvider.future);
+            final organization = profile?.bookOrganization ?? 'yearly';
+            await ref.read(bookRepositoryProvider).ensureDefaultBook(organization);
+          } catch (e) {
+            debugPrint('[PostSave] ensureDefaultBook error: $e');
           }
-          NotificationService().cancelStreakReminder().catchError((e) {
-            debugPrint('[PostSave] Cancel streak reminder failed: $e');
-          });
-          final profile = await profileRepo.getProfile();
-          if (profile?.reminderTime != null) {
-            final parts = profile!.reminderTime!.split(':');
-            if (parts.length >= 2) {
-              await NotificationService().scheduleDailyReminder(
-                TimeOfDay(
-                  hour: int.tryParse(parts[0]) ?? 9,
-                  minute: int.tryParse(parts[1]) ?? 0,
-                ),
-                streak: streak.currentStreak,
+
+          // Upload photo from queue
+          if (pre.attachedPhotoPath != null) {
+            try {
+              await _mediaService.uploadPhoto(
+                entryId: saved.id,
+                filePath: pre.attachedPhotoPath!,
+                focalAlignment: pre.focalAlignment,
               );
+              // Remove from pending queue on success
+              await PendingPhotoUploads().remove(saved.id);
+              debugPrint('[PostSave] ✓ Photo uploaded for ${saved.id}');
+            } catch (e) {
+              debugPrint('[PostSave] Photo upload failed (will retry): $e');
+              // Photo stays in PendingPhotoUploads — retried on next connectivity event
             }
           }
+
+          // Streak notification
+          try {
+            final profileRepo = ProfileRepository(client: Supabase.instance.client);
+            final streak = await profileRepo.getStreak();
+            if (streak != null) {
+              if (NotificationService.isStreakMilestone(streak.currentStreak)) {
+                final box = await Hive.openBox('settings');
+                final milestonesEnabled = box.get('streak_milestones_enabled') as bool? ?? true;
+                if (milestonesEnabled) {
+                  await NotificationService().showStreakNotification(streak.currentStreak);
+                }
+              }
+              NotificationService().cancelStreakReminder().catchError((e) {
+                debugPrint('[PostSave] Cancel streak reminder failed: $e');
+              });
+              final profile = await profileRepo.getProfile();
+              if (profile?.reminderTime != null) {
+                final parts = profile!.reminderTime!.split(':');
+                if (parts.length >= 2) {
+                  await NotificationService().scheduleDailyReminder(
+                    TimeOfDay(
+                      hour: int.tryParse(parts[0]) ?? 9,
+                      minute: int.tryParse(parts[1]) ?? 0,
+                    ),
+                    streak: streak.currentStreak,
+                  );
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('[PostSave] Streak/notification error: $e');
+          }
+        } catch (e) {
+          debugPrint('[PostSave] Background sync failed (will retry via SyncService): $e');
+          // Entry is safe in Hive + SyncQueue — SyncService will retry
         }
-      } catch (e) {
-        debugPrint('[PostSave] Streak/notification error: $e');
-      }
+      }());
     }
 
     // Audio file cleanup
@@ -325,8 +352,8 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
 
     ref.invalidate(todayEntryProvider);
     ref.invalidate(timelineEntriesProvider);
-    ref.invalidate(booksProvider);
-    ref.invalidate(chaptersProvider);
+    ref.invalidate(appInitProvider);
+    ref.invalidate(appInitProvider);
     ref.invalidate(chapterEntriesProvider(chapterId));
 
     final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
@@ -341,7 +368,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
       title: pre.generatedTitle ?? saved.content.split('\n').first,
       content: content,
       attachedPhotoPath: pre.attachedPhotoPath,
-      savedOffline: savedOffline,
+      savedOffline: !isOnline,
     );
 
     if (mounted) setState(() => _currentStep = 1);
@@ -418,7 +445,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
         final newChapter = await ref
             .read(profileRepositoryProvider)
             .createChapter(result);
-        ref.invalidate(chaptersProvider);
+        ref.invalidate(appInitProvider);
         if (mounted) {
           setState(() => _selectedChapterId = newChapter.id);
         }

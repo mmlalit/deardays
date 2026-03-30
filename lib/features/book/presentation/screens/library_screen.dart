@@ -196,7 +196,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             colorValue: selectedColor!.toARGB32(),
                           );
                         }
-                        ref.invalidate(chaptersProvider);
+                        ref.invalidate(appInitProvider);
                       } catch (e) {
                         debugPrint('createChapter error: $e');
                         if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Failed to create chapter. Please try again.')));
@@ -743,7 +743,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
             const SizedBox(height: 24),
             OutlinedButton(
-              onPressed: () => ref.invalidate(chaptersProvider),
+              onPressed: () => ref.invalidate(appInitProvider),
               child: const Text('Retry'),
             ),
           ],

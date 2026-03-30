@@ -16,7 +16,6 @@ import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/providers/onboarding_provider.dart';
 import 'package:deardays/core/onboarding/sample_memory.dart';
-import 'package:deardays/core/utils/photo_crop_helper.dart';
 import 'package:deardays/core/widgets/app_avatar.dart';
 import 'package:deardays/core/widgets/dd_logo.dart';
 import 'package:deardays/services/notification/notification_service.dart';
@@ -170,8 +169,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     if (_chaptersSeeded) return;
     _chaptersSeeded = true;
     try {
+      // Skip seeding if chapters already exist (saves 1 RPC call)
+      final existing = await ref.read(chaptersProvider.future);
+      if (existing.isNotEmpty) return;
+
       await ref.read(profileRepositoryProvider).seedDefaultChapters();
-      ref.invalidate(chaptersProvider);
+      ref.invalidate(appInitProvider);
     } catch (e) {
       _chaptersSeeded = false; // allow retry on next mount
       if (kDebugMode) debugPrint('[AppShell] seedDefaultChapters error: $e');
@@ -203,8 +206,8 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     if (!mounted) return;
     ref.invalidate(timelineEntriesProvider);
     ref.invalidate(todayEntryProvider);
-    ref.invalidate(streakProvider);
-    ref.invalidate(profileProvider);
+    ref.invalidate(appInitProvider);
+    ref.invalidate(appInitProvider);
     ref.invalidate(onThisDayProvider);
     ref.invalidate(weeklyMoodsProvider);
     _triggerProviderFetch();
@@ -212,15 +215,13 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   }
 
   void _triggerProviderFetch() {
-    // ignore: unawaited_futures — fire-and-forget prefetch; errors are logged
+    // Only 2 network calls needed — everything else derives from these.
+    // appInitProvider: profile + streak + chapters + books + version (1 RPC)
+    // timelineEntriesProvider: all entries (1 REST call)
+    // All other providers (todayEntry, onThisDay, moodStats, weeklyMoods, etc.)
+    // are computed from timelineEntriesProvider with zero API calls.
+    ref.read(appInitProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (appInit): $e\n$st'); });
     ref.read(timelineEntriesProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (timeline): $e\n$st'); });
-    ref.read(todayEntryProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (today): $e\n$st'); });
-    ref.read(streakProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (streak): $e\n$st'); });
-    ref.read(profileProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (profile): $e\n$st'); });
-    ref.read(booksProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (books): $e\n$st'); });
-    ref.read(chaptersProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (chapters): $e\n$st'); });
-    ref.read(weeklyMoodsProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (moods): $e\n$st'); });
-    ref.read(onThisDayProvider.future).then<void>((_) {}).catchError((Object e, StackTrace st) { debugPrint('[AppShell] Prefetch failed (onThisDay): $e\n$st'); });
   }
 
   Future<void> _openCameraDirectly() async {
@@ -252,14 +253,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     }
 
     if (photo != null && mounted) {
-      String finalPath = photo.path;
-      try {
-        final cropped = await cropPhoto(photo.path);
-        finalPath = cropped ?? photo.path;
-      } catch (e) {
-        debugPrint('[AppShell] cropPhoto failed, using original: $e');
-      }
-      if (mounted) context.push('/photo-entry', extra: finalPath);
+      // Skip auto-crop — go straight to photo entry. User can tap the
+      // edit pencil on the photo to crop/adjust if they want.
+      context.push('/photo-entry', extra: photo.path);
     }
   }
 
