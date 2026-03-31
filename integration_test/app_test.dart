@@ -57,6 +57,12 @@ import 'flows/security_flow_test.dart';
 import 'flows/ux_polish_flow_test.dart';
 import 'flows/backend_resilience_flow_test.dart';
 import 'flows/offline_save_flow_test.dart';
+import 'flows/auth_flow_test.dart';
+import 'flows/photo_upload_flow_test.dart';
+import 'flows/edit_delete_flow_test.dart';
+import 'flows/story_card_flow_test.dart';
+import 'flows/subscription_gate_flow_test.dart';
+import 'flows/content_limits_flow_test.dart';
 
 /// Returns true if the exception is a known non-fatal debug assertion that
 /// should not fail tests. These fire on Android but not in release builds.
@@ -131,4 +137,10 @@ void main() {
   uxPolishFlowTests();
   backendResilienceFlowTests();
   offlineSaveFlowTests();
+  authFlowTests();
+  photoUploadFlowTests();
+  editDeleteFlowTests();
+  storyCardFlowTests();
+  subscriptionGateFlowTests();
+  contentLimitsFlowTests();
 }
