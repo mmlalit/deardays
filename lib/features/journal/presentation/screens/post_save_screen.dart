@@ -197,6 +197,13 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     await LocalStorageService().cacheEntry(entry);
     debugPrint('[PostSave] ✓ Entry cached locally: ${entry.id}');
 
+    // Invalidate providers IMMEDIATELY so home/timeline picks up the new
+    // entry from Hive cache. Don't wait for background sync.
+    if (mounted) {
+      ref.invalidate(timelineEntriesProvider);
+      ref.invalidate(todayEntryProvider);
+    }
+
     // Queue photo for upload (copy to app cache so original can be deleted)
     if (pre.attachedPhotoPath != null) {
       await PendingPhotoUploads().add(
@@ -269,7 +276,9 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
               );
               // Remove from pending queue on success
               await PendingPhotoUploads().remove(saved.id);
-              debugPrint('[PostSave] ✓ Photo uploaded for ${saved.id}');
+              // Update local cache with hasPhoto=true so next read shows photo
+              await LocalStorageService().cacheEntry(saved.copyWith(hasPhoto: true));
+              debugPrint('[PostSave] ✓ Photo uploaded + cache updated for ${saved.id}');
               // Invalidate so timeline/home cards pick up the new photo
               if (mounted) {
                 ref.invalidate(timelineEntriesProvider);

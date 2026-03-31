@@ -67,17 +67,23 @@ class ConnectivityService {
     if (_initialized) return;
     _initialized = true;
 
-    // Initial check
-    await _check();
+    // Trust platform connectivity first — prevents false "offline" on slow DNS.
+    final platformResults = await Connectivity().checkConnectivity();
+    final platformSaysOnline = platformResults.any((r) => r != ConnectivityResult.none);
+    if (platformSaysOnline) {
+      _setOnline(true);
+      _check(); // verify with DNS in background (non-blocking)
+    } else {
+      _setOnline(false);
+    }
 
     // Listen for platform connectivity events (instant, no polling)
     _platformSub = Connectivity().onConnectivityChanged.listen((results) {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
       if (hasConnection) {
-        // Platform says connected — verify with DNS lookup
-        _check();
+        _setOnline(true); // trust platform immediately
+        _check(); // verify in background
       } else {
-        // Platform says disconnected — trust it immediately
         _setOnline(false);
       }
     });

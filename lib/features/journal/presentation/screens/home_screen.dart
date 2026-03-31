@@ -633,6 +633,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (onboarding.checklistDismissed || onboarding.allTasksComplete) {
       return const SizedBox.shrink();
     }
+
+    // Auto-complete tasks based on current data — handles the case where
+    // ref.listen missed the initial load (data already in cache).
+    final entries = ref.watch(timelineEntriesProvider).valueOrNull ?? [];
+    final realEntries = entries.where((e) => !isSampleEntry(e)).toList();
+    if (realEntries.isNotEmpty) {
+      final notifier = ref.read(onboardingProvider.notifier);
+      final tasks = onboarding.checklistTasks;
+      if (!tasks.any((t) => t.id == 'first_memory' && t.isCompleted)) {
+        Future.microtask(() => notifier.completeTask('first_memory'));
+      }
+      if (entries.any((e) => e.hasPhoto) &&
+          !tasks.any((t) => t.id == 'add_photo' && t.isCompleted)) {
+        Future.microtask(() => notifier.completeTask('add_photo'));
+      }
+    }
+    final chapters = ref.watch(chaptersProvider).valueOrNull ?? [];
+    if (chapters.isNotEmpty) {
+      final tasks = onboarding.checklistTasks;
+      if (!tasks.any((t) => t.id == 'create_chapter' && t.isCompleted)) {
+        Future.microtask(() => ref.read(onboardingProvider.notifier).completeTask('create_chapter'));
+      }
+    }
+
+    // Re-check after auto-completion
+    if (onboarding.allTasksComplete) return const SizedBox.shrink();
+
     return const Padding(
       padding: EdgeInsets.only(bottom: 20),
       child: ChecklistCard(),
