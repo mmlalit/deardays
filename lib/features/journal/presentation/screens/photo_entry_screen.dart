@@ -32,7 +32,7 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     with TickerProviderStateMixin {
   late String _photoPath;
   Alignment _focalAlignment = Alignment.center;
-  bool _showDragHint = true;
+  // _showDragHint removed — Edit pill handles reframe UX
   final _textController = TextEditingController();
   final _focusNode = FocusNode();
   final _picker = ImagePicker();
@@ -303,7 +303,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
         setState(() {
           _photoPath = cropped;
           _focalAlignment = Alignment.center;
-          _showDragHint = true;
         });
       }
     }
@@ -511,7 +510,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
     return AspectRatio(
       aspectRatio: 4 / 3,
       child: GestureDetector(
-        onTap: () => _showReframeSheet(colors),
         onPanUpdate: (details) {
           final box = context.findRenderObject() as RenderBox?;
           if (box == null) return;
@@ -523,7 +521,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
               (_focalAlignment.x + dx).clamp(-1.0, 1.0),
               (_focalAlignment.y + dy).clamp(-1.0, 1.0),
             );
-            _showDragHint = false;
           });
         },
         child: Stack(
@@ -612,23 +609,6 @@ class _PhotoEntryScreenState extends ConsumerState<PhotoEntryScreen>
                     ),
                   ),
                   const Spacer(),
-                  if (_showDragHint)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(110),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.open_with_rounded, size: 12, color: Colors.white),
-                          const SizedBox(width: 5),
-                          Text('Drag to reframe',
-                              style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white)),
-                        ],
-                      ),
-                    ),
                 ],
               ),
             ),

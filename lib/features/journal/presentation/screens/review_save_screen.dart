@@ -425,11 +425,18 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                       const SizedBox(height: 8),
                       _buildAudioCard(colors),
                     ],
-                    // Single text view — grammar-fixed (or raw if no AI)
-                    const SizedBox(height: 8),
-                    _cleanedText != null
-                        ? _buildCleanedView()
-                        : _buildOriginalView(),
+                    // Show Original + Polished tabs when AI text is available
+                    if (_cleanedText != null) ...[
+                      const SizedBox(height: 8),
+                      _buildViewTabs(colors),
+                      const SizedBox(height: 8),
+                      _viewMode == 0
+                          ? _buildOriginalView()
+                          : _buildCleanedView(),
+                    ] else ...[
+                      const SizedBox(height: 8),
+                      _buildOriginalView(),
+                    ],
                   ],
                 ],
               ),
@@ -1358,8 +1365,8 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
 
   Widget _buildViewTabs(AppPalette colors) {
     final tabs = <({int index, String label, IconData icon})>[
-      (index: 0, label: 'MY WORDS', icon: Icons.edit_note_rounded),
-      if (_polishedText != null) (index: 1, label: '✨ STORY', icon: Icons.menu_book_rounded),
+      (index: 0, label: 'ORIGINAL', icon: Icons.edit_note_rounded),
+      (index: 1, label: 'POLISHED', icon: Icons.auto_fix_high_rounded),
     ];
 
     return Column(

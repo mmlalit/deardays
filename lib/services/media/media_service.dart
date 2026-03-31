@@ -27,7 +27,7 @@ class MediaService implements IMediaService {
   final SupabaseClient _client;
 
   /// Signed URL cache entries older than this are evicted and re-fetched.
-  static const _urlTtl = Duration(minutes: 50);
+  static const _urlTtl = Duration(minutes: 55);
 
   /// In-memory cache of signed URLs keyed by storagePath.
   /// Each entry stores both the Future and the time it was cached.
@@ -223,6 +223,7 @@ class MediaService implements IMediaService {
       final thumbBytes = await ImageCompressor.compress(
         originalBytes,
         maxDim: ImageCompressor.maxThumbnailDimension,
+        quality: ImageCompressor.thumbnailQuality,
       );
       final thumbPath = '$_userId/$entryId/$mediaId$_thumbSuffix.$ext';
       await _client.storage.from(_bucketName).uploadBinary(
@@ -302,8 +303,14 @@ class MediaService implements IMediaService {
         final oldest = _signedUrlCache.keys.first;
         _signedUrlCache.remove(oldest);
       }
-      final future =
-          _client.storage.from(_bucketName).createSignedUrl(storagePath, 3600);
+      final future = _client.storage
+          .from(_bucketName)
+          .createSignedUrl(storagePath, 3600)
+          .catchError((Object e) {
+        // Remove from cache so next call retries instead of returning the failed Future.
+        _signedUrlCache.remove(storagePath);
+        throw e;
+      });
       _signedUrlCache[storagePath] = (future, DateTime.now());
     }
     return _signedUrlCache[storagePath]!.$1;

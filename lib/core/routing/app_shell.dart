@@ -34,6 +34,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
   bool _prefetched = false;
   DateTime? _lastRefresh;
+  bool _returningFromCamera = false;
 
   /// Minimum gap between lifecycle-triggered refreshes.
   static const _refreshCooldown = Duration(minutes: 2);
@@ -104,6 +105,10 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (_returningFromCamera) {
+        _returningFromCamera = false;
+        return;
+      }
       final now = DateTime.now();
       if (_lastRefresh == null ||
           now.difference(_lastRefresh!) >= _refreshCooldown) {
@@ -207,7 +212,6 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     ref.invalidate(timelineEntriesProvider);
     ref.invalidate(todayEntryProvider);
     ref.invalidate(appInitProvider);
-    ref.invalidate(appInitProvider);
     ref.invalidate(onThisDayProvider);
     ref.invalidate(weeklyMoodsProvider);
     _triggerProviderFetch();
@@ -246,6 +250,8 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     final picker = ImagePicker();
     XFile? photo;
 
+    _returningFromCamera = true;
+
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       photo = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     } else {
@@ -255,7 +261,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     if (photo != null && mounted) {
       // Skip auto-crop — go straight to photo entry. User can tap the
       // edit pencil on the photo to crop/adjust if they want.
-      context.push('/photo-entry', extra: photo.path);
+      final path = photo.path;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.push('/photo-entry', extra: path);
+      });
+    } else {
+      _returningFromCamera = false;
     }
   }
 

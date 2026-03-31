@@ -358,7 +358,6 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     ref.invalidate(todayEntryProvider);
     ref.invalidate(timelineEntriesProvider);
     ref.invalidate(appInitProvider);
-    ref.invalidate(appInitProvider);
     ref.invalidate(chapterEntriesProvider(chapterId));
 
     final wordCount = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
@@ -375,6 +374,10 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
       attachedPhotoPath: pre.attachedPhotoPath,
       savedOffline: !isOnline,
     );
+
+    // Mark onboarding checklist task as done immediately so "Getting Started"
+    // hides even before timelineEntriesProvider refreshes from Supabase.
+    ref.read(onboardingProvider.notifier).completeTask('first_memory');
 
     if (mounted) setState(() => _currentStep = 1);
   }
@@ -637,7 +640,11 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
     );
   }
 
-  Widget _buildChapterCard(String id, String title, int entryCount, AppPalette colors) {
+  Widget _buildChapterCard(String id, String title, int rpcEntryCount, AppPalette colors) {
+    // Compute entry count from timelineEntriesProvider instead of the chapter's
+    // entryCount field, which may be 0 when fetched via get_app_init_data RPC.
+    final entries = ref.watch(timelineEntriesProvider).valueOrNull ?? [];
+    final entryCount = entries.where((e) => e.chapterId == id).length;
     final isSelected = _selectedChapterId == id;
 
     return GestureDetector(
@@ -954,6 +961,7 @@ class _PostSaveScreenState extends ConsumerState<PostSaveScreen> {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
+                        cacheWidth: 800,
                         errorBuilder: (_, __, ___) => Container(
                           color: colors.accentFaint,
                           child: Center(

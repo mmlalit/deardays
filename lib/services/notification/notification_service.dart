@@ -135,15 +135,18 @@ class NotificationService {
     try {
       // Use go_router for deep-link navigation.
       // ignore: use_build_context_synchronously
-      GoRouter.of(ctx).push(switch (payload) {
+      final route = switch (payload) {
         'checkin'             => '/checkin',
         'timeline'            => '/timeline',
         'weekly_recap'        => '/story?period=weekly',
         'story_ready_weekly'  => '/story?period=weekly',
         'story_ready_monthly' => '/story?period=monthly',
         'story_ready_yearly'  => '/story?period=yearly',
-        _                     => '/', // Unknown payload — home
-      });
+        final s when s.startsWith('streak') => '/home',
+        _                     => '/home', // Unknown payload — home
+      };
+      // ignore: use_build_context_synchronously
+      GoRouter.of(ctx).push(route);
     } catch (e) {
       debugPrint('[NotificationService] Deep-link navigation failed: $e');
     }

@@ -381,15 +381,16 @@ class StoryNotifier extends StateNotifier<StoryState> {
         ReflectionPeriod.yearly  => DateTime(now.year, 1, 1),
       };
       // Check entries within the actual period, not lifetime total
+      final entriesNeeded = period == ReflectionPeriod.daily ? 1 : 3;
       final entries = await _ref
           .read(journalRepositoryProvider)
           .getEntries(startDate: startDate, endDate: now, limit: 5);
-      if (entries.length >= 3) {
+      if (entries.length >= entriesNeeded) {
         state = state.copyWith(status: StoryStatus.ready, entriesNeeded: 0);
       } else {
         state = state.copyWith(
           status: StoryStatus.notEnoughData,
-          entriesNeeded: 3 - entries.length,
+          entriesNeeded: entriesNeeded - entries.length,
         );
       }
     } catch (_) {

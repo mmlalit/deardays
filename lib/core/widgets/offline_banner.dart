@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,24 +15,58 @@ import 'package:deardays/services/sync/sync_queue.dart';
 /// - Offline, no pending: "You're offline."
 /// - Online, syncing: "Syncing N changes..."
 /// - Online, synced: hidden
-class OfflineBanner extends ConsumerWidget {
+class OfflineBanner extends ConsumerStatefulWidget {
   const OfflineBanner({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OfflineBanner> createState() => _OfflineBannerState();
+}
+
+class _OfflineBannerState extends ConsumerState<OfflineBanner> {
+  Timer? _recheckTimer;
+
+  @override
+  void dispose() {
+    _recheckTimer?.cancel();
+    super.dispose();
+  }
+
+  int _safeSyncQueueCount() {
+    try {
+      return SyncQueue().count;
+    } catch (e) {
+      debugPrint('[OfflineBanner] SyncQueue().count error: $e');
+      return 0;
+    }
+  }
+
+  void _scheduleRecheck() {
+    _recheckTimer?.cancel();
+    _recheckTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        ref.invalidate(connectivityProvider);
+        ref.invalidate(pendingWriteCountProvider);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isOnline = ref.watch(connectivityProvider);
     final pendingAsync = ref.watch(pendingWriteCountProvider);
     final offlineWritePending = pendingAsync.valueOrNull ?? 0;
-    final syncQueuePending = SyncQueue().count;
+    final syncQueuePending = _safeSyncQueueCount();
     final pendingCount = offlineWritePending + syncQueuePending;
     final syncStatus = ref.watch(syncStatusProvider);
 
     // Fully online with nothing pending — hide banner
     if (isOnline && pendingCount == 0 && syncStatus == SyncStatus.synced) {
+      _recheckTimer?.cancel();
       return const SizedBox.shrink();
     }
     // Online and sync completed but SyncQueue just hasn't been rechecked — hide
     if (isOnline && syncStatus != SyncStatus.syncing && offlineWritePending == 0 && syncQueuePending == 0) {
+      _recheckTimer?.cancel();
       return const SizedBox.shrink();
     }
 
@@ -48,6 +84,8 @@ class OfflineBanner extends ConsumerWidget {
       } else {
         message = "You're offline.";
       }
+      // Re-verify connectivity after 5 seconds in case platform state is stale
+      _scheduleRecheck();
     } else if (syncStatus == SyncStatus.syncing) {
       icon = Icons.sync_rounded;
       bgColor = const Color(0xFFEEF2FF); // soft indigo background
