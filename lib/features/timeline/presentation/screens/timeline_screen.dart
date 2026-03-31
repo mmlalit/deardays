@@ -269,13 +269,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   bool _isMonthly = false;
   bool _isGrid = false;
   String? _moodFilter;
-  final _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
 
   @override
   void initState() {
@@ -346,8 +339,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final chaptersCount = ref.watch(chaptersProvider).valueOrNull?.length ?? 0;
     final years = entries.map((e) => e.entryDate.year).toSet().length;
 
+    // Key changes when view mode changes — forces Flutter to create a fresh
+    // CustomScrollView with scroll offset 0, preventing the blank screen that
+    // occurs when the old scroll offset exceeds the new sliver's extent.
     return CustomScrollView(
-      controller: _scrollController,
+      key: ValueKey('timeline_${_isGrid ? 'grid' : _isMonthly ? 'monthly' : 'timeline'}'),
       slivers: [
         SliverToBoxAdapter(
           child: Column(
@@ -736,8 +732,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     );
   }
 
-  void _showViewModePicker(AppPalette colors) {
-    showModalBottomSheet(
+  void _showViewModePicker(AppPalette colors) async {
+    final selected = await showModalBottomSheet<int>(
       context: context,
       useRootNavigator: true,
       backgroundColor: colors.card,
@@ -778,31 +774,32 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         ),
       ),
     );
+
+    // Apply the selected view mode AFTER the sheet is fully closed.
+    if (selected != null && mounted) {
+      setState(() {
+        switch (selected) {
+          case 0:
+            _isGrid = false;
+            _isMonthly = false;
+          case 1:
+            _isGrid = false;
+            _isMonthly = true;
+          case 2:
+            _isGrid = true;
+            _isMonthly = false;
+        }
+      });
+    }
   }
 
   Widget _viewModeOption(int idx, String label, IconData icon, AppPalette colors) {
     final isActive = _viewModeIndex == idx;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          switch (idx) {
-            case 0:
-              _isGrid = false;
-              _isMonthly = false;
-            case 1:
-              _isGrid = false;
-              _isMonthly = true;
-            case 2:
-              _isGrid = true;
-              _isMonthly = false;
-          }
-        });
-        Navigator.pop(context);
-        // Reset scroll position to top — prevents blank screen when
-        // switching from a long timeline to a shorter grid/monthly view.
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(0);
-        }
+        // Pop the bottom sheet first using the root navigator (matches
+        // useRootNavigator: true). Then update view mode via setState.
+        Navigator.of(context, rootNavigator: true).pop(idx);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
