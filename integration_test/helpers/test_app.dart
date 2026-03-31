@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:deardays/services/sync/sync_queue.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -171,6 +172,42 @@ bool _isBenignException(String msg) =>
     msg.contains('OfflineAiQueue') ||
     msg.contains('AiCreditService') ||
     msg.contains('Object not found');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Offline simulation helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Builds an E2E app with connectivity forced to offline.
+/// Use for testing save/edit/delete in offline mode and sync queue behavior.
+Widget buildE2EAppOffline({List<Override>? additionalOverrides}) {
+  return buildE2EApp(additionalOverrides: [
+    connectivityProvider.overrideWith((ref) => false),
+    ...?additionalOverrides,
+  ]);
+}
+
+/// Returns the number of entries cached in Hive (LocalStorageService).
+Future<int> getCachedEntryCount() async {
+  return (await LocalStorageService().getCachedEntries()).length;
+}
+
+/// Returns true if SyncQueue has pending operations.
+bool hasPendingSyncOps() {
+  try {
+    return SyncQueue().count > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Returns the number of pending sync operations.
+int pendingSyncCount() {
+  try {
+    return SyncQueue().count;
+  } catch (_) {
+    return 0;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App builder — fresh instance per test
