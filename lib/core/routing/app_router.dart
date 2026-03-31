@@ -436,7 +436,8 @@ class _E2EGateWidgetState extends State<_E2EGateWidget> {
           .from('profiles')
           .select('e2e_enabled, e2e_salt')
           .eq('id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
 
       final e2eEnabled = (profile?['e2e_enabled'] as bool?) ?? false;
       final salt = profile?['e2e_salt'] as String?;
@@ -489,9 +490,26 @@ class _E2EGateWidgetState extends State<_E2EGateWidget> {
   @override
   Widget build(BuildContext context) {
     if (!_checked) {
-      // Brief loading state while we fetch the profile.
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      // Brief loading state while we verify encryption status.
+      // Uses the app's accent color so it doesn't look like a blank page.
+      return Scaffold(
+        backgroundColor: const Color(0xFF6366F1), // indigo accent
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: Colors.white),
+              const SizedBox(height: 16),
+              Text(
+                'Loading your journal...',
+                style: TextStyle(
+                  color: Colors.white.withAlpha(200),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
