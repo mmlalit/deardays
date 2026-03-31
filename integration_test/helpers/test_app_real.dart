@@ -70,6 +70,12 @@ import 'package:deardays/features/explore/presentation/screens/see_all_timeline_
 import 'package:deardays/features/settings/presentation/screens/settings_screen.dart';
 import 'package:deardays/features/search/presentation/screens/search_screen.dart';
 import 'package:deardays/features/share/presentation/screens/share_card_screen.dart';
+import 'package:deardays/features/story/presentation/screens/story_viewer_screen.dart';
+import 'package:deardays/features/journal/presentation/screens/reflection_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/privacy_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/terms_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/subscription_screen.dart';
+import 'package:deardays/features/settings/presentation/screens/edit_profile_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test credentials
@@ -322,6 +328,39 @@ GoRouter createBackendRouter() => GoRouter(
             return PhotoEntryScreen(photoPath: extra);
           },
         ),
+        GoRoute(
+          path: '/story',
+          builder: (_, s) {
+            final p = s.uri.queryParameters['period'] ?? 'weekly';
+            final period = ReflectionPeriod.values.firstWhere(
+              (e) => e.name == p,
+              orElse: () => ReflectionPeriod.weekly,
+            );
+            return StoryViewerScreen(period: period);
+          },
+        ),
+        GoRoute(
+          path: '/reflection',
+          builder: (_, s) {
+            final p = s.uri.queryParameters['period'] ?? 'weekly';
+            final period = ReflectionPeriod.values.firstWhere(
+              (e) => e.name == p,
+              orElse: () => ReflectionPeriod.weekly,
+            );
+            return ReflectionScreen(period: period);
+          },
+        ),
+        GoRoute(
+            path: '/privacy',
+            builder: (_, __) => const PrivacyScreen()),
+        GoRoute(
+            path: '/terms', builder: (_, __) => const TermsScreen()),
+        GoRoute(
+            path: '/subscription',
+            builder: (_, __) => const SubscriptionScreen()),
+        GoRoute(
+            path: '/edit-profile',
+            builder: (_, __) => const EditProfileScreen()),
       ],
     );
 
