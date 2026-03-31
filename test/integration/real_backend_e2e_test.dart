@@ -827,7 +827,8 @@ void main() {
       final updated = await profileRepo.updateProfile(
         profile.copyWith(reminderTime: '09:00'),
       );
-      expect(updated.reminderTime, '09:00');
+      // DB may return '09:00' or '09:00:00' depending on time column format
+      expect(updated.reminderTime, anyOf('09:00', '09:00:00'));
 
       // Clear it.
       await profileRepo.clearReminderTime();

@@ -193,8 +193,13 @@ class JournalRepository implements IJournalRepository {
   @override
   Future<JournalEntry> updateEntry(JournalEntry entry) async {
     // Always update the local cache so edits are visible immediately,
-    // even before the server confirms.
-    await LocalStorageService().cacheEntry(entry);
+    // even before the server confirms. Non-blocking — cache failure
+    // should not prevent the server update.
+    try {
+      await LocalStorageService().cacheEntry(entry);
+    } catch (e) {
+      debugPrint('[JournalRepo] Cache update failed (non-critical): $e');
+    }
 
     if (!ConnectivityService().isOnline) {
       final map = _prepareWriteMap(entry.toSupabaseMap(forUpdate: true));
@@ -270,8 +275,13 @@ class JournalRepository implements IJournalRepository {
   /// When offline, the soft-delete is queued for later replay.
   @override
   Future<void> deleteEntry(String id) async {
-    // Remove from local cache immediately so UI reflects the deletion
-    await LocalStorageService().removeCachedEntry(id);
+    // Remove from local cache immediately so UI reflects the deletion.
+    // Non-blocking — cache failure should not prevent the server delete.
+    try {
+      await LocalStorageService().removeCachedEntry(id);
+    } catch (e) {
+      debugPrint('[JournalRepo] Cache remove failed (non-critical): $e');
+    }
 
     final payload = {
       'id': id,
