@@ -96,11 +96,9 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   late final TextEditingController _titleEditController;
   bool _isEditingTitle = false;
 
-  // View toggle: 0 = My Words (grammar-fixed), 1 = ✨ Story (AI narrative)
-  // Default to 0 so the user sees their own words first.
-  int _viewMode = 0;
   String? _selectedMood;
   bool _showMoodPicker = false;
+  bool _showOriginal = false; // expandable original text
 
   // Save state
   bool _isSaving = false;
@@ -425,17 +423,14 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
                       const SizedBox(height: 8),
                       _buildAudioCard(colors),
                     ],
-                    // Show Original + Polished tabs when AI text is available
+                    // Grammar-fixed text (best version) + correction indicator
+                    const SizedBox(height: 8),
+                    _cleanedText != null
+                        ? _buildCleanedView()
+                        : _buildOriginalView(),
                     if (_cleanedText != null) ...[
-                      const SizedBox(height: 8),
-                      _buildViewTabs(colors),
-                      const SizedBox(height: 8),
-                      _viewMode == 0
-                          ? _buildOriginalView()
-                          : _buildCleanedView(),
-                    ] else ...[
-                      const SizedBox(height: 8),
-                      _buildOriginalView(),
+                      const SizedBox(height: 12),
+                      _buildCorrectionIndicator(colors),
                     ],
                   ],
                 ],
@@ -1242,10 +1237,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
               ),
               _actionPill(
                 icon: Icons.location_on_outlined,
-                label: _locationName ?? 'Add location',
+                label: _shortenLocation(_locationName) ?? 'Add location',
                 isActive: _locationName != null,
                 onTap: _addLocation,
-                maxLabelWidth: 160,
+                maxLabelWidth: 140,
               ),
               _actionPill(
                 icon: Icons.mood_rounded,
@@ -1360,67 +1355,123 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
   // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
-  // View Tabs: My Words | ✨ Story
+  // Correction Indicator + Expandable Original
   // ---------------------------------------------------------------------------
 
-  Widget _buildViewTabs(AppPalette colors) {
-    final tabs = <({int index, String label, IconData icon})>[
-      (index: 0, label: 'ORIGINAL', icon: Icons.edit_note_rounded),
-      (index: 1, label: 'POLISHED', icon: Icons.auto_fix_high_rounded),
-    ];
+  /// Counts how many words differ between original and cleaned text.
+  int _countCorrections() {
+    final raw = widget.data.rawText.trim();
+    final cleaned = (_cleanedText ?? '').trim();
+    if (raw == cleaned) return 0;
+    final rawWords = raw.split(RegExp(r'\s+'));
+    final cleanedWords = cleaned.split(RegExp(r'\s+'));
+    int diffs = 0;
+    final maxLen = rawWords.length > cleanedWords.length
+        ? rawWords.length
+        : cleanedWords.length;
+    for (int i = 0; i < maxLen; i++) {
+      final a = i < rawWords.length ? rawWords[i] : '';
+      final b = i < cleanedWords.length ? cleanedWords[i] : '';
+      if (a != b) diffs++;
+    }
+    return diffs;
+  }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: tabs.map((tab) {
-            final isActive = _viewMode == tab.index;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _viewMode = tab.index),
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 12),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: Icon(
-                        tab.icon,
-                        key: ValueKey('${tab.index}_$isActive'),
-                        size: 20,
-                        color: isActive ? colors.accent : colors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      tab.label,
-                      style: GoogleFonts.manrope(
-                        fontSize: 10,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                        color: isActive ? colors.accent : colors.textMuted,
-                        letterSpacing: 0.9,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Sliding underline indicator
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeInOut,
-                      height: 2,
-                      decoration: BoxDecoration(
-                        color: isActive ? colors.accent : Colors.transparent,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ],
+  /// Truncate location to city + region only (drop country).
+  String? _shortenLocation(String? name) {
+    if (name == null) return null;
+    final parts = name.split(',').map((s) => s.trim()).toList();
+    if (parts.length <= 2) return name;
+    return '${parts[0]}, ${parts[1]}';
+  }
+
+  Widget _buildCorrectionIndicator(AppPalette colors) {
+    final corrections = _countCorrections();
+    final hasChanges = corrections > 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Correction status
+          GestureDetector(
+            onTap: hasChanges
+                ? () => setState(() => _showOriginal = !_showOriginal)
+                : null,
+            child: Row(
+              children: [
+                Icon(
+                  hasChanges ? Icons.auto_fix_high_rounded : Icons.check_circle_rounded,
+                  size: 14,
+                  color: hasChanges ? colors.accent : const Color(0xFF10B981),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-        Divider(height: 1, thickness: 1, color: colors.border),
-      ],
+                const SizedBox(width: 6),
+                Text(
+                  hasChanges
+                      ? '$corrections ${corrections == 1 ? 'word' : 'words'} improved'
+                      : 'Perfect — no corrections needed',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: hasChanges ? colors.accent : const Color(0xFF10B981),
+                  ),
+                ),
+                if (hasChanges) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    _showOriginal ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                    size: 16,
+                    color: colors.accent,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Expandable original text
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: _showOriginal && hasChanges
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: colors.accent.withAlpha(8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colors.accent.withAlpha(25)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ORIGINAL',
+                            style: GoogleFonts.manrope(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: colors.textMuted,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            widget.data.rawText,
+                            style: GoogleFonts.newsreader(
+                              fontSize: 14,
+                              color: colors.textSecondary,
+                              height: 1.7,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
     );
   }
 

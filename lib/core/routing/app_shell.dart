@@ -258,15 +258,10 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
     }
 
+    _returningFromCamera = false;
     if (photo != null && mounted) {
-      // Skip auto-crop — go straight to photo entry. User can tap the
-      // edit pencil on the photo to crop/adjust if they want.
-      final path = photo.path;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.push('/photo-entry', extra: path);
-      });
-    } else {
-      _returningFromCamera = false;
+      // Navigate immediately — no callback delay.
+      context.push('/photo-entry', extra: photo.path);
     }
   }
 
