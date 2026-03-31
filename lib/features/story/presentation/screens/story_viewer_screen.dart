@@ -67,6 +67,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
             StoryStatus.available when state.story != null =>
               _buildPage(state.story!, colors),
             StoryStatus.notEnoughData => _buildNotEnoughData(state, colors),
+            StoryStatus.ready => _buildLoading(state, colors),
             _ => _buildError(state, colors),
           },
         ),
