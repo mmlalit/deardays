@@ -269,6 +269,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   bool _isMonthly = false;
   bool _isGrid = false;
   String? _moodFilter;
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -340,6 +347,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final years = entries.map((e) => e.entryDate.year).toSet().length;
 
     return CustomScrollView(
+      controller: _scrollController,
       slivers: [
         SliverToBoxAdapter(
           child: Column(
@@ -790,6 +798,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           }
         });
         Navigator.pop(context);
+        // Reset scroll position to top — prevents blank screen when
+        // switching from a long timeline to a shorter grid/monthly view.
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
