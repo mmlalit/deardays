@@ -440,4 +440,250 @@ void main() {
       );
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Daily Story Weaving (Multi-Entry)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  group('AI Quality — Daily Story (Multi-Entry)', () {
+    test('weaves 3 entries into one flowing narrative', () async {
+      final entries = [
+        '[08:00] (mood: good) Went for a morning run along the lake. Finished 8km.',
+        '[13:00] (mood: great) (at: Mumbai) Had lunch with Rahul and Priya at the café near office.',
+        '[20:00] (mood: great) Mom\'s 60th birthday dinner. Dad surprised her with all her old friends.',
+      ];
+
+      final result = await ai.polishNarrative(
+        entries.join('\n\n---\n\n'),
+        style: 'memoir',
+      );
+
+      final lower = result.toLowerCase();
+
+      // Should mention all 3 events
+      expect(lower.contains('run') || lower.contains('lake') || lower.contains('8km'), isTrue,
+          reason: 'Should include morning run');
+      expect(lower.contains('rahul') || lower.contains('priya') || lower.contains('lunch'), isTrue,
+          reason: 'Should include lunch');
+      expect(lower.contains('birthday') || lower.contains('mom') || lower.contains('60'), isTrue,
+          reason: 'Should include birthday');
+
+      // Should flow as one narrative (not 3 disconnected blocks)
+      final paragraphs = result.split('\n\n').where((p) => p.trim().isNotEmpty).length;
+      expect(paragraphs, lessThanOrEqualTo(5),
+          reason: 'Should be a flowing narrative, not just 3 blocks ($paragraphs paragraphs)');
+    });
+
+    test('single entry produces a valid story page', () async {
+      final result = await ai.polishNarrative(
+        'Quick trip to the grocery store. Nothing special but needed milk and bread.',
+        style: 'memoir',
+      );
+
+      expect(result, isNotEmpty);
+      expect(result.split(RegExp(r'\s+')).length, greaterThan(10),
+          reason: 'Even a short entry should produce a narrative');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Weekly Story Quality
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  group('AI Quality — Weekly Story', () {
+    test('summarizes 7 daily pages into weekly narrative', () async {
+      const weekInput = '''
+Monday: Started the week with a morning run. 8km personal best.
+Tuesday: Regular day at work. Had lunch with the team.
+Wednesday: Aanya's school play. She was the star.
+Thursday: Difficult meeting with client. Project delayed.
+Friday: Got the promotion! Head of Product. Team celebrated.
+Saturday: Beach day with family. Kids loved the waves.
+Sunday: Quiet day at home. Read a book. Made pasta for dinner.
+''';
+
+      final result = await ai.polishNarrative(weekInput, style: 'memoir');
+
+      final lower = result.toLowerCase();
+
+      // Should reference key moments
+      expect(lower.contains('run') || lower.contains('personal best'), isTrue,
+          reason: 'Should mention Monday run');
+      expect(lower.contains('promotion') || lower.contains('head of product'), isTrue,
+          reason: 'Should mention Friday promotion');
+      expect(lower.contains('beach') || lower.contains('waves'), isTrue,
+          reason: 'Should mention Saturday beach');
+
+      // Should be a summary, not a repetition of all 7 days
+      final wordCount = result.split(RegExp(r'\s+')).length;
+      expect(wordCount, greaterThan(50), reason: 'Weekly summary should be substantial');
+      expect(wordCount, lessThan(1500), reason: 'Weekly summary should not be too long');
+    });
+
+    test('weekly story identifies themes', () async {
+      const weekInput = '''
+Monday: Morning run 5km. Gym in evening.
+Tuesday: Run 6km. New running shoes.
+Wednesday: Rest day. Legs sore from running.
+Thursday: Morning run 7km. Feeling stronger.
+Friday: Run 8km personal best! Coach impressed.
+Saturday: Yoga class for recovery.
+Sunday: Light jog 3km. Planning next week training.
+''';
+
+      final result = await ai.polishNarrative(weekInput, style: 'memoir');
+
+      final lower = result.toLowerCase();
+      // Should detect the fitness/running theme
+      expect(
+        lower.contains('running') || lower.contains('fitness') ||
+            lower.contains('training') || lower.contains('personal best'),
+        isTrue,
+        reason: 'Should identify the running/fitness theme',
+      );
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Monthly Story Quality
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  group('AI Quality — Monthly Story', () {
+    test('summarizes 4 weekly summaries into monthly arc', () async {
+      const monthInput = '''
+Week 1: Started a new fitness routine. Ran every morning. Also had Aanya's school play — she was amazing.
+Week 2: Work got intense. Big client pitch. Stayed late most nights. Weekend trip to the lake helped decompress.
+Week 3: Got the promotion to Head of Product! Three years of work paid off. Celebrated with the team.
+Week 4: Mom's 60th birthday celebration. Family trip to Goa planned for next month. Feeling grateful.
+''';
+
+      final result = await ai.polishNarrative(monthInput, style: 'memoir');
+
+      final lower = result.toLowerCase();
+
+      // Should capture the arc of the month
+      expect(lower.contains('promotion') || lower.contains('head of product'), isTrue,
+          reason: 'Should mention the promotion milestone');
+      expect(lower.contains('mom') || lower.contains('birthday') || lower.contains('60'), isTrue,
+          reason: 'Should mention Mom birthday');
+
+      // Monthly should be a cohesive arc, not just 4 summaries pasted
+      final wordCount = result.split(RegExp(r'\s+')).length;
+      expect(wordCount, greaterThan(80), reason: 'Monthly narrative should be substantial');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Yearly Story Quality
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  group('AI Quality — Yearly Story', () {
+    test('summarizes 12 monthly summaries into year-in-review', () async {
+      const yearInput = '''
+January: New Year resolutions. Started running. Cold mornings.
+February: Valentine's Day surprise for wife. Work project kicked off.
+March: Got promoted to Head of Product. Mom turned 60. Family celebration.
+April: Started meditation habit. Dealing with work stress.
+May: Mountain trek in Spiti Valley with strangers who became friends.
+June: Aanya started first grade. Health scare — tests came back clear.
+July: Meditation day 30. Calm and focused. Team building retreat.
+August: Dad's retirement party after 35 years. Emotional speech.
+September: New client win. Biggest contract of the year. Team dinner.
+October: Japan trip. Kyoto in autumn. Best vacation ever.
+November: Tough quarter at work. Project didn't hit targets. Learning from failure.
+December: Beach vacation in Goa. Five days of peace. Year-end reflection.
+''';
+
+      final result = await ai.polishNarrative(yearInput, style: 'memoir');
+
+      final lower = result.toLowerCase();
+
+      // Should capture major milestones
+      expect(lower.contains('promotion') || lower.contains('promoted'), isTrue,
+          reason: 'Should mention promotion');
+      expect(lower.contains('japan') || lower.contains('kyoto'), isTrue,
+          reason: 'Should mention Japan trip');
+      expect(lower.contains('aanya') || lower.contains('first grade'), isTrue,
+          reason: 'Should mention daughter\'s milestone');
+
+      // Yearly should be a cohesive journey narrative
+      final wordCount = result.split(RegExp(r'\s+')).length;
+      expect(wordCount, greaterThan(100), reason: 'Yearly narrative should be substantial');
+      expect(wordCount, lessThan(2000), reason: 'Yearly should not be too long');
+    });
+
+    test('yearly story captures growth arc', () async {
+      const yearInput = '''
+January: Scared of public speaking. Avoided team meetings.
+March: Signed up for presentation skills course.
+June: Gave first team presentation. Voice was shaking but made it through.
+September: Presented to 50 people at company all-hands. Got applause.
+December: Keynote speaker at industry conference. Standing ovation.
+''';
+
+      final result = await ai.polishNarrative(yearInput, style: 'memoir');
+
+      final lower = result.toLowerCase();
+      // Should capture the growth/journey arc
+      expect(
+        lower.contains('journey') || lower.contains('growth') ||
+            lower.contains('from') || lower.contains('confidence') ||
+            lower.contains('overcame') || lower.contains('progress'),
+        isTrue,
+        reason: 'Should capture the personal growth arc',
+      );
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Highlights & Metadata Extraction
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  group('AI Quality — Highlights Extraction', () {
+    test('analyzeEntries extracts summary', () async {
+      final result = await ai.analyzeEntries([
+        'Morning run 8km personal best.',
+        'Mom\'s 60th birthday dinner.',
+        'Got the promotion at work.',
+      ]);
+
+      final summary = result['summary'] as String?;
+      expect(summary, isNotNull, reason: 'Should extract a summary');
+      if (summary != null) {
+        expect(summary.length, greaterThan(10),
+            reason: 'Summary should be meaningful (got: "$summary")');
+      }
+    });
+
+    test('analyzeEntries detects themes from multiple entries', () async {
+      final result = await ai.analyzeEntries([
+        'Ran 5km today. Feeling good.',
+        'Gym session — upper body.',
+        'Yoga class in the evening.',
+        'Morning jog 3km. Legs sore.',
+        'Bought new running shoes.',
+      ]);
+
+      final summary = result['summary'] as String?;
+      if (summary != null) {
+        final lower = summary.toLowerCase();
+        expect(
+          lower.contains('fitness') || lower.contains('exercise') ||
+              lower.contains('running') || lower.contains('active') ||
+              lower.contains('health'),
+          isTrue,
+          reason: 'Should detect fitness theme (summary: "$summary")',
+        );
+      }
+    });
+
+    test('analyzeEntries handles single entry', () async {
+      final result = await ai.analyzeEntries([
+        'Just a quiet day at home reading a book.',
+      ]);
+
+      expect(result, isA<Map<String, dynamic>>());
+      // Should not crash with single entry
+    });
+  });
 }
