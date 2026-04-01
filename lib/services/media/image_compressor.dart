@@ -33,13 +33,15 @@ class ImageCompressor {
   /// JPEG quality for thumbnails.
   static const int thumbnailQuality = 60;
 
-  /// Compresses raw image bytes by decoding, resizing, and re-encoding as JPEG.
+  /// Compresses raw image bytes by decoding, stripping EXIF metadata,
+  /// resizing, and re-encoding as JPEG.
   ///
   /// Uses the `image` package for JPEG encoding (3-10x smaller than PNG).
   /// Runs in an isolate via [compute] to avoid blocking the UI thread.
   ///
-  /// If the compressed result is larger than the original (e.g. small images),
-  /// returns the original bytes.
+  /// Always returns the re-encoded version (even if larger than the original)
+  /// because the original may contain EXIF metadata (GPS, device info) that
+  /// must be stripped for user privacy.
   static Future<Uint8List> compress(
     Uint8List imageBytes, {
     int maxDim = maxPhotoDimension,

@@ -165,13 +165,16 @@ class _DearDaysAppState extends ConsumerState<DearDaysApp> {
   void initState() {
     super.initState();
     // Surface any Phase 3 service init failures to the provider tree.
-    // Delayed so the provider is readable after the first frame.
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && _serviceInitFailures.isNotEmpty) {
-        ref.read(serviceInitFailuresProvider.notifier).state =
-            List.unmodifiable(_serviceInitFailures);
-      }
-    });
+    // Check at 5s and 15s — most services init within 5s, but slow networks
+    // may take longer. Two checks ensure failures aren't missed.
+    for (final delay in [const Duration(seconds: 5), const Duration(seconds: 15)]) {
+      Future.delayed(delay, () {
+        if (mounted && _serviceInitFailures.isNotEmpty) {
+          ref.read(serviceInitFailuresProvider.notifier).state =
+              List.unmodifiable(_serviceInitFailures);
+        }
+      });
+    }
     // Set initial value
     _wasOffline = !ConnectivityService().isOnline;
     ref.read(connectivityProvider.notifier).state =

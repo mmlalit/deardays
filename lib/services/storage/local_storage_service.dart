@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/features/journal/data/models/draft_entry.dart';
+import 'package:deardays/services/crash_reporting/crash_reporting_service.dart';
 
 /// Local-first encrypted storage backed by Hive.
 ///
@@ -87,11 +88,18 @@ class LocalStorageService {
 
   /// Opens a Hive box, recovering from corruption by deleting and recreating.
   /// On mobile, crashes during writes or full storage can corrupt a box file.
+  /// Logs to Sentry when corruption is detected so we can monitor frequency.
   Future<Box<T>> _openBoxSafe<T>(String name, HiveAesCipher cipher) async {
     try {
       return await Hive.openBox<T>(name, encryptionCipher: cipher);
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('[LocalStorageService] Box "$name" corrupted, recreating: $e');
+      try {
+        CrashReportingService().recordError(
+          e, st,
+          reason: 'hive_box_corrupted_$name',
+        );
+      } catch (_) {}
       await Hive.deleteBoxFromDisk(name);
       return await Hive.openBox<T>(name, encryptionCipher: cipher);
     }
