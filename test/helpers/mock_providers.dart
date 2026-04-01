@@ -194,7 +194,7 @@ List<Override> authenticatedOverrides({
     checkInProvider.overrideWith((ref) => FakeCheckInNotifier()),
     profileProvider.overrideWith((ref) async => p),
     streakProvider.overrideWith((ref) async => s),
-    todayEntryProvider.overrideWith((ref) => Stream.value(todayEntry)),
+    todayEntryProvider.overrideWith((ref) async => todayEntry),
     onThisDayProvider.overrideWith((ref) async => entries),
     timelineEntriesProvider.overrideWith((ref) => Stream.value(entries)),
     booksProvider.overrideWith((ref) async => books),

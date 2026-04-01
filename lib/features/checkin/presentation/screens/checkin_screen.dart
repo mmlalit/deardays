@@ -98,18 +98,28 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     });
   }
 
-  Widget _iconBtn(IconData icon, AppPalette colors, VoidCallback onTap, {Color? iconColor}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: colors.card,
-          border: Border.all(color: colors.border),
+  Widget _iconBtn(IconData icon, AppPalette colors, VoidCallback onTap, {Color? iconColor, String? semanticLabel}) {
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Center(
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.card,
+                border: Border.all(color: colors.border),
+              ),
+              child: Icon(icon, size: 18, color: iconColor ?? colors.textSecondary),
+            ),
+          ),
         ),
-        child: Icon(icon, size: 18, color: iconColor ?? colors.textSecondary),
       ),
     );
   }
@@ -158,7 +168,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       ),
       child: Row(
         children: [
-          _iconBtn(Icons.arrow_back_rounded, colors, _saveDraftAndPop),
+          _iconBtn(Icons.arrow_back_rounded, colors, _saveDraftAndPop, semanticLabel: 'Go back'),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -180,9 +190,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               ],
             ),
           ),
-          _iconBtn(Icons.history_rounded, colors, _showHistorySheet),
+          _iconBtn(Icons.history_rounded, colors, _showHistorySheet, semanticLabel: 'Chat history'),
           const SizedBox(width: 8),
-          _iconBtn(Icons.more_horiz_rounded, colors, _showOptionsMenu),
+          _iconBtn(Icons.more_horiz_rounded, colors, _showOptionsMenu, semanticLabel: 'More options'),
         ],
       ),
     );
@@ -509,9 +519,19 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     ),
                   ),
                   const Spacer(),
-                  GestureDetector(
-                    onTap: _cancelEditing,
-                    child: Icon(Icons.close_rounded, size: 17, color: colors.textMuted),
+                  Semantics(
+                    button: true,
+                    label: 'Cancel editing',
+                    child: GestureDetector(
+                      onTap: _cancelEditing,
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Center(
+                          child: Icon(Icons.close_rounded, size: 17, color: colors.textMuted),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -845,9 +865,19 @@ class _HistorySheet extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Icon(Icons.close_rounded, size: 22, color: colors.textMuted),
+              Semantics(
+                button: true,
+                label: 'Close history',
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Center(
+                      child: Icon(Icons.close_rounded, size: 22, color: colors.textMuted),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

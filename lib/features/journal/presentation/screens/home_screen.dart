@@ -1898,18 +1898,28 @@ class _CalendarSheetState extends State<_CalendarSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
-                GestureDetector(
-                  onTap: _prevMonth,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: colors.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.border),
+                Semantics(
+                  button: true,
+                  label: 'Previous month',
+                  child: GestureDetector(
+                    onTap: _prevMonth,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: colors.border),
+                          ),
+                          child: Icon(Icons.chevron_left_rounded,
+                              size: 20, color: colors.textPrimary),
+                        ),
+                      ),
                     ),
-                    child: Icon(Icons.chevron_left_rounded,
-                        size: 20, color: colors.textPrimary),
                   ),
                 ),
                 Expanded(
@@ -1935,21 +1945,32 @@ class _CalendarSheetState extends State<_CalendarSheet> {
                     ],
                   ),
                 ),
-                GestureDetector(
-                  onTap: _canGoNext ? _nextMonth : null,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: colors.card,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.border),
+                Semantics(
+                  button: true,
+                  label: 'Next month',
+                  enabled: _canGoNext,
+                  child: GestureDetector(
+                    onTap: _canGoNext ? _nextMonth : null,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: colors.card,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: colors.border),
+                          ),
+                          child: Icon(Icons.chevron_right_rounded,
+                              size: 20,
+                              color: _canGoNext
+                                  ? colors.textPrimary
+                                  : colors.textMuted.withAlpha(60)),
+                        ),
+                      ),
                     ),
-                    child: Icon(Icons.chevron_right_rounded,
-                        size: 20,
-                        color: _canGoNext
-                            ? colors.textPrimary
-                            : colors.textMuted.withAlpha(60)),
                   ),
                 ),
               ],

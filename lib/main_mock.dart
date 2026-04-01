@@ -107,7 +107,7 @@ List<Override> _mockOverrides() {
     weeklyMoodsProvider.overrideWith((_) async => mockWeeklyMoods),
 
     // Today's entry — use the most recent mock
-    todayEntryProvider.overrideWith((_) => Stream.value(mockEntries.first)),
+    todayEntryProvider.overrideWith((_) async => mockEntries.first),
 
     // On this day — pick 2 older entries (safe access in case mock list is short)
     onThisDayProvider.overrideWith((_) async =>

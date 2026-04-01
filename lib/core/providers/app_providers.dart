@@ -112,13 +112,18 @@ class AiStoryEnabledNotifier extends StateNotifier<bool> {
     _load();
   }
 
-  // Cache the box reference — Hive.openBox is idempotent but repeated calls
-  // without storing the reference is a code smell and wastes a lookup per op.
-  Box? _box;
+  // Use a Completer to serialize concurrent box opens — prevents the race
+  // where two awaits of Hive.openBox run before _box is assigned.
+  Completer<Box>? _boxCompleter;
 
-  Future<Box> _getBox() async {
-    _box ??= await Hive.openBox('settings');
-    return _box!;
+  Future<Box> _getBox() {
+    if (_boxCompleter != null) return _boxCompleter!.future;
+    _boxCompleter = Completer<Box>();
+    Hive.openBox('settings').then(
+      (box) => _boxCompleter!.complete(box),
+      onError: (e) => _boxCompleter!.completeError(e),
+    );
+    return _boxCompleter!.future;
   }
 
   Future<void> _load() async {
@@ -146,6 +151,10 @@ final aiStoryEnabledProvider = StateNotifierProvider<AiStoryEnabledNotifier, boo
 
 final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.synced);
 final connectivityProvider = StateProvider<bool>((ref) => true);
+
+/// Tracks background service init failures. Services add their name on failure.
+/// UI can watch this to show a degraded-service banner.
+final serviceInitFailuresProvider = StateProvider<List<String>>((ref) => []);
 
 // --- Core Services ---
 
@@ -315,8 +324,14 @@ final appInitProvider = FutureProvider<AppInitData>((ref) async {
       books: books,
       minAppVersion: minAppVersion,
     );
-  } catch (e) {
+  } catch (e, st) {
     debugPrint('[appInitProvider] RPC failed, falling back to individual calls: $e');
+    // Log to Sentry so we can track how often the legacy fallback is hit.
+    CrashReportingService().addBreadcrumb(
+      'appInitProvider RPC fallback',
+      data: {'error': e.toString()},
+    );
+    CrashReportingService().recordError(e, st, reason: 'app_init_rpc_fallback');
     // Fallback to individual calls if RPC doesn't exist yet (migration not deployed)
     final results = await Future.wait([
       ref.read(profileRepositoryProvider).getProfile(),
@@ -401,14 +416,15 @@ final entriesProvider =
 });
 
 /// Today's entry — derived from timelineEntriesProvider (no separate API call).
-final todayEntryProvider = StreamProvider<JournalEntry?>((ref) async* {
+/// Uses FutureProvider to avoid unnecessary rebuilds on every list emission.
+final todayEntryProvider = FutureProvider<JournalEntry?>((ref) async {
   final entries = await ref.watch(timelineEntriesProvider.future);
   final now = DateTime.now();
   final todayEntries = entries.where((e) =>
       e.entryDate.year == now.year &&
       e.entryDate.month == now.month &&
       e.entryDate.day == now.day).toList();
-  yield todayEntries.isEmpty ? null : todayEntries.first;
+  return todayEntries.isEmpty ? null : todayEntries.first;
 });
 
 /// On This Day — computed from cached entries (no API call).
@@ -584,13 +600,17 @@ final timelineEntriesProvider =
   }
 
   // Then fetch fresh data from the network
-  // C-10: limit to 200 entries to cap O(n×m) category detection cost
+  // C-10: limit to 100 entries to cap memory and O(n×m) category cost.
+  // Derived providers (mood stats, today entry) only need recent data.
   try {
-    final entries = await ref.read(journalRepositoryProvider).getEntries(limit: 200);
-    // Cache entries locally for offline access
-    for (final entry in entries) {
-      await localStorage.cacheEntry(entry);
-    }
+    final entries = await ref.read(journalRepositoryProvider).getEntries(limit: 100);
+    // Batch-cache entries for offline access (fire-and-forget to avoid
+    // blocking the yield while writing 100 entries sequentially).
+    unawaited(Future(() async {
+      for (final entry in entries) {
+        await localStorage.cacheEntry(entry);
+      }
+    }));
     yield entries;
   } catch (e, st) {
     CrashReportingService().recordError(e, st, reason: 'timelineEntriesProvider');

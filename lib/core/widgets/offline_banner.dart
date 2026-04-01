@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/providers/offline_providers.dart';
+import 'package:deardays/core/theme/app_colors.dart';
 import 'package:deardays/services/sync/sync_queue.dart';
 
 /// A slim banner shown at the top of the screen when the device is offline
@@ -70,6 +71,7 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner> {
       return const SizedBox.shrink();
     }
 
+    final colors = AppColors.of(context);
     final String message;
     final IconData icon;
     final Color bgColor;
@@ -77,8 +79,8 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner> {
 
     if (!isOnline) {
       icon = Icons.cloud_off_rounded;
-      bgColor = const Color(0xFFFEF3C7); // warm amber background
-      textColor = const Color(0xFF92400E);
+      bgColor = colors.accentFaint;
+      textColor = colors.accent;
       if (pendingCount > 0) {
         message = "You're offline. $pendingCount change${pendingCount == 1 ? '' : 's'} will sync when connected.";
       } else {
@@ -88,13 +90,13 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner> {
       _scheduleRecheck();
     } else if (syncStatus == SyncStatus.syncing) {
       icon = Icons.sync_rounded;
-      bgColor = const Color(0xFFEEF2FF); // soft indigo background
-      textColor = const Color(0xFF3730A3);
+      bgColor = colors.accentFaint;
+      textColor = colors.accent;
       message = 'Syncing $pendingCount change${pendingCount == 1 ? '' : 's'}...';
     } else if (pendingCount > 0) {
       icon = Icons.sync_rounded;
-      bgColor = const Color(0xFFEEF2FF);
-      textColor = const Color(0xFF3730A3);
+      bgColor = colors.accentFaint;
+      textColor = colors.accent;
       message = '$pendingCount change${pendingCount == 1 ? '' : 's'} pending sync.';
     } else {
       return const SizedBox.shrink();

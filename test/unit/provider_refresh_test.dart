@@ -96,7 +96,7 @@ void main() {
     test('emits null when no entry today', () async {
       final container = ProviderContainer(
         overrides: [
-          todayEntryProvider.overrideWith((ref) => Stream.value(null)),
+          todayEntryProvider.overrideWith((ref) async => null),
         ],
       );
       addTearDown(container.dispose);
@@ -109,7 +109,7 @@ void main() {
       final entry = makeEntry('today-1');
       final container = ProviderContainer(
         overrides: [
-          todayEntryProvider.overrideWith((ref) => Stream.value(entry)),
+          todayEntryProvider.overrideWith((ref) async => entry),
         ],
       );
       addTearDown(container.dispose);

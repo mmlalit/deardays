@@ -367,10 +367,10 @@ class _ReviewSaveScreenState extends ConsumerState<ReviewSaveScreen>
       ));
     } catch (e, stack) {
       debugPrint('[ReviewSave] _saveEntry error: $e\n$stack');
+      try { CrashReportingService().recordError(e, stack, reason: 'review_save'); } catch (_) {}
       _isNavigating = false;
       if (mounted) {
-        final msg = e.toString();
-        setState(() => _saveError = msg.length > 100 ? '${msg.substring(0, 100)}…' : msg);
+        setState(() => _saveError = 'Something went wrong. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

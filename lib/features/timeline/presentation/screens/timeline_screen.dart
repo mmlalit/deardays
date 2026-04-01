@@ -1721,16 +1721,26 @@ class _MoodCalendarSheetState extends State<_MoodCalendarSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                GestureDetector(
-                  onTap: _goToPreviousMonth,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: widget.colors.accentFaint,
+                Semantics(
+                  button: true,
+                  label: 'Previous month',
+                  child: GestureDetector(
+                    onTap: _goToPreviousMonth,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: widget.colors.accentFaint,
+                          ),
+                          child: Icon(Icons.chevron_left_rounded, size: 22, color: widget.colors.accent),
+                        ),
+                      ),
                     ),
-                    child: Icon(Icons.chevron_left_rounded, size: 22, color: widget.colors.accent),
                   ),
                 ),
                 Padding(
@@ -1744,19 +1754,30 @@ class _MoodCalendarSheetState extends State<_MoodCalendarSheet> {
                     ),
                   ),
                 ),
-                GestureDetector(
-                  onTap: _canGoNext ? _goToNextMonth : null,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _canGoNext ? widget.colors.accentFaint : widget.colors.accentFaint.withAlpha(80),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 22,
-                      color: _canGoNext ? widget.colors.accent : widget.colors.textMuted,
+                Semantics(
+                  button: true,
+                  label: 'Next month',
+                  enabled: _canGoNext,
+                  child: GestureDetector(
+                    onTap: _canGoNext ? _goToNextMonth : null,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _canGoNext ? widget.colors.accentFaint : widget.colors.accentFaint.withAlpha(80),
+                          ),
+                          child: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 22,
+                            color: _canGoNext ? widget.colors.accent : widget.colors.textMuted,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

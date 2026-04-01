@@ -255,7 +255,7 @@ List<Override> _e2eOverrides() {
     profileProvider.overrideWith((_) async => profile),
     streakProvider.overrideWith((_) async => streak),
     timelineEntriesProvider.overrideWith((_) => Stream.value(mockEntries)),
-    todayEntryProvider.overrideWith((_) => Stream.value(mockEntries.first)),
+    todayEntryProvider.overrideWith((_) async => mockEntries.first),
     onThisDayProvider.overrideWith((_) async => mockEntries.take(2).toList()),
     moodStatsProvider.overrideWith((_) async => mockMoodStats),
     totalEntriesProvider.overrideWith((_) async => mockEntries.length),

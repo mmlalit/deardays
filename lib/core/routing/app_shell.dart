@@ -109,6 +109,10 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         _returningFromCamera = false;
         return;
       }
+      // Refresh auth session — token may have expired while app was backgrounded.
+      try {
+        Supabase.instance.client.auth.refreshSession().ignore();
+      } catch (_) {}
       final now = DateTime.now();
       if (_lastRefresh == null ||
           now.difference(_lastRefresh!) >= _refreshCooldown) {
@@ -214,6 +218,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     ref.invalidate(appInitProvider);
     ref.invalidate(onThisDayProvider);
     ref.invalidate(weeklyMoodsProvider);
+    ref.invalidate(moodStatsProvider);
+    ref.invalidate(totalEntriesProvider);
+    ref.invalidate(booksProvider);
     _triggerProviderFetch();
     if (kDebugMode) debugPrint('[AppShell] Refreshing cached data.');
   }

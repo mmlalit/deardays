@@ -23,6 +23,7 @@ class OfflineAiQueue {
   factory OfflineAiQueue() => _instance;
 
   static const String _boxName = 'ai_queue';
+  static const int _maxQueueSize = 100;
   Box<String>? _box;
 
   final _moodService = MoodDetectionService();
@@ -97,16 +98,28 @@ class OfflineAiQueue {
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Enqueue an entry for server-side AI processing (polish, themes, etc).
+  /// If the queue exceeds [_maxQueueSize], the oldest items are evicted.
   Future<void> enqueue(AiQueueItem item) async {
     if (_box == null || !_box!.isOpen) {
       // M-06: don't silently swallow — callers should know queue is not ready
       debugPrint('[OfflineAiQueue] WARNING: Queue not initialized, cannot enqueue ${item.entryId}');
       throw StateError('OfflineAiQueue not initialized. Call init() first.');
     }
+
+    // Evict oldest items if at capacity
+    if (_box!.length >= _maxQueueSize) {
+      final keys = _box!.keys.cast<String>().toList()..sort();
+      final toRemove = keys.take(_box!.length - _maxQueueSize + 1);
+      for (final k in toRemove) {
+        await _box!.delete(k);
+      }
+      debugPrint('[OfflineAiQueue] Evicted ${toRemove.length} oldest items (cap: $_maxQueueSize)');
+    }
+
     final key = '${item.createdAt.millisecondsSinceEpoch}_${item.entryId}';
     await _box!.put(key, jsonEncode(item.toJson()));
     if (kDebugMode) {
-      debugPrint('[OfflineAiQueue] Queued: ${item.operation.name} for ${item.entryId}');
+      debugPrint('[OfflineAiQueue] Queued: ${item.operation.name} for ${item.entryId} (${_box!.length}/$_maxQueueSize)');
     }
   }
 

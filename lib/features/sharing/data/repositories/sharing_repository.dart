@@ -26,12 +26,14 @@ class SharingRepository implements ISharingRepository {
 
   @override
   Future<MemoryShare> createShare(String memoryId) async {
-    final row = await _client
-        .from('memory_shares')
-        .insert({'memory_id': memoryId, 'sharer_id': _requireUserId})
-        .select()
-        .single();
-    return MemoryShare.fromMap(row);
+    return _network.query(() async {
+      final row = await _client
+          .from('memory_shares')
+          .insert({'memory_id': memoryId, 'sharer_id': _requireUserId})
+          .select()
+          .single();
+      return MemoryShare.fromMap(row);
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -63,23 +65,19 @@ class SharingRepository implements ISharingRepository {
     required String recipientName,
     String? recipientId,
   }) async {
-    // M-20 FIX: Use .select().maybeSingle() to verify the row was actually
-    // claimed by this user, preventing TOCTOU race where two simultaneous
-    // requests both succeed.
-    final result = await _client.from('memory_shares').update({
-      'recipient_name': recipientName.trim(),
-      'recipient_id':   recipientId,
-      'requested_at':   DateTime.now().toIso8601String(),
-      'status':         'pending',
-    }).eq('id', shareId).eq('status', 'pending').isFilter('recipient_id', null)
-        .select('recipient_id')
-        .maybeSingle();
-
-    if (result == null) {
+    // Uses SECURITY DEFINER RPC so recipients can claim shares without
+    // needing direct UPDATE permission on memory_shares (RLS only allows
+    // the sharer to UPDATE). The RPC atomically checks status = 'pending'
+    // AND recipient_id IS NULL, preventing race conditions.
+    try {
+      await _client.rpc('claim_share', params: {
+        'p_share_id': shareId,
+        'p_recipient_name': recipientName.trim(),
+        if (recipientId != null) 'p_recipient_id': recipientId,
+      });
+    } on PostgrestException {
+      // RPC raises exception when share is already claimed or doesn't exist.
       throw Exception('This share link has already been claimed.');
-    }
-    if (recipientId != null && result['recipient_id'] != recipientId) {
-      throw Exception('This share link was claimed by another user.');
     }
   }
 
@@ -92,40 +90,60 @@ class SharingRepository implements ISharingRepository {
     required String shareId,
     required bool approve,
   }) async {
-    // C-21 FIX: Proper error handling for non-atomic two-step DB update.
     try {
-      // Chain .select() onto UPDATE to get recipient_id in one round-trip (avoids N+1).
-      final result = await _client.from('memory_shares').update({
-        'status':      approve ? 'approved' : 'denied',
-        if (approve) 'approved_at': DateTime.now().toIso8601String(),
-      }).eq('id', shareId).eq('sharer_id', _requireUserId).select('recipient_id').maybeSingle();
-
-      if (result == null) {
-        throw Exception('Share not found or not owned by current user');
-      }
-
-      // Flag recipient's profile so "Shared with me" appears on their Explore tab.
-      // NOTE: This is a known non-atomic operation — the share status update above
-      // and this profile flag are two independent writes. If this second write fails,
-      // the share is still approved; only the "Shared with me" badge will be missing
-      // until the next share approval. Acceptable trade-off vs. an RPC/transaction.
+      // Atomic RPC: updates share status + flags recipient profile in one
+      // transaction (migration 058). Falls back to direct UPDATE if the RPC
+      // hasn't been deployed yet.
       if (approve) {
-        final recipientId = result['recipient_id'] as String?;
-        if (recipientId != null) {
-          try {
-            await _client
-                .from('profiles')
-                .update({'has_received_share': true})
-                .eq('id', recipientId);
-          } catch (e) {
-            debugPrint('[Sharing] WARNING: Non-atomic write failed — profile '
-                'update for recipient $recipientId: $e');
-            // Non-critical: share is approved, just the badge won't show immediately
-          }
-        }
+        await _client.rpc('approve_share_request', params: {
+          'p_share_id': shareId,
+          'p_sharer_id': _requireUserId,
+        });
+      } else {
+        await _client.rpc('deny_share_request', params: {
+          'p_share_id': shareId,
+          'p_sharer_id': _requireUserId,
+        });
       }
     } on PostgrestException catch (e) {
+      // If RPC doesn't exist yet (migration not deployed), fall back to
+      // direct UPDATE.
+      if (e.code == '42883' || e.message.contains('does not exist')) {
+        debugPrint('[Sharing] RPC not deployed, falling back to direct UPDATE');
+        await _respondToRequestLegacy(shareId: shareId, approve: approve);
+        return;
+      }
       throw Exception('Could not respond to share request: ${e.message}');
+    }
+  }
+
+  /// Legacy two-step approval — used when migration 058 RPC is not yet deployed.
+  Future<void> _respondToRequestLegacy({
+    required String shareId,
+    required bool approve,
+  }) async {
+    final result = await _client.from('memory_shares').update({
+      'status': approve ? 'approved' : 'denied',
+      if (approve) 'approved_at': DateTime.now().toIso8601String(),
+    }).eq('id', shareId).eq('sharer_id', _requireUserId).select('recipient_id').maybeSingle();
+
+    if (result == null) {
+      throw Exception('Share not found or not owned by current user');
+    }
+
+    if (approve) {
+      final recipientId = result['recipient_id'] as String?;
+      if (recipientId != null) {
+        try {
+          await _client
+              .from('profiles')
+              .update({'has_received_share': true})
+              .eq('id', recipientId);
+        } catch (e) {
+          debugPrint('[Sharing] WARNING: profile update for recipient '
+              '$recipientId failed: $e');
+        }
+      }
     }
   }
 
@@ -172,15 +190,17 @@ class SharingRepository implements ISharingRepository {
   @override
   Future<List<MemoryShare>> getSharesForMemory(String memoryId) async {
     if (_userId == null) return [];
-    final rows = await _client
-        .from('memory_shares')
-        .select()
-        .eq('memory_id', memoryId)
-        .eq('sharer_id', _requireUserId)
-        .order('created_at', ascending: false)
-        .limit(100)
-        .timeout(const Duration(seconds: 10));
-    return rows.map((r) => MemoryShare.fromMap(r)).toList();
+    return _network.query(() async {
+      final rows = await _client
+          .from('memory_shares')
+          .select()
+          .eq('memory_id', memoryId)
+          .eq('sharer_id', _requireUserId)
+          .order('created_at', ascending: false)
+          .limit(100)
+          .timeout(const Duration(seconds: 10));
+      return rows.map((r) => MemoryShare.fromMap(r)).toList();
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -195,7 +215,7 @@ class SharingRepository implements ISharingRepository {
           .from('memory_shares')
           .select('''
             *,
-            journal_entries!memory_id(id, title, polished_content, content, entry_date, mood),
+            journal_entries!memory_id(id, title, polished_content, content, entry_date, mood, is_client_encrypted),
             profiles!sharer_id(display_name)
           ''')
           .eq('recipient_id', _requireUserId)

@@ -27,6 +27,20 @@ import 'package:deardays/services/sync/offline_write_service.dart';
 import 'package:deardays/features/journal/data/repositories/reflection_override_repository.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+/// Services that failed to initialize. Read by DearDaysApp to populate
+/// [serviceInitFailuresProvider] once the widget tree is built.
+final List<String> _serviceInitFailures = [];
+
+void _recordInitFailure(String service, Object error) {
+  _serviceInitFailures.add(service);
+  try {
+    CrashReportingService().recordError(
+      error, StackTrace.current,
+      reason: '${service.toLowerCase().replaceAll(' ', '_')}_init_failed',
+    );
+  } catch (_) {}
+}
+
 void main() async {
   debugPrint('[main] ════════════ DearDays main() ENTERED ════════════');
   // Run app inside crash reporting zone (binding must be in the same zone as runApp)
@@ -106,10 +120,11 @@ void main() async {
 
     // ── Phase 3: Background services (fire-and-forget) ──────────────────────
     // Each service is wrapped in its own try-catch so one failure doesn't
-    // prevent others from initializing.
+    // prevent others from initializing. Failures are tracked in
+    // _serviceInitFailures so the UI can show a degraded-service banner.
     // OfflineAiQueue.init() must complete before pruneStale() is called.
     unawaited(OfflineAiQueue().init().then((_) => OfflineAiQueue().pruneStale())
-        .catchError((e) { debugPrint('[main] OfflineAiQueue init failed: $e'); return 0; }));
+        .catchError((e) { debugPrint('[main] OfflineAiQueue init failed: $e'); _recordInitFailure('AI Queue', e); return 0; }));
     unawaited(AnalyticsService().init().then((_) {
       AnalyticsService().track('app_startup', properties: {
         'total_ms': startupStopwatch.elapsedMilliseconds.toString(),
@@ -117,21 +132,21 @@ void main() async {
       });
     }).catchError((e) { debugPrint('[main] AnalyticsService init failed: $e'); return null; }));
     unawaited(RevenueCatService().init()
-        .catchError((e) => debugPrint('[main] RevenueCatService init failed: $e')));
+        .catchError((e) { debugPrint('[main] RevenueCatService init failed: $e'); _recordInitFailure('Subscriptions', e); }));
     unawaited(NotificationService().init()
-        .catchError((e) => debugPrint('[main] NotificationService init failed: $e')));
+        .catchError((e) { debugPrint('[main] NotificationService init failed: $e'); _recordInitFailure('Notifications', e); }));
     unawaited(ConnectivityService().init()
-        .catchError((e) => debugPrint('[main] ConnectivityService init failed: $e')));
+        .catchError((e) { debugPrint('[main] ConnectivityService init failed: $e'); _recordInitFailure('Connectivity', e); }));
     unawaited(BackupService().init()
-        .catchError((e) => debugPrint('[main] BackupService init failed: $e')));
+        .catchError((e) { debugPrint('[main] BackupService init failed: $e'); _recordInitFailure('Backup', e); }));
     unawaited(AiCreditService().init()
-        .catchError((e) => debugPrint('[main] AiCreditService init failed: $e')));
+        .catchError((e) { debugPrint('[main] AiCreditService init failed: $e'); _recordInitFailure('AI Credits', e); }));
     unawaited(FeatureFlags().init()
-        .catchError((e) => debugPrint('[main] FeatureFlags init failed: $e')));
+        .catchError((e) { debugPrint('[main] FeatureFlags init failed: $e'); _recordInitFailure('Feature Flags', e); }));
     unawaited(VersionCheckService().check()
         .catchError((e) => debugPrint('[main] VersionCheckService check failed: $e')));
     unawaited(PendingPhotoUploads().init()
-        .catchError((e) => debugPrint('[main] PendingPhotoUploads init failed: $e')));
+        .catchError((e) { debugPrint('[main] PendingPhotoUploads init failed: $e'); _recordInitFailure('Photo Uploads', e); }));
   });
 }
 
@@ -149,6 +164,14 @@ class _DearDaysAppState extends ConsumerState<DearDaysApp> {
   @override
   void initState() {
     super.initState();
+    // Surface any Phase 3 service init failures to the provider tree.
+    // Delayed so the provider is readable after the first frame.
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && _serviceInitFailures.isNotEmpty) {
+        ref.read(serviceInitFailuresProvider.notifier).state =
+            List.unmodifiable(_serviceInitFailures);
+      }
+    });
     // Set initial value
     _wasOffline = !ConnectivityService().isOnline;
     ref.read(connectivityProvider.notifier).state =

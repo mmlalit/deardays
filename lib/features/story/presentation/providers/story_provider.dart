@@ -119,6 +119,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
 
     try {
       final entries = await _entriesForWeek(weekDate);
+      if (_disposed) return;
       // Also pull check-in texts from LifeBook for that week
       final checkInTexts = _lifeBookTextsForWeek(weekDate);
       final entryTexts = _textsFromEntries(entries);
@@ -145,8 +146,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
         periodDate: weekDate,
       ).ignore();
     } on AiServiceException catch (e) {
+      if (_disposed) return;
       state = state.copyWith(clearGenerating: true, error: e.message);
     } catch (_) {
+      if (_disposed) return;
       state = state.copyWith(
         clearGenerating: true,
         error: 'Generation failed. Please try again.',
@@ -175,6 +178,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
 
     try {
       final allMonthEntries = await _entriesForMonth(year, month);
+      if (_disposed) return;
 
       final node = await _svc.generateMonthly(
         year,
@@ -188,6 +192,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
         allMonthEntries: allMonthEntries,
         language: language,
       );
+      if (_disposed) return;
       _upsertNode(node);
       await _loadCached(); // refresh newly generated weekly nodes
       NotificationService().showStoryReadyNotification(
@@ -196,8 +201,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
         periodDate: DateTime(year, month),
       ).ignore();
     } on AiServiceException catch (e) {
+      if (_disposed) return;
       state = state.copyWith(clearGenerating: true, error: e.message);
     } catch (_) {
+      if (_disposed) return;
       state = state.copyWith(
         clearGenerating: true,
         error: 'Generation failed. Please try again.',
@@ -226,6 +233,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
 
     try {
       final allYearEntries = await _entriesForYear(year);
+      if (_disposed) return;
       final node = await _svc.generateYearly(
         year,
         allYearEntries: allYearEntries,
@@ -238,8 +246,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
         periodDate: DateTime(year),
       ).ignore();
     } on AiServiceException catch (e) {
+      if (_disposed) return;
       state = state.copyWith(clearGenerating: true, error: e.message);
     } catch (_) {
+      if (_disposed) return;
       state = state.copyWith(
         clearGenerating: true,
         error: 'Generation failed. Please try again.',
@@ -269,6 +279,7 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
     try {
       final allEntries =
           await _ref.read(journalRepositoryProvider).getEntries(limit: 1000);
+      if (_disposed) return;
 
       final node = await _svc.generateLifetime(
         allEntries: allEntries,
@@ -276,8 +287,10 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
       );
       _upsertNode(node);
     } on AiServiceException catch (e) {
+      if (_disposed) return;
       state = state.copyWith(clearGenerating: true, error: e.message);
     } catch (_) {
+      if (_disposed) return;
       state = state.copyWith(
         clearGenerating: true,
         error: 'Generation failed. Please try again.',
@@ -336,16 +349,21 @@ class HierarchicalBookNotifier extends StateNotifier<HierarchicalBookState> {
   // ── State helpers ────────────────────────────────────────────────────────
 
   void _upsertNode(StoryNode node) {
+    if (_disposed) return;
     final updated = Map<String, StoryNode>.from(state.nodes)..[node.id] = node;
     state = state.copyWith(nodes: updated, clearGenerating: true);
   }
 
   void _removeNode(String key) {
+    if (_disposed) return;
     final updated = Map<String, StoryNode>.from(state.nodes)..remove(key);
     state = state.copyWith(nodes: updated);
   }
 
-  void clearError() => state = state.copyWith(clearError: true);
+  void clearError() {
+    if (_disposed) return;
+    state = state.copyWith(clearError: true);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -365,11 +383,13 @@ final hierarchicalBookProvider =
 class StoryNotifier extends StateNotifier<StoryState> {
   StoryNotifier(this._ref, {this.period = ReflectionPeriod.weekly})
       : super(const StoryState()) {
+    _ref.onDispose(() => _disposed = true);
     _checkDataAvailability();
   }
 
   final Ref _ref;
   final ReflectionPeriod period;
+  bool _disposed = false;
 
   Future<void> _checkDataAvailability() async {
     try {
@@ -385,6 +405,7 @@ class StoryNotifier extends StateNotifier<StoryState> {
       final entries = await _ref
           .read(journalRepositoryProvider)
           .getEntries(startDate: startDate, endDate: now, limit: 5);
+      if (_disposed) return;
       if (entries.length >= entriesNeeded) {
         state = state.copyWith(status: StoryStatus.ready, entriesNeeded: 0);
       } else {
@@ -434,10 +455,12 @@ class StoryNotifier extends StateNotifier<StoryState> {
 
       // Try server-side summary first (zero AI cost).
       final serverSummary = await _fetchServerSummary(now);
+      if (_disposed) return;
 
       final entries = await _ref
           .read(journalRepositoryProvider)
           .getEntries(startDate: startDate, endDate: now, limit: limit);
+      if (_disposed) return;
 
       if (entries.isEmpty) {
         state = state.copyWith(
@@ -577,12 +600,14 @@ class StoryNotifier extends StateNotifier<StoryState> {
         entries: entries,
       );
 
+      if (_disposed) return;
       state = state.copyWith(
         status: StoryStatus.available,
         story: story,
         progress: 1.0,
       );
     } catch (e) {
+      if (_disposed) return;
       state = state.copyWith(
         status: StoryStatus.error,
         errorMessage: 'Could not generate story. Please try again.',

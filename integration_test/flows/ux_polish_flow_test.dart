@@ -17,7 +17,7 @@ Widget _darkApp() => buildE2EApp(additionalOverrides: [
 
 Widget _emptyApp() => buildE2EApp(additionalOverrides: [
       timelineEntriesProvider.overrideWith((_) => Stream.value([])),
-      todayEntryProvider.overrideWith((_) => Stream.value(null)),
+      todayEntryProvider.overrideWith((_) async => null),
       booksProvider.overrideWith((_) async => []),
       totalEntriesProvider.overrideWith((_) async => 0),
       weeklyMoodsProvider.overrideWith((_) async => []),

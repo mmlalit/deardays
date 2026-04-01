@@ -87,8 +87,12 @@ class AiService implements IAiService {
 
   // In-memory LRU cache for deterministic AI responses (share summaries).
   // LinkedHashMap maintains insertion order → O(1) eviction of oldest entry.
+  // Dual limit: max 100 entries AND max 5MB total to prevent large responses
+  // from consuming excessive memory.
   static const int _maxCacheSize = 100;
+  static const int _maxCacheBytes = 5 * 1024 * 1024; // 5MB
   final LinkedHashMap<String, String> _responseCache = LinkedHashMap();
+  int _cacheBytes = 0;
 
   String? _getCached(String key) {
     final value = _responseCache.remove(key);
@@ -97,11 +101,20 @@ class AiService implements IAiService {
   }
 
   void _putCache(String key, String value) {
-    _responseCache.remove(key); // remove if exists to refresh position
-    if (_responseCache.length >= _maxCacheSize) {
-      _responseCache.remove(_responseCache.keys.first); // O(1) eviction
+    // Remove existing entry's bytes if updating
+    final existing = _responseCache.remove(key);
+    if (existing != null) _cacheBytes -= existing.length * 2; // ~2 bytes/char
+
+    // Evict oldest entries until under both limits
+    while (_responseCache.length >= _maxCacheSize || _cacheBytes + value.length * 2 > _maxCacheBytes) {
+      if (_responseCache.isEmpty) break;
+      final evictedKey = _responseCache.keys.first;
+      final evicted = _responseCache.remove(evictedKey)!;
+      _cacheBytes -= evicted.length * 2;
     }
+
     _responseCache[key] = value;
+    _cacheBytes += value.length * 2;
   }
 
   /// Stable 8-char hex hash of a string — safe across app restarts (unlike hashCode).
@@ -156,7 +169,8 @@ class AiService implements IAiService {
     } on DioException catch (e) {
       throw _handleDioError(e, 'lightPolish');
     } catch (e) {
-      throw AiServiceException('Unexpected error: $e');
+      debugPrint('[lightPolish] Unexpected error: $e');
+      throw AiServiceException('Something went wrong. Please try again.');
     }
   }
 
@@ -189,7 +203,8 @@ class AiService implements IAiService {
     } on DioException catch (e) {
       throw _handleDioError(e, 'polishNarrative');
     } catch (e) {
-      throw AiServiceException('Unexpected error: $e');
+      debugPrint('[polishNarrative] Unexpected error: $e');
+      throw AiServiceException('Something went wrong. Please try again.');
     }
   }
 
@@ -651,7 +666,8 @@ class AiService implements IAiService {
     } on DioException catch (e) {
       throw _handleDioError(e, 'optimizeImage');
     } catch (e) {
-      throw AiServiceException('Unexpected error: $e');
+      debugPrint('[optimizeImage] Unexpected error: $e');
+      throw AiServiceException('Something went wrong. Please try again.');
     }
   }
 

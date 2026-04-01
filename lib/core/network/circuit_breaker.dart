@@ -142,6 +142,22 @@ class CircuitBreaker {
     }
   }
 
+  /// Execute an operation, returning [fallback] if the circuit is open.
+  /// This prevents UI from showing raw errors when the service is down.
+  Future<T> executeWithFallback<T>(
+    Future<T> Function() operation,
+    T fallback,
+  ) async {
+    try {
+      return await execute(operation);
+    } on CircuitOpenException {
+      if (kDebugMode) {
+        debugPrint('[CircuitBreaker:$name] Circuit open — using fallback');
+      }
+      return fallback;
+    }
+  }
+
   /// Reset the circuit breaker to closed state (e.g., on manual retry).
   void reset() {
     _failureCount = 0;

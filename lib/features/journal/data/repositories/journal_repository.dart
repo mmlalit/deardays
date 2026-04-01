@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -61,7 +63,7 @@ class JournalRepository implements IJournalRepository {
   Map<String, dynamic> _decryptRow(Map<String, dynamic> row) {
     final isClientEncrypted = (row['is_client_encrypted'] as bool?) ?? false;
     if (!isClientEncrypted || _e2eKey == null) return row;
-    return {
+    final decrypted = {
       ...row,
       'content': _dec(row['content'] as String?, isClientEncrypted),
       'raw_content': _dec(row['raw_content'] as String?, isClientEncrypted),
@@ -70,6 +72,18 @@ class JournalRepository implements IJournalRepository {
       'location_name':
           _dec(row['location_name'] as String?, isClientEncrypted),
     };
+    // Restore latitude/longitude from encrypted_location JSON blob.
+    final encLoc = _dec(row['encrypted_location'] as String?, isClientEncrypted);
+    if (encLoc != null && encLoc.isNotEmpty) {
+      try {
+        final loc = jsonDecode(encLoc) as Map<String, dynamic>;
+        decrypted['latitude'] = (loc['lat'] as num?)?.toDouble();
+        decrypted['longitude'] = (loc['lng'] as num?)?.toDouble();
+      } catch (e) {
+        debugPrint('[JournalRepository] Failed to decode encrypted_location: $e');
+      }
+    }
+    return decrypted;
   }
 
   /// Prepares the write map: encrypts content columns if E2E is active and
@@ -77,15 +91,21 @@ class JournalRepository implements IJournalRepository {
   Map<String, dynamic> _prepareWriteMap(Map<String, dynamic> map) {
     final key = _e2eKey;
     if (key == null) return map;
+    final lat = map['latitude'] as double?;
+    final lng = map['longitude'] as double?;
     return {
       ...map,
       'content': _enc(map['content'] as String?),
       'raw_content': _enc(map['raw_content'] as String?),
       'polished_content': _enc(map['polished_content'] as String?),
       'location_name': _enc(map['location_name'] as String?),
-      // TODO(M-24): Encrypt latitude/longitude — requires schema change
-      // (doubles cannot be encrypted in place; need text columns or a single
-      // encrypted JSON blob for location data).
+      // Encrypt lat/lng as a JSON blob; null out plaintext columns so the
+      // server never sees the raw coordinates.
+      if (lat != null || lng != null) ...{
+        'encrypted_location': _enc(jsonEncode({'lat': lat, 'lng': lng})),
+        'latitude': null,
+        'longitude': null,
+      },
       'is_client_encrypted': true,
     };
   }
