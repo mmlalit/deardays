@@ -13,7 +13,7 @@ void main() {
 
   Widget buildApp() {
     return buildTestApp(
-      ReviewSaveScreen(data: reviewData),
+      const ReviewSaveScreen(data: reviewData),
       overrides: authenticatedOverrides(),
     );
   }

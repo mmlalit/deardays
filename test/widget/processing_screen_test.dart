@@ -21,7 +21,7 @@ void main() {
     testWidgets('can be constructed', (tester) async {
       await tester.runAsync(() async {
         await tester.pumpWidget(
-          buildTestApp(ProcessingScreen(data: reviewData)),
+          buildTestApp(const ProcessingScreen(data: reviewData)),
         );
       });
       expect(find.byType(ProcessingScreen), findsOneWidget);

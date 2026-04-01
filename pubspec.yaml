@@ -21,7 +21,7 @@ dependencies:
   go_router: ^14.8.1
 
   # Backend & Auth
-  supabase_flutter: ^2.8.4
+  supabase_flutter: ">=2.8.4 <2.9.0"  # pin to patch updates — minor bumps may break RLS
   google_sign_in: ^6.2.1
 
   # Local Storage (Encrypted)

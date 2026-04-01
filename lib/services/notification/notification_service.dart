@@ -474,7 +474,7 @@ class NotificationService {
   }) async {
     _ensureInitialized();
 
-    final title = 'Your day\'s story is ready 📖';
+    const title = 'Your day\'s story is ready 📖';
     final body = highlights.isNotEmpty
         ? highlights.take(2).join(' · ')
         : 'Tap to read your day as a narrative.';
@@ -503,13 +503,13 @@ class NotificationService {
       _weeklyStoryId,
       'Your week in review is ready ✨',
       'See your weekly story with highlights and mood.',
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId, _channelName,
           channelDescription: _channelDesc,
           importance: Importance.high, priority: Priority.high,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true, presentBadge: true, presentSound: true,
         ),
       ),
@@ -524,13 +524,13 @@ class NotificationService {
       _monthlyStoryId,
       'Your $monthName story is ready 📚',
       'Read your month as a narrative.',
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId, _channelName,
           channelDescription: _channelDesc,
           importance: Importance.high, priority: Priority.high,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true, presentBadge: true, presentSound: true,
         ),
       ),
@@ -545,13 +545,13 @@ class NotificationService {
       _yearlyStoryId,
       'Your $year story is ready 🎉',
       'Read your year in review.',
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId, _channelName,
           channelDescription: _channelDesc,
           importance: Importance.high, priority: Priority.high,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true, presentBadge: true, presentSound: true,
         ),
       ),
@@ -575,14 +575,14 @@ class NotificationService {
       'Still time to capture today 💭',
       'Your day has a story worth saving.',
       tz.TZDateTime.from(scheduled, tz.local),
-      NotificationDetails(
+      const NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId, _channelName,
           channelDescription: _channelDesc,
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true, presentSound: true,
         ),
       ),

@@ -137,7 +137,7 @@ void main() {
     });
 
     test('custom values', () {
-      final report = ProcessingReport(
+      const report = ProcessingReport(
         succeeded: 5,
         failed: 2,
         results: {'e1': const ServerAnalysisResult(polishedText: 'polished')},

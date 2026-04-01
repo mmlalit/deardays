@@ -246,7 +246,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         if (_elapsedSeconds >= ContentLimits.maxRecordingMinutes * 60) {
           _finishRecording();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('Recording limit reached (${ContentLimits.maxRecordingMinutes} minutes).'),
               behavior: SnackBarBehavior.floating,
             ));

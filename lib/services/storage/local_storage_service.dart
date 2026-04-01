@@ -59,7 +59,13 @@ class LocalStorageService {
   ///
   /// The Hive encryption key is generated once and persisted in
   /// `flutter_secure_storage` so it survives app restarts but is protected by
-  /// the OS keychain.
+  /// the OS keychain (iOS Keychain / Android Keystore).
+  ///
+  /// Security note: On jailbroken/rooted devices, the OS keychain may be
+  /// compromised, which would expose the Hive encryption key. This is a
+  /// defense-in-depth layer only — the primary protection for sensitive
+  /// content is E2E encryption (AES-256-GCM) with a user-derived key that
+  /// is never persisted.
   Future<void> init() async {
     if (_initialized) return;
 
@@ -142,18 +148,24 @@ class LocalStorageService {
   }
 
   /// Returns all locally cached journal entries.
+  /// Corrupt entries are logged and skipped (not deleted — allows manual recovery).
   Future<List<JournalEntry>> getCachedEntries() async {
     _ensureInitialized();
     final entries = <JournalEntry>[];
+    var corruptCount = 0;
     for (final json in _entriesBox!.values) {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
         entries.add(JournalEntry.fromJson(map));
       } catch (e) {
+        corruptCount++;
         if (kDebugMode) {
           debugPrint('[LocalStorageService] Skipping corrupt entry: $e');
         }
       }
+    }
+    if (corruptCount > 0) {
+      debugPrint('[LocalStorageService] $corruptCount corrupt entries skipped');
     }
     return entries;
   }
