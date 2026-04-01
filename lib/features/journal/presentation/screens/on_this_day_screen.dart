@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/empty_state.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/features/journal/data/models/journal_entry.dart';
 import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
@@ -359,41 +360,10 @@ class _OnThisDayScreenState extends ConsumerState<OnThisDayScreen> {
   // ────────────────────────────────────────────
 
   Widget _buildEmptyState() {
-    final colors = AppColors.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.auto_awesome,
-              size: 56,
-              color: colors.accent.withAlpha(153),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'No memories on this day yet',
-              style: GoogleFonts.manrope(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Keep writing \u2014 future you will love\nlooking back.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                                height: 1.5,
-                color: colors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const EmptyState(
+      icon: Icons.auto_awesome,
+      title: 'No memories on this day yet',
+      subtitle: 'Keep writing \u2014 future you will love looking back.',
     );
   }
 

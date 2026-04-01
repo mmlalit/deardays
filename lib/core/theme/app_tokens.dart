@@ -65,6 +65,28 @@ class AppShadows {
       ];
 }
 
+/// Responsive layout breakpoints for adaptive layouts.
+///
+/// Use with `MediaQuery.sizeOf(context).width` or `LayoutBuilder`:
+/// ```dart
+/// final width = MediaQuery.sizeOf(context).width;
+/// final columns = width >= AppBreakpoints.desktop ? 3
+///     : width >= AppBreakpoints.tablet ? 2
+///     : 1;
+/// ```
+class AppBreakpoints {
+  AppBreakpoints._();
+
+  /// Phone: < 600
+  static const double mobile = 600;
+
+  /// Tablet: 600–899
+  static const double tablet = 900;
+
+  /// Desktop: >= 900
+  static const double desktop = 1200;
+}
+
 /// Centralized typography helpers built on GoogleFonts.manrope.
 ///
 /// Use these for inline styles when the Material textTheme doesn't fit.

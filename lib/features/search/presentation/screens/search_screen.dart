@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:deardays/core/theme/app_colors.dart';
+import 'package:deardays/core/widgets/empty_state.dart';
 import 'package:deardays/core/providers/app_providers.dart';
 import 'package:deardays/core/routing/memory_detail_args.dart';
 import 'package:deardays/core/providers/locale_provider.dart';
@@ -713,31 +714,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildEmptyResults(AppPalette colors) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.search_off_rounded,
-              size: 48, color: colors.textMuted.withAlpha(80)),
-          const SizedBox(height: 16),
-          Text(
-            'No memories found',
-            style: GoogleFonts.manrope(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: colors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try a different keyword or phrase',
-            style: GoogleFonts.manrope(
-              fontSize: 13,
-              color: colors.textMuted,
-            ),
-          ),
-        ],
-      ),
+    return const EmptyState(
+      icon: Icons.search_off_rounded,
+      title: 'No memories found',
+      subtitle: 'Try a different keyword or phrase',
+      iconSize: 48,
     );
   }
 

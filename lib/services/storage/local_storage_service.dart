@@ -69,22 +69,25 @@ class LocalStorageService {
     _cipher = HiveAesCipher(encryptionKey);
     final cipher = _cipher!;
 
-    _entriesBox = await Hive.openBox<String>(
-      _entriesBoxName,
-      encryptionCipher: cipher,
-    );
-    _draftsBox = await Hive.openBox<String>(
-      _draftsBoxName,
-      encryptionCipher: cipher,
-    );
-    _syncMetaBox = await Hive.openBox<String>(
-      _syncMetaBoxName,
-      encryptionCipher: cipher,
-    );
+    _entriesBox = await _openBoxSafe<String>(_entriesBoxName, cipher);
+    _draftsBox = await _openBoxSafe<String>(_draftsBoxName, cipher);
+    _syncMetaBox = await _openBoxSafe<String>(_syncMetaBoxName, cipher);
 
     _initialized = true;
     if (kDebugMode) {
       debugPrint('[LocalStorageService] Initialized with encrypted boxes.');
+    }
+  }
+
+  /// Opens a Hive box, recovering from corruption by deleting and recreating.
+  /// On mobile, crashes during writes or full storage can corrupt a box file.
+  Future<Box<T>> _openBoxSafe<T>(String name, HiveAesCipher cipher) async {
+    try {
+      return await Hive.openBox<T>(name, encryptionCipher: cipher);
+    } catch (e) {
+      debugPrint('[LocalStorageService] Box "$name" corrupted, recreating: $e');
+      await Hive.deleteBoxFromDisk(name);
+      return await Hive.openBox<T>(name, encryptionCipher: cipher);
     }
   }
 
