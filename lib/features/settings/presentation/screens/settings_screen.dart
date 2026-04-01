@@ -5,8 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// TODO(post-launch): restore go_router import when Backup & Restore is re-enabled
-// import 'package:go_router/go_router.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:local_auth/local_auth.dart';
@@ -182,6 +181,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  /// Clears all user-scoped Hive boxes. Called on both sign-out and
+  /// account deletion to prevent stale data from leaking between sessions.
+  Future<void> _clearLocalUserData() async {
+    try {
+      final boxNames = [
+        'checkin_conversations', 'story_nodes', 'life_book_polish_cache',
+        'ai_queue', 'sync_queue', 'offline_entries', 'reflection_cache',
+        'draft_entries', 'settings', 'entries', 'drafts', 'sync_meta',
+      ];
+      for (final name in boxNames) {
+        try {
+          if (Hive.isBoxOpen(name)) {
+            await Hive.box(name).clear();
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
   Future<void> _signOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -209,21 +227,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     if (confirmed != true || !mounted) return;
 
-    // Clear all user-scoped Hive data before signing out
-    try {
-      final boxNames = [
-        'checkin_conversations', 'story_nodes', 'life_book_polish_cache',
-        'ai_queue', 'sync_queue', 'offline_entries', 'reflection_cache',
-        'draft_entries',
-      ];
-      for (final name in boxNames) {
-        try {
-          if (Hive.isBoxOpen(name)) {
-            await Hive.box(name).clear();
-          }
-        } catch (_) {}
-      }
-    } catch (_) {}
+    await _clearLocalUserData();
 
     try {
       await AuthService().signOut();
@@ -814,6 +818,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         return;
       }
 
+      // Clear all local user data before signing out
+      await _clearLocalUserData();
+
       // Sign out only after confirmed deletion
       await Supabase.instance.client.auth.signOut();
 
@@ -1003,7 +1010,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   // DATA
                   _buildSectionLabel('Data'),
                   _buildCardGroup(cardColor, [
-                    // TODO(post-launch): re-enable Backup & Restore row
+                    _buildCardRow(
+                      icon: Icons.cloud_upload_outlined,
+                      label: 'Backup & Restore',
+                      textColor: textColor,
+                      trailing: Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.of(context).textMuted),
+                      onTap: () => context.push('/backup-restore'),
+                    ),
                     _buildCardRow(
                       icon: Icons.download_outlined,
                       label: 'Export All Data',

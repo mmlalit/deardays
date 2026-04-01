@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:deardays/core/domain/repositories/journal_repository_interface.dart';
 import 'package:deardays/services/storage/local_storage_service.dart';
@@ -19,6 +20,10 @@ class BackupService {
 
   factory BackupService() => _instance;
 
+  static const String _boxName = 'backup_info';
+  static const String _lastBackupKey = 'last_backup_time';
+  static const String _backedUpCountKey = 'backed_up_count';
+
   bool _initialized = false;
   BackupStatus _status = BackupStatus.idle;
   BackupStatus get status => _status;
@@ -29,11 +34,37 @@ class BackupService {
   int _backedUpCount = 0;
   int get backedUpCount => _backedUpCount;
 
-  /// Initializes the backup service.
+  /// Initializes the backup service and loads persisted metadata.
   Future<void> init() async {
     if (_initialized) return;
+    try {
+      final box = await Hive.openBox<String>(_boxName);
+      final savedTime = box.get(_lastBackupKey);
+      if (savedTime != null) {
+        _lastBackupTime = DateTime.tryParse(savedTime);
+      }
+      final savedCount = box.get(_backedUpCountKey);
+      if (savedCount != null) {
+        _backedUpCount = int.tryParse(savedCount) ?? 0;
+      }
+    } catch (e) {
+      debugPrint('[BackupService] Failed to load backup metadata: $e');
+    }
     _initialized = true;
-    debugPrint('[BackupService] Initialized.');
+    debugPrint('[BackupService] Initialized. Last backup: $_lastBackupTime, count: $_backedUpCount');
+  }
+
+  /// Persists backup metadata to Hive so it survives app restarts.
+  Future<void> _persistMetadata() async {
+    try {
+      final box = await Hive.openBox<String>(_boxName);
+      if (_lastBackupTime != null) {
+        await box.put(_lastBackupKey, _lastBackupTime!.toIso8601String());
+      }
+      await box.put(_backedUpCountKey, _backedUpCount.toString());
+    } catch (e) {
+      debugPrint('[BackupService] Failed to persist backup metadata: $e');
+    }
   }
 
   /// Performs a full cloud backup of all journal entries.
@@ -57,6 +88,7 @@ class BackupService {
       if (cachedEntries.isEmpty) {
         _status = BackupStatus.completed;
         _lastBackupTime = DateTime.now();
+        await _persistMetadata();
         debugPrint('[BackupService] No entries to backup.');
         return 0;
       }
@@ -104,6 +136,7 @@ class BackupService {
       _backedUpCount = synced;
       _status = BackupStatus.completed;
       _lastBackupTime = DateTime.now();
+      await _persistMetadata();
       debugPrint('[BackupService] Backup completed: $synced entries synced.');
       return synced;
     } catch (e) {
